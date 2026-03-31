@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #EEF2FF;
+  --surface: #FFFFFF;
+  --primary: #3B5BDB;
+  --primary-light: #4C6EF5;
+  --primary-pale: #E0E7FF;
+  --accent: #BAC8FF;
+  --text: #1E2B4F;
+  --text-muted: #6B7A99;
+  --border: #D4DCF7;
+  --success: #0CA678;
+  --warning: #F08C00;
+  --danger: #E03131;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+/* Rapport til bank: skjul meny og verktøylinje ved utskrift */
+@media print {
+  body[data-print-report="true"] aside {
+    display: none !important;
+  }
+  body[data-print-report="true"] .print-hidden {
+    display: none !important;
+  }
+  body[data-print-report="true"] {
+    background: #fff !important;
+  }
+  body[data-print-report="true"] main {
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  body[data-print-report="true"] .bank-report-document {
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
