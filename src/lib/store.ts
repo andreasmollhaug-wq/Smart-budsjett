@@ -5,6 +5,22 @@ import { generateId } from './utils'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
 import type { ParentCategory } from './budgetCategoryCatalog'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
+import {
+  cloneBudgetCategories,
+  sumTxForCategoryInYear,
+  sumTxForCategoryInYearAllProfiles,
+} from './budgetYearHelpers'
+import { actualsPerMonthForCategory, type BudgetYearCopySource } from './budgetActualsToBudgeted'
+import {
+  createDefaultFormuebyggerPersistedState,
+  normalizeFormuebyggerPersistedState,
+  type FormuebyggerPersistedState,
+} from '@/lib/formuebyggerPro/persistedState'
+
+export type { BudgetYearCopySource } from './budgetActualsToBudgeted'
+export type SwitchActiveBudgetYearResult =
+  | { ok: true }
+  | { ok: false; reason: 'not_in_archive' | 'missing_profile_snapshot' }
 
 export type { LabelLists }
 export type { ParentCategory } from './budgetCategoryCatalog'
@@ -39,6 +55,8 @@ export interface Transaction {
   amount: number
   category: string
   type: 'income' | 'expense'
+  /** Eierprofil (påkrevd for nye rader; migreres for eldre data). */
+  profileId?: string
 }
 
 export interface BudgetCategory {
@@ -52,6 +70,13 @@ export interface BudgetCategory {
   frequency: 'monthly' | 'yearly' | 'quarterly' | 'weekly' | 'once'
 }
 
+export interface SavingsDeposit {
+  id: string
+  date: string
+  amount: number
+  note?: string
+}
+
 export interface SavingsGoal {
   id: string
   name: string
@@ -59,6 +84,14 @@ export interface SavingsGoal {
   currentAmount: number
   targetDate: string
   color: string
+  /** Kobling til budsjettkategori (sparing). */
+  linkedBudgetCategoryId?: string | null
+  /** Ved koblet mål: saldo før transaksjonssum (unngår hopp ved kobling). */
+  baselineAmount?: number
+  /** Manuell historikk når målet ikke er koblet til transaksjoner. */
+  deposits?: SavingsDeposit[]
+  /** Satt kun i husholdningsaggregat – kildeprofil for målet. */
+  sourceProfileId?: string
 }
 
 export interface Debt {
@@ -118,6 +151,16 @@ export interface PersonData {
   debtPayoffStrategy?: DebtPayoffStrategy
 }
 
+export type OnboardingStatus = 'pending' | 'completed' | 'skipped'
+
+export interface OnboardingState {
+  status: OnboardingStatus
+  finishedAt?: string
+}
+
+/** Første inntektslinje i demo-budsjett — brukes i onboarding. */
+export const ONBOARDING_MAIN_INCOME_CATEGORY_ID = 'demo-innt-1'
+
 interface AppState {
   subscriptionPlan: SubscriptionPlan
   profiles: PersonProfile[]
@@ -128,6 +171,12 @@ interface AppState {
 
   notifications: AppNotification[]
   deliveredAnnouncementIds: string[]
+  /** Førstegangs- / gjenåpnet veiledning; persisteres. */
+  onboarding: OnboardingState
+
+  /** Formuebyggeren PRO — innstillinger og ekstra innskudd; persisteres. */
+  formuebyggerPro: FormuebyggerPersistedState
+  setFormuebyggerPro: (patch: Partial<{ input: Partial<FormuebyggerPersistedState['input']>; extraByMonth: FormuebyggerPersistedState['extraByMonth'] }>) => void
 
   /** Erstatter tidligere Zustand-persist + brukes ved innlasting fra Supabase. */
   hydrateFromPayload: (payload: unknown) => void
@@ -176,7 +225,27 @@ interface AppState {
     investmentId: string,
     point: { id?: string; date: string; value: number },
   ) => void
+
+  /** Felles kalenderår for alle profilers budsjett (12 kolonner). */
+  budgetYear: number
+  /** Arkiverte budsjett: år → profilId → kategorier */
+  archivedBudgetsByYear: ArchivedBudgetsByYear
+  startNewBudgetYear: (opts?: {
+    copyPlan?: boolean
+    income?: BudgetYearCopySource
+    expenses?: BudgetYearCopySource
+  }) => void
+  switchActiveBudgetYear: (targetYear: number) => SwitchActiveBudgetYearResult
+
+  /** Kun når `archivedBudgetsByYear` er tom (ny bruker / ingen arkiv). */
+  setBudgetYear: (year: number) => void
+  completeOnboarding: () => void
+  skipOnboarding: () => void
+  openOnboardingAgain: () => void
 }
+
+/** Ytre nøkkel årstall som string, indre er profilId. */
+export type ArchivedBudgetsByYear = Record<string, Record<string, BudgetCategory[]>>
 
 /** Felter som lagres i Supabase `user_app_state.state` (jsonb). */
 export type PersistedAppSlice = Pick<
@@ -188,20 +257,30 @@ export type PersistedAppSlice = Pick<
   | 'people'
   | 'notifications'
   | 'deliveredAnnouncementIds'
+  | 'budgetYear'
+  | 'archivedBudgetsByYear'
+  | 'onboarding'
+  | 'formuebyggerPro'
 >
 
 /** Tidligere nøkkel for Zustand persist (brukes til engangsmigrering til Supabase). */
 export const LEGACY_ZUSTAND_STORAGE_KEY = 'smart-budsjett-storage'
 
-export function createDefaultPersistedSlice(): PersistedAppSlice {
+export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }): PersistedAppSlice {
+  const seedDemo = options?.seedDemoData === true
+  const person = seedDemo ? createInitialPersonData() : createEmptyPersonData()
   return {
     subscriptionPlan: 'solo',
     profiles: [{ id: DEFAULT_PROFILE_ID, name: 'Meg' }],
     activeProfileId: DEFAULT_PROFILE_ID,
     financeScope: 'profile',
-    people: { [DEFAULT_PROFILE_ID]: createInitialPersonData() },
+    people: { [DEFAULT_PROFILE_ID]: person },
     notifications: [],
     deliveredAnnouncementIds: [],
+    budgetYear: new Date().getFullYear(),
+    archivedBudgetsByYear: {},
+    onboarding: { status: 'pending' },
+    formuebyggerPro: createDefaultFormuebyggerPersistedState(),
   }
 }
 
@@ -214,10 +293,53 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     people: state.people,
     notifications: state.notifications,
     deliveredAnnouncementIds: state.deliveredAnnouncementIds,
+    budgetYear: state.budgetYear,
+    archivedBudgetsByYear: state.archivedBudgetsByYear,
+    onboarding: state.onboarding,
+    formuebyggerPro: state.formuebyggerPro,
   }
 }
 
-function mergePersistedIntoFullState(persisted: unknown, current: AppState): AppState {
+function migratePeopleTransactionsAndSync(people: Record<string, PersonData>): Record<string, PersonData> {
+  const next: Record<string, PersonData> = { ...people }
+  for (const pid of Object.keys(next)) {
+    const person = next[pid]
+    if (!person) continue
+    const transactions = (person.transactions ?? []).map((t) =>
+      t.profileId ? t : { ...t, profileId: pid },
+    )
+    next[pid] = syncLinkedSavingsGoalsCurrent({ ...person, transactions }, pid)
+  }
+  return next
+}
+
+function ensureTwelveBudgeted(budgeted: number[]): number[] {
+  return Array.from({ length: 12 }, (_, i) => budgeted[i] ?? 0)
+}
+
+function recalcPersonBudgetSpentForYear(person: PersonData, profileId: string, year: number): PersonData {
+  const budgetCategories = person.budgetCategories.map((c) => ({
+    ...c,
+    spent: sumTxForCategoryInYear(person.transactions, c.name, c.type, year, profileId),
+  }))
+  return syncLinkedSavingsGoalsCurrent({ ...person, budgetCategories }, profileId)
+}
+
+function normalizeOnboardingFromMerge(persisted: Partial<AppState> | undefined): OnboardingState {
+  const o = persisted?.onboarding
+  if (!o || typeof o !== 'object') return { status: 'completed' }
+  const s = (o as OnboardingState).status
+  if (s === 'pending' || s === 'completed' || s === 'skipped') {
+    const finishedAt = (o as OnboardingState).finishedAt
+    return {
+      status: s,
+      ...(typeof finishedAt === 'string' ? { finishedAt } : {}),
+    }
+  }
+  return { status: 'completed' }
+}
+
+export function mergePersistedIntoFullState(persisted: unknown, current: AppState): AppState {
   const p = persisted as (Partial<AppState> & LegacyPersistedState) | undefined
   if (!p) return current
 
@@ -230,16 +352,32 @@ function mergePersistedIntoFullState(persisted: unknown, current: AppState): App
 
   if (!hasNewShape) {
     const m = migrateFromLegacy(p)
+    const year = new Date().getFullYear()
+    const peopleSynced = migratePeopleTransactionsAndSync(m.people)
+    const peopleRec: Record<string, PersonData> = {}
+    for (const pid of Object.keys(peopleSynced)) {
+      peopleRec[pid] = recalcPersonBudgetSpentForYear(peopleSynced[pid]!, pid, year)
+    }
     return {
       ...current,
       subscriptionPlan: m.subscriptionPlan,
       profiles: m.profiles,
       activeProfileId: m.activeProfileId,
-      people: m.people,
+      people: peopleRec,
+      budgetYear: year,
+      archivedBudgetsByYear: {},
+      onboarding: { status: 'completed' },
     }
   }
 
   const base = { ...current, ...p } as AppState
+
+  if (typeof base.budgetYear !== 'number' || !Number.isFinite(base.budgetYear)) {
+    base.budgetYear = new Date().getFullYear()
+  }
+  if (!base.archivedBudgetsByYear || typeof base.archivedBudgetsByYear !== 'object') {
+    base.archivedBudgetsByYear = {}
+  }
 
   for (const pr of base.profiles) {
     if (!base.people[pr.id]) {
@@ -248,6 +386,14 @@ function mergePersistedIntoFullState(persisted: unknown, current: AppState): App
     const person = base.people[pr.id]
     if (!person.customBudgetLabels) person.customBudgetLabels = emptyLabelLists().customBudgetLabels
     if (!person.hiddenBudgetLabels) person.hiddenBudgetLabels = emptyLabelLists().hiddenBudgetLabels
+    person.transactions = (person.transactions ?? []).map((t) =>
+      t.profileId ? t : { ...t, profileId: pr.id },
+    )
+    base.people[pr.id] = recalcPersonBudgetSpentForYear(
+      syncLinkedSavingsGoalsCurrent(person, pr.id),
+      pr.id,
+      base.budgetYear,
+    )
   }
 
   if (!base.profiles.some((x) => x.id === base.activeProfileId)) {
@@ -256,6 +402,11 @@ function mergePersistedIntoFullState(persisted: unknown, current: AppState): App
 
   if (!Array.isArray(base.notifications)) base.notifications = []
   if (!Array.isArray(base.deliveredAnnouncementIds)) base.deliveredAnnouncementIds = []
+
+  base.onboarding = normalizeOnboardingFromMerge(p)
+
+  const rawFp = (p as Partial<AppState>).formuebyggerPro
+  base.formuebyggerPro = normalizeFormuebyggerPersistedState(rawFp)
 
   return base
 }
@@ -463,10 +614,43 @@ function sumMonthlyArrays(a: number[], b: number[]): number[] {
   return Array.from({ length: 12 }, (_, i) => (a[i] ?? 0) + (b[i] ?? 0))
 }
 
+/** Slår sammen budsjettkategorier fra arkiverte snapshots (samme nøkkel som husholdningsaggregat). */
+export function mergeBudgetCategoriesFromSnapshots(
+  snapshotsByProfile: Record<string, BudgetCategory[]>,
+  profileIds: string[],
+): BudgetCategory[] {
+  const budgetKeyToCat = new Map<string, BudgetCategory>()
+
+  for (const pid of profileIds) {
+    const list = snapshotsByProfile[pid]
+    if (!list) continue
+    for (const c of list) {
+      const key = `${c.parentCategory}::${c.name}`
+      const existing = budgetKeyToCat.get(key)
+      if (!existing) {
+        budgetKeyToCat.set(key, {
+          ...c,
+          id: `hh-${key.replace(/[^a-zA-Z0-9æøåÆØÅ_-]/g, '-')}`,
+          spent: c.spent,
+          budgeted: [...c.budgeted],
+        })
+      } else {
+        budgetKeyToCat.set(key, {
+          ...existing,
+          spent: existing.spent + c.spent,
+          budgeted: sumMonthlyArrays(existing.budgeted, c.budgeted),
+        })
+      }
+    }
+  }
+  return [...budgetKeyToCat.values()]
+}
+
 /** Slår sammen alle profilers data til én visningsflate (husholdning). */
 export function aggregateHouseholdData(
   people: Record<string, PersonData>,
   profileIds: string[],
+  budgetYear: number,
 ): PersonData {
   const labels = emptyLabelLists()
   const txs: Transaction[] = []
@@ -484,7 +668,12 @@ export function aggregateHouseholdData(
     const p = people[pid]
     if (!p) continue
 
-    txs.push(...(p.transactions ?? []))
+    txs.push(
+      ...(p.transactions ?? []).map((t) => ({
+        ...t,
+        profileId: t.profileId ?? pid,
+      })),
+    )
 
     for (const c of p.budgetCategories ?? []) {
       const key = `${c.parentCategory}::${c.name}`
@@ -530,7 +719,12 @@ export function aggregateHouseholdData(
     const p = people[pid]
     if (!p) continue
     for (const g of p.savingsGoals ?? []) {
-      savingsGoals.push({ ...g, id: `hh-${pid}-${g.id}`, name: g.name })
+      savingsGoals.push({
+        ...g,
+        id: `hh-${pid}-${g.id}`,
+        name: g.name,
+        sourceProfileId: pid,
+      })
     }
     for (const d of p.debts ?? []) {
       debts.push({ ...d, id: `hh-${pid}-${d.id}`, name: d.name })
@@ -544,9 +738,14 @@ export function aggregateHouseholdData(
     }
   }
 
+  const mergedCats = [...budgetKeyToCat.values()].map((cat) => ({
+    ...cat,
+    spent: sumTxForCategoryInYearAllProfiles(txs, cat.name, cat.type, budgetYear),
+  }))
+
   return {
     transactions: txs,
-    budgetCategories: [...budgetKeyToCat.values()],
+    budgetCategories: mergedCats,
     customBudgetLabels: labels.customBudgetLabels,
     hiddenBudgetLabels: labels.hiddenBudgetLabels,
     savingsGoals,
@@ -554,6 +753,28 @@ export function aggregateHouseholdData(
     investments,
     snowballExtraMonthly,
   }
+}
+
+/** Oppdaterer `currentAmount` for koblede sparemål ut fra baseline + transaksjonssum. */
+export function syncLinkedSavingsGoalsCurrent(person: PersonData, profileId: string): PersonData {
+  const savingsGoals = person.savingsGoals.map((g) => {
+    if (!g.linkedBudgetCategoryId) return g
+    const cat = person.budgetCategories.find((c) => c.id === g.linkedBudgetCategoryId)
+    if (!cat || cat.parentCategory !== 'sparing') {
+      return { ...g, linkedBudgetCategoryId: undefined, baselineAmount: undefined }
+    }
+    const sum = person.transactions
+      .filter(
+        (t) =>
+          t.type === 'expense' &&
+          t.category === cat.name &&
+          (t.profileId ?? profileId) === profileId,
+      )
+      .reduce((s, t) => s + t.amount, 0)
+    const baseline = g.baselineAmount ?? 0
+    return { ...g, currentAmount: baseline + sum }
+  })
+  return { ...person, savingsGoals }
 }
 
 /** Gammelt persist-format (flate felter på rot). */
@@ -576,14 +797,15 @@ function migrateFromLegacy(p: LegacyPersistedState): Pick<AppState, 'subscriptio
   }
 
   const labels = emptyLabelLists()
+  const rawTx = Array.isArray(p.transactions) ? p.transactions : []
   const person: PersonData = {
-    transactions: Array.isArray(p.transactions) ? p.transactions : [],
-    budgetCategories: Array.isArray(p.budgetCategories) && p.budgetCategories.length > 0 ? p.budgetCategories : defaultCategories,
+    transactions: rawTx.map((t: Transaction) => (t.profileId ? t : { ...t, profileId: DEFAULT_PROFILE_ID })),
+    budgetCategories: Array.isArray(p.budgetCategories) && p.budgetCategories.length > 0 ? p.budgetCategories : [],
     customBudgetLabels: p.customBudgetLabels ?? labels.customBudgetLabels,
     hiddenBudgetLabels: p.hiddenBudgetLabels ?? labels.hiddenBudgetLabels,
-    savingsGoals: Array.isArray(p.savingsGoals) && p.savingsGoals.length > 0 ? p.savingsGoals : defaultGoals,
-    debts: Array.isArray(p.debts) && p.debts.length > 0 ? p.debts : defaultDebts,
-    investments: Array.isArray(p.investments) && p.investments.length > 0 ? p.investments : defaultInvestments,
+    savingsGoals: Array.isArray(p.savingsGoals) && p.savingsGoals.length > 0 ? p.savingsGoals : [],
+    debts: Array.isArray(p.debts) && p.debts.length > 0 ? p.debts : [],
+    investments: Array.isArray(p.investments) && p.investments.length > 0 ? p.investments : [],
     snowballExtraMonthly: typeof p.snowballExtraMonthly === 'number' ? p.snowballExtraMonthly : 0,
     debtPayoffStrategy: p.debtPayoffStrategy === 'avalanche' ? 'avalanche' : 'snowball',
   }
@@ -597,7 +819,7 @@ function migrateFromLegacy(p: LegacyPersistedState): Pick<AppState, 'subscriptio
 }
 
 export const useStore = create<AppState>()((set, get) => {
-      const initialPeople = { [DEFAULT_PROFILE_ID]: createInitialPersonData() }
+      const initialPeople = { [DEFAULT_PROFILE_ID]: createEmptyPersonData() }
 
       const patchPerson = (profileId: string, updater: (d: PersonData) => PersonData) => {
         set((s) => {
@@ -620,6 +842,21 @@ export const useStore = create<AppState>()((set, get) => {
         people: initialPeople,
         notifications: [] as AppNotification[],
         deliveredAnnouncementIds: [] as string[],
+        budgetYear: new Date().getFullYear(),
+        archivedBudgetsByYear: {} as ArchivedBudgetsByYear,
+        onboarding: { status: 'pending' } as OnboardingState,
+        formuebyggerPro: createDefaultFormuebyggerPersistedState(),
+
+        setFormuebyggerPro: (patch) =>
+          set((s) => {
+            const prev = s.formuebyggerPro
+            const nextInput = patch.input ? { ...prev.input, ...patch.input } : prev.input
+            const nextExtra =
+              patch.extraByMonth !== undefined
+                ? { ...prev.extraByMonth, ...patch.extraByMonth }
+                : prev.extraByMonth
+            return { formuebyggerPro: { input: nextInput, extraByMonth: nextExtra } }
+          }),
 
         hydrateFromPayload: (payload: unknown) => {
           set((current) => mergePersistedIntoFullState(payload, current))
@@ -721,26 +958,37 @@ export const useStore = create<AppState>()((set, get) => {
         },
 
         addTransaction: (t) =>
-          patchActive((d) => ({ ...d, transactions: [t, ...d.transactions] })),
+          set((s) => {
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const tx: Transaction = { ...t, profileId: t.profileId ?? pid }
+            const next = syncLinkedSavingsGoalsCurrent(
+              { ...person, transactions: [tx, ...person.transactions] },
+              pid,
+            )
+            return {
+              people: {
+                ...s.people,
+                [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
+              },
+            }
+          }),
 
         removeTransaction: (id) =>
           set((s) => {
             for (const pid of s.profiles.map((p) => p.id)) {
               const person = s.people[pid]
               if (!person?.transactions.some((t) => t.id === id)) continue
-              const tx = person.transactions.find((t) => t.id === id)!
               const nextTx = person.transactions.filter((t) => t.id !== id)
-              const categoryName = tx.category
-              const spent = nextTx
-                .filter((t) => t.category === categoryName && t.type === 'expense')
-                .reduce((sum, t) => sum + t.amount, 0)
-              const budgetCategories = person.budgetCategories.map((c) =>
-                c.name === categoryName ? { ...c, spent } : c,
+              const merged = syncLinkedSavingsGoalsCurrent(
+                { ...person, transactions: nextTx },
+                pid,
               )
               return {
                 people: {
                   ...s.people,
-                  [pid]: { ...person, transactions: nextTx, budgetCategories },
+                  [pid]: recalcPersonBudgetSpentForYear(merged, pid, s.budgetYear),
                 },
               }
             }
@@ -749,15 +997,161 @@ export const useStore = create<AppState>()((set, get) => {
 
         recalcBudgetSpent: (categoryName) =>
           patchActive((d) => {
-            const spent = d.transactions
-              .filter((t) => t.category === categoryName && t.type === 'expense')
-              .reduce((sum, t) => sum + t.amount, 0)
-            return {
+            const pid = get().activeProfileId
+            const y = get().budgetYear
+            const cat = d.budgetCategories.find((c) => c.name === categoryName)
+            if (!cat) return d
+            const spent = sumTxForCategoryInYear(d.transactions, categoryName, cat.type, y, pid)
+            const next: PersonData = {
               ...d,
               budgetCategories: d.budgetCategories.map((c) =>
                 c.name === categoryName ? { ...c, spent } : c,
               ),
             }
+            return syncLinkedSavingsGoalsCurrent(next, pid)
+          }),
+
+        startNewBudgetYear: (opts) =>
+          set((s) => {
+            const y = s.budgetYear
+            const byProfile: Record<string, BudgetCategory[]> = {}
+            for (const pr of s.profiles) {
+              const p = s.people[pr.id]
+              if (!p) continue
+              byProfile[pr.id] = cloneBudgetCategories(p.budgetCategories)
+            }
+            const nextArchive: ArchivedBudgetsByYear = {
+              ...s.archivedBudgetsByYear,
+              [String(y)]: byProfile,
+            }
+            const nextYear = y + 1
+            const incomeSrc: BudgetYearCopySource =
+              opts?.income !== undefined
+                ? opts.income
+                : opts?.copyPlan === false
+                  ? 'zero'
+                  : 'budget'
+            const expenseSrc: BudgetYearCopySource =
+              opts?.expenses !== undefined
+                ? opts.expenses
+                : opts?.copyPlan === false
+                  ? 'zero'
+                  : 'budget'
+
+            const nextPeople: Record<string, PersonData> = { ...s.people }
+            for (const pr of s.profiles) {
+              const p = nextPeople[pr.id]
+              if (!p) continue
+              const cloned = cloneBudgetCategories(p.budgetCategories)
+              const newCats = cloned.map((c) => {
+                const src = c.type === 'income' ? incomeSrc : expenseSrc
+                let budgeted: number[]
+                if (src === 'budget') {
+                  budgeted = [...ensureTwelveBudgeted(c.budgeted)]
+                } else if (src === 'zero') {
+                  budgeted = Array(12).fill(0)
+                } else {
+                  budgeted = actualsPerMonthForCategory(p.transactions, pr.id, y, c.name, c.type)
+                }
+                return {
+                  ...c,
+                  budgeted,
+                  spent: 0,
+                }
+              })
+              nextPeople[pr.id] = recalcPersonBudgetSpentForYear(
+                { ...p, budgetCategories: newCats },
+                pr.id,
+                nextYear,
+              )
+            }
+            return {
+              budgetYear: nextYear,
+              archivedBudgetsByYear: nextArchive,
+              people: nextPeople,
+            }
+          }),
+
+        switchActiveBudgetYear: (targetYear) => {
+          const s = get()
+          if (targetYear === s.budgetYear) return { ok: true as const }
+          const snap = s.archivedBudgetsByYear[String(targetYear)]
+          if (!snap) return { ok: false as const, reason: 'not_in_archive' as const }
+          for (const pr of s.profiles) {
+            const list = snap[pr.id]
+            if (!list || !Array.isArray(list)) {
+              return { ok: false as const, reason: 'missing_profile_snapshot' as const }
+            }
+          }
+
+          set(() => {
+            const byProfile: Record<string, BudgetCategory[]> = {}
+            for (const pr of s.profiles) {
+              const p = s.people[pr.id]
+              if (!p) continue
+              byProfile[pr.id] = cloneBudgetCategories(p.budgetCategories)
+            }
+            const nextArchive: ArchivedBudgetsByYear = {
+              ...s.archivedBudgetsByYear,
+              [String(s.budgetYear)]: byProfile,
+            }
+            const { [String(targetYear)]: _removed, ...restArchive } = nextArchive
+
+            const nextPeople: Record<string, PersonData> = { ...s.people }
+            for (const pr of s.profiles) {
+              const restored = cloneBudgetCategories(snap[pr.id]!)
+              const p = nextPeople[pr.id]!
+              nextPeople[pr.id] = recalcPersonBudgetSpentForYear(
+                { ...p, budgetCategories: restored },
+                pr.id,
+                targetYear,
+              )
+            }
+
+            return {
+              budgetYear: targetYear,
+              archivedBudgetsByYear: restArchive,
+              people: nextPeople,
+            }
+          })
+
+          return { ok: true as const }
+        },
+
+        setBudgetYear: (year) => {
+          const s = get()
+          if (Object.keys(s.archivedBudgetsByYear).length > 0) return
+          const y = Math.floor(year)
+          const cy = new Date().getFullYear()
+          if (y < cy - 2 || y > cy + 2) return
+          set(() => {
+            const nextPeople: Record<string, PersonData> = { ...s.people }
+            for (const pr of s.profiles) {
+              const p = nextPeople[pr.id]
+              if (!p) continue
+              nextPeople[pr.id] = recalcPersonBudgetSpentForYear(
+                syncLinkedSavingsGoalsCurrent(p, pr.id),
+                pr.id,
+                y,
+              )
+            }
+            return { budgetYear: y, people: nextPeople }
+          })
+        },
+
+        completeOnboarding: () =>
+          set({
+            onboarding: { status: 'completed', finishedAt: new Date().toISOString() },
+          }),
+
+        skipOnboarding: () =>
+          set({
+            onboarding: { status: 'skipped', finishedAt: new Date().toISOString() },
+          }),
+
+        openOnboardingAgain: () =>
+          set({
+            onboarding: { status: 'pending' },
           }),
 
         addBudgetCategory: (c) => patchActive((d) => ({ ...d, budgetCategories: [...d.budgetCategories, c] })),
@@ -769,7 +1163,14 @@ export const useStore = create<AppState>()((set, get) => {
           })),
 
         removeBudgetCategory: (id) =>
-          patchActive((d) => ({ ...d, budgetCategories: d.budgetCategories.filter((c) => c.id !== id) })),
+          patchActive((d) => {
+            const pid = get().activeProfileId
+            const nextCats = d.budgetCategories.filter((c) => c.id !== id)
+            const nextGoals = d.savingsGoals.map((g) =>
+              g.linkedBudgetCategoryId === id ? { ...g, linkedBudgetCategoryId: undefined, baselineAmount: undefined } : g,
+            )
+            return syncLinkedSavingsGoalsCurrent({ ...d, budgetCategories: nextCats, savingsGoals: nextGoals }, pid)
+          }),
 
         addCustomBudgetLabel: (parent, name) =>
           patchActive((d) => {
@@ -811,13 +1212,28 @@ export const useStore = create<AppState>()((set, get) => {
             },
           })),
 
-        addSavingsGoal: (g) => patchActive((d) => ({ ...d, savingsGoals: [...d.savingsGoals, g] })),
+        addSavingsGoal: (g) =>
+          patchActive((d) => {
+            const pid = get().activeProfileId
+            return syncLinkedSavingsGoalsCurrent({ ...d, savingsGoals: [...d.savingsGoals, g] }, pid)
+          }),
 
         updateSavingsGoal: (id, data) =>
-          patchActive((d) => ({
-            ...d,
-            savingsGoals: d.savingsGoals.map((g) => (g.id === id ? { ...g, ...data } : g)),
-          })),
+          patchActive((d) => {
+            const pid = get().activeProfileId
+            const savingsGoals = d.savingsGoals.map((g) => {
+              if (g.id !== id) return g
+              const merged: SavingsGoal = { ...g, ...data }
+              if (merged.linkedBudgetCategoryId) {
+                const cat = d.budgetCategories.find((c) => c.id === merged.linkedBudgetCategoryId)
+                if (!cat || cat.parentCategory !== 'sparing' || cat.type !== 'expense') {
+                  return { ...merged, linkedBudgetCategoryId: undefined, baselineAmount: undefined }
+                }
+              }
+              return merged
+            })
+            return syncLinkedSavingsGoalsCurrent({ ...d, savingsGoals }, pid)
+          }),
 
         removeSavingsGoal: (id) =>
           patchActive((d) => ({ ...d, savingsGoals: d.savingsGoals.filter((g) => g.id !== id) })),
@@ -916,7 +1332,7 @@ export const useStore = create<AppState>()((set, get) => {
 })
 
 export function resetStoreForLogout() {
-  const initialPeople = { [DEFAULT_PROFILE_ID]: createInitialPersonData() }
+  const initialPeople = { [DEFAULT_PROFILE_ID]: createEmptyPersonData() }
   useStore.setState({
     subscriptionPlan: 'solo',
     profiles: [{ id: DEFAULT_PROFILE_ID, name: 'Meg' }],
@@ -925,6 +1341,10 @@ export function resetStoreForLogout() {
     people: initialPeople,
     notifications: [],
     deliveredAnnouncementIds: [],
+    budgetYear: new Date().getFullYear(),
+    archivedBudgetsByYear: {},
+    onboarding: { status: 'pending' },
+    formuebyggerPro: createDefaultFormuebyggerPersistedState(),
   })
   clearLegacyLocalStorage()
 }
@@ -938,6 +1358,10 @@ export function useActivePersonFinance() {
       profiles: s.profiles,
       subscriptionPlan: s.subscriptionPlan,
       financeScope: s.financeScope,
+      budgetYear: s.budgetYear,
+      archivedBudgetsByYear: s.archivedBudgetsByYear,
+      startNewBudgetYear: s.startNewBudgetYear,
+      switchActiveBudgetYear: s.switchActiveBudgetYear,
       addTransaction: s.addTransaction,
       removeTransaction: s.removeTransaction,
       recalcBudgetSpent: s.recalcBudgetSpent,
@@ -977,10 +1401,11 @@ export function useActivePersonFinance() {
       return aggregateHouseholdData(
         state.people,
         state.profiles.map((p) => p.id),
+        state.budgetYear,
       )
     }
     return state.people[state.activeProfileId] ?? createEmptyPersonData()
-  }, [householdMode, state.people, state.activeProfileId, state.profiles])
+  }, [householdMode, state.people, state.activeProfileId, state.profiles, state.budgetYear])
 
   return {
     transactions: person.transactions,
@@ -1025,5 +1450,9 @@ export function useActivePersonFinance() {
     setSubscriptionPlan: state.setSubscriptionPlan,
     addProfile: state.addProfile,
     renameProfile: state.renameProfile,
+    budgetYear: state.budgetYear,
+    archivedBudgetsByYear: state.archivedBudgetsByYear,
+    startNewBudgetYear: state.startNewBudgetYear,
+    switchActiveBudgetYear: state.switchActiveBudgetYear,
   }
 }

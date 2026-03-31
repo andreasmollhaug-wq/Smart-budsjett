@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { useAppUser } from '@/components/app/AppUserContext'
 import { useActivePersonFinance } from '@/lib/store'
+import { getTotalEffectiveSaved } from '@/lib/savingsDerived'
 import { formatNOK } from '@/lib/utils'
 import StatCard from '@/components/ui/StatCard'
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ChevronRight } from 'lucide-react'
@@ -29,8 +30,15 @@ function welcomeTitle(displayName: string, isFirstAppState: boolean): string {
 
 export default function DashboardPage() {
   const { displayName, isFirstAppState } = useAppUser()
-  const { budgetCategories, savingsGoals, debts, investments, transactions, isHouseholdAggregate } =
-    useActivePersonFinance()
+  const {
+    budgetCategories,
+    savingsGoals,
+    debts,
+    investments,
+    transactions,
+    isHouseholdAggregate,
+    activeProfileId,
+  } = useActivePersonFinance()
 
   const [investmentsModalOpen, setInvestmentsModalOpen] = useState(false)
   const [savingsModalOpen, setSavingsModalOpen] = useState(false)
@@ -39,7 +47,10 @@ export default function DashboardPage() {
   const totalExpenses = budgetCategories.filter((c) => c.type === 'expense').reduce((a, b) => a + b.spent, 0)
   const totalDebt = debts.reduce((a, b) => a + b.remainingAmount, 0)
   const totalInvested = investments.reduce((a, b) => a + b.currentValue, 0)
-  const totalSaved = savingsGoals.reduce((a, b) => a + b.currentAmount, 0)
+  const totalSaved = useMemo(
+    () => getTotalEffectiveSaved(savingsGoals, transactions, budgetCategories, activeProfileId),
+    [savingsGoals, transactions, budgetCategories, activeProfileId],
+  )
 
   const portfolio = useMemo(() => {
     const totalPurchase = investments.reduce((a, b) => a + b.purchaseValue, 0)
@@ -245,6 +256,9 @@ export default function DashboardPage() {
         open={savingsModalOpen}
         onClose={() => setSavingsModalOpen(false)}
         savingsGoals={savingsGoals}
+        transactions={transactions}
+        budgetCategories={budgetCategories}
+        activeProfileId={activeProfileId}
       />
     </div>
   )

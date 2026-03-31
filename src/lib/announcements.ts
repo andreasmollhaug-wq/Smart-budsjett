@@ -24,6 +24,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Dette er første versjon du kan følge med på her. Fremover får du beskjed når det kommer nye funksjoner og forbedringer — trykk på klokken øverst til høyre for å se alt.',
     kind: 'product',
   },
+  {
+    id: 'release-0.2.0',
+    version: '0.2.0',
+    title: 'Smart Budsjett v0.2 er ute',
+    body:
+      'Du kjører nå en ny versjon. Sjekk ut det som er nytt i appen — og husk at du alltid finner siste beskjeder her under klokken.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {

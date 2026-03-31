@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import { AppStateProvider } from '@/components/app/AppStateProvider'
 import { AppUserProvider } from '@/components/app/AppUserContext'
+import OnboardingHost from '@/components/onboarding/OnboardingHost'
 import { createClient } from '@/lib/supabase/server'
 import { getDisplayNameFromUser } from '@/lib/authDisplayName'
 import { getOrCreateUserAppState } from '@/lib/userAppStateServer'
@@ -19,12 +20,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/logg-inn')
   }
 
-  const { state, wasCreated } = await getOrCreateUserAppState(supabase, user.id)
+  const { state, wasCreated } = await getOrCreateUserAppState(supabase, user.id, user.email)
   const displayName = getDisplayNameFromUser(user)
 
   return (
     <AppStateProvider initialState={state} wasCreated={wasCreated} userId={user.id}>
       <AppUserProvider displayName={displayName} isFirstAppState={wasCreated}>
+        <OnboardingHost />
         <div className="flex min-h-screen">
           <Sidebar />
           <main className="flex min-h-screen flex-1 flex-col overflow-hidden">{children}</main>

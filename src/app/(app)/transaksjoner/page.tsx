@@ -1,13 +1,22 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Header from '@/components/layout/Header'
 import { useActivePersonFinance, Transaction } from '@/lib/store'
 import { formatNOK, generateId } from '@/lib/utils'
 import { Plus, Trash2, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 
+const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+
 export default function TransaksjonerPage() {
-  const { transactions, budgetCategories, addTransaction, removeTransaction, recalcBudgetSpent } = useActivePersonFinance()
+  const { transactions, budgetCategories, budgetYear, addTransaction, removeTransaction, recalcBudgetSpent } =
+    useActivePersonFinance()
   const [showForm, setShowForm] = useState(false)
+  const [filterYear, setFilterYear] = useState(budgetYear)
+  const [filterMonth, setFilterMonth] = useState<number | 'all'>('all')
+
+  useEffect(() => {
+    setFilterYear(budgetYear)
+  }, [budgetYear])
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
@@ -22,10 +31,30 @@ export default function TransaksjonerPage() {
   const selectedCat = allCats.find((c) => c.name === form.category)
   const txType = selectedCat?.type || 'expense'
 
-  const thisMonth = new Date().toISOString().slice(0, 7)
-  const monthlyTx = transactions.filter((t) => t.date.startsWith(thisMonth)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  const monthlyIncome = monthlyTx.filter((t) => t.type === 'income').reduce((a, b) => a + b.amount, 0)
-  const monthlyExpense = monthlyTx.filter((t) => t.type === 'expense').reduce((a, b) => a + b.amount, 0)
+  const yearOptions = useMemo(() => {
+    const y = new Set<number>([budgetYear, new Date().getFullYear(), filterYear])
+    for (const t of transactions) {
+      const yy = parseInt(t.date.slice(0, 4), 10)
+      if (Number.isFinite(yy)) y.add(yy)
+    }
+    return [...y].sort((a, b) => b - a)
+  }, [transactions, budgetYear, filterYear])
+
+  const datePrefix =
+    filterMonth === 'all'
+      ? `${filterYear}-`
+      : `${filterYear}-${String(filterMonth + 1).padStart(2, '0')}`
+
+  const filteredTx = useMemo(
+    () =>
+      transactions
+        .filter((t) => t.date.startsWith(datePrefix))
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [transactions, datePrefix],
+  )
+
+  const periodIncome = filteredTx.filter((t) => t.type === 'income').reduce((a, b) => a + b.amount, 0)
+  const periodExpense = filteredTx.filter((t) => t.type === 'expense').reduce((a, b) => a + b.amount, 0)
 
   const handleAdd = () => {
     if (!form.description || !form.amount || !form.category) return
@@ -57,14 +86,53 @@ export default function TransaksjonerPage() {
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header title="Transaksjoner" subtitle="Logg inntekter og utgifter" />
       <div className="p-8 space-y-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Vis:
+          </span>
+          <select
+            value={filterYear}
+            onChange={(e) => setFilterYear(Number(e.target.value))}
+            className="px-3 py-2 text-sm rounded-xl"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterMonth === 'all' ? 'all' : String(filterMonth)}
+            onChange={(e) => {
+              const v = e.target.value
+              setFilterMonth(v === 'all' ? 'all' : Number(v))
+            }}
+            className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+          >
+            <option value="all">Hele året</option>
+            {MONTHS_FULL.map((m, i) => (
+              <option key={m} value={i}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Inntekt denne måneden', value: formatNOK(monthlyIncome), color: 'var(--success)', icon: ArrowUpRight },
-            { label: 'Utgifter denne måneden', value: formatNOK(monthlyExpense), color: 'var(--danger)', icon: ArrowDownLeft },
-            { label: 'Netto denne måneden', value: formatNOK(monthlyIncome - monthlyExpense), color: monthlyIncome - monthlyExpense >= 0 ? 'var(--success)' : 'var(--danger)', icon: monthlyIncome - monthlyExpense >= 0 ? ArrowUpRight : ArrowDownLeft },
-          ].map(({ label, value, color, icon: Icon }) => (
-            <div key={label} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            { key: 'income', label: 'Inntekt', value: formatNOK(periodIncome), color: 'var(--success)', icon: ArrowUpRight },
+            { key: 'expense', label: 'Utgifter', value: formatNOK(periodExpense), color: 'var(--danger)', icon: ArrowDownLeft },
+            {
+              key: 'net',
+              label: 'Netto',
+              value: formatNOK(periodIncome - periodExpense),
+              color: periodIncome - periodExpense >= 0 ? 'var(--success)' : 'var(--danger)',
+              icon: periodIncome - periodExpense >= 0 ? ArrowUpRight : ArrowDownLeft,
+            },
+          ].map(({ key, label, value, color, icon: Icon }) => (
+            <div key={key} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={16} style={{ color }} />
                 <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{label}</span>
@@ -74,9 +142,11 @@ export default function TransaksjonerPage() {
           ))}
         </div>
 
-        {monthlyTx.length === 0 && !showForm ? (
+        {filteredTx.length === 0 && !showForm ? (
           <div className="rounded-2xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Ingen transaksjoner registrert denne måneden</p>
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Ingen transaksjoner i valgt periode
+            </p>
             <button
               onClick={() => setShowForm(true)}
               className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white"
@@ -157,9 +227,11 @@ export default function TransaksjonerPage() {
             )}
 
             <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Transaksjoner denne måneden</h2>
+              <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>
+                Transaksjoner
+              </h2>
               <div className="space-y-2">
-                {monthlyTx.map((tx) => (
+                {filteredTx.map((tx) => (
                   <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--bg)' }}>
                     <div className="flex-1">
                       <div className="flex items-center gap-3">

@@ -1,10 +1,15 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
 import BudgetAmountCell from '@/components/budget/BudgetAmountCell'
 import AddBudgetLineModal from '@/components/budget/AddBudgetLineModal'
-import { useActivePersonFinance, BudgetCategory } from '@/lib/store'
+import {
+  useActivePersonFinance,
+  BudgetCategory,
+  mergeBudgetCategoriesFromSnapshots,
+  type BudgetYearCopySource,
+} from '@/lib/store'
 import { formatNOK, formatPercent, generateId, parseThousands, toMonthly } from '@/lib/utils'
 import {
   getAvailableLabels,
@@ -41,6 +46,12 @@ function ensureArrayBudgeted(budgeted: unknown): number[] {
 export default function BudsjettPage() {
   const {
     budgetCategories,
+    budgetYear,
+    archivedBudgetsByYear,
+    startNewBudgetYear,
+    switchActiveBudgetYear,
+    profiles,
+    activeProfileId,
     customBudgetLabels,
     hiddenBudgetLabels,
     addBudgetCategory,
@@ -50,7 +61,49 @@ export default function BudsjettPage() {
     isHouseholdAggregate,
   } = useActivePersonFinance()
 
-  const readOnly = isHouseholdAggregate
+  const [viewingYear, setViewingYear] = useState(budgetYear)
+  const [newYearModalOpen, setNewYearModalOpen] = useState(false)
+  const [openArchiveModalOpen, setOpenArchiveModalOpen] = useState(false)
+  const [incomeCopySource, setIncomeCopySource] = useState<BudgetYearCopySource>('budget')
+  const [expenseCopySource, setExpenseCopySource] = useState<BudgetYearCopySource>('budget')
+
+  useEffect(() => {
+    setViewingYear(budgetYear)
+  }, [budgetYear])
+
+  useEffect(() => {
+    if (newYearModalOpen) {
+      setIncomeCopySource('budget')
+      setExpenseCopySource('budget')
+    }
+  }, [newYearModalOpen])
+
+  const displayCategories = useMemo(() => {
+    if (viewingYear === budgetYear) return budgetCategories
+    const snap = archivedBudgetsByYear[String(viewingYear)]
+    if (!snap) return []
+    if (isHouseholdAggregate) {
+      return mergeBudgetCategoriesFromSnapshots(snap, profiles.map((p) => p.id))
+    }
+    return snap[activeProfileId] ?? []
+  }, [
+    budgetCategories,
+    budgetYear,
+    viewingYear,
+    archivedBudgetsByYear,
+    isHouseholdAggregate,
+    profiles,
+    activeProfileId,
+  ])
+
+  const yearOptions = useMemo(() => {
+    const s = new Set<number>([budgetYear, ...Object.keys(archivedBudgetsByYear).map(Number)])
+    return [...s].sort((a, b) => b - a)
+  }, [budgetYear, archivedBudgetsByYear])
+
+  const readOnly = isHouseholdAggregate || viewingYear !== budgetYear
+  const canOpenArchiveForEdit =
+    viewingYear !== budgetYear && !isHouseholdAggregate && Boolean(archivedBudgetsByYear[String(viewingYear)])
 
   useEffect(() => {
     if (readOnly) setAddModalGroup(null)
@@ -72,7 +125,7 @@ export default function BudsjettPage() {
   const labelLists = { customBudgetLabels, hiddenBudgetLabels }
 
   const getCategoriesForGroup = (group: ParentCategory) =>
-    budgetCategories.filter((c) => c.parentCategory === group)
+    displayCategories.filter((c) => c.parentCategory === group)
 
   const getSumForMonth = (group: ParentCategory, monthIndex: number) =>
     getCategoriesForGroup(group).reduce((sum, c) => {
@@ -106,7 +159,9 @@ export default function BudsjettPage() {
       : '–'
 
   const kpiSub =
-    view === 'month' ? `${MONTHS_FULL[selectedMonth]} (budsjettert)` : 'Hele året (budsjettert)'
+    view === 'month'
+      ? `${MONTHS_FULL[selectedMonth]} ${viewingYear} (budsjettert)`
+      : `Hele året ${viewingYear} (budsjettert)`
 
   const shouldRegisterCustom = (parent: ParentCategory, name: string) => {
     const n = name.trim()
@@ -146,7 +201,7 @@ export default function BudsjettPage() {
       budgeted: Array(12).fill(monthly),
       spent: monthly,
       type: GROUPS.find((g) => g.id === group)?.type || 'expense',
-      color: COLORS[budgetCategories.length % COLORS.length],
+      color: COLORS[displayCategories.length % COLORS.length],
       parentCategory: group,
       frequency: newForm.freq as BudgetCategory['frequency'],
     }
@@ -169,7 +224,154 @@ export default function BudsjettPage() {
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
-      <Header title="Budsjett" subtitle="Budsjetter per måned for fullstendig kontroll" />
+      <Header
+        title="Budsjett"
+        subtitle={
+          viewingYear !== budgetYear
+            ? `Arkiv ${viewingYear} (kun visning) · Aktivt budsjettår er ${budgetYear}`
+            : 'Budsjetter per måned for fullstendig kontroll'
+        }
+      />
+
+      {openArchiveModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="open-archive-title"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-6 shadow-xl"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            <h2 id="open-archive-title" className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+              Åpne {viewingYear} for redigering?
+            </h2>
+            <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
+              Planen for aktivt år ({budgetYear}) lagres i arkiv. Deretter blir {viewingYear} det året du redigerer.
+              Transaksjoner endres ikke. Du kan senere bytte tilbake på samme måte.
+            </p>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+                onClick={() => setOpenArchiveModalOpen(false)}
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white"
+                style={{ background: 'var(--primary)' }}
+                onClick={() => {
+                  const r = switchActiveBudgetYear(viewingYear)
+                  setOpenArchiveModalOpen(false)
+                  if (!r.ok && r.reason === 'not_in_archive') {
+                    alert('Fant ikke arkiv for dette året.')
+                  } else if (!r.ok) {
+                    alert('Kunne ikke åpne året — mangler data for en profil.')
+                  }
+                }}
+              >
+                Bekreft
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {newYearModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="new-year-title"
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            <h2 id="new-year-title" className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+              Start nytt budsjettår?
+            </h2>
+            <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
+              År {budgetYear} arkiveres for alle profiler. Du går til {budgetYear + 1}. Transaksjoner slettes ikke — de
+              ligger fortsatt under Transaksjoner og i rapporter.
+            </p>
+
+            <fieldset className="mt-5 space-y-2 border-0 p-0">
+              <legend className="text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+                Inntekter — hva skal inn i neste års plan?
+              </legend>
+              {(
+                [
+                  { v: 'budget' as const, label: `Budsjett fra ${budgetYear}` },
+                  { v: 'actual' as const, label: `Faktisk fra ${budgetYear} (per måned)` },
+                  { v: 'zero' as const, label: 'Nullstill beløp (linjer beholdes)' },
+                ] as const
+              ).map(({ v, label }) => (
+                <label key={v} className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+                  <input
+                    type="radio"
+                    name="income-copy"
+                    checked={incomeCopySource === v}
+                    onChange={() => setIncomeCopySource(v)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+
+            <fieldset className="mt-5 space-y-2 border-0 p-0">
+              <legend className="text-sm font-medium mb-2" style={{ color: 'var(--text)' }}>
+                Kostnader (alle grupper) — hva skal inn i neste års plan?
+              </legend>
+              {(
+                [
+                  { v: 'budget' as const, label: `Budsjett fra ${budgetYear}` },
+                  { v: 'actual' as const, label: `Faktisk fra ${budgetYear} (per måned)` },
+                  { v: 'zero' as const, label: 'Nullstill beløp (linjer beholdes)' },
+                ] as const
+              ).map(({ v, label }) => (
+                <label key={v} className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+                  <input
+                    type="radio"
+                    name="expense-copy"
+                    checked={expenseCopySource === v}
+                    onChange={() => setExpenseCopySource(v)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+                onClick={() => setNewYearModalOpen(false)}
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white"
+                style={{ background: 'var(--primary)' }}
+                onClick={() => {
+                  startNewBudgetYear({ income: incomeCopySource, expenses: expenseCopySource })
+                  setNewYearModalOpen(false)
+                }}
+              >
+                Arkiver og gå til {budgetYear + 1}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AddBudgetLineModal
         open={addModalGroup !== null}
@@ -187,7 +389,7 @@ export default function BudsjettPage() {
       />
 
       <div className="p-8 space-y-6">
-        {readOnly && (
+        {isHouseholdAggregate && (
           <div
             className="rounded-xl px-4 py-3 text-sm"
             style={{
@@ -200,23 +402,74 @@ export default function BudsjettPage() {
             endre linjer.
           </div>
         )}
-        <div className={`space-y-6 ${readOnly ? 'pointer-events-none opacity-[0.92]' : ''}`}>
+        {canOpenArchiveForEdit && (
+          <div
+            className="rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm"
+            style={{
+              background: 'var(--primary-pale)',
+              border: '1px solid var(--accent)',
+              color: 'var(--text)',
+            }}
+          >
+            <span>
+              Du viser arkiv for {viewingYear}. Aktivt budsjettår er {budgetYear}.
+            </span>
+            <button
+              type="button"
+              onClick={() => setOpenArchiveModalOpen(true)}
+              className="px-3 py-2 rounded-xl font-medium shrink-0"
+              style={{ background: 'var(--primary)', color: 'white' }}
+            >
+              Åpne {viewingYear} for redigering
+            </button>
+          </div>
+        )}
         <div className="flex flex-wrap justify-between items-center gap-4">
-          <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-            {(['month', 'year'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className="px-4 py-2 text-sm font-medium transition-colors"
-                style={{
-                  background: view === v ? 'var(--primary)' : 'var(--surface)',
-                  color: view === v ? 'white' : 'var(--text-muted)',
-                }}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              {(['month', 'year'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  className="px-4 py-2 text-sm font-medium transition-colors"
+                  style={{
+                    background: view === v ? 'var(--primary)' : 'var(--surface)',
+                    color: view === v ? 'white' : 'var(--text-muted)',
+                  }}
+                >
+                  {v === 'month' ? 'Månedlig' : 'Årlig'}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Budsjettår:
+              </span>
+              <select
+                value={viewingYear}
+                onChange={(e) => setViewingYear(Number(e.target.value))}
+                className="px-3 py-2 text-sm rounded-xl min-w-[5rem]"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
               >
-                {v === 'month' ? 'Månedlig' : 'Årlig'}
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                    {y === budgetYear ? ' (aktivt)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {viewingYear === budgetYear && (
+              <button
+                type="button"
+                onClick={() => setNewYearModalOpen(true)}
+                className="px-3 py-2 text-sm font-medium rounded-xl"
+                style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}
+              >
+                Start nytt budsjettår
               </button>
-            ))}
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -238,6 +491,7 @@ export default function BudsjettPage() {
           </div>
         </div>
 
+        <div className={`space-y-6 ${readOnly ? 'pointer-events-none opacity-[0.92]' : ''}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
             label="Budsjetterte inntekter"

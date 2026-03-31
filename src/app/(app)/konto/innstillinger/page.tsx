@@ -1,6 +1,7 @@
 'use client'
 
-import { User, Bell } from 'lucide-react'
+import { User, Bell, Sparkles } from 'lucide-react'
+import { useStore } from '@/lib/store'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -139,6 +140,33 @@ function ProfileSettingsForm() {
   )
 }
 
+function StartveiledningCard() {
+  const openOnboardingAgain = useStore((s) => s.openOnboardingAgain)
+
+  return (
+    <div
+      className="rounded-2xl p-6"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <h2 className="font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+        <Sparkles size={16} style={{ color: 'var(--primary)' }} />
+        Startveiledning
+      </h2>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+        Gå gjennom introduksjonen på nytt — navn på profil, budsjettår og hovedinntekt.
+      </p>
+      <button
+        type="button"
+        className="px-4 py-2 rounded-xl text-sm font-medium text-white"
+        style={{ background: 'var(--primary)' }}
+        onClick={() => openOnboardingAgain()}
+      >
+        Vis veiledningen på nytt
+      </button>
+    </div>
+  )
+}
+
 export default function KontoInnstillingerPage() {
   return (
     <>
@@ -152,6 +180,8 @@ export default function KontoInnstillingerPage() {
         </h2>
         <ProfileSettingsForm />
       </div>
+
+      <StartveiledningCard />
 
       <div
         className="rounded-2xl p-6"

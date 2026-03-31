@@ -34,6 +34,7 @@ export default function RapportBankPage() {
   const {
     transactions,
     budgetCategories,
+    budgetYear,
     debts,
     savingsGoals,
     investments,
@@ -42,7 +43,7 @@ export default function RapportBankPage() {
     isHouseholdAggregate,
   } = useActivePersonFinance()
 
-  const [year, setYear] = useState(() => new Date().getFullYear())
+  const [year, setYear] = useState(budgetYear)
   const [monthIndex, setMonthIndex] = useState(() => new Date().getMonth())
   const [generatedAt, setGeneratedAt] = useState(() => new Date())
   const [pdfLoading, setPdfLoading] = useState(false)
@@ -55,6 +56,10 @@ export default function RapportBankPage() {
       delete document.body.dataset.printReport
     }
   }, [])
+
+  useEffect(() => {
+    setYear(budgetYear)
+  }, [budgetYear])
 
   const scopeLabel = useMemo(() => {
     if (isHouseholdAggregate) return 'Husholdning (alle profiler)'
@@ -81,8 +86,10 @@ export default function RapportBankPage() {
 
   const yearOptions = useMemo(() => {
     const y = new Date().getFullYear()
-    return Array.from({ length: 11 }, (_, i) => y - 5 + i)
-  }, [])
+    const base = Array.from({ length: 11 }, (_, i) => y - 5 + i)
+    const set = new Set([...base, budgetYear])
+    return [...set].sort((a, b) => a - b)
+  }, [budgetYear])
 
   const handlePrint = () => {
     setGeneratedAt(new Date())

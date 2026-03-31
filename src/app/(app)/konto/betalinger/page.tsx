@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { CreditCard, Check } from 'lucide-react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { CreditCard, Check, Loader2 } from 'lucide-react'
 import { useActivePersonFinance } from '@/lib/store'
 import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 
@@ -12,9 +13,69 @@ const familyFeatures = [
   'Ideelt for par og familier',
 ]
 
-export default function KontoBetalingerPage() {
+type StripeSubscriptionRow = {
+  status: string
+  plan: 'solo' | 'family' | null
+  stripe_price_id: string | null
+  current_period_end: string | null
+  updated_at: string
+} | null
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'active':
+      return 'Aktivt'
+    case 'trialing':
+      return 'Prøveperiode'
+    case 'past_due':
+      return 'Forfalt betaling'
+    case 'canceled':
+      return 'Avsluttet'
+    case 'unpaid':
+      return 'Ikke betalt'
+    case 'incomplete':
+    case 'incomplete_expired':
+      return 'Ufullstendig'
+    case 'inactive':
+      return 'Ikke i gang'
+    default:
+      return status
+  }
+}
+
+function BetalingerContent() {
+  const searchParams = useSearchParams()
+  const checkout = searchParams.get('checkout')
+
   const { subscriptionPlan, setSubscriptionPlan, profiles } = useActivePersonFinance()
   const [downgradeError, setDowngradeError] = useState(false)
+  const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
+  const [checkoutLoading, setCheckoutLoading] = useState<'solo' | 'family' | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+
+  const loadStripeSubscription = useCallback(async () => {
+    try {
+      const res = await fetch('/api/stripe/subscription')
+      if (!res.ok) {
+        setStripeSub(null)
+        return
+      }
+      const data = (await res.json()) as { subscription?: StripeSubscriptionRow }
+      setStripeSub(data.subscription ?? null)
+    } catch {
+      setStripeSub(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadStripeSubscription()
+  }, [loadStripeSubscription])
+
+  useEffect(() => {
+    if (checkout === 'success') {
+      void loadStripeSubscription()
+    }
+  }, [checkout, loadStripeSubscription])
 
   const chooseSolo = () => {
     setDowngradeError(false)
@@ -27,8 +88,63 @@ export default function KontoBetalingerPage() {
     setSubscriptionPlan('family')
   }
 
+  const startStripeCheckout = async (plan: 'solo' | 'family') => {
+    setCheckoutError(null)
+    setCheckoutLoading(plan)
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      })
+      const data = (await res.json()) as { url?: string; error?: string }
+      if (!res.ok) {
+        setCheckoutError(data.error ?? 'Kunne ikke starte betaling.')
+        return
+      }
+      if (data.url) {
+        window.location.href = data.url
+        return
+      }
+      setCheckoutError('Manglende redirect-URL fra Stripe.')
+    } catch {
+      setCheckoutError('Nettverksfeil ved oppstart av betaling.')
+    } finally {
+      setCheckoutLoading(null)
+    }
+  }
+
+  const paidActive =
+    stripeSub &&
+    (stripeSub.status === 'active' || stripeSub.status === 'trialing' || stripeSub.status === 'past_due')
+
   return (
     <>
+      {checkout === 'success' && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          style={{
+            background: 'color-mix(in srgb, #2F9E44 12%, transparent)',
+            border: '1px solid #2F9E44',
+            color: 'var(--text)',
+          }}
+        >
+          Betalingen er registrert. Abonnementsstatus oppdateres vanligvis innen noen sekunder.
+        </div>
+      )}
+      {checkout === 'canceled' && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          style={{
+            background: 'color-mix(in srgb, var(--text-muted) 12%, transparent)',
+            border: '1px solid var(--border)',
+            color: 'var(--text)',
+          }}
+        >
+          Du avbrøt betalingen. Ingen belastning er gjort.
+        </div>
+      )}
+
       {downgradeError && (
         <div
           className="rounded-xl p-4 mb-6 text-sm"
@@ -36,6 +152,44 @@ export default function KontoBetalingerPage() {
         >
           Du kan ikke bytte til Solo mens du har mer enn én profil. Familie-planen passer flere brukere i samme
           husholdning; for Solo må du kun ha én profil.
+        </div>
+      )}
+
+      {checkoutError && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          style={{ background: 'color-mix(in srgb, #E03131 12%, transparent)', border: '1px solid #E03131', color: 'var(--text)' }}
+        >
+          {checkoutError}
+        </div>
+      )}
+
+      {paidActive && stripeSub && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          style={{
+            background: 'color-mix(in srgb, #3B5BDB 10%, transparent)',
+            border: '1px solid var(--primary)',
+            color: 'var(--text)',
+          }}
+        >
+          <span className="font-medium">Stripe-abonnement:</span> {statusLabel(stripeSub.status)}
+          {stripeSub.plan ? (
+            <>
+              {' '}
+              — plan {stripeSub.plan === 'solo' ? 'Solo' : 'Familie'}
+            </>
+          ) : null}
+          {stripeSub.current_period_end ? (
+            <span className="block mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+              Periode slutter{' '}
+              {new Date(stripeSub.current_period_end).toLocaleDateString('nb-NO', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </span>
+          ) : null}
         </div>
       )}
 
@@ -48,8 +202,9 @@ export default function KontoBetalingerPage() {
           Abonnement
         </h2>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          Velg Solo for én person eller Familie for flere brukere i samme husholdning. Endring lagres i denne enheten
-          (ekte fakturering kobles til senere).
+          Velg Solo for én person eller Familie for flere brukere i samme husholdning. App-innstilling for plan
+          (profiler) lagres lokalt på enheten; faktisk abonnement og betaling styres via Stripe når du bruker knappene
+          under.
         </p>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -94,7 +249,23 @@ export default function KontoBetalingerPage() {
                 border: '1px solid var(--border)',
               }}
             >
-              {subscriptionPlan === 'solo' ? 'Valgt' : 'Velg Solo'}
+              {subscriptionPlan === 'solo' ? 'Valgt (app)' : 'Velg Solo (app)'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void startStripeCheckout('solo')}
+              disabled={checkoutLoading !== null}
+              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #364FC7, #4C6EF5)' }}
+            >
+              {checkoutLoading === 'solo' ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Kobler til Stripe…
+                </>
+              ) : (
+                'Abonner med kort (Solo)'
+              )}
             </button>
           </div>
 
@@ -135,7 +306,23 @@ export default function KontoBetalingerPage() {
               className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white"
               style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
             >
-              {subscriptionPlan === 'family' ? 'Valgt' : 'Velg Familie'}
+              {subscriptionPlan === 'family' ? 'Valgt (app)' : 'Velg Familie (app)'}
+            </button>
+            <button
+              type="button"
+              onClick={() => void startStripeCheckout('family')}
+              disabled={checkoutLoading !== null}
+              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-center gap-2 border disabled:opacity-60"
+              style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface)' }}
+            >
+              {checkoutLoading === 'family' ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Kobler til Stripe…
+                </>
+              ) : (
+                'Abonner med kort (Familie)'
+              )}
             </button>
           </div>
         </div>
@@ -149,25 +336,26 @@ export default function KontoBetalingerPage() {
           Betalingsmetode
         </h2>
         <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-          Legg til eller oppdater kort for fornyelse av abonnementet (kommer med betalingsleverandør).
+          Når du abonnerer via Stripe over, registreres kortet der. Du kan senere legge til kundeportal for
+          oppdatering av kort (valgfritt videre steg).
         </p>
         <div
           className="flex items-center justify-between p-4 rounded-xl"
           style={{ border: '1px dashed var(--border)', background: 'var(--bg)' }}
         >
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Ingen betalingsmetode lagret ennå
+            {paidActive ? 'Abonnement er knyttet til Stripe.' : 'Ingen aktiv Stripe-betaling registrert ennå'}
           </span>
-          <button
-            type="button"
-            className="px-4 py-2 rounded-xl text-sm font-medium text-white opacity-60 cursor-not-allowed"
-            style={{ background: 'var(--primary)' }}
-            disabled
-          >
-            Legg til kort
-          </button>
         </div>
       </div>
     </>
+  )
+}
+
+export default function KontoBetalingerPage() {
+  return (
+    <Suspense fallback={null}>
+      <BetalingerContent />
+    </Suspense>
   )
 }

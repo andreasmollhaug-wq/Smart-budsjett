@@ -1,11 +1,22 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createDefaultPersistedSlice } from '@/lib/store'
 
+/** E-post som får demo-data ved første opprettelse av `user_app_state`. Overstyres med DEMO_SEED_EMAIL. */
+function resolveDemoSeedEmail(): string {
+  return (process.env.DEMO_SEED_EMAIL ?? 'andreas.mollhaug@vb.no').trim().toLowerCase()
+}
+
+function isDemoSeedEmail(email: string | null | undefined): boolean {
+  if (!email) return false
+  return email.trim().toLowerCase() === resolveDemoSeedEmail()
+}
+
 export async function getOrCreateUserAppState(
   supabase: SupabaseClient,
   userId: string,
+  userEmail: string | null | undefined,
 ): Promise<{ state: unknown; wasCreated: boolean }> {
-  const defaultSlice = createDefaultPersistedSlice()
+  const defaultSlice = createDefaultPersistedSlice({ seedDemoData: isDemoSeedEmail(userEmail) })
 
   try {
     const { data, error } = await supabase

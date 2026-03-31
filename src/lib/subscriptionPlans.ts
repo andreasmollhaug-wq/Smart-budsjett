@@ -1,4 +1,4 @@
-/** App og landing – felles pris-/tekstkonstanter (ingen Stripe ennå). */
+/** App og landing – felles pris-/tekstkonstanter (Stripe price IDs ligger i miljøvariabler). */
 export const SOLO_PRICE_LABEL = '89 kr'
 export const FAMILY_PRICE_LABEL = '139 kr'
 
