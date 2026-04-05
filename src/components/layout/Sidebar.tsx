@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import PersonSwitcher from '@/components/account/PersonSwitcher'
-import { useActivePersonFinance } from '@/lib/store'
+import { useActivePersonFinance, useStore } from '@/lib/store'
 import {
   LayoutDashboard,
   Wallet,
@@ -55,6 +55,10 @@ const nav = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const demoDataEnabled = useStore((s) => s.demoDataEnabled)
+  const logoBg = demoDataEnabled
+    ? 'linear-gradient(135deg, #EA580C, #F97316)'
+    : 'linear-gradient(135deg, #3B5BDB, #4C6EF5)'
 
   return (
     <aside style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
@@ -62,9 +66,11 @@ export default function Sidebar() {
 
       {/* Logo */}
       <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--border)' }}>
-        <Link href="/" className="flex items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm"
-            style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}>
+        <Link href="/dashboard" className="flex items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-sm"
+            style={{ background: logoBg }}
+          >
             SB
           </div>
           <div>
@@ -79,7 +85,14 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {nav.map(({ href, label, icon: Icon }) => {
-          const active = href === '/rapporter' ? pathname.startsWith('/rapporter') : pathname === href
+          const active =
+            href === '/rapporter'
+              ? pathname.startsWith('/rapporter')
+              : href === '/budsjett'
+                ? pathname.startsWith('/budsjett')
+                : href === '/transaksjoner'
+                  ? pathname.startsWith('/transaksjoner')
+                  : pathname === href
           return (
             <Link key={href} href={href}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"

@@ -11,6 +11,8 @@ export default function StatCard({
   trend,
   color,
   info,
+  onClick,
+  'aria-label': ariaLabel,
 }: {
   label: string
   value: string
@@ -20,6 +22,9 @@ export default function StatCard({
   color: string
   /** Lang forklaring som vises i popup når brukeren trykker info-ikonet ved siden av tittelen */
   info?: string
+  /** Gjør kortet klikkbart (f.eks. åpne oversikt). Ikke kombiner med `info` — bruk da `div`-wrapper utenfor. */
+  onClick?: () => void
+  'aria-label'?: string
 }) {
   const [infoOpen, setInfoOpen] = useState(false)
   const infoWrapRef = useRef<HTMLDivElement>(null)
@@ -35,11 +40,14 @@ export default function StatCard({
     return () => document.removeEventListener('mousedown', close)
   }, [infoOpen])
 
-  return (
-    <div
-      className="rounded-2xl p-5 flex flex-col gap-3"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+  const cardClass =
+    'rounded-2xl p-5 flex flex-col gap-3' +
+    (onClick
+      ? ' outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2'
+      : '')
+
+  const inner = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-1 min-w-0 flex-1">
           <span className="text-sm font-medium leading-snug" style={{ color: 'var(--text-muted)' }}>
@@ -94,6 +102,26 @@ export default function StatCard({
           </p>
         </div>
       </div>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={ariaLabel ?? label}
+        className={`w-full text-left ${cardClass}`}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+      >
+        {inner}
+      </button>
+    )
+  }
+
+  return (
+    <div className={cardClass} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {inner}
     </div>
   )
 }

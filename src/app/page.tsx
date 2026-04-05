@@ -6,6 +6,7 @@ import LandingValueProps from '@/components/marketing/LandingValueProps'
 import LandingPositioning from '@/components/marketing/LandingPositioning'
 import LandingHowItWorks from '@/components/marketing/LandingHowItWorks'
 import LandingProductPreview from '@/components/marketing/LandingProductPreview'
+import LandingIrisPartnership from '@/components/marketing/LandingIrisPartnership'
 import LandingPricing from '@/components/marketing/LandingPricing'
 import LandingFAQ from '@/components/marketing/LandingFAQ'
 import LandingTrust from '@/components/marketing/LandingTrust'
@@ -29,6 +30,7 @@ export default function HomePage() {
         <LandingPositioning />
         <LandingHowItWorks />
         <LandingProductPreview />
+        <LandingIrisPartnership />
         <LandingPricing />
         <LandingFAQ />
         <LandingTrust />

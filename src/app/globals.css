@@ -37,7 +37,7 @@ body {
   border-radius: 3px;
 }
 
-/* Rapport til bank: skjul meny og verktøylinje ved utskrift */
+/* Rapporter (bank, sparemål): skjul meny og verktøylinje ved utskrift */
 @media print {
   body[data-print-report="true"] aside {
     display: none !important;
@@ -52,7 +52,8 @@ body {
     overflow: visible !important;
     background: #fff !important;
   }
-  body[data-print-report="true"] .bank-report-document {
+  body[data-print-report="true"] .bank-report-document,
+  body[data-print-report="true"] .report-document {
     border: none !important;
     box-shadow: none !important;
   }

@@ -47,7 +47,7 @@ function BetalingerContent() {
   const searchParams = useSearchParams()
   const checkout = searchParams.get('checkout')
 
-  const { subscriptionPlan, setSubscriptionPlan, profiles } = useActivePersonFinance()
+  const { subscriptionPlan, setSubscriptionPlan } = useActivePersonFinance()
   const [downgradeError, setDowngradeError] = useState(false)
   const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
   const [checkoutLoading, setCheckoutLoading] = useState<'solo' | 'family' | null>(null)

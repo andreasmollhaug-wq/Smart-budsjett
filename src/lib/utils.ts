@@ -6,8 +6,37 @@ export function formatNOK(amount: number): string {
   }).format(amount)
 }
 
+/** Heltall med tusenskille (nb-NO), uten valutasymbol — til beløpsfelt. */
+export function formatIntegerNbNo(amount: number): string {
+  if (!Number.isFinite(amount)) return ''
+  return new Intl.NumberFormat('nb-NO', {
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  }).format(Math.round(amount))
+}
+
+/**
+ * Tolker streng fra beløpsfelt (tusenskille, mellomrom).
+ * Returnerer NaN hvis tomt, ikke-positivt, eller ugyldig.
+ */
+export function parseIntegerNbNo(s: string): number {
+  const cleaned = s.replace(/\s/g, '').replace(/\u00a0/g, '')
+  if (!cleaned) return NaN
+  const digits = cleaned.replace(/[^0-9]/g, '')
+  if (!digits) return NaN
+  const n = parseInt(digits, 10)
+  if (!Number.isFinite(n) || n <= 0) return NaN
+  return n
+}
+
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
+}
+
+/** Avvik som andel av budsjett (for avvikskolonne); null når budsjett er 0. */
+export function variancePercentOfBudget(variance: number, budgeted: number): number | null {
+  if (budgeted === 0) return null
+  return (variance / budgeted) * 100
 }
 
 export function generateId(): string {

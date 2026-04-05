@@ -5,6 +5,9 @@ node_modules
 .next
 out
 
+# typescript incremental (stale file list can break next build)
+*.tsbuildinfo
+
 # env (secrets)
 .env
 .env.local

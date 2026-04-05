@@ -10,6 +10,12 @@ type IncomingMessage = {
 
 export const dynamic = 'force-dynamic'
 
+const SYSTEM_PROMPT = [
+  'Du er en nyttig økonomiassistent for en app som hjelper brukere med budsjett, sparing og gjeld.',
+  'Skriv på norsk.',
+  'Still korte oppklaringsspørsmål når det trengs for å gi et bedre svar.',
+].join('\n')
+
 export async function POST(req: Request) {
   let supabase
   try {
@@ -30,67 +36,57 @@ export async function POST(req: Request) {
     | null
   const messages = body?.messages ?? []
 
-  const apiKey = process.env.ANTHROPIC_API_KEY
+  const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     return NextResponse.json(
       {
         reply:
-          'Manglende ANTHROPIC_API_KEY. Opprett en `.env.local` i prosjektroten og legg inn `ANTHROPIC_API_KEY=...`.',
+          'Manglende OPENAI_API_KEY. Opprett en `.env.local` i prosjektroten og legg inn `OPENAI_API_KEY=...`, eller sett variabelen i Vercel.',
       },
       { status: 200 },
     )
   }
 
-  const model = process.env.ANTHROPIC_MODEL ?? 'claude-3-5-sonnet-latest'
+  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
 
-  // Convert our chat format into Anthropic's expected `messages` format.
-  const anthropicMessages = messages
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .map((m) => ({
-      role: m.role,
-      content: [{ type: 'text', text: m.content }],
-    }))
+  const thread = messages.filter(
+    (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string',
+  )
 
-  const system = [
-    'Du er en nyttig økonomiassistent for en app som hjelper brukere med budsjett, sparing og gjeld.',
-    'Skriv på norsk.',
-    'Still korte oppklaringsspørsmål når det trengs for å gi et bedre svar.',
-  ].join('\n')
+  const openaiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...thread.map((m) => ({ role: m.role, content: m.content })),
+  ]
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+      authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,
-      system,
+      messages: openaiMessages,
       max_tokens: 800,
       temperature: 0.2,
-      messages: anthropicMessages,
     }),
   })
 
-  const data: any = await resp.json().catch(() => null)
+  type OpenAIErrorShape = { error?: { message?: string } }
+  type OpenAIChoice = { message?: { content?: string | null } }
+  type OpenAIOkShape = { choices?: OpenAIChoice[] }
+
+  const data = (await resp.json().catch(() => null)) as (OpenAIErrorShape & OpenAIOkShape) | null
 
   if (!resp.ok) {
-    const msg = data?.error?.message ?? `Claude API error (${resp.status})`
+    const msg = data?.error?.message ?? `OpenAI API error (${resp.status})`
     return NextResponse.json({ error: msg }, { status: resp.status })
   }
 
-  const reply =
-    Array.isArray(data?.content) && data.content.length > 0
-      ? data.content
-          .filter((c: any) => c?.type === 'text' && typeof c.text === 'string')
-          .map((c: any) => c.text)
-          .join('')
-      : null
+  const reply = data?.choices?.[0]?.message?.content?.trim() ?? null
 
   return NextResponse.json(
     { reply: reply ?? 'EnkelExcel AI sendte ingen tekst.' },
     { status: 200 },
   )
 }
-

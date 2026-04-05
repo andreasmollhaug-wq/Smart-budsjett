@@ -1,22 +1,49 @@
 'use client'
-import { useState, useMemo, useEffect } from 'react'
+import { Suspense, useState, useMemo } from 'react'
 import Header from '@/components/layout/Header'
-import { useActivePersonFinance, Transaction } from '@/lib/store'
-import { formatNOK, generateId } from '@/lib/utils'
+import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
+import TransactionDetailModal, { type TransactionSavePatch } from '@/components/transactions/TransactionDetailModal'
+import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
+import type { Transaction } from '@/lib/store'
+import { formatIntegerNbNo, formatNOK, generateId, parseIntegerNbNo } from '@/lib/utils'
 import { Plus, Trash2, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 
 const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 
-export default function TransaksjonerPage() {
-  const { transactions, budgetCategories, budgetYear, addTransaction, removeTransaction, recalcBudgetSpent } =
-    useActivePersonFinance()
-  const [showForm, setShowForm] = useState(false)
-  const [filterYear, setFilterYear] = useState(budgetYear)
-  const [filterMonth, setFilterMonth] = useState<number | 'all'>('all')
+function TransaksjonerPageInner() {
+  const {
+    filterYear,
+    setFilterYear,
+    filterMonth,
+    setFilterMonth,
+    filterCategory,
+    setFilterCategory,
+    searchQuery,
+    setSearchQuery,
+    transactions,
+    budgetCategories,
+    expenseCategories,
+    incomeCategories,
+    allCats,
+    yearOptions,
+    txInPeriod,
+    categoryOptions,
+    displayFilteredTx,
+    periodIncome,
+    periodExpense,
+    filtersActive,
+    clearFilters,
+    addTransaction,
+    removeTransaction,
+    updateTransaction,
+    recalcBudgetSpent,
+    isHouseholdAggregate,
+  } = useTransaksjonerFilters()
 
-  useEffect(() => {
-    setFilterYear(budgetYear)
-  }, [budgetYear])
+  const [showForm, setShowForm] = useState(false)
+  const [detailTx, setDetailTx] = useState<Transaction | null>(null)
+  const [dateSort, setDateSort] = useState<'desc' | 'asc'>('desc')
+
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
@@ -24,50 +51,30 @@ export default function TransaksjonerPage() {
     category: '',
   })
 
-  const expenseCategories = budgetCategories.filter((c) => c.type === 'expense')
-  const incomeCategories = budgetCategories.filter((c) => c.type === 'income')
-  const allCats = [...expenseCategories, ...incomeCategories]
-
   const selectedCat = allCats.find((c) => c.name === form.category)
   const txType = selectedCat?.type || 'expense'
 
-  const yearOptions = useMemo(() => {
-    const y = new Set<number>([budgetYear, new Date().getFullYear(), filterYear])
-    for (const t of transactions) {
-      const yy = parseInt(t.date.slice(0, 4), 10)
-      if (Number.isFinite(yy)) y.add(yy)
-    }
-    return [...y].sort((a, b) => b - a)
-  }, [transactions, budgetYear, filterYear])
-
-  const datePrefix =
-    filterMonth === 'all'
-      ? `${filterYear}-`
-      : `${filterYear}-${String(filterMonth + 1).padStart(2, '0')}`
-
-  const filteredTx = useMemo(
-    () =>
-      transactions
-        .filter((t) => t.date.startsWith(datePrefix))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    [transactions, datePrefix],
-  )
-
-  const periodIncome = filteredTx.filter((t) => t.type === 'income').reduce((a, b) => a + b.amount, 0)
-  const periodExpense = filteredTx.filter((t) => t.type === 'expense').reduce((a, b) => a + b.amount, 0)
+  const sortedDisplayTx = useMemo(() => {
+    const list = [...displayFilteredTx]
+    const mul = dateSort === 'desc' ? -1 : 1
+    list.sort((a, b) => mul * (new Date(a.date).getTime() - new Date(b.date).getTime()))
+    return list
+  }, [displayFilteredTx, dateSort])
 
   const handleAdd = () => {
-    if (!form.description || !form.amount || !form.category) return
+    if (!form.description || !form.category) return
+    const amountNum = parseIntegerNbNo(form.amount)
+    if (!Number.isFinite(amountNum)) return
     const newTx: Transaction = {
       id: generateId(),
       date: form.date,
       description: form.description,
-      amount: Number(form.amount),
+      amount: amountNum,
       category: form.category,
       type: txType,
     }
     addTransaction(newTx)
-    recalcBudgetSpent(form.category)
+    if (!isHouseholdAggregate) recalcBudgetSpent(form.category)
     setForm({
       date: new Date().toISOString().split('T')[0],
       description: '',
@@ -79,12 +86,38 @@ export default function TransaksjonerPage() {
 
   const handleDelete = (tx: Transaction) => {
     removeTransaction(tx.id)
-    recalcBudgetSpent(tx.category)
+    if (!isHouseholdAggregate) recalcBudgetSpent(tx.category)
+  }
+
+  const handleSaveDetail = (id: string, patch: TransactionSavePatch) => {
+    const old = transactions.find((t) => t.id === id)
+    if (!old) return
+    updateTransaction(id, patch)
+    if (!isHouseholdAggregate) {
+      recalcBudgetSpent(old.category)
+      if (patch.category !== undefined && patch.category !== old.category) {
+        recalcBudgetSpent(patch.category)
+      }
+    }
   }
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header title="Transaksjoner" subtitle="Logg inntekter og utgifter" />
+      <TransaksjonerSubnav />
+      <TransactionDetailModal
+        transaction={detailTx}
+        open={detailTx !== null}
+        onClose={() => setDetailTx(null)}
+        expenseCategories={expenseCategories}
+        incomeCategories={incomeCategories}
+        onSave={handleSaveDetail}
+        onDelete={(id) => {
+          const tx = transactions.find((t) => t.id === id)
+          if (tx) handleDelete(tx)
+        }}
+        householdHint={isHouseholdAggregate}
+      />
       <div className="p-8 space-y-6">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -118,9 +151,41 @@ export default function TransaksjonerPage() {
               </option>
             ))}
           </select>
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value === 'all' ? 'all' : e.target.value)}
+            className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+          >
+            <option value="all">Alle kategorier</option>
+            {categoryOptions.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="search"
+            placeholder="Søk i beskrivelse"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="min-w-[12rem] flex-1 px-3 py-2 text-sm rounded-xl max-w-xs"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+            aria-label="Søk i beskrivelse"
+          />
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm font-medium px-2 py-1 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+              style={{ color: 'var(--primary)' }}
+            >
+              Nullstill filtre
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             { key: 'income', label: 'Inntekt', value: formatNOK(periodIncome), color: 'var(--success)', icon: ArrowUpRight },
             { key: 'expense', label: 'Utgifter', value: formatNOK(periodExpense), color: 'var(--danger)', icon: ArrowDownLeft },
@@ -142,7 +207,7 @@ export default function TransaksjonerPage() {
           ))}
         </div>
 
-        {filteredTx.length === 0 && !showForm ? (
+        {txInPeriod.length === 0 && !showForm ? (
           <div className="rounded-2xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Ingen transaksjoner i valgt periode
@@ -178,9 +243,15 @@ export default function TransaksjonerPage() {
                   />
                   <input
                     placeholder="Beløp (NOK)"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     value={form.amount}
                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    onBlur={() => {
+                      const n = parseIntegerNbNo(form.amount)
+                      if (Number.isFinite(n)) setForm((f) => ({ ...f, amount: formatIntegerNbNo(n) }))
+                    }}
                     className="px-3 py-2 rounded-xl text-sm"
                     style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                   />
@@ -227,43 +298,86 @@ export default function TransaksjonerPage() {
             )}
 
             <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>
-                Transaksjoner
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
+                  Transaksjoner
+                </h2>
+                <label className="flex items-center gap-2 text-sm shrink-0">
+                  <span style={{ color: 'var(--text-muted)' }}>Sorter dato</span>
+                  <select
+                    value={dateSort}
+                    onChange={(e) => setDateSort(e.target.value as 'desc' | 'asc')}
+                    className="px-3 py-2 rounded-xl text-sm"
+                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                  >
+                    <option value="desc">Nyeste først</option>
+                    <option value="asc">Eldste først</option>
+                  </select>
+                </label>
+              </div>
               <div className="space-y-2">
-                {filteredTx.map((tx) => (
-                  <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'var(--bg)' }}>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-2.5 h-2.5 rounded-full"
+                {displayFilteredTx.length === 0 && txInPeriod.length > 0 && filtersActive ? (
+                  <div className="rounded-xl p-8 text-center" style={{ background: 'var(--bg)' }}>
+                    <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
+                      Ingen treff med valgte filtre.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="text-sm font-medium px-4 py-2 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                      style={{ color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--surface)' }}
+                    >
+                      Nullstill filtre
+                    </button>
+                  </div>
+                ) : (
+                  sortedDisplayTx.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between gap-2 p-3 rounded-xl"
+                    style={{ background: 'var(--bg)' }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setDetailTx(tx)}
+                      className="flex flex-1 min-w-0 items-center justify-between gap-3 rounded-lg text-left outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
                           style={{
                             background: budgetCategories.find((c) => c.name === tx.category)?.color || 'var(--text-muted)',
                           }}
                         />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
                             {tx.description}
-                          </p>
-                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          </span>
+                          <span className="block text-xs truncate" style={{ color: 'var(--text-muted)' }}>
                             {tx.category} • {tx.date}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p
-                        className="text-sm font-semibold"
+                          </span>
+                        </span>
+                      </span>
+                      <span
+                        className="text-sm font-semibold tabular-nums shrink-0"
                         style={{ color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}
                       >
                         {tx.type === 'income' ? '+' : '-'}{formatNOK(tx.amount)}
-                      </p>
-                      <button onClick={() => handleDelete(tx)} className="p-1 rounded-lg transition-colors hover:opacity-70">
+                      </span>
+                    </button>
+                    <div className="flex items-center shrink-0">
+                      <button
+                        type="button"
+                        aria-label="Slett transaksjon"
+                        onClick={() => handleDelete(tx)}
+                        className="p-1 rounded-lg transition-colors hover:opacity-70"
+                      >
                         <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
                       </button>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </>
@@ -271,5 +385,23 @@ export default function TransaksjonerPage() {
 
       </div>
     </div>
+  )
+}
+
+export default function TransaksjonerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 overflow-auto min-h-[40vh]" style={{ background: 'var(--bg)' }}>
+          <Header title="Transaksjoner" subtitle="Logg inntekter og utgifter" />
+          <TransaksjonerSubnav />
+          <p className="p-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+            Laster …
+          </p>
+        </div>
+      }
+    >
+      <TransaksjonerPageInner />
+    </Suspense>
   )
 }

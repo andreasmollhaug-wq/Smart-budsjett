@@ -1,6 +1,6 @@
 'use client'
 
-import { User, Bell, Sparkles } from 'lucide-react'
+import { User, Bell, Sparkles, FlaskConical } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
@@ -140,6 +140,56 @@ function ProfileSettingsForm() {
   )
 }
 
+function DemoDataCard() {
+  const demoDataEnabled = useStore((s) => s.demoDataEnabled)
+  const setDemoDataEnabled = useStore((s) => s.setDemoDataEnabled)
+
+  return (
+    <div
+      id="demodata"
+      className="rounded-2xl p-6 scroll-mt-24"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <h2 className="font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+        <FlaskConical size={16} style={{ color: 'var(--primary)' }} />
+        Demodata
+      </h2>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+        Vis eksempeldata for budsjett, transaksjoner, sparemål, investeringer og lån (boliglån utenfor snøball,
+        studielån og kredittkort i snøball) slik at du kan utforske appen uten å fylle inn egne tall. Dine egne data
+        lagres trygt mens demodata er på, og gjenopprettes når du slår det av.
+      </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={demoDataEnabled}
+          onClick={() => setDemoDataEnabled(!demoDataEnabled)}
+          className="inline-flex items-center gap-3 text-left min-h-[44px]"
+        >
+          <span
+            className="relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors"
+            style={{ background: demoDataEnabled ? 'var(--primary)' : 'var(--border)' }}
+          >
+            <span
+              className="inline-block h-5 w-5 rounded-full bg-white shadow mt-1 transition-transform"
+              style={{ transform: demoDataEnabled ? 'translateX(1.5rem)' : 'translateX(0.25rem)' }}
+            />
+          </span>
+          <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+            {demoDataEnabled ? 'Demodata er på' : 'Demodata er av'}
+          </span>
+        </button>
+      </div>
+      {demoDataEnabled && (
+        <p className="text-xs mt-3 rounded-lg px-3 py-2" style={{ background: 'var(--primary-pale)', color: 'var(--text-muted)' }}>
+          Du ser nå eksempeldata. Slå av for å gå tilbake til dine egne tall.
+        </p>
+      )}
+    </div>
+  )
+}
+
 function StartveiledningCard() {
   const openOnboardingAgain = useStore((s) => s.openOnboardingAgain)
 
@@ -153,7 +203,7 @@ function StartveiledningCard() {
         Startveiledning
       </h2>
       <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-        Gå gjennom introduksjonen på nytt — navn på profil, budsjettår og hovedinntekt.
+        Gå gjennom introduksjonen på nytt — navn på profil, budsjettår, hovedinntekt og tips om demodata.
       </p>
       <button
         type="button"
@@ -180,6 +230,8 @@ export default function KontoInnstillingerPage() {
         </h2>
         <ProfileSettingsForm />
       </div>
+
+      <DemoDataCard />
 
       <StartveiledningCard />
 

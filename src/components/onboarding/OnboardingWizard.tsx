@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useStore, ONBOARDING_MAIN_INCOME_CATEGORY_ID } from '@/lib/store'
 import { formatThousands, parseThousands } from '@/lib/utils'
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 6
 const MAX_MONTHLY_INCOME = 10_000_000
 
 export default function OnboardingWizard() {
@@ -20,6 +20,8 @@ export default function OnboardingWizard() {
   const recalcBudgetSpent = useStore((s) => s.recalcBudgetSpent)
   const completeOnboarding = useStore((s) => s.completeOnboarding)
   const skipOnboarding = useStore((s) => s.skipOnboarding)
+  const demoDataEnabled = useStore((s) => s.demoDataEnabled)
+  const setDemoDataEnabled = useStore((s) => s.setDemoDataEnabled)
 
   const [nameInput, setNameInput] = useState(profileName)
   const [yearInput, setYearInput] = useState(budgetYear)
@@ -213,6 +215,60 @@ export default function OnboardingWizard() {
         )}
 
         {step === 4 && (
+          <div>
+            <h2 id="onboarding-title" className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+              Demodata (valgfritt)
+            </h2>
+            <p className="text-sm mt-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Vil du se hvordan alt henger sammen før du legger inn mer selv? Slå på ferdige eksempeltall for budsjett,
+              transaksjoner, sparemål, investeringer og lån. Dine egne data lagres trygt mens demodata er på, og
+              gjenopprettes når du slår det av igjen.
+            </p>
+            <div
+              className="mt-5 rounded-xl px-4 py-4"
+              style={{ background: 'var(--primary-pale)', border: '1px solid var(--border)' }}
+            >
+              <p className="text-sm mb-3 leading-snug" style={{ color: 'var(--text-muted)' }}>
+                Du kan slå på demodata direkte her — uten å gå til innstillinger først.
+              </p>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={demoDataEnabled}
+                onClick={() => setDemoDataEnabled(!demoDataEnabled)}
+                className="inline-flex items-center gap-3 text-left w-full min-h-[44px]"
+              >
+                <span
+                  className="relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors"
+                  style={{ background: demoDataEnabled ? 'var(--primary)' : 'var(--border)' }}
+                >
+                  <span
+                    className="inline-block h-5 w-5 rounded-full bg-white shadow mt-1 transition-transform"
+                    style={{ transform: demoDataEnabled ? 'translateX(1.5rem)' : 'translateX(0.25rem)' }}
+                  />
+                </span>
+                <span className="text-sm font-medium flex-1" style={{ color: 'var(--text)' }}>
+                  {demoDataEnabled ? 'Demodata er på — utforsk appen med eksempeldata' : 'Slå på demodata for full oversikt'}
+                </span>
+              </button>
+            </div>
+            {demoDataEnabled && (
+              <p className="text-xs mt-3 rounded-lg px-3 py-2" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>
+                Du ser nå eksempeldata. Slå av bryteren over, eller under Min konto → Innstillinger, for å gå tilbake til
+                dine egne tall.
+              </p>
+            )}
+            <p className="text-sm mt-4 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Samme bryter finnes senere under{' '}
+              <Link href="/konto/innstillinger#demodata" className="underline font-medium" style={{ color: 'var(--primary)' }}>
+                Min konto → Innstillinger
+              </Link>
+              .
+            </p>
+          </div>
+        )}
+
+        {step === 5 && (
           <div>
             <h2 id="onboarding-title" className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
               Du er klar

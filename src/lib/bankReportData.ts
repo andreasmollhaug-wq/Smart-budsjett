@@ -38,11 +38,33 @@ export function sumTransactionsByCategoryForMonth(
   year: number,
   monthIndex: number,
 ): CategoryMonthTotals {
-  const prefix = getMonthKey(year, monthIndex)
+  return sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+}
+
+/**
+ * Summer transaksjoner per kategori for et sammenhengende månedintervall i ett kalenderår
+ * (monthStartInclusive og monthEndInclusive er 0–11, jan–des).
+ */
+export function sumTransactionsByCategoryForMonthRange(
+  transactions: Transaction[],
+  year: number,
+  monthStartInclusive: number,
+  monthEndInclusive: number,
+): CategoryMonthTotals {
   const map: CategoryMonthTotals = new Map()
 
   for (const t of transactions) {
-    if (!t.date.startsWith(prefix)) continue
+    if (!t.date || t.date.length < 7) continue
+    const ym = t.date.slice(0, 7)
+    const parts = ym.split('-')
+    if (parts.length < 2) continue
+    const yy = Number(parts[0])
+    const mm = Number(parts[1])
+    if (!Number.isFinite(yy) || !Number.isFinite(mm) || yy !== year) continue
+    if (mm < 1 || mm > 12) continue
+    const monthIndex = mm - 1
+    if (monthIndex < monthStartInclusive || monthIndex > monthEndInclusive) continue
+
     const cur = map.get(t.category) ?? { income: 0, expense: 0 }
     if (t.type === 'income') {
       cur.income += t.amount
@@ -55,6 +77,14 @@ export function sumTransactionsByCategoryForMonth(
   return map
 }
 
+function sumBudgetedForMonthRange(arr: number[], monthStart: number, monthEnd: number): number {
+  let s = 0
+  for (let i = monthStart; i <= monthEnd; i++) {
+    s += arr[i] ?? 0
+  }
+  return s
+}
+
 export interface BudgetVsActualRow {
   categoryId: string
   name: string
@@ -65,16 +95,17 @@ export interface BudgetVsActualRow {
   variance: number
 }
 
-export function buildBudgetVsActual(
+export function buildBudgetVsActualForPeriod(
   budgetCategories: BudgetCategory[],
   totals: CategoryMonthTotals,
-  monthIndex: number,
+  monthStartInclusive: number,
+  monthEndInclusive: number,
 ): BudgetVsActualRow[] {
   const rows: BudgetVsActualRow[] = []
 
   for (const c of budgetCategories) {
     const arr = ensureBudgetedArray(c.budgeted)
-    const budgeted = arr[monthIndex] ?? 0
+    const budgeted = sumBudgetedForMonthRange(arr, monthStartInclusive, monthEndInclusive)
     const t = totals.get(c.name)
     const actual =
       c.type === 'income' ? (t?.income ?? 0) : (t?.expense ?? 0)
@@ -94,6 +125,15 @@ export function buildBudgetVsActual(
   return rows
 }
 
+/** Én kalendermåned — brukes bl.a. av bankrapport. */
+export function buildBudgetVsActual(
+  budgetCategories: BudgetCategory[],
+  totals: CategoryMonthTotals,
+  monthIndex: number,
+): BudgetVsActualRow[] {
+  return buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
+}
+
 export function groupBudgetVsActualByParent(
   rows: BudgetVsActualRow[],
 ): Record<ParentCategory, BudgetVsActualRow[]> {
@@ -108,6 +148,132 @@ export function groupBudgetVsActualByParent(
     out[r.parentCategory].push(r)
   }
   return out
+}
+
+/** Korte månedsnavn (jan–des), indeks 0–11. */
+export const MONTH_LABELS_SHORT_NB = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mai',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+] as const
+
+const MONTH_LABELS_SHORT = MONTH_LABELS_SHORT_NB
+
+/** Ett punkt per kalendermåned for årstrend (budsjett vs faktisk inntekt/utgift). */
+export interface MonthlyBudgetActualPoint {
+  monthIndex: number
+  label: string
+  budgetedIncome: number
+  budgetedExpense: number
+  actualIncome: number
+  actualExpense: number
+}
+
+/**
+ * 12 måneder for ett år: per måned summeres budsjett og faktisk inntekt/utgift
+ * likt som i budsjett-vs-faktisk-tabellene (én måned om gangen).
+ */
+export function buildMonthlyBudgetActualSeries(
+  transactions: Transaction[],
+  year: number,
+  budgetCategories: BudgetCategory[],
+): MonthlyBudgetActualPoint[] {
+  const out: MonthlyBudgetActualPoint[] = []
+  for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+    const totals = sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+    const rows = buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
+    let budgetedIncome = 0
+    let budgetedExpense = 0
+    let actualIncome = 0
+    let actualExpense = 0
+    for (const r of rows) {
+      if (r.type === 'income') {
+        budgetedIncome += r.budgeted
+        actualIncome += r.actual
+      } else {
+        budgetedExpense += r.budgeted
+        actualExpense += r.actual
+      }
+    }
+    out.push({
+      monthIndex,
+      label: MONTH_LABELS_SHORT[monthIndex] ?? String(monthIndex + 1),
+      budgetedIncome,
+      budgetedExpense,
+      actualIncome,
+      actualExpense,
+    })
+  }
+  return out
+}
+
+/** Faktisk sum per måned (0–11) for inntekt eller utgift i ett budsjettår. */
+export function sumActualsByMonthForType(
+  transactions: Transaction[],
+  year: number,
+  type: 'income' | 'expense',
+): number[] {
+  return Array.from({ length: 12 }, (_, monthIndex) => {
+    const totals = sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+    let s = 0
+    for (const v of totals.values()) {
+      s += type === 'income' ? v.income : v.expense
+    }
+    return s
+  })
+}
+
+/** Budsjettert sum per måned (0–11) aggregert over alle kategorier av gitt type. */
+export function sumBudgetedByMonthForType(budgetCategories: BudgetCategory[], type: 'income' | 'expense'): number[] {
+  return Array.from({ length: 12 }, (__, m) => {
+    let s = 0
+    for (const c of budgetCategories) {
+      if (c.type !== type) continue
+      const arr = ensureBudgetedArray(c.budgeted)
+      s += arr[m] ?? 0
+    }
+    return s
+  })
+}
+
+/** Månedsindeks 0–11 for visning: inneværende måned hvis år = kalenderår, ellers januar. */
+export function referenceMonthIndexForBudgetYear(budgetYear: number): number {
+  const now = new Date()
+  return now.getFullYear() === budgetYear ? now.getMonth() : 0
+}
+
+/** Sum budsjettert for månedlige utgiftskategorier (frequency monthly) én måned. */
+export function sumBudgetedFixedMonthlyExpensesForMonth(
+  budgetCategories: BudgetCategory[],
+  monthIndex: number,
+): number {
+  let s = 0
+  for (const c of budgetCategories) {
+    if (c.type !== 'expense' || c.frequency !== 'monthly') continue
+    const arr = ensureBudgetedArray(c.budgeted)
+    s += arr[monthIndex] ?? 0
+  }
+  return s
+}
+
+/** Sum budsjettert inntekt én måned (alle inntektskategorier). */
+export function sumBudgetedIncomeForMonth(budgetCategories: BudgetCategory[], monthIndex: number): number {
+  let s = 0
+  for (const c of budgetCategories) {
+    if (c.type !== 'income') continue
+    const arr = ensureBudgetedArray(c.budgeted)
+    s += arr[monthIndex] ?? 0
+  }
+  return s
 }
 
 export function sumMonthlyIncomeExpense(totals: CategoryMonthTotals): {

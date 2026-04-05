@@ -12,6 +12,9 @@ import StatCard from '@/components/ui/StatCard'
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ChevronRight } from 'lucide-react'
 import DashboardInvestmentsModal from '@/components/dashboard/DashboardInvestmentsModal'
 import DashboardSavingsGoalsModal from '@/components/dashboard/DashboardSavingsGoalsModal'
+import DashboardCategoryExpenseModal from '@/components/dashboard/DashboardCategoryExpenseModal'
+import DashboardIncomeExpenseMonthlyModal from '@/components/dashboard/DashboardIncomeExpenseMonthlyModal'
+import DashboardFixedExpensesCard from '@/components/dashboard/DashboardFixedExpensesCard'
 
 const DashboardIncomeExpenseChart = dynamic(
   () => import('@/components/dashboard/DashboardIncomeExpenseChart'),
@@ -38,10 +41,14 @@ export default function DashboardPage() {
     transactions,
     isHouseholdAggregate,
     activeProfileId,
+    budgetYear,
+    profiles,
   } = useActivePersonFinance()
 
   const [investmentsModalOpen, setInvestmentsModalOpen] = useState(false)
   const [savingsModalOpen, setSavingsModalOpen] = useState(false)
+  const [categoryModal, setCategoryModal] = useState<{ category: string; total: number } | null>(null)
+  const [kpiModal, setKpiModal] = useState<'income' | 'expense' | null>(null)
 
   const totalIncome = budgetCategories.filter((c) => c.type === 'income').reduce((a, b) => a + b.spent, 0)
   const totalExpenses = budgetCategories.filter((c) => c.type === 'expense').reduce((a, b) => a + b.spent, 0)
@@ -59,14 +66,26 @@ export default function DashboardPage() {
     return { totalPurchase, totalGain, gainPct }
   }, [investments])
 
-  const topExpenses = useMemo(
-    () =>
-      transactions
-        .filter((t) => t.type === 'expense')
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 10),
-    [transactions],
-  )
+  /** Topp 10 utgiftskategorier etter summert faktisk forbruk i budsjettåret (ikke enkeltposter). */
+  const topExpenseCategories = useMemo(() => {
+    const prefix = `${budgetYear}-`
+    const byCat = new Map<string, { total: number; count: number }>()
+    for (const t of transactions ?? []) {
+      if (t.type !== 'expense') continue
+      const d = t.date
+      if (typeof d !== 'string' || !d.startsWith(prefix)) continue
+      const amt = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
+      const cat = typeof t.category === 'string' && t.category.trim() ? t.category.trim() : 'Uten kategori'
+      const cur = byCat.get(cat) ?? { total: 0, count: 0 }
+      cur.total += amt
+      cur.count += 1
+      byCat.set(cat, cur)
+    }
+    return [...byCat.entries()]
+      .map(([category, v]) => ({ category, ...v }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10)
+  }, [transactions, budgetYear])
 
   const invGainUp = portfolio.totalGain >= 0
 
@@ -83,20 +102,24 @@ export default function DashboardPage() {
       <div className="p-8 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            label="Månedsinntekt"
+            label="Inntekt i år"
             value={formatNOK(totalIncome)}
-            sub="Denne måneden"
+            sub={`Budsjettår ${budgetYear}`}
             icon={Wallet}
             trend="up"
             color="#3B5BDB"
+            onClick={() => setKpiModal('income')}
+            aria-label="Se inntekt per måned"
           />
           <StatCard
-            label="Månedlige utgifter"
+            label="Utgifter i år"
             value={formatNOK(totalExpenses)}
-            sub="Denne måneden"
+            sub={`Budsjettår ${budgetYear}`}
             icon={TrendingDown}
             trend="down"
             color="#E03131"
+            onClick={() => setKpiModal('expense')}
+            aria-label="Se utgifter per måned"
           />
           <StatCard label="Total gjeld" value={formatNOK(totalDebt)} sub="Alle lån samlet" icon={CreditCard} color="#F08C00" />
           <StatCard
@@ -125,32 +148,34 @@ export default function DashboardPage() {
               Topp 10 utgifter
             </h2>
             <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-              Største registrerte utgifter
+              Summert per kategori · budsjettår {budgetYear}
             </p>
-            {topExpenses.length === 0 ? (
+            {topExpenseCategories.length === 0 ? (
               <p className="text-sm flex-1" style={{ color: 'var(--text-muted)' }}>
                 Ingen utgifter registrert ennå.
               </p>
             ) : (
               <div className="space-y-2 flex-1 min-h-0 overflow-y-auto max-h-[280px]">
-                {topExpenses.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between gap-2 rounded-xl p-3"
+                {topExpenseCategories.map((row) => (
+                  <button
+                    key={row.category}
+                    type="button"
+                    onClick={() => setCategoryModal({ category: row.category, total: row.total })}
+                    className="w-full flex items-center justify-between gap-2 rounded-xl p-3 text-left outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
                     style={{ background: 'var(--bg)' }}
                   >
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                        {tx.description}
+                        {row.category}
                       </p>
                       <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                        {tx.category} • {tx.date}
+                        {row.count} {row.count === 1 ? 'transaksjon' : 'transaksjoner'}
                       </p>
                     </div>
                     <p className="text-sm font-semibold shrink-0" style={{ color: 'var(--danger)' }}>
-                      -{formatNOK(tx.amount)}
+                      -{formatNOK(row.total)}
                     </p>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -245,12 +270,35 @@ export default function DashboardPage() {
             </p>
           </button>
         </div>
+
+        <DashboardFixedExpensesCard budgetYear={budgetYear} budgetCategories={budgetCategories} />
       </div>
 
       <DashboardInvestmentsModal
         open={investmentsModalOpen}
         onClose={() => setInvestmentsModalOpen(false)}
         investments={investments}
+      />
+      {categoryModal && (
+        <DashboardCategoryExpenseModal
+          open
+          onClose={() => setCategoryModal(null)}
+          categoryName={categoryModal.category}
+          yearTotal={categoryModal.total}
+          budgetYear={budgetYear}
+          transactions={transactions ?? []}
+          budgetCategories={budgetCategories}
+          profiles={profiles}
+          isHouseholdAggregate={isHouseholdAggregate}
+        />
+      )}
+      <DashboardIncomeExpenseMonthlyModal
+        open={kpiModal !== null}
+        onClose={() => setKpiModal(null)}
+        mode={kpiModal ?? 'income'}
+        budgetYear={budgetYear}
+        transactions={transactions ?? []}
+        budgetCategories={budgetCategories}
       />
       <DashboardSavingsGoalsModal
         open={savingsModalOpen}

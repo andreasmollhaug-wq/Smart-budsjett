@@ -136,7 +136,7 @@ export default function SnoballPage() {
       savedInterest,
       monthsSaved,
     }
-  }, [debts, effectiveStrategy, snowballExtraMonthly, simBothStrategies])
+  }, [debts, effectiveStrategy, simBothStrategies])
 
   const chartData = useMemo(() => {
     if (!payoffCompare) return []

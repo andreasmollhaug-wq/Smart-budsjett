@@ -23,10 +23,6 @@ export default function NotificationBell() {
   )
 
   useEffect(() => {
-    useStore.getState().syncProductAnnouncements()
-  }, [])
-
-  useEffect(() => {
     function handle(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false)
     }

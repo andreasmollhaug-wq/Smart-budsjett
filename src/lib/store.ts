@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 import { generateId } from './utils'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
+import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
 import type { ParentCategory } from './budgetCategoryCatalog'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
 import {
@@ -181,6 +182,8 @@ interface AppState {
   /** Erstatter tidligere Zustand-persist + brukes ved innlasting fra Supabase. */
   hydrateFromPayload: (payload: unknown) => void
   syncProductAnnouncements: () => void
+  /** Én gang etter ~30 min synlig bruk; idempotent via deliveredAnnouncementIds. */
+  deliverRoadmapInviteNotification: () => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
 
@@ -194,6 +197,10 @@ interface AppState {
 
   addTransaction: (t: Transaction) => void
   removeTransaction: (id: string) => void
+  updateTransaction: (
+    id: string,
+    patch: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'type'>>,
+  ) => void
   recalcBudgetSpent: (categoryName: string) => void
 
   addBudgetCategory: (c: BudgetCategory) => void
@@ -242,6 +249,11 @@ interface AppState {
   completeOnboarding: () => void
   skipOnboarding: () => void
   openOnboardingAgain: () => void
+
+  /** Eksempeldata på tvers av budsjett, transaksjoner, sparing, investeringer og lån; ekte data i `peopleBeforeDemo`. */
+  demoDataEnabled: boolean
+  peopleBeforeDemo: Record<string, PersonData> | null
+  setDemoDataEnabled: (enabled: boolean) => void
 }
 
 /** Ytre nøkkel årstall som string, indre er profilId. */
@@ -261,6 +273,8 @@ export type PersistedAppSlice = Pick<
   | 'archivedBudgetsByYear'
   | 'onboarding'
   | 'formuebyggerPro'
+  | 'demoDataEnabled'
+  | 'peopleBeforeDemo'
 >
 
 /** Tidligere nøkkel for Zustand persist (brukes til engangsmigrering til Supabase). */
@@ -281,6 +295,8 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     archivedBudgetsByYear: {},
     onboarding: { status: 'pending' },
     formuebyggerPro: createDefaultFormuebyggerPersistedState(),
+    demoDataEnabled: false,
+    peopleBeforeDemo: null,
   }
 }
 
@@ -297,6 +313,8 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     archivedBudgetsByYear: state.archivedBudgetsByYear,
     onboarding: state.onboarding,
     formuebyggerPro: state.formuebyggerPro,
+    demoDataEnabled: state.demoDataEnabled,
+    peopleBeforeDemo: state.peopleBeforeDemo,
   }
 }
 
@@ -367,6 +385,8 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
       budgetYear: year,
       archivedBudgetsByYear: {},
       onboarding: { status: 'completed' },
+      demoDataEnabled: false,
+      peopleBeforeDemo: null,
     }
   }
 
@@ -407,6 +427,11 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
 
   const rawFp = (p as Partial<AppState>).formuebyggerPro
   base.formuebyggerPro = normalizeFormuebyggerPersistedState(rawFp)
+
+  if (typeof base.demoDataEnabled !== 'boolean') base.demoDataEnabled = false
+  if (base.peopleBeforeDemo === undefined) base.peopleBeforeDemo = null
+  const pbd = base.peopleBeforeDemo
+  if (pbd != null && (typeof pbd !== 'object' || Array.isArray(pbd))) base.peopleBeforeDemo = null
 
   return base
 }
@@ -608,6 +633,84 @@ export function createEmptyPersonData(): PersonData {
     snowballExtraMonthly: 0,
     debtPayoffStrategy: 'snowball',
   }
+}
+
+/** Månedlige demoutgifter — kategorinavn må matche `defaultCategories` i `createInitialPersonData`. */
+const DEMO_MONTHLY_EXPENSES: [string, number][] = [
+  ['Husleie', 12_000],
+  ['Strøm', 1_000],
+  ['Internett', 500],
+  ['Mobilabonnement', 400],
+  ['Innboforsikring', 250],
+  ['TV / streaming', 350],
+  ['Treningsabonnement', 400],
+  ['Mat & dagligvarer', 8_800],
+  ['Transport', 2_500],
+  ['Restaurant & takeaway', 1_200],
+  ['Klær & sko', 800],
+  ['Apotek & helse', 400],
+  ['Fritid & hobby', 1_000],
+  ['Diverse', 1_100],
+  ['Boliglån (avdrag)', 12_000],
+  ['Studielån', 1_500],
+  ['Kredittkort', 1_000],
+  ['Fond', 1_500],
+  ['Aksjer', 1_000],
+  ['BSU', 800],
+  ['Nødfond', 400],
+]
+
+function buildDemoTransactionsForYear(year: number, profileId: string): Transaction[] {
+  const txs: Transaction[] = []
+  for (let mi = 0; mi < 12; mi++) {
+    const ym = `${year}-${String(mi + 1).padStart(2, '0')}`
+    if (mi === 5) {
+      txs.push({
+        id: generateId(),
+        date: `${ym}-12`,
+        description: 'Feriepenger',
+        amount: 80_000,
+        category: 'Feriepenger',
+        type: 'income',
+        profileId,
+      })
+    } else {
+      txs.push({
+        id: generateId(),
+        date: `${ym}-25`,
+        description: 'Lønn',
+        amount: 50_000,
+        category: 'Lønn',
+        type: 'income',
+        profileId,
+      })
+    }
+    for (let ei = 0; ei < DEMO_MONTHLY_EXPENSES.length; ei++) {
+      const [name, amt] = DEMO_MONTHLY_EXPENSES[ei]!
+      const day = Math.min(3 + ei, 28)
+      txs.push({
+        id: generateId(),
+        date: `${ym}-${String(day).padStart(2, '0')}`,
+        description: name,
+        amount: amt,
+        category: name,
+        type: 'expense',
+        profileId,
+      })
+    }
+  }
+  txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  return txs
+}
+
+/** Full demoprofil (budsjett, transaksjoner, sparing, investeringer, lån) for én profil. */
+export function createDemoPersonDataForProfile(profileId: string, budgetYear: number): PersonData {
+  const base = createInitialPersonData()
+  const transactions = buildDemoTransactionsForYear(budgetYear, profileId)
+  let person: PersonData = { ...base, transactions }
+  person = recalcPersonBudgetSpentForYear(person, profileId, budgetYear)
+  person = syncLinkedSavingsGoalsCurrent(person, profileId)
+  return person
 }
 
 function sumMonthlyArrays(a: number[], b: number[]): number[] {
@@ -846,6 +949,40 @@ export const useStore = create<AppState>()((set, get) => {
         archivedBudgetsByYear: {} as ArchivedBudgetsByYear,
         onboarding: { status: 'pending' } as OnboardingState,
         formuebyggerPro: createDefaultFormuebyggerPersistedState(),
+        demoDataEnabled: false,
+        peopleBeforeDemo: null as Record<string, PersonData> | null,
+
+        setDemoDataEnabled: (enabled) => {
+          set((s) => {
+            if (enabled === s.demoDataEnabled) return s
+            if (enabled) {
+              let backup: Record<string, PersonData>
+              try {
+                backup = JSON.parse(JSON.stringify(s.people)) as Record<string, PersonData>
+              } catch {
+                return s
+              }
+              const nextPeople: Record<string, PersonData> = {}
+              for (const pr of s.profiles) {
+                nextPeople[pr.id] = createDemoPersonDataForProfile(pr.id, s.budgetYear)
+              }
+              return {
+                demoDataEnabled: true,
+                peopleBeforeDemo: backup,
+                people: nextPeople,
+              }
+            }
+            const restored = s.peopleBeforeDemo
+            if (!restored) {
+              return { demoDataEnabled: false, peopleBeforeDemo: null }
+            }
+            return {
+              demoDataEnabled: false,
+              peopleBeforeDemo: null,
+              people: restored,
+            }
+          })
+        },
 
         setFormuebyggerPro: (patch) =>
           set((s) => {
@@ -888,6 +1025,28 @@ export const useStore = create<AppState>()((set, get) => {
               newDelivered.push(a.id)
             }
             return { notifications: next, deliveredAnnouncementIds: newDelivered }
+          })
+        },
+
+        deliverRoadmapInviteNotification: () => {
+          set((s) => {
+            if (s.deliveredAnnouncementIds.includes(ROADMAP_INVITE_NOTIFICATION_ID)) return s
+            if (s.notifications.some((n) => n.id === ROADMAP_INVITE_NOTIFICATION_ID)) return s
+            return {
+              notifications: [
+                {
+                  id: ROADMAP_INVITE_NOTIFICATION_ID,
+                  title: 'Har du et forslag?',
+                  body:
+                    'Du har brukt Smart Budsjett en stund. Gå til Min konto → Roadmap for å stemme på forbedringer og foreslå egne.',
+                  kind: 'product' as const,
+                  createdAt: new Date().toISOString(),
+                  read: false,
+                },
+                ...s.notifications,
+              ],
+              deliveredAnnouncementIds: [...s.deliveredAnnouncementIds, ROADMAP_INVITE_NOTIFICATION_ID],
+            }
           })
         },
 
@@ -981,6 +1140,35 @@ export const useStore = create<AppState>()((set, get) => {
               const person = s.people[pid]
               if (!person?.transactions.some((t) => t.id === id)) continue
               const nextTx = person.transactions.filter((t) => t.id !== id)
+              const merged = syncLinkedSavingsGoalsCurrent(
+                { ...person, transactions: nextTx },
+                pid,
+              )
+              return {
+                people: {
+                  ...s.people,
+                  [pid]: recalcPersonBudgetSpentForYear(merged, pid, s.budgetYear),
+                },
+              }
+            }
+            return s
+          }),
+
+        updateTransaction: (id, patch) =>
+          set((s) => {
+            for (const pid of s.profiles.map((p) => p.id)) {
+              const person = s.people[pid]
+              if (!person?.transactions.some((t) => t.id === id)) continue
+              const nextTx = person.transactions.map((t) => {
+                if (t.id !== id) return t
+                const merged: Transaction = {
+                  ...t,
+                  ...patch,
+                  id: t.id,
+                  profileId: t.profileId ?? pid,
+                }
+                return merged
+              })
               const merged = syncLinkedSavingsGoalsCurrent(
                 { ...person, transactions: nextTx },
                 pid,
@@ -1095,7 +1283,7 @@ export const useStore = create<AppState>()((set, get) => {
               ...s.archivedBudgetsByYear,
               [String(s.budgetYear)]: byProfile,
             }
-            const { [String(targetYear)]: _removed, ...restArchive } = nextArchive
+            const { [String(targetYear)]: _, ...restArchive } = nextArchive
 
             const nextPeople: Record<string, PersonData> = { ...s.people }
             for (const pr of s.profiles) {
@@ -1345,6 +1533,8 @@ export function resetStoreForLogout() {
     archivedBudgetsByYear: {},
     onboarding: { status: 'pending' },
     formuebyggerPro: createDefaultFormuebyggerPersistedState(),
+    demoDataEnabled: false,
+    peopleBeforeDemo: null,
   })
   clearLegacyLocalStorage()
 }
@@ -1364,6 +1554,7 @@ export function useActivePersonFinance() {
       switchActiveBudgetYear: s.switchActiveBudgetYear,
       addTransaction: s.addTransaction,
       removeTransaction: s.removeTransaction,
+      updateTransaction: s.updateTransaction,
       recalcBudgetSpent: s.recalcBudgetSpent,
       addBudgetCategory: s.addBudgetCategory,
       updateBudgetCategory: s.updateBudgetCategory,
@@ -1424,6 +1615,7 @@ export function useActivePersonFinance() {
     isHouseholdAggregate: householdMode,
     addTransaction: state.addTransaction,
     removeTransaction: state.removeTransaction,
+    updateTransaction: state.updateTransaction,
     recalcBudgetSpent: state.recalcBudgetSpent,
     addBudgetCategory: state.addBudgetCategory,
     updateBudgetCategory: state.updateBudgetCategory,

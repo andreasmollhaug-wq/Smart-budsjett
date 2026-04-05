@@ -3,7 +3,13 @@ import { useMemo, useState } from 'react'
 import Header from '@/components/layout/Header'
 import { useActivePersonFinance, Investment } from '@/lib/store'
 import { formatNOK, generateId } from '@/lib/utils'
-import { Plus, Trash2, TrendingUp, TrendingDown, Clock, X } from 'lucide-react'
+import { Plus, Trash2, TrendingUp, TrendingDown, Clock, X, Search } from 'lucide-react'
+import {
+  fetchQuoteSnapshots,
+  fetchQuoteSearch,
+  type QuoteSearchHit,
+  type QuoteSnapshot,
+} from '@/lib/marketQuotes'
 import {
   PieChart,
   Pie,
@@ -45,6 +51,12 @@ export default function InvesteringPage() {
   const [historyOpenFor, setHistoryOpenFor] = useState<string | null>(null)
   const [historyForm, setHistoryForm] = useState({ date: '', value: '' })
   const [currentValueInputs, setCurrentValueInputs] = useState<Record<string, string>>({})
+
+  const [quoteTickerInput, setQuoteTickerInput] = useState('')
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const [quoteError, setQuoteError] = useState<string | null>(null)
+  const [quoteRows, setQuoteRows] = useState<QuoteSnapshot[] | null>(null)
+  const [searchRows, setSearchRows] = useState<(QuoteSearchHit & { quote?: QuoteSnapshot })[] | null>(null)
 
   function todayISO() {
     const d = new Date()
@@ -114,9 +126,10 @@ export default function InvesteringPage() {
 
   const activeHistoryInvestment = investments.find((inv) => inv.id === historyOpenFor) ?? null
 
-  const activeHistoryPoints = activeHistoryInvestment
-    ? (activeHistoryInvestment.history ?? []).slice().sort((a, b) => dateToTime(a.date) - dateToTime(b.date))
-    : []
+  const activeHistoryPoints = useMemo(() => {
+    if (!activeHistoryInvestment) return []
+    return (activeHistoryInvestment.history ?? []).slice().sort((a, b) => dateToTime(a.date) - dateToTime(b.date))
+  }, [activeHistoryInvestment])
 
   const activeHistoryFirstValue = activeHistoryPoints[0]?.value ?? 0
   const activeHistoryTrend = activeHistoryPoints.map((p) => ({
@@ -244,6 +257,32 @@ export default function InvesteringPage() {
     [investments],
   )
 
+  const top3ByReturnNOK = useMemo(
+    () =>
+      investments
+        .slice()
+        .sort(
+          (a, b) =>
+            b.currentValue - b.purchaseValue - (a.currentValue - a.purchaseValue),
+        )
+        .slice(0, 3),
+    [investments],
+  )
+
+  const top3ByReturnPct = useMemo(
+    () =>
+      investments
+        .filter((inv) => inv.purchaseValue > 0)
+        .slice()
+        .sort((a, b) => {
+          const pa = ((a.currentValue - a.purchaseValue) / a.purchaseValue) * 100
+          const pb = ((b.currentValue - b.purchaseValue) / b.purchaseValue) * 100
+          return pb - pa
+        })
+        .slice(0, 3),
+    [investments],
+  )
+
   const handleAdd = () => {
     if (!form.name || !form.purchaseValue) return
     addInvestment({
@@ -256,6 +295,84 @@ export default function InvesteringPage() {
     })
     setForm({ name: '', type: 'funds', purchaseValue: '', currentValue: '', purchaseDate: '' })
     setShowForm(false)
+  }
+
+  function formatQuotePrice(value: number | null, currency: string) {
+    if (value == null || !Number.isFinite(value)) return '—'
+    return (
+      new Intl.NumberFormat('nb-NO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 4,
+      }).format(value) + (currency ? ` ${currency}` : '')
+    )
+  }
+
+  function formatQuoteChange(value: number | null) {
+    if (value == null || !Number.isFinite(value)) return '—'
+    const sign = value > 0 ? '+' : ''
+    return sign + new Intl.NumberFormat('nb-NO', { maximumFractionDigits: 2 }).format(value)
+  }
+
+  function formatQuotePct(value: number | null) {
+    if (value == null || !Number.isFinite(value)) return '—'
+    const sign = value > 0 ? '+' : ''
+    return sign + new Intl.NumberFormat('nb-NO', { maximumFractionDigits: 2 }).format(value) + '%'
+  }
+
+  async function handleFetchQuotes() {
+    const raw = quoteTickerInput.trim()
+    if (!raw) {
+      setQuoteError('Skriv inn søkeord eller ticker.')
+      return
+    }
+    const isTickerList = raw.includes(',')
+
+    setQuoteError(null)
+    setQuoteLoading(true)
+    setQuoteRows(null)
+    setSearchRows(null)
+
+    try {
+      if (isTickerList) {
+        const parts = raw.split(',').map((s) => s.trim()).filter(Boolean)
+        if (parts.length === 0) {
+          setQuoteError('Ingen ticker.')
+          return
+        }
+        const { results } = await fetchQuoteSnapshots(parts)
+        setQuoteRows(results)
+        return
+      }
+
+      const { results: hits } = await fetchQuoteSearch(raw)
+      if (hits.length === 0) {
+        setQuoteError('Ingen treff.')
+        return
+      }
+
+      const symbols = [...new Set(hits.map((h) => h.symbol).filter(Boolean))].slice(0, 30)
+      const quoteBySymbol = new Map<string, QuoteSnapshot>()
+      for (let i = 0; i < symbols.length; i += 10) {
+        const chunk = symbols.slice(i, i + 10)
+        const { results: qResults } = await fetchQuoteSnapshots(chunk)
+        chunk.forEach((sym, j) => {
+          const snap = qResults[j]
+          if (snap) quoteBySymbol.set(sym, snap)
+        })
+      }
+
+      const merged = hits.map((h) => ({
+        ...h,
+        quote: h.symbol ? quoteBySymbol.get(h.symbol) : undefined,
+      }))
+      setSearchRows(merged)
+    } catch (e) {
+      setQuoteError(e instanceof Error ? e.message : 'Kunne ikke hente data.')
+      setQuoteRows(null)
+      setSearchRows(null)
+    } finally {
+      setQuoteLoading(false)
+    }
   }
 
   return (
@@ -300,13 +417,217 @@ export default function InvesteringPage() {
                 {formatNOK(totalReturn)}
               </p>
             </div>
+
+            <div className="mt-4 space-y-2">
+              {top3ByReturnNOK.map((inv) => {
+                const ret = inv.currentValue - inv.purchaseValue
+                const good = ret >= 0
+                return (
+                  <div key={inv.id} className="flex items-center justify-between text-xs">
+                    <span style={{ color: 'var(--text-muted)' }}>{inv.name}</span>
+                    <span style={{ color: good ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>{formatNOK(ret)}</span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
           <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Avkastning %</p>
             <p className="text-2xl font-bold mt-1" style={{ color: totalReturnPct >= 0 ? 'var(--success)' : 'var(--danger)' }}>
               {totalReturnPct >= 0 ? '+' : ''}{totalReturnPct.toFixed(1)}%
             </p>
+
+            <div className="mt-4 space-y-2">
+              {top3ByReturnPct.map((inv) => {
+                const ret = inv.currentValue - inv.purchaseValue
+                const retPct = inv.purchaseValue > 0 ? (ret / inv.purchaseValue) * 100 : 0
+                const good = retPct >= 0
+                return (
+                  <div key={inv.id} className="flex items-center justify-between text-xs">
+                    <span style={{ color: 'var(--text-muted)' }}>{inv.name}</span>
+                    <span style={{ color: good ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
+                      {good ? '+' : ''}{retPct.toFixed(1)}%
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
+        </div>
+
+        <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>Kursoppslag</h2>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+            <strong>Uten komma:</strong> søk på navn (f.eks. <code className="text-xs">Vår energi</code>, <code className="text-xs">equinor</code>) — du får
+            <strong>alle treff</strong> fra Finnhub med kurs der det finnes data.{' '}
+            <strong>Med komma:</strong> flere tickere på én gang (f.eks. <code className="text-xs">AAPL, MSFT</code>).
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 mb-4">
+            <input
+              type="text"
+              value={quoteTickerInput}
+              onChange={(e) => setQuoteTickerInput(e.target.value)}
+              placeholder="Vår energi  eller  AAPL, MSFT"
+              className="flex-1 px-3 py-2 rounded-xl text-sm min-w-0"
+              style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+              disabled={quoteLoading}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleFetchQuotes()
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void handleFetchQuotes()}
+              disabled={quoteLoading}
+              className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-60"
+              style={{ background: 'var(--primary)' }}
+            >
+              <Search size={16} />
+              {quoteLoading ? 'Henter…' : quoteTickerInput.includes(',') ? 'Hent kurs' : 'Søk'}
+            </button>
+          </div>
+          {quoteError ? (
+            <p className="text-sm mb-3" style={{ color: 'var(--danger)' }}>{quoteError}</p>
+          ) : null}
+          {searchRows && searchRows.length > 0 ? (
+            <div
+              className="overflow-x-auto rounded-xl max-h-[28rem] overflow-y-auto"
+              style={{ border: '1px solid var(--border)' }}
+            >
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10">
+                  <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                    <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Beskrivelse</th>
+                    <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Ticker</th>
+                    <th className="text-left px-3 py-2 font-semibold hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>Type</th>
+                    <th className="text-right px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Siste</th>
+                    <th className="text-right px-3 py-2 font-semibold hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Dag Δ</th>
+                    <th className="text-right px-3 py-2 font-semibold hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Dag %</th>
+                    <th className="text-left px-3 py-2 font-semibold hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Børs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchRows.map((hit, idx) => {
+                    const q = hit.quote
+                    const ok = q && q.ok
+                    const err = q && !q.ok ? q : null
+                    return (
+                      <tr key={`${hit.symbol}-${idx}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="px-3 py-2 max-w-[14rem]" style={{ color: 'var(--text)' }}>
+                          {hit.description || '—'}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+                          {hit.displaySymbol ?? hit.symbol}
+                        </td>
+                        <td className="px-3 py-2 text-xs hidden sm:table-cell" style={{ color: 'var(--text-muted)' }}>
+                          {hit.type || '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums align-top" style={{ color: 'var(--text)' }}>
+                          {ok ? (
+                            formatQuotePrice(q.regularMarketPrice, q.currency)
+                          ) : err ? (
+                            <span className="text-xs" style={{ color: 'var(--danger)' }} title={err.error}>
+                              {err.error.length > 40 ? `${err.error.slice(0, 40)}…` : err.error}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td
+                          className="px-3 py-2 text-right tabular-nums hidden md:table-cell"
+                          style={{
+                            color:
+                              ok && q.regularMarketChange != null && q.regularMarketChange >= 0
+                                ? 'var(--success)'
+                                : 'var(--danger)',
+                          }}
+                        >
+                          {ok ? formatQuoteChange(q.regularMarketChange) : '—'}
+                        </td>
+                        <td
+                          className="px-3 py-2 text-right tabular-nums hidden md:table-cell"
+                          style={{
+                            color:
+                              ok && q.regularMarketChangePercent != null && q.regularMarketChangePercent >= 0
+                                ? 'var(--success)'
+                                : 'var(--danger)',
+                          }}
+                        >
+                          {ok ? formatQuotePct(q.regularMarketChangePercent) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-xs hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>
+                          {ok ? `${q.exchange} (${q.marketState})` : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+          {quoteRows && quoteRows.length > 0 ? (
+            <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                    <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Navn</th>
+                    <th className="text-left px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Ticker</th>
+                    <th className="text-right px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Siste</th>
+                    <th className="text-right px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Dag Δ</th>
+                    <th className="text-right px-3 py-2 font-semibold" style={{ color: 'var(--text-muted)' }}>Dag %</th>
+                    <th className="text-left px-3 py-2 font-semibold hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Børs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quoteRows.map((row, idx) =>
+                    row.ok ? (
+                      <tr key={`${row.symbol}-${idx}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="px-3 py-2" style={{ color: 'var(--text)' }}>{row.shortName}</td>
+                        <td className="px-3 py-2 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{row.symbol}</td>
+                        <td className="px-3 py-2 text-right tabular-nums" style={{ color: 'var(--text)' }}>
+                          {formatQuotePrice(row.regularMarketPrice, row.currency)}
+                        </td>
+                        <td
+                          className="px-3 py-2 text-right tabular-nums"
+                          style={{
+                            color:
+                              row.regularMarketChange != null && row.regularMarketChange >= 0
+                                ? 'var(--success)'
+                                : 'var(--danger)',
+                          }}
+                        >
+                          {formatQuoteChange(row.regularMarketChange)}
+                        </td>
+                        <td
+                          className="px-3 py-2 text-right tabular-nums"
+                          style={{
+                            color:
+                              row.regularMarketChangePercent != null && row.regularMarketChangePercent >= 0
+                                ? 'var(--success)'
+                                : 'var(--danger)',
+                          }}
+                        >
+                          {formatQuotePct(row.regularMarketChangePercent)}
+                        </td>
+                        <td className="px-3 py-2 hidden md:table-cell text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {row.exchange} ({row.marketState})
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={`${row.symbol}-err-${idx}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="px-3 py-2 font-mono text-xs" colSpan={6} style={{ color: 'var(--danger)' }}>
+                          {row.symbol}: {row.error}
+                        </td>
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+          <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
+            Data fra Finnhub under deres vilkår og kvoter. Priser i instrumentets valuta — ikke bland med NOK uten egen omregning.
+          </p>
         </div>
 
         <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -319,7 +640,7 @@ export default function InvesteringPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#E0E7FF" />
                   <XAxis dataKey="date" tickFormatter={(d) => formatDateLabel(String(d))} tick={{ fill: '#6B7A99', fontSize: 12 }} />
                   <YAxis
-                    domain={portfolioDomain as any}
+                    domain={portfolioDomain}
                     tickFormatter={(v) => formatNOK(Number(v))}
                     tick={{ fill: '#6B7A99', fontSize: 12 }}
                   />
@@ -346,6 +667,8 @@ export default function InvesteringPage() {
                 const historySorted = (inv.history ?? []).slice().sort((a, b) => dateToTime(a.date) - dateToTime(b.date))
                 const last3 = historySorted.slice(-3)
                 const last3Values = last3.map((p) => p.value)
+                const retColor = ret >= 0 ? 'var(--success)' : 'var(--danger)'
+                const retPctGood = retPct >= 0
                 return (
                   <div
                     key={inv.id}
@@ -362,38 +685,66 @@ export default function InvesteringPage() {
                         setHistoryForm({ date: todayISO(), value: '' })
                       }
                     }}
-                    className="flex items-center gap-4 p-3 rounded-xl cursor-pointer"
+                    className="flex flex-col gap-2 md:flex-row md:items-center md:gap-4 p-3 rounded-xl cursor-pointer min-w-0"
                     style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                   >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: color + '20' }}>
-                      <span className="text-xs font-bold" style={{ color }}>{inv.type.slice(0, 2).toUpperCase()}</span>
+                    <div className="flex gap-3 items-start md:items-center min-w-0 flex-1">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: color + '20' }}>
+                        <span className="text-xs font-bold" style={{ color }}>{inv.type.slice(0, 2).toUpperCase()}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate" style={{ color: 'var(--text)' }}>{inv.name}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{typeLabels[inv.type]}</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-medium text-sm" style={{ color: 'var(--text)' }}>{inv.name}</p>
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{typeLabels[inv.type]}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{formatNOK(inv.currentValue)}</p>
-                      <p className="text-xs" style={{ color: ret >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                        {ret >= 0 ? '+' : ''}{retPct.toFixed(1)}%
-                      </p>
+
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 w-full md:w-auto md:min-w-[220px] md:max-w-md md:flex-shrink-0 text-xs md:text-sm">
+                      <div>
+                        <p className="text-[10px] md:text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Kjøp</p>
+                        <p className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{formatNOK(inv.purchaseValue)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] md:text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Marked</p>
+                        <p className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>{formatNOK(inv.currentValue)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] md:text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Avkastning</p>
+                        <p className="font-semibold tabular-nums" style={{ color: retColor }}>{formatNOK(ret)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] md:text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Avkastning %</p>
+                        <p className="font-semibold tabular-nums" style={{ color: retPctGood ? 'var(--success)' : 'var(--danger)' }}>
+                          {retPctGood ? '+' : ''}{retPct.toFixed(1)}%
+                        </p>
+                      </div>
                     </div>
 
                     {last3Values.length > 0 ? (
-                      <div className="flex items-center gap-2 flex-shrink-0 hidden md:flex">
-                        <MiniSparkline values={last3Values} color={color} />
-                        <div className="flex flex-col" style={{ lineHeight: '1.1' }}>
-                          {last3.map((p) => (
-                            <div key={p.id ?? `${p.date}-${p.value}`} className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-                              {formatNOKCompact(p.value)}
-                            </div>
-                          ))}
+                      <div
+                        className="hidden md:flex flex-col gap-1 flex-shrink-0"
+                        title="Siste tre registrerte historikkverdier for posisjonen"
+                      >
+                        <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                          Historikk
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <MiniSparkline values={last3Values} color={color} />
+                          <div className="flex flex-col" style={{ lineHeight: '1.1' }}>
+                            {last3.map((p) => (
+                              <div key={p.id ?? `${p.date}-${p.value}`} className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                                {formatNOKCompact(p.value)}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     ) : null}
 
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex items-center gap-2 w-full md:w-auto md:flex-shrink-0 mt-0.5 md:mt-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="text"
                         value={currentValueInputs[inv.id] ?? formatNOKThousandsInput(String(inv.currentValue))}
@@ -418,22 +769,23 @@ export default function InvesteringPage() {
                           if (!Number.isFinite(valueNum)) return
                           updateInvestment(inv.id, { currentValue: valueNum })
                         }}
-                        className="w-28 px-2 py-1.5 rounded-lg text-xs text-right"
+                        className="min-w-0 flex-1 md:flex-initial md:w-28 px-2 py-1.5 rounded-lg text-xs text-right"
                         style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                         placeholder="Oppdater verdi"
                       />
                       <button
+                        type="button"
                         onClick={() => {
                           setHistoryOpenFor(inv.id)
                           setHistoryForm({ date: todayISO(), value: '' })
                         }}
-                        className="p-2 rounded-lg transition-colors hover:opacity-70"
+                        className="p-2 rounded-lg transition-colors hover:opacity-70 flex-shrink-0"
                         style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                         title="Legg til historikk"
                       >
                         <Clock size={14} style={{ color: 'var(--text-muted)' }} />
                       </button>
-                      <button onClick={() => removeInvestment(inv.id)}>
+                      <button type="button" className="flex-shrink-0" onClick={() => removeInvestment(inv.id)}>
                         <Trash2 size={13} style={{ color: 'var(--text-muted)' }} />
                       </button>
                     </div>

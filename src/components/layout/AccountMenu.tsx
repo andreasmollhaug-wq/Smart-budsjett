@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { User, ChevronDown, Settings, CreditCard, Shield, LogOut } from 'lucide-react'
+import { User, ChevronDown, Settings, CreditCard, Shield, LogOut, Map } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resetStoreForLogout } from '@/lib/store'
 
@@ -81,6 +81,16 @@ export default function AccountMenu() {
           >
             <Shield size={16} style={{ color: 'var(--text-muted)' }} />
             Sikkerhet
+          </Link>
+          <Link
+            href="/konto/roadmap"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2.5 text-sm font-medium transition-colors"
+            style={{ color: 'var(--text)' }}
+          >
+            <Map size={16} style={{ color: 'var(--text-muted)' }} />
+            Roadmap
           </Link>
           <div className="my-1 h-px" style={{ background: 'var(--border)' }} />
           <button
