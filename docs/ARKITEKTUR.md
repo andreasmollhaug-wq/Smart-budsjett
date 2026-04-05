@@ -22,7 +22,7 @@ flowchart TB
   rootLayout --> legal["personvern vilkar"]
   rootLayout --> appLayout["app layout.tsx"]
   appLayout --> appRoutes["dashboard budsjett ..."]
-  rootLayout --> apiRoute["api/claude"]
+  rootLayout --> apiRoute["api/enkelexcel-ai"]
 ```
 
 ## Bygg

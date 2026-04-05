@@ -50,7 +50,7 @@ const nav = [
   { href: '/snoball', label: 'Snøball', icon: Snowflake },
   { href: '/investering', label: 'Investering', icon: TrendingUp },
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
-  { href: '/claude', label: 'EnkelExcel AI', icon: MessageSquare },
+  { href: '/enkelexcel-ai', label: 'EnkelExcel AI', icon: MessageSquare },
 ]
 
 export default function Sidebar() {

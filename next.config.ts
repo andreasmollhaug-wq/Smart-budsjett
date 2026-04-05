@@ -13,6 +13,11 @@ const nextConfig: NextConfig = {
         destination: '/rapporter/sparemal',
         permanent: true,
       },
+      {
+        source: '/claude',
+        destination: '/enkelexcel-ai',
+        permanent: true,
+      },
     ]
   },
 }

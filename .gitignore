@@ -19,3 +19,6 @@ npm-debug.log*
 # IDE
 .idea
 .vscode
+
+# Supabase CLI lokal cache
+supabase/.temp/

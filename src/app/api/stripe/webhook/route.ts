@@ -44,6 +44,25 @@ export async function POST(req: Request) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+        if (session.mode === 'payment') {
+          const meta = session.metadata ?? {}
+          if (meta.type === 'ai_bonus_credits' && session.payment_status === 'paid') {
+            const userId = meta.supabase_user_id ?? session.client_reference_id
+            const credits = parseInt(meta.credits_amount ?? '100', 10)
+            if (userId && Number.isFinite(credits) && credits > 0) {
+              const { error: rpcErr } = await admin.rpc('complete_ai_credit_purchase_from_stripe', {
+                p_session_id: session.id,
+                p_user_id: userId,
+                p_amount: credits,
+              })
+              if (rpcErr) {
+                console.error('[stripe] complete_ai_credit_purchase_from_stripe', rpcErr)
+                throw rpcErr
+              }
+            }
+          }
+          break
+        }
         if (session.mode !== 'subscription') break
         const subRef = session.subscription
         const subId = typeof subRef === 'string' ? subRef : subRef?.id

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { currentYearMonthOslo, getMonthlyMessageLimit } from '@/lib/aiUsage'
 
 type ChatRole = 'user' | 'assistant'
 
@@ -31,6 +32,41 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Du må være innlogget.' }, { status: 401 })
   }
 
+  const limit = getMonthlyMessageLimit()
+  const month = currentYearMonthOslo()
+
+  const [{ data: usageRow, error: usageErr }, { data: bonusRow, error: bonusErr }] =
+    await Promise.all([
+      supabase
+        .from('ai_monthly_usage')
+        .select('message_count')
+        .eq('user_id', user.id)
+        .eq('year_month', month)
+        .maybeSingle(),
+      supabase.from('user_ai_bonus_credits').select('credits').eq('user_id', user.id).maybeSingle(),
+    ])
+
+  if (usageErr) {
+    return NextResponse.json({ error: usageErr.message }, { status: 500 })
+  }
+  if (bonusErr) {
+    return NextResponse.json({ error: bonusErr.message }, { status: 500 })
+  }
+
+  const usedBefore = usageRow?.message_count ?? 0
+  const bonusBefore = bonusRow?.credits ?? 0
+
+  if (usedBefore >= limit && bonusBefore <= 0) {
+    return NextResponse.json(
+      {
+        error:
+          'Du har brukt alle inkluderte meldinger denne måneden og har ingen ekstra meldinger igjen. Du kan kjøpe flere eller prøve igjen neste måned.',
+        usage: { used: usedBefore, limit, bonusCredits: 0 },
+      },
+      { status: 429 },
+    )
+  }
+
   const body = (await req.json().catch(() => null)) as
     | { messages?: IncomingMessage[] }
     | null
@@ -49,7 +85,6 @@ export async function POST(req: Request) {
 
   const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
 
-  /** GPT-5.x / reasoning-modeller krever max_completion_tokens; eldre bruker max_tokens. */
   const useCompletionTokenLimit = /^gpt-5/i.test(model) || /^o[0-9]/i.test(model)
 
   const thread = messages.filter(
@@ -88,8 +123,56 @@ export async function POST(req: Request) {
 
   const reply = data?.choices?.[0]?.message?.content?.trim() ?? null
 
-  return NextResponse.json(
-    { reply: reply ?? 'EnkelExcel AI sendte ingen tekst.' },
-    { status: 200 },
-  )
+  const usageSnapshot = (b: number) => ({
+    used: usedBefore,
+    limit,
+    bonusCredits: b,
+  })
+
+  if (!reply) {
+    return NextResponse.json({
+      reply: 'EnkelExcel AI sendte ingen tekst.',
+      usage: usageSnapshot(bonusBefore),
+    })
+  }
+
+  const useIncludedMonthly = usedBefore < limit
+
+  if (useIncludedMonthly) {
+    const { data: incData, error: incErr } = await supabase.rpc('increment_ai_monthly_usage')
+
+    if (incErr) {
+      return NextResponse.json(
+        { error: `Kunne ikke oppdatere bruk: ${incErr.message}` },
+        { status: 500 },
+      )
+    }
+
+    const inc = incData as { message_count?: number } | null
+    const usedAfter =
+      typeof inc?.message_count === 'number' ? inc.message_count : usedBefore + 1
+
+    return NextResponse.json({
+      reply,
+      usage: { used: usedAfter, limit, bonusCredits: bonusBefore },
+    })
+  }
+
+  const { data: decData, error: decErr } = await supabase.rpc('decrement_ai_bonus_credit')
+
+  if (decErr) {
+    return NextResponse.json(
+      { error: `Kunne ikke oppdatere bruk: ${decErr.message}` },
+      { status: 500 },
+    )
+  }
+
+  const dec = decData as { credits_remaining?: number } | null
+  const bonusAfter =
+    typeof dec?.credits_remaining === 'number' ? dec.credits_remaining : bonusBefore - 1
+
+  return NextResponse.json({
+    reply,
+    usage: { used: usedBefore, limit, bonusCredits: bonusAfter },
+  })
 }

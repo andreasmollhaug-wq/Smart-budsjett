@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <DemoModeBanner />
           <div className="flex min-h-0 flex-1 min-w-0">
             <Sidebar />
-            <main className="flex min-h-screen flex-1 flex-col overflow-hidden">{children}</main>
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
           </div>
         </div>
       </AppUserProvider>
