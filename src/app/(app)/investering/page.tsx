@@ -1,9 +1,10 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from '@/components/layout/Header'
 import { useActivePersonFinance, Investment } from '@/lib/store'
 import { formatNOK, generateId } from '@/lib/utils'
-import { Plus, Trash2, TrendingUp, TrendingDown, Clock, X, Search } from 'lucide-react'
+import { fetchRateToNok, valueInNok } from '@/lib/fxToNok'
+import { Plus, Trash2, TrendingUp, TrendingDown, Clock, X, Search, RefreshCw } from 'lucide-react'
 import {
   fetchQuoteSnapshots,
   fetchQuoteSearch,
@@ -40,8 +41,33 @@ const typeColors: Record<Investment['type'], string> = {
   other: '#6B7A99',
 }
 
+const SEARCH_RESULTS_LIMIT = 40
+/** Vanlig bank-/meglerpåslag ved valutakjøp (NOK), brukt når bruker velger automatisk kjøpsverdi */
+const DEFAULT_VALUTASURTASJE_NOK = 79
+
+function mapSearchTypeToInvestmentType(hitType: string): Investment['type'] {
+  const t = hitType.toLowerCase()
+  if (t.includes('crypto')) return 'crypto'
+  if (t.includes('etf') || t.includes('etp') || t.includes('fund') || t.includes('mutual')) return 'funds'
+  if (t.includes('bond')) return 'bonds'
+  return 'stocks'
+}
+
+function isoDateLocal(date = new Date()) {
+  const yyyy = date.getFullYear()
+  const mm = `${date.getMonth() + 1}`.padStart(2, '0')
+  const dd = `${date.getDate()}`.padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 export default function InvesteringPage() {
   const { investments, addInvestment, removeInvestment, updateInvestment, addInvestmentHistoryValue, removeInvestmentHistoryValue } = useActivePersonFinance()
+  const investmentsRef = useRef(investments)
+  investmentsRef.current = investments
+  const updateInvestmentRef = useRef(updateInvestment)
+  updateInvestmentRef.current = updateInvestment
+  const addInvestmentHistoryValueRef = useRef(addInvestmentHistoryValue)
+  addInvestmentHistoryValueRef.current = addInvestmentHistoryValue
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
     name: '', type: 'funds' as Investment['type'],
@@ -58,12 +84,97 @@ export default function InvesteringPage() {
   const [quoteRows, setQuoteRows] = useState<QuoteSnapshot[] | null>(null)
   const [searchRows, setSearchRows] = useState<(QuoteSearchHit & { quote?: QuoteSnapshot })[] | null>(null)
 
+  const [quoteAddModal, setQuoteAddModal] = useState<(QuoteSearchHit & { quote?: QuoteSnapshot }) | null>(null)
+  const [quoteAddForm, setQuoteAddForm] = useState({
+    purchaseDate: '',
+    shares: '',
+    purchaseNok: '',
+    useQuotePlusFee: false,
+  })
+  const [quoteAddSaving, setQuoteAddSaving] = useState(false)
+  const [quoteAddError, setQuoteAddError] = useState<string | null>(null)
+  const [quoteRefreshTick, setQuoteRefreshTick] = useState(0)
+
+  const trackedSyncKey = useMemo(
+    () =>
+      investments
+        .filter((i) => i.quoteSymbol && i.shares != null && i.shares > 0)
+        .map((i) => `${i.id}:${i.quoteSymbol}:${i.shares}`)
+        .sort()
+        .join('|'),
+    [investments],
+  )
+
+  useEffect(() => {
+    const list = investmentsRef.current.filter(
+      (i) => i.quoteSymbol && i.shares != null && i.shares > 0,
+    )
+    if (list.length === 0) return
+
+    let cancelled = false
+
+    async function syncTracked() {
+      const symbols = [...new Set(list.map((i) => i.quoteSymbol!.trim()))]
+      const chunks: string[][] = []
+      for (let i = 0; i < symbols.length; i += 10) {
+        chunks.push(symbols.slice(i, i + 10))
+      }
+
+      const quoteBySymbol = new Map<string, QuoteSnapshot>()
+      try {
+        for (const chunk of chunks) {
+          const { results } = await fetchQuoteSnapshots(chunk)
+          chunk.forEach((sym, j) => {
+            const row = results[j]
+            if (row) quoteBySymbol.set(sym, row)
+          })
+        }
+      } catch {
+        return
+      }
+
+      const rateCache = new Map<string, number>()
+
+      for (const inv of list) {
+        if (cancelled) return
+        const sym = inv.quoteSymbol!.trim()
+        const snap = quoteBySymbol.get(sym)
+        if (!snap || !snap.ok) continue
+        const price = snap.regularMarketPrice
+        if (price == null || !Number.isFinite(price) || price <= 0) continue
+
+        const cur = snap.currency?.trim() || 'USD'
+        let rate = rateCache.get(cur)
+        if (rate == null) {
+          try {
+            rate = await fetchRateToNok(cur)
+          } catch {
+            continue
+          }
+          rateCache.set(cur, rate)
+        }
+
+        const shares = inv.shares!
+        const valNok = valueInNok(shares * price, cur, rate)
+
+        const latest = investmentsRef.current.find((x) => x.id === inv.id)
+        if (!latest) continue
+
+        updateInvestmentRef.current(inv.id, { currentValue: valNok, quoteCurrency: cur })
+
+        const today = isoDateLocal()
+        addInvestmentHistoryValueRef.current(inv.id, { date: today, value: valNok })
+      }
+    }
+
+    void syncTracked()
+    return () => {
+      cancelled = true
+    }
+  }, [trackedSyncKey, quoteRefreshTick])
+
   function todayISO() {
-    const d = new Date()
-    const yyyy = d.getFullYear()
-    const mm = `${d.getMonth() + 1}`.padStart(2, '0')
-    const dd = `${d.getDate()}`.padStart(2, '0')
-    return `${yyyy}-${mm}-${dd}`
+    return isoDateLocal()
   }
 
   function dateToTime(iso: string) {
@@ -283,6 +394,11 @@ export default function InvesteringPage() {
     [investments],
   )
 
+  const searchRowsLimited = useMemo(() => {
+    if (!searchRows?.length) return null
+    return searchRows.slice(0, SEARCH_RESULTS_LIMIT)
+  }, [searchRows])
+
   const handleAdd = () => {
     if (!form.name || !form.purchaseValue) return
     addInvestment({
@@ -375,10 +491,102 @@ export default function InvesteringPage() {
     }
   }
 
+  function openQuoteAddModal(hit: QuoteSearchHit & { quote?: QuoteSnapshot }) {
+    setQuoteAddError(null)
+    setQuoteAddForm({
+      purchaseDate: isoDateLocal(),
+      shares: '',
+      purchaseNok: '',
+      useQuotePlusFee: false,
+    })
+    setQuoteAddModal(hit)
+  }
+
+  async function handleQuoteAddSubmit() {
+    if (!quoteAddModal) return
+    setQuoteAddError(null)
+    const purchaseDate = quoteAddForm.purchaseDate.trim()
+    const rawShares = quoteAddForm.shares.replace(/\s/g, '').replace(',', '.')
+    const shareNum = Number(rawShares)
+    if (!purchaseDate || !Number.isFinite(shareNum) || shareNum <= 0) {
+      setQuoteAddError('Fyll inn kjøpsdato og antall enheter (større enn 0).')
+      return
+    }
+
+    setQuoteAddSaving(true)
+    try {
+      let q: QuoteSnapshot | undefined = quoteAddModal.quote
+      if (!q || !q.ok) {
+        const { results } = await fetchQuoteSnapshots([quoteAddModal.symbol.trim()])
+        q = results[0]
+      }
+      if (!q || !q.ok) {
+        setQuoteAddError('Kunne ikke hente kurs for denne tickeren.')
+        return
+      }
+      const price = q.regularMarketPrice
+      if (price == null || !Number.isFinite(price) || price <= 0) {
+        setQuoteAddError('Ingen gyldig pris akkurat nå.')
+        return
+      }
+      const cur = q.currency?.trim() || 'USD'
+      const rate = await fetchRateToNok(cur)
+      const marketNok = valueInNok(shareNum * price, cur, rate)
+
+      let purchaseNok: number
+      if (quoteAddForm.useQuotePlusFee) {
+        purchaseNok = marketNok + DEFAULT_VALUTASURTASJE_NOK
+      } else {
+        const purchaseDigits = quoteAddForm.purchaseNok.replace(/\D/g, '')
+        const manual = purchaseDigits ? Number(purchaseDigits) : 0
+        purchaseNok = manual > 0 ? manual : marketNok
+      }
+
+      addInvestment({
+        id: generateId(),
+        name: quoteAddModal.description?.trim() || quoteAddModal.symbol,
+        type: mapSearchTypeToInvestmentType(quoteAddModal.type || ''),
+        purchaseValue: purchaseNok,
+        currentValue: marketNok,
+        purchaseDate,
+        quoteSymbol: quoteAddModal.symbol.trim(),
+        shares: shareNum,
+        quoteCurrency: cur,
+        history: [{ date: purchaseDate, value: purchaseNok }],
+      })
+      setQuoteAddModal(null)
+      setQuoteAddForm({
+        purchaseDate: '',
+        shares: '',
+        purchaseNok: '',
+        useQuotePlusFee: false,
+      })
+      setQuoteRefreshTick((t) => t + 1)
+    } catch (e) {
+      setQuoteAddError(e instanceof Error ? e.message : 'Kunne ikke lagre.')
+    } finally {
+      setQuoteAddSaving(false)
+    }
+  }
+
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
-      <Header title="Investering" subtitle="Porteføljeoversikt og avkastning" />
+      <Header
+        title="Investering"
+        subtitle="Følg hvordan porteføljeverdien utvikler seg — særlig med kurskoblede posisjoner som oppdateres når du åpner siden"
+      />
       <div className="p-8 space-y-6">
+
+        <div
+          className="rounded-2xl px-4 py-3 text-sm leading-relaxed"
+          style={{ background: 'var(--primary-pale)', border: '1px solid var(--accent)' }}
+        >
+          <span className="font-semibold" style={{ color: 'var(--text)' }}>Daglig innsikt i verdi</span>
+          <span style={{ color: 'var(--text-muted)' }}>
+            {' '}
+            For posisjoner du har koblet til kurs, lagres et verdipunkt for dagens dato hver gang du besøker siden eller trykker «Oppdater kurskoblet portefølje». Over tid ser du i grafen hvordan totalverdien har beveget seg — uten at appen trenger å kjøre i bakgrunnen.
+          </span>
+        </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -456,11 +664,25 @@ export default function InvesteringPage() {
         </div>
 
         <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>Kursoppslag</h2>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-1">
+            <h2 className="font-semibold" style={{ color: 'var(--text)' }}>Kursoppslag</h2>
+            {trackedSyncKey ? (
+              <button
+                type="button"
+                onClick={() => setQuoteRefreshTick((t) => t + 1)}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors hover:opacity-90 shrink-0"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                title="Hent fersk kurs og lagre dagens verdi i historikken"
+              >
+                <RefreshCw size={14} />
+                Oppdater kurs og dagens verdi
+              </button>
+            ) : null}
+          </div>
           <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-            <strong>Uten komma:</strong> søk på navn (f.eks. <code className="text-xs">Vår energi</code>, <code className="text-xs">equinor</code>) — du får
-            <strong>alle treff</strong> fra Finnhub med kurs der det finnes data.{' '}
-            <strong>Med komma:</strong> flere tickere på én gang (f.eks. <code className="text-xs">AAPL, MSFT</code>).
+            <strong>Uten komma:</strong> søk på navn (f.eks. <code className="text-xs">apple</code>) — bruk «Legg til» for å koble en posisjon til kurs, slik at du kan følge verdiutvikling over tid.{' '}
+            <strong>Med komma:</strong> bare oppslag (f.eks. <code className="text-xs">AAPL, MSFT</code>) uten å lagre posisjon.{' '}
+            Kurskoblede verdier regnes i NOK (Frankfurter) ved hvert besøk eller når du oppdaterer.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <input
@@ -489,7 +711,7 @@ export default function InvesteringPage() {
           {quoteError ? (
             <p className="text-sm mb-3" style={{ color: 'var(--danger)' }}>{quoteError}</p>
           ) : null}
-          {searchRows && searchRows.length > 0 ? (
+          {searchRowsLimited && searchRowsLimited.length > 0 ? (
             <div
               className="overflow-x-auto rounded-xl max-h-[28rem] overflow-y-auto"
               style={{ border: '1px solid var(--border)' }}
@@ -504,10 +726,11 @@ export default function InvesteringPage() {
                     <th className="text-right px-3 py-2 font-semibold hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Dag Δ</th>
                     <th className="text-right px-3 py-2 font-semibold hidden md:table-cell" style={{ color: 'var(--text-muted)' }}>Dag %</th>
                     <th className="text-left px-3 py-2 font-semibold hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>Børs</th>
+                    <th className="text-right px-3 py-2 font-semibold whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>Posisjon</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {searchRows.map((hit, idx) => {
+                  {searchRowsLimited.map((hit, idx) => {
                     const q = hit.quote
                     const ok = q && q.ok
                     const err = q && !q.ok ? q : null
@@ -558,12 +781,31 @@ export default function InvesteringPage() {
                         <td className="px-3 py-2 text-xs hidden lg:table-cell" style={{ color: 'var(--text-muted)' }}>
                           {ok ? `${q.exchange} (${q.marketState})` : '—'}
                         </td>
+                        <td className="px-3 py-2 text-right align-top">
+                          <button
+                            type="button"
+                            onClick={() => openQuoteAddModal(hit)}
+                            className="px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap"
+                            style={{
+                              background: 'var(--primary-pale)',
+                              color: 'var(--primary)',
+                              border: '1px solid var(--accent)',
+                            }}
+                          >
+                            Legg til
+                          </button>
+                        </td>
                       </tr>
                     )
                   })}
                 </tbody>
               </table>
             </div>
+          ) : null}
+          {searchRows && searchRows.length > SEARCH_RESULTS_LIMIT ? (
+            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+              Viser første {SEARCH_RESULTS_LIMIT} av {searchRows.length} treff — presiser søket for færre resultater.
+            </p>
           ) : null}
           {quoteRows && quoteRows.length > 0 ? (
             <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
@@ -631,7 +873,10 @@ export default function InvesteringPage() {
         </div>
 
         <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Utvikling i porteføljen</h2>
+          <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>Utvikling i porteføljen</h2>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+            Samlet markedsverdi over tid. Grafen krever minst tre historikkpunkter (bygges blant annet automatisk for kurskoblede posisjoner når du åpner siden flere dager).
+          </p>
 
           {showPortfolioGraph ? (
             <div style={{ width: '100%', height: 220 }}>
@@ -651,7 +896,7 @@ export default function InvesteringPage() {
             </div>
           ) : (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Legg inn historikk (minst 3 verdier) for å se grafen.
+              Legg inn historikk manuelt (minst 3 verdier), eller bruk kurskoblede posisjoner og besøk siden flere dager slik at det logges nok punkter til en kurve.
             </p>
           )}
         </div>
@@ -661,6 +906,8 @@ export default function InvesteringPage() {
             <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Portefølje</h2>
             <div className="space-y-3">
               {investments.map((inv) => {
+                const isQuoteTracked =
+                  Boolean(inv.quoteSymbol?.trim()) && inv.shares != null && inv.shares > 0
                 const ret = inv.currentValue - inv.purchaseValue
                 const retPct = inv.purchaseValue > 0 ? (ret / inv.purchaseValue) * 100 : 0
                 const color = typeColors[inv.type]
@@ -696,6 +943,12 @@ export default function InvesteringPage() {
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-sm truncate" style={{ color: 'var(--text)' }}>{inv.name}</p>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{typeLabels[inv.type]}</p>
+                        {isQuoteTracked ? (
+                          <p className="text-[10px] mt-0.5" style={{ color: 'var(--primary)' }}>
+                            {inv.shares} stk · {inv.quoteSymbol}
+                            {inv.quoteCurrency ? ` · ${inv.quoteCurrency}` : ''} · markedsverdi oppdateres ved besøk
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 
@@ -745,34 +998,44 @@ export default function InvesteringPage() {
                       className="flex items-center gap-2 w-full md:w-auto md:flex-shrink-0 mt-0.5 md:mt-0"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <input
-                        type="text"
-                        value={currentValueInputs[inv.id] ?? formatNOKThousandsInput(String(inv.currentValue))}
-                        onFocus={() => {
-                          setCurrentValueInputs((s) => ({
-                            ...s,
-                            [inv.id]: s[inv.id] ?? formatNOKThousandsInput(String(inv.currentValue)),
-                          }))
-                        }}
-                        onBlur={() => {
-                          setCurrentValueInputs((s) => {
-                            const next = { ...s }
-                            delete next[inv.id]
-                            return next
-                          })
-                        }}
-                        onChange={(e) => {
-                          const formatted = formatNOKThousandsInput(e.target.value)
-                          setCurrentValueInputs((s) => ({ ...s, [inv.id]: formatted }))
-                          const digits = formatted.replace(/\D/g, '')
-                          const valueNum = digits ? Number(digits) : 0
-                          if (!Number.isFinite(valueNum)) return
-                          updateInvestment(inv.id, { currentValue: valueNum })
-                        }}
-                        className="min-w-0 flex-1 md:flex-initial md:w-28 px-2 py-1.5 rounded-lg text-xs text-right"
-                        style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                        placeholder="Oppdater verdi"
-                      />
+                      {isQuoteTracked ? (
+                        <div
+                          className="min-w-0 flex-1 md:flex-initial md:w-28 px-2 py-1.5 rounded-lg text-xs text-right tabular-nums"
+                          style={{ border: '1px dashed var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}
+                          title="Markedsverdi i NOK fra siste kurs; historikk får et punkt per dag du åpner siden"
+                        >
+                          {formatNOK(inv.currentValue)}
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={currentValueInputs[inv.id] ?? formatNOKThousandsInput(String(inv.currentValue))}
+                          onFocus={() => {
+                            setCurrentValueInputs((s) => ({
+                              ...s,
+                              [inv.id]: s[inv.id] ?? formatNOKThousandsInput(String(inv.currentValue)),
+                            }))
+                          }}
+                          onBlur={() => {
+                            setCurrentValueInputs((s) => {
+                              const next = { ...s }
+                              delete next[inv.id]
+                              return next
+                            })
+                          }}
+                          onChange={(e) => {
+                            const formatted = formatNOKThousandsInput(e.target.value)
+                            setCurrentValueInputs((s) => ({ ...s, [inv.id]: formatted }))
+                            const digits = formatted.replace(/\D/g, '')
+                            const valueNum = digits ? Number(digits) : 0
+                            if (!Number.isFinite(valueNum)) return
+                            updateInvestment(inv.id, { currentValue: valueNum })
+                          }}
+                          className="min-w-0 flex-1 md:flex-initial md:w-28 px-2 py-1.5 rounded-lg text-xs text-right"
+                          style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                          placeholder="Oppdater verdi"
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -853,6 +1116,165 @@ export default function InvesteringPage() {
         )}
 
       </div>
+
+      {quoteAddModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          onClick={() => {
+            if (!quoteAddSaving) setQuoteAddModal(null)
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-6"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+                  Legg til posisjon
+                </h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--text)' }}>
+                  {quoteAddModal.description?.trim() || quoteAddModal.symbol}
+                </p>
+                <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {quoteAddModal.displaySymbol ?? quoteAddModal.symbol}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!quoteAddSaving) setQuoteAddModal(null)
+                }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+                title="Lukk"
+                disabled={quoteAddSaving}
+              >
+                <X size={16} style={{ color: 'var(--text-muted)' }} />
+              </button>
+            </div>
+
+            {quoteAddError ? (
+              <p className="text-sm mb-3" style={{ color: 'var(--danger)' }}>{quoteAddError}</p>
+            ) : null}
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  Kjøpsdato
+                </label>
+                <input
+                  type="date"
+                  value={quoteAddForm.purchaseDate}
+                  onChange={(e) => setQuoteAddForm((s) => ({ ...s, purchaseDate: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  disabled={quoteAddSaving}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  Antall (aksjer / enheter)
+                </label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={quoteAddForm.shares}
+                  onChange={(e) => setQuoteAddForm((s) => ({ ...s, shares: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl text-sm"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  placeholder="F.eks. 10 eller 2,5"
+                  disabled={quoteAddSaving}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-muted)' }}>
+                  Kjøpsbeløp (NOK)
+                </label>
+                <input
+                  type="text"
+                  value={quoteAddForm.purchaseNok}
+                  onChange={(e) => {
+                    const formatted = formatNOKThousandsInput(e.target.value)
+                    setQuoteAddForm((s) => ({
+                      ...s,
+                      purchaseNok: formatted,
+                      useQuotePlusFee: false,
+                    }))
+                  }}
+                  className="w-full px-3 py-2 rounded-xl text-sm"
+                  style={{
+                    border: '1px solid var(--border)',
+                    background: quoteAddForm.useQuotePlusFee ? 'var(--surface)' : 'var(--bg)',
+                    color: quoteAddForm.useQuotePlusFee ? 'var(--text-muted)' : 'var(--text)',
+                  }}
+                  placeholder="Hva du faktisk betalte totalt"
+                  disabled={quoteAddSaving || quoteAddForm.useQuotePlusFee}
+                />
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                  Brukes som kjøpsverdi for avkastning (kurs, valuta og megler varierer). Tomt felt uten avkrysning under ≈
+                  dagens markedsverdi i NOK.
+                </p>
+              </div>
+
+              <label
+                className="flex items-start gap-3 cursor-pointer rounded-xl p-3"
+                style={{
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg)',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5 rounded"
+                  checked={quoteAddForm.useQuotePlusFee}
+                  disabled={quoteAddSaving}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setQuoteAddForm((s) => ({
+                      ...s,
+                      useQuotePlusFee: checked,
+                      purchaseNok: checked ? '' : s.purchaseNok,
+                    }))
+                  }}
+                />
+                <span className="text-sm" style={{ color: 'var(--text)' }}>
+                  Bruk siste kurs × antall i NOK + standard valutasurtasje {DEFAULT_VALUTASURTASJE_NOK} kr
+                  <span className="block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    Passer når du vil estimere kostnad uten eksakt beløp: markedsverdi etter Frankfurter-kurs pluss et fast
+                    påslag (typisk bank/megler).
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => void handleQuoteAddSubmit()}
+                disabled={quoteAddSaving}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white transition-colors disabled:opacity-60"
+                style={{ background: 'var(--primary)' }}
+              >
+                {quoteAddSaving ? 'Lagrer…' : 'Lagre i porteføljen'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!quoteAddSaving) setQuoteAddModal(null)
+                }}
+                disabled={quoteAddSaving}
+                className="px-4 py-2 rounded-xl text-sm font-medium"
+                style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              >
+                Avbryt
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {historyOpenFor ? (
         <div

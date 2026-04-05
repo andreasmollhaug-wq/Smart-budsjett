@@ -3,6 +3,8 @@ import { Suspense, useState, useMemo } from 'react'
 import Header from '@/components/layout/Header'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionDetailModal, { type TransactionSavePatch } from '@/components/transactions/TransactionDetailModal'
+import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
+import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
 import type { Transaction } from '@/lib/store'
 import { formatIntegerNbNo, formatNOK, generateId, parseIntegerNbNo } from '@/lib/utils'
@@ -38,17 +40,22 @@ function TransaksjonerPageInner() {
     updateTransaction,
     recalcBudgetSpent,
     isHouseholdAggregate,
+    customBudgetLabels,
+    addBudgetCategory,
+    addCustomBudgetLabel,
   } = useTransaksjonerFilters()
 
   const [showForm, setShowForm] = useState(false)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
   const [dateSort, setDateSort] = useState<'desc' | 'asc'>('desc')
+  const [newCatOpen, setNewCatOpen] = useState(false)
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     description: '',
     amount: '',
     category: '',
+    subcategory: '',
   })
 
   const selectedCat = allCats.find((c) => c.name === form.category)
@@ -65,6 +72,7 @@ function TransaksjonerPageInner() {
     if (!form.description || !form.category) return
     const amountNum = parseIntegerNbNo(form.amount)
     if (!Number.isFinite(amountNum)) return
+    const sub = form.subcategory.trim()
     const newTx: Transaction = {
       id: generateId(),
       date: form.date,
@@ -72,6 +80,7 @@ function TransaksjonerPageInner() {
       amount: amountNum,
       category: form.category,
       type: txType,
+      ...(sub ? { subcategory: sub } : {}),
     }
     addTransaction(newTx)
     if (!isHouseholdAggregate) recalcBudgetSpent(form.category)
@@ -80,6 +89,7 @@ function TransaksjonerPageInner() {
       description: '',
       amount: '',
       category: '',
+      subcategory: '',
     })
     setShowForm(false)
   }
@@ -101,10 +111,31 @@ function TransaksjonerPageInner() {
     }
   }
 
+  const createCategoryProps =
+    !isHouseholdAggregate
+      ? {
+          customBudgetLabels,
+          budgetCategories,
+          addCustomBudgetLabel,
+          addBudgetCategory,
+        }
+      : undefined
+
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header title="Transaksjoner" subtitle="Logg inntekter og utgifter" />
       <TransaksjonerSubnav />
+      {createCategoryProps && (
+        <NewBudgetCategoryModal
+          open={newCatOpen}
+          onClose={() => setNewCatOpen(false)}
+          onCreated={(name) => setForm((f) => ({ ...f, category: name }))}
+          customBudgetLabels={createCategoryProps.customBudgetLabels}
+          budgetCategories={createCategoryProps.budgetCategories}
+          addCustomBudgetLabel={createCategoryProps.addCustomBudgetLabel}
+          addBudgetCategory={createCategoryProps.addBudgetCategory}
+        />
+      )}
       <TransactionDetailModal
         transaction={detailTx}
         open={detailTx !== null}
@@ -117,6 +148,7 @@ function TransaksjonerPageInner() {
           if (tx) handleDelete(tx)
         }}
         householdHint={isHouseholdAggregate}
+        createCategory={createCategoryProps}
       />
       <div className="p-8 space-y-6">
         <div className="flex flex-wrap items-center gap-3">
@@ -151,19 +183,14 @@ function TransaksjonerPageInner() {
               </option>
             ))}
           </select>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value === 'all' ? 'all' : e.target.value)}
-            className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
-            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-          >
-            <option value="all">Alle kategorier</option>
-            {categoryOptions.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div className="min-w-[12rem] max-w-[min(100%,20rem)] flex-1">
+            <BudgetCategoryPicker
+              variant="filter"
+              value={filterCategory}
+              onChange={(v) => setFilterCategory(v === 'all' ? 'all' : v)}
+              categories={categoryOptions}
+            />
+          </div>
           <input
             type="search"
             placeholder="Søk i beskrivelse"
@@ -226,7 +253,7 @@ function TransaksjonerPageInner() {
             {showForm ? (
               <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Ny transaksjon</h2>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <input
                     type="date"
                     value={form.date}
@@ -238,7 +265,7 @@ function TransaksjonerPageInner() {
                     placeholder="Beskrivelse"
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    className="px-3 py-2 rounded-xl text-sm"
+                    className="px-3 py-2 rounded-xl text-sm sm:col-span-2 lg:col-span-1"
                     style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                   />
                   <input
@@ -255,22 +282,42 @@ function TransaksjonerPageInner() {
                     className="px-3 py-2 rounded-xl text-sm"
                     style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                   />
-                  <select
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="px-3 py-2 rounded-xl text-sm"
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:items-stretch">
+                  <div className="flex-1 min-w-0">
+                    <BudgetCategoryPicker
+                      value={form.category}
+                      onChange={(name) => setForm({ ...form, category: name })}
+                      categories={allCats}
+                      variant="pick"
+                    />
+                  </div>
+                  {createCategoryProps && (
+                    <button
+                      type="button"
+                      onClick={() => setNewCatOpen(true)}
+                      className="px-3 py-2 rounded-xl text-sm font-medium shrink-0 whitespace-nowrap"
+                      style={{ background: 'var(--bg)', color: 'var(--primary)', border: '1px solid var(--border)' }}
+                    >
+                      Ny kategori
+                    </button>
+                  )}
+                </div>
+                <div className="mt-4">
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                    Underkategori (valgfritt)
+                  </label>
+                  <input
+                    placeholder="F.eks. butikk eller detalj"
+                    value={form.subcategory}
+                    onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl text-sm"
                     style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                  >
-                    <option value="">Velg kategori</option>
-                    {allCats.map((c) => (
-                      <option key={c.id} value={c.name}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div className="flex gap-3 mt-4">
                   <button
+                    type="button"
                     onClick={handleAdd}
                     className="px-4 py-2 rounded-xl text-sm font-medium text-white"
                     style={{ background: 'var(--primary)' }}
@@ -278,6 +325,7 @@ function TransaksjonerPageInner() {
                     Legg til
                   </button>
                   <button
+                    type="button"
                     onClick={() => setShowForm(false)}
                     className="px-4 py-2 rounded-xl text-sm font-medium"
                     style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
@@ -288,6 +336,7 @@ function TransaksjonerPageInner() {
               </div>
             ) : (
               <button
+                type="button"
                 onClick={() => setShowForm(true)}
                 className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium text-white"
                 style={{ background: 'var(--primary)' }}
@@ -332,50 +381,51 @@ function TransaksjonerPageInner() {
                   </div>
                 ) : (
                   sortedDisplayTx.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between gap-2 p-3 rounded-xl"
-                    style={{ background: 'var(--bg)' }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setDetailTx(tx)}
-                      className="flex flex-1 min-w-0 items-center justify-between gap-3 rounded-lg text-left outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                    <div
+                      key={tx.id}
+                      className="flex items-center justify-between gap-2 p-3 rounded-xl"
+                      style={{ background: 'var(--bg)' }}
                     >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0"
-                          style={{
-                            background: budgetCategories.find((c) => c.name === tx.category)?.color || 'var(--text-muted)',
-                          }}
-                        />
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                            {tx.description}
-                          </span>
-                          <span className="block text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                            {tx.category} • {tx.date}
-                          </span>
-                        </span>
-                      </span>
-                      <span
-                        className="text-sm font-semibold tabular-nums shrink-0"
-                        style={{ color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                      >
-                        {tx.type === 'income' ? '+' : '-'}{formatNOK(tx.amount)}
-                      </span>
-                    </button>
-                    <div className="flex items-center shrink-0">
                       <button
                         type="button"
-                        aria-label="Slett transaksjon"
-                        onClick={() => handleDelete(tx)}
-                        className="p-1 rounded-lg transition-colors hover:opacity-70"
+                        onClick={() => setDetailTx(tx)}
+                        className="flex flex-1 min-w-0 items-center justify-between gap-3 rounded-lg text-left outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                       >
-                        <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{
+                              background: budgetCategories.find((c) => c.name === tx.category)?.color || 'var(--text-muted)',
+                            }}
+                          />
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
+                              {tx.description}
+                            </span>
+                            <span className="block text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                              {tx.category} • {tx.date}
+                            </span>
+                          </span>
+                        </span>
+                        <span
+                          className="text-sm font-semibold tabular-nums shrink-0"
+                          style={{ color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}
+                        >
+                          {tx.type === 'income' ? '+' : '-'}
+                          {formatNOK(tx.amount)}
+                        </span>
                       </button>
+                      <div className="flex items-center shrink-0">
+                        <button
+                          type="button"
+                          aria-label="Slett transaksjon"
+                          onClick={() => handleDelete(tx)}
+                          className="p-1 rounded-lg transition-colors hover:opacity-70"
+                        >
+                          <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   ))
                 )}
               </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionActualsBreakdown from '@/components/transactions/TransactionActualsBreakdown'
+import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
 import { formatNOK } from '@/lib/utils'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
@@ -84,19 +85,14 @@ function TransaksjonerDashboardInner() {
               </option>
             ))}
           </select>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value === 'all' ? 'all' : e.target.value)}
-            className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
-            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-          >
-            <option value="all">Alle kategorier</option>
-            {categoryOptions.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div className="min-w-[12rem] max-w-[min(100%,20rem)] flex-1">
+            <BudgetCategoryPicker
+              variant="filter"
+              value={filterCategory}
+              onChange={(v) => setFilterCategory(v === 'all' ? 'all' : v)}
+              categories={categoryOptions}
+            />
+          </div>
           <input
             type="search"
             placeholder="Søk i beskrivelse"

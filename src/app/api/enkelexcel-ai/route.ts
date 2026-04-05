@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { buildAiUserContextFromPersistedState } from '@/lib/aiUserContext'
 import { createClient } from '@/lib/supabase/server'
 import { currentYearMonthOslo, getMonthlyMessageLimit } from '@/lib/aiUsage'
 
@@ -11,10 +12,12 @@ type IncomingMessage = {
 
 export const dynamic = 'force-dynamic'
 
-const SYSTEM_PROMPT = [
+const SYSTEM_PROMPT_BASE = [
   'Du er en nyttig økonomiassistent for en app som hjelper brukere med budsjett, sparing og gjeld.',
   'Skriv på norsk.',
   'Still korte oppklaringsspørsmål når det trengs for å gi et bedre svar.',
+  'Nedenfor følger brukerens faktiske tall og transaksjoner fra appen. Bruk disse til å svare presist; ikke gjett tall som ikke står der.',
+  'Chatgrensesnittet viser ren tekst uten Markdown. Ikke bruk **, _, #, kodeblokker eller annen Markdown — bruk vanlige avsnitt, linjeskift og punktlister med bindestrek eller nummer.',
 ].join('\n')
 
 export async function POST(req: Request) {
@@ -91,8 +94,29 @@ export async function POST(req: Request) {
     (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string',
   )
 
+  const { data: appStateRow, error: appStateErr } = await supabase
+    .from('user_app_state')
+    .select('state')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (appStateErr) {
+    console.error('[enkelexcel-ai] user_app_state:', appStateErr.message)
+  }
+
+  let financeContext: string
+  try {
+    financeContext = buildAiUserContextFromPersistedState(appStateRow?.state)
+  } catch (e) {
+    console.error('[enkelexcel-ai] buildAiUserContextFromPersistedState', e)
+    financeContext =
+      'Økonomidata fra appen kunne ikke leses inn (teknisk feil). Du kan fortsatt stille generelle spørsmål.'
+  }
+
+  const systemContent = `${SYSTEM_PROMPT_BASE}\n\n${financeContext}`
+
   const openaiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemContent },
     ...thread.map((m) => ({ role: m.role, content: m.content })),
   ]
 

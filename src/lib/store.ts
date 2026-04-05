@@ -55,6 +55,8 @@ export interface Transaction {
   description: string
   amount: number
   category: string
+  /** Valgfri underkategori (butikk, detalj) — påvirker ikke budsjettsummering. */
+  subcategory?: string
   type: 'income' | 'expense'
   /** Eierprofil (påkrevd for nye rader; migreres for eldre data). */
   profileId?: string
@@ -121,6 +123,12 @@ export interface Investment {
   currentValue: number
   purchaseDate: string
   history?: InvestmentHistoryPoint[]
+  /** Finnhub-symbol for kurskobling (f.eks. AAPL, EQNR.OSE) */
+  quoteSymbol?: string
+  /** Antall enheter (f.eks. aksjer) — brukes med quoteSymbol for live verdi i NOK */
+  shares?: number
+  /** Sist kjente valuta fra kurs (USD, NOK, …) */
+  quoteCurrency?: string
 }
 
 export interface InvestmentHistoryPoint {
@@ -199,7 +207,7 @@ interface AppState {
   removeTransaction: (id: string) => void
   updateTransaction: (
     id: string,
-    patch: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'type'>>,
+    patch: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'subcategory' | 'type'>>,
   ) => void
   recalcBudgetSpent: (categoryName: string) => void
 
@@ -1161,11 +1169,19 @@ export const useStore = create<AppState>()((set, get) => {
               if (!person?.transactions.some((t) => t.id === id)) continue
               const nextTx = person.transactions.map((t) => {
                 if (t.id !== id) return t
-                const merged: Transaction = {
+                let merged: Transaction = {
                   ...t,
                   ...patch,
                   id: t.id,
                   profileId: t.profileId ?? pid,
+                }
+                if (patch.subcategory !== undefined) {
+                  const s = patch.subcategory.trim()
+                  if (s) merged = { ...merged, subcategory: s }
+                  else {
+                    const { subcategory: _removed, ...rest } = merged
+                    merged = rest as Transaction
+                  }
                 }
                 return merged
               })

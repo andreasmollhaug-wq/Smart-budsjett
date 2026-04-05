@@ -95,3 +95,15 @@ export function formatThousands(value: number | string): string {
 export function parseThousands(formatted: string): number {
   return Number(formatted.replace(/\s/g, '').replace(/,/g, '')) || 0
 }
+
+/** Viser ISO-dato (yyyy-mm-dd) som lesbar norsk dato (dag, måned, år). */
+export function formatTransactionDateNbNo(isoDate: string): string {
+  if (!isoDate || typeof isoDate !== 'string') return ''
+  const d = new Date(isoDate.includes('T') ? isoDate : `${isoDate}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return isoDate
+  return d.toLocaleDateString('nb-NO', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+}

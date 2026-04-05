@@ -151,5 +151,8 @@ export function useTransaksjonerFilters() {
     updateTransaction: finance.updateTransaction,
     recalcBudgetSpent: finance.recalcBudgetSpent,
     isHouseholdAggregate: finance.isHouseholdAggregate,
+    customBudgetLabels: finance.customBudgetLabels,
+    addBudgetCategory: finance.addBudgetCategory,
+    addCustomBudgetLabel: finance.addCustomBudgetLabel,
   }
 }
