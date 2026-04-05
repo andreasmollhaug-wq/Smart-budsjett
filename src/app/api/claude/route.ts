@@ -49,6 +49,9 @@ export async function POST(req: Request) {
 
   const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
 
+  /** GPT-5.x / reasoning-modeller krever max_completion_tokens; eldre bruker max_tokens. */
+  const useCompletionTokenLimit = /^gpt-5/i.test(model) || /^o[0-9]/i.test(model)
+
   const thread = messages.filter(
     (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string',
   )
@@ -67,8 +70,8 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       model,
       messages: openaiMessages,
-      max_tokens: 800,
       temperature: 0.2,
+      ...(useCompletionTokenLimit ? { max_completion_tokens: 800 } : { max_tokens: 800 }),
     }),
   })
 
