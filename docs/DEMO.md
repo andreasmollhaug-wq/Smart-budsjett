@@ -15,3 +15,5 @@ Gi **inntrykk av grensesnittet** og verdiforslaget — eventuelt som supplement 
 ## Merknad
 
 En interaktiv demo krever vedlikehold når UI endres. Vurder **én tydelig demo-flyt** (f.eks. oversikt + budsjett) for å holde kostnaden nede.
+
+**I appen i dag:** innloggede brukere kan slå på **demo-data** i innstillinger (`demoDataEnabled` i [`store.ts`](../src/lib/store.ts)) for å utforske grensesnittet med eksempeltall — dette er ikke det samme som en offentlig `/demo`-landing, men dekker delvis behovet for «prøv uten egne tall».

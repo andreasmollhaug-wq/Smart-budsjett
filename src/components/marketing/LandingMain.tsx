@@ -24,8 +24,8 @@ export default function LandingMain({ variant = 'default' }: Props) {
   return (
     <main>
       <LandingHero variant={heroVariant} />
-      {irisEarly && <LandingIrisPartnership />}
-      <LandingForWhom />
+      {irisEarly && <LandingIrisPartnership tightBottom />}
+      <LandingForWhom tightTop={irisEarly} />
       <LandingValueProps />
       <LandingAppFeatures />
       <LandingPositioning />

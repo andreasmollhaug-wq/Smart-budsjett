@@ -18,9 +18,14 @@ const items = [
   },
 ]
 
-export default function LandingForWhom() {
+type Props = {
+  /** Mindre luft over når seksjonen kommer rett etter Iris-blokken (partner-kampanje). */
+  tightTop?: boolean
+}
+
+export default function LandingForWhom({ tightTop = false }: Props) {
   return (
-    <section className="px-4 py-14 sm:px-6">
+    <section className={`px-4 sm:px-6 ${tightTop ? 'pt-8 pb-14 sm:pt-10' : 'py-14'}`}>
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Laget for deg som

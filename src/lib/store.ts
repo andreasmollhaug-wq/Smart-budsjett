@@ -204,6 +204,7 @@ interface AppState {
   renameProfile: (id: string, name: string) => void
 
   addTransaction: (t: Transaction) => void
+  addTransactions: (transactions: Transaction[]) => void
   removeTransaction: (id: string) => void
   updateTransaction: (
     id: string,
@@ -365,6 +366,16 @@ function normalizeOnboardingFromMerge(persisted: Partial<AppState> | undefined):
   return { status: 'completed' }
 }
 
+/** Om snapshot inneholder demo-budsjettkategorier (id prefiks demo-), skal det ikke brukes som «ekte» backup ved av. */
+function peopleSnapshotContainsDemoMarkers(people: Record<string, PersonData>): boolean {
+  for (const person of Object.values(people)) {
+    if (person.budgetCategories.some((c) => typeof c.id === 'string' && c.id.startsWith('demo-'))) {
+      return true
+    }
+  }
+  return false
+}
+
 export function mergePersistedIntoFullState(persisted: unknown, current: AppState): AppState {
   const p = persisted as (Partial<AppState> & LegacyPersistedState) | undefined
   if (!p) return current
@@ -440,6 +451,14 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
   if (base.peopleBeforeDemo === undefined) base.peopleBeforeDemo = null
   const pbd = base.peopleBeforeDemo
   if (pbd != null && (typeof pbd !== 'object' || Array.isArray(pbd))) base.peopleBeforeDemo = null
+
+  /** Lagret inkonsistens: demo av men people inneholder fortsatt demo-kategorier (f.eks. gammel sync). */
+  if (!base.demoDataEnabled && peopleSnapshotContainsDemoMarkers(base.people)) {
+    for (const pr of base.profiles) {
+      base.people[pr.id] = createEmptyPersonData()
+    }
+    base.peopleBeforeDemo = null
+  }
 
   return base
 }
@@ -970,6 +989,13 @@ export const useStore = create<AppState>()((set, get) => {
               } catch {
                 return s
               }
+              if (peopleSnapshotContainsDemoMarkers(backup)) {
+                const emptyBackup: Record<string, PersonData> = {}
+                for (const pr of s.profiles) {
+                  emptyBackup[pr.id] = createEmptyPersonData()
+                }
+                backup = emptyBackup
+              }
               const nextPeople: Record<string, PersonData> = {}
               for (const pr of s.profiles) {
                 nextPeople[pr.id] = createDemoPersonDataForProfile(pr.id, s.budgetYear)
@@ -981,8 +1007,18 @@ export const useStore = create<AppState>()((set, get) => {
               }
             }
             const restored = s.peopleBeforeDemo
-            if (!restored) {
-              return { demoDataEnabled: false, peopleBeforeDemo: null }
+            const restoredIsInvalidDemoCopy =
+              restored != null && peopleSnapshotContainsDemoMarkers(restored)
+            if (!restored || restoredIsInvalidDemoCopy) {
+              const cleared: Record<string, PersonData> = {}
+              for (const pr of s.profiles) {
+                cleared[pr.id] = createEmptyPersonData()
+              }
+              return {
+                demoDataEnabled: false,
+                peopleBeforeDemo: null,
+                people: cleared,
+              }
             }
             return {
               demoDataEnabled: false,
@@ -1132,6 +1168,25 @@ export const useStore = create<AppState>()((set, get) => {
             const tx: Transaction = { ...t, profileId: t.profileId ?? pid }
             const next = syncLinkedSavingsGoalsCurrent(
               { ...person, transactions: [tx, ...person.transactions] },
+              pid,
+            )
+            return {
+              people: {
+                ...s.people,
+                [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
+              },
+            }
+          }),
+
+        addTransactions: (incoming) =>
+          set((s) => {
+            if (!incoming.length) return s
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const txs: Transaction[] = incoming.map((t) => ({ ...t, profileId: t.profileId ?? pid }))
+            const next = syncLinkedSavingsGoalsCurrent(
+              { ...person, transactions: [...txs, ...person.transactions] },
               pid,
             )
             return {
@@ -1569,6 +1624,7 @@ export function useActivePersonFinance() {
       startNewBudgetYear: s.startNewBudgetYear,
       switchActiveBudgetYear: s.switchActiveBudgetYear,
       addTransaction: s.addTransaction,
+      addTransactions: s.addTransactions,
       removeTransaction: s.removeTransaction,
       updateTransaction: s.updateTransaction,
       recalcBudgetSpent: s.recalcBudgetSpent,
@@ -1630,6 +1686,7 @@ export function useActivePersonFinance() {
     financeScope: state.financeScope,
     isHouseholdAggregate: householdMode,
     addTransaction: state.addTransaction,
+    addTransactions: state.addTransactions,
     removeTransaction: state.removeTransaction,
     updateTransaction: state.updateTransaction,
     recalcBudgetSpent: state.recalcBudgetSpent,

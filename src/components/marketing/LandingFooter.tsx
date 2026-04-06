@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CONTACT_EMAIL } from '@/lib/legal'
 import { CTA_HREF, LOGIN_HREF } from './constants'
 
 export default function LandingFooter() {
@@ -10,7 +11,10 @@ export default function LandingFooter() {
             Smart Budsjett
           </p>
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Et produkt fra EnkelExcel · kontakt@enkelexcel.no (oppdater med ekte adresse)
+            Et produkt fra EnkelExcel ·{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="underline underline-offset-2 transition-opacity hover:opacity-80">
+              {CONTACT_EMAIL}
+            </a>
           </p>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">

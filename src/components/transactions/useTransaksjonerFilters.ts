@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useActivePersonFinance } from '@/lib/store'
+import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
 
 function safeDecodeCategoryParam(raw: string): string {
   try {
@@ -21,7 +22,16 @@ function safeDecodeCategoryParam(raw: string): string {
 export function useTransaksjonerFilters() {
   const searchParams = useSearchParams()
   const finance = useActivePersonFinance()
-  const { transactions, budgetCategories, budgetYear } = finance
+  const { transactions, budgetCategories, budgetYear, customBudgetLabels, hiddenBudgetLabels } = finance
+
+  const categoriesForPicker = useMemo(
+    () =>
+      mergeBudgetCategoriesForTransactionPicker(budgetCategories, {
+        customBudgetLabels,
+        hiddenBudgetLabels,
+      }),
+    [budgetCategories, customBudgetLabels, hiddenBudgetLabels],
+  )
 
   const [filterYear, setFilterYear] = useState(budgetYear)
   const [filterMonth, setFilterMonth] = useState<number | 'all'>('all')
@@ -57,12 +67,12 @@ export function useTransaksjonerFilters() {
   }, [budgetYear, querySignature])
 
   const expenseCategories = useMemo(
-    () => budgetCategories.filter((c) => c.type === 'expense'),
-    [budgetCategories],
+    () => categoriesForPicker.filter((c) => c.type === 'expense'),
+    [categoriesForPicker],
   )
   const incomeCategories = useMemo(
-    () => budgetCategories.filter((c) => c.type === 'income'),
-    [budgetCategories],
+    () => categoriesForPicker.filter((c) => c.type === 'income'),
+    [categoriesForPicker],
   )
   const allCats = useMemo(
     () => [...expenseCategories, ...incomeCategories],
@@ -147,10 +157,12 @@ export function useTransaksjonerFilters() {
     filtersActive,
     clearFilters,
     addTransaction: finance.addTransaction,
+    addTransactions: finance.addTransactions,
     removeTransaction: finance.removeTransaction,
     updateTransaction: finance.updateTransaction,
     recalcBudgetSpent: finance.recalcBudgetSpent,
     isHouseholdAggregate: finance.isHouseholdAggregate,
+    profiles: finance.profiles,
     customBudgetLabels: finance.customBudgetLabels,
     addBudgetCategory: finance.addBudgetCategory,
     addCustomBudgetLabel: finance.addCustomBudgetLabel,

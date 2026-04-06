@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { AI_APP_HELP_TEXT } from '@/lib/aiAppHelp'
 import { buildAiUserContextFromPersistedState } from '@/lib/aiUserContext'
 import { createClient } from '@/lib/supabase/server'
 import { currentYearMonthOslo, getMonthlyMessageLimit } from '@/lib/aiUsage'
@@ -16,7 +17,9 @@ const SYSTEM_PROMPT_BASE = [
   'Du er en nyttig økonomiassistent for en app som hjelper brukere med budsjett, sparing og gjeld.',
   'Skriv på norsk.',
   'Still korte oppklaringsspørsmål når det trengs for å gi et bedre svar.',
-  'Nedenfor følger brukerens faktiske tall og transaksjoner fra appen. Bruk disse til å svare presist; ikke gjett tall som ikke står der.',
+  'Struktur i denne systemmeldingen: først denne instruksen, deretter en bruksveiledning for Smart Budsjett (menyer og funksjoner), til slutt brukerens faktiske tall og transaksjoner.',
+  'Spørsmål om hvordan appen brukes skal besvares ut fra bruksveiledningen. Ikke finn opp menypunkter, faner eller knapper som ikke er beskrevet der.',
+  'Bruk brukerens tall og transaksjoner til å svare presist der det er relevant; ikke gjett tall som ikke står der.',
   'Chatgrensesnittet viser ren tekst uten Markdown. Ikke bruk **, _, #, kodeblokker eller annen Markdown — bruk vanlige avsnitt, linjeskift og punktlister med bindestrek eller nummer.',
 ].join('\n')
 
@@ -113,7 +116,7 @@ export async function POST(req: Request) {
       'Økonomidata fra appen kunne ikke leses inn (teknisk feil). Du kan fortsatt stille generelle spørsmål.'
   }
 
-  const systemContent = `${SYSTEM_PROMPT_BASE}\n\n${financeContext}`
+  const systemContent = [SYSTEM_PROMPT_BASE, AI_APP_HELP_TEXT, financeContext].join('\n\n')
 
   const openaiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
     { role: 'system', content: systemContent },

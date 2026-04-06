@@ -107,3 +107,25 @@ export function formatTransactionDateNbNo(isoDate: string): string {
     year: 'numeric',
   })
 }
+
+/** ISO yyyy-mm-dd → dd.mm.yyyy (lister, kort visning). */
+export function formatIsoDateDdMmYyyy(isoDate: string): string {
+  if (!isoDate || typeof isoDate !== 'string') return ''
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate.trim())
+  if (!m) return isoDate
+  return `${m[3]}.${m[2]}.${m[1]}`
+}
+
+/** Antall dager i måneden (monthIndex 0 = januar). */
+export function daysInMonth(year: number, monthIndex0: number): number {
+  return new Date(year, monthIndex0 + 1, 0).getDate()
+}
+
+/** ISO-dato (yyyy-mm-dd) for gitt år/måned, med dag klippet til gyldig dag i måneden. */
+export function dateInMonth(year: number, monthIndex0: number, dayOfMonth: number): string {
+  const dim = daysInMonth(year, monthIndex0)
+  const d = Math.min(Math.max(1, Math.floor(dayOfMonth)), dim)
+  const m = String(monthIndex0 + 1).padStart(2, '0')
+  const dd = String(d).padStart(2, '0')
+  return `${year}-${m}-${dd}`
+}

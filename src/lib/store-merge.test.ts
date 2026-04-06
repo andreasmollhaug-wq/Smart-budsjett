@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   createDefaultPersistedSlice,
+  createDemoPersonDataForProfile,
   DEFAULT_PROFILE_ID,
   mergePersistedIntoFullState,
   useStore,
@@ -34,5 +35,20 @@ describe('mergePersistedIntoFullState', () => {
     const merged = mergePersistedIntoFullState(slice, useStore.getState())
     expect(merged.activeProfileId).toBe(DEFAULT_PROFILE_ID)
     expect(merged.people[DEFAULT_PROFILE_ID]).toBeDefined()
+  })
+
+  it('nullstiller people når demo er av men lagret people fortsatt har demo-kategorier', () => {
+    const slice = createDefaultPersistedSlice()
+    const demo = createDemoPersonDataForProfile(DEFAULT_PROFILE_ID, slice.budgetYear)
+    const inconsistent = {
+      ...slice,
+      demoDataEnabled: false,
+      people: { [DEFAULT_PROFILE_ID]: demo },
+      peopleBeforeDemo: null,
+    }
+    const merged = mergePersistedIntoFullState(inconsistent, useStore.getState())
+    expect(merged.demoDataEnabled).toBe(false)
+    expect(merged.people[DEFAULT_PROFILE_ID]!.budgetCategories).toHaveLength(0)
+    expect(merged.peopleBeforeDemo).toBeNull()
   })
 })

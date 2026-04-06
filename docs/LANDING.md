@@ -4,7 +4,7 @@ Implementasjon: [`src/app/page.tsx`](../src/app/page.tsx), [`src/app/iris/page.t
 
 ## Teknisk kontekst
 
-- Markedsføringssider har **ikke** app-sidebar. App ligger i route group **`(app)`** (f.eks. `/dashboard`).
+- Markedsføringssider har **ikke** app-sidebar. App ligger i route group **`(app)`** og krever innlogging (Supabase) — f.eks. `/dashboard`.
 - Primær-CTA: **`CTA_HREF`** → [`/registrer`](../src/components/marketing/constants.ts). Innlogging: **`LOGIN_HREF`** → `/logg-inn`.
 - **`/iris`**: Kampanjeinngang med `variant="partnerCampaign"` — samme produktbudskap i hero, partnerskap med Iris **høyere** i siden; Iris fremstår som partner, ikke som nettstedets eier.
 - Query **`?ref=iris`** på `/` redirectes til **`/iris`** ([`middleware.ts`](../src/middleware.ts)).
@@ -15,7 +15,16 @@ Implementasjon: [`src/app/page.tsx`](../src/app/page.tsx), [`src/app/iris/page.t
 2. **Hero** — Hovedbudskap (Smart Budsjett først), prøveperiode, kort; diskret linje med lenke til `#partnerskap` (Iris som partner).
 3. **For hvem** — Tre kort.
 4. **Verdiforslag** — Fire kort («Hva du får med Smart Budsjett»).
-5. **Alt i appen** — `#funksjoner`: moduler som i app-menyen (budsjett, transaksjoner, sparing, gjeld, osv.).
+5. **Alt i appen** — `#funksjoner`: moduler som beskrevet i [`LandingAppFeatures.tsx`](../src/components/marketing/LandingAppFeatures.tsx) (samme rekkefølge som i app-menyen der det er naturlig):
+   - **Oversikt** (dashboard)
+   - **Budsjett**
+   - **Transaksjoner**
+   - **Sparing**
+   - **Gjeld**
+   - **Snøball**
+   - **Investering**
+   - **Rapporter**
+   - **EnkelExcel AI**
 6. **Posisjonering** — Ikke avansert økonomistyring.
 7. **Slik fungerer det** — Fire steg.
 8. **Produktglimt** — Illustrasjon (erstatt gjerne med ekte skjermbilder).

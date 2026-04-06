@@ -2,9 +2,17 @@ import { HeartHandshake } from 'lucide-react'
 
 const IRIS_PAGE_HREF = 'https://enkelexcel.no/pages/iriseyfjord'
 
-export default function LandingIrisPartnership() {
+type Props = {
+  /** Mindre luft under boksen når Iris kommer rett før «Laget for deg som» (f.eks. /iris). */
+  tightBottom?: boolean
+}
+
+export default function LandingIrisPartnership({ tightBottom = false }: Props) {
   return (
-    <section id="partnerskap" className="scroll-mt-24 px-4 py-12 sm:px-6">
+    <section
+      id="partnerskap"
+      className={`scroll-mt-24 px-4 sm:px-6 ${tightBottom ? 'pt-12 pb-6 sm:pb-8' : 'py-12'}`}
+    >
       <div
         className="mx-auto flex max-w-3xl flex-col gap-4 rounded-2xl p-8 sm:flex-row sm:items-start sm:gap-8"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}

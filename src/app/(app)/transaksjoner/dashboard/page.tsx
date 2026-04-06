@@ -35,7 +35,7 @@ function TransaksjonerDashboardInner() {
     setFilterCategory,
     searchQuery,
     setSearchQuery,
-    budgetCategories,
+    allCats,
     yearOptions,
     categoryOptions,
     displayFilteredTx,
@@ -138,7 +138,7 @@ function TransaksjonerDashboardInner() {
 
         <TransactionActualsBreakdown
           transactions={displayFilteredTx}
-          budgetCategories={budgetCategories}
+          budgetCategories={allCats}
           onPickCategory={(name) => {
             router.push(buildTransaksjonerListeHref(filterYear, filterMonth, name))
           }}

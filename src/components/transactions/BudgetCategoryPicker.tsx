@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { BudgetCategory } from '@/lib/store'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Search } from 'lucide-react'
 
 type Props = {
   value: string
@@ -27,10 +28,25 @@ export default function BudgetCategoryPicker({
   id,
 }: Props) {
   const [open, setOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
   const list = useMemo(
     () => [...categories].sort((a, b) => a.name.localeCompare(b.name, 'nb')),
     [categories],
   )
+
+  const queryNorm = searchQuery.trim().toLowerCase()
+
+  const filteredList = useMemo(() => {
+    if (!queryNorm) return list
+    return list.filter((c) => c.name.toLowerCase().includes(queryNorm))
+  }, [list, queryNorm])
+
+  const showFilterAllRow =
+    variant === 'filter' &&
+    (!queryNorm || 'alle kategorier'.toLowerCase().includes(queryNorm))
+
+  const showPickPlaceholderRow = variant === 'pick' && !queryNorm
 
   const displayLabel = useMemo(() => {
     if (variant === 'filter') {
@@ -48,6 +64,10 @@ export default function BudgetCategoryPicker({
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+
+  useEffect(() => {
+    if (open) setSearchQuery('')
   }, [open])
 
   const btnClass =
@@ -72,77 +92,108 @@ export default function BudgetCategoryPicker({
         <span className="truncate">{displayLabel}</span>
         <ChevronDown size={16} className="shrink-0 opacity-70" aria-hidden />
       </button>
-      {open && (
-        <div
-          className="fixed inset-0 z-[190] flex items-end sm:items-center justify-center p-4 sm:p-6"
-          style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-          onClick={() => setOpen(false)}
-          role="presentation"
-        >
+      {open &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="w-full max-w-md max-h-[min(70vh,calc(100vh-3rem))] overflow-y-auto rounded-2xl p-4 shadow-xl"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-            onClick={(e) => e.stopPropagation()}
-            role="listbox"
+            className="fixed inset-0 z-[190] flex items-end sm:items-center justify-center p-4 sm:p-6"
+            style={{ background: 'rgba(15, 23, 42, 0.45)' }}
+            onClick={() => setOpen(false)}
+            role="presentation"
           >
-            <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>
-              {variant === 'filter' ? 'Filtrer på kategori' : 'Velg kategori'}
-            </p>
-            <div className="space-y-1">
-              {variant === 'filter' && (
-                <button
-                  type="button"
-                  className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
+            <div
+              className="w-full max-w-md max-h-[min(70vh,calc(100vh-3rem))] flex flex-col rounded-2xl p-4 shadow-xl"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+              onClick={(e) => e.stopPropagation()}
+              role="listbox"
+            >
+              <p className="text-xs font-medium mb-2 shrink-0" style={{ color: 'var(--text-muted)' }}>
+                {variant === 'filter' ? 'Filtrer på kategori' : 'Velg kategori'}
+              </p>
+              <label className="relative mb-3 block shrink-0">
+                <Search
+                  size={16}
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 opacity-50"
+                  aria-hidden
+                />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Søk i kategorier …"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                   style={{
-                    background: value === 'all' ? 'var(--bg)' : 'transparent',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
                     color: 'var(--text)',
                   }}
-                  onClick={() => {
-                    onChange('all')
-                    setOpen(false)
-                  }}
-                >
-                  Alle kategorier
-                </button>
-              )}
-              {variant === 'pick' && (
-                <button
-                  type="button"
-                  className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
-                  style={{
-                    background: !value ? 'var(--bg)' : 'transparent',
-                    color: 'var(--text-muted)',
-                  }}
-                  onClick={() => {
-                    onChange('')
-                    setOpen(false)
-                  }}
-                >
-                  {placeholder}
-                </button>
-              )}
-              {list.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
-                  style={{
-                    background:
-                      (variant === 'filter' ? value === c.name : value === c.name) ? 'var(--bg)' : 'transparent',
-                    color: 'var(--text)',
-                  }}
-                  onClick={() => {
-                    onChange(c.name)
-                    setOpen(false)
-                  }}
-                >
-                  {c.name}
-                </button>
-              ))}
+                  aria-label="Søk i kategorier"
+                />
+              </label>
+              <div className="min-h-0 flex-1 overflow-y-auto space-y-1 pr-0.5 -mr-0.5">
+                {showFilterAllRow && (
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
+                    style={{
+                      background: value === 'all' ? 'var(--bg)' : 'transparent',
+                      color: 'var(--text)',
+                    }}
+                    onClick={() => {
+                      onChange('all')
+                      setOpen(false)
+                    }}
+                  >
+                    Alle kategorier
+                  </button>
+                )}
+                {showPickPlaceholderRow && (
+                  <button
+                    type="button"
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
+                    style={{
+                      background: !value ? 'var(--bg)' : 'transparent',
+                      color: 'var(--text-muted)',
+                    }}
+                    onClick={() => {
+                      onChange('')
+                      setOpen(false)
+                    }}
+                  >
+                    {placeholder}
+                  </button>
+                )}
+                {filteredList.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
+                    style={{
+                      background:
+                        (variant === 'filter' ? value === c.name : value === c.name) ? 'var(--bg)' : 'transparent',
+                      color: 'var(--text)',
+                    }}
+                    onClick={() => {
+                      onChange(c.name)
+                      setOpen(false)
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+                {queryNorm && filteredList.length === 0 && !showFilterAllRow && (
+                  <p className="px-3 py-4 text-sm text-center" style={{ color: 'var(--text-muted)' }}>
+                    Ingen treff. Prøv et annet søk.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   )
 }

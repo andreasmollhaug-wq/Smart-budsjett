@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { useAppUser } from '@/components/app/AppUserContext'
 import { useActivePersonFinance } from '@/lib/store'
+import { buildDashboardSixMonthIncomeExpense } from '@/lib/bankReportData'
 import { getTotalEffectiveSaved } from '@/lib/savingsDerived'
 import { formatNOK } from '@/lib/utils'
 import StatCard from '@/components/ui/StatCard'
@@ -65,6 +66,11 @@ export default function DashboardPage() {
     const gainPct = totalPurchase !== 0 ? (totalGain / totalPurchase) * 100 : 0
     return { totalPurchase, totalGain, gainPct }
   }, [investments])
+
+  const incomeExpenseChartData = useMemo(
+    () => buildDashboardSixMonthIncomeExpense(transactions, budgetYear),
+    [transactions, budgetYear],
+  )
 
   /** Topp 10 utgiftskategorier etter summert faktisk forbruk i budsjettåret (ikke enkeltposter). */
   const topExpenseCategories = useMemo(() => {
@@ -137,10 +143,13 @@ export default function DashboardPage() {
             className="lg:col-span-2 rounded-2xl p-6"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
-            <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>
+            <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>
               Inntekt vs. utgifter (6 mnd)
             </h2>
-            <DashboardIncomeExpenseChart />
+            <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
+              Basert på transaksjoner i budsjettår {budgetYear} (siste inntil seks måneder fram til inneværende måned).
+            </p>
+            <DashboardIncomeExpenseChart data={incomeExpenseChartData} />
           </div>
 
           <div className="rounded-2xl p-6 flex flex-col" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>

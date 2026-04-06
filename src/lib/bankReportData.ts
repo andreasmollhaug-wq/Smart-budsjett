@@ -232,6 +232,26 @@ export function sumActualsByMonthForType(
   })
 }
 
+/** Siste inntil 6 måneder i budsjettåret (slutter på referansemåned): faktisk inntekt og utgift per måned. Brukes på dashboard-graf. */
+export function buildDashboardSixMonthIncomeExpense(
+  transactions: Transaction[],
+  budgetYear: number,
+): { month: string; inntekt: number; utgift: number }[] {
+  const refMonth = referenceMonthIndexForBudgetYear(budgetYear)
+  const startMonth = Math.max(0, refMonth - 5)
+  const income = sumActualsByMonthForType(transactions, budgetYear, 'income')
+  const expense = sumActualsByMonthForType(transactions, budgetYear, 'expense')
+  const out: { month: string; inntekt: number; utgift: number }[] = []
+  for (let m = startMonth; m <= refMonth; m++) {
+    out.push({
+      month: MONTH_LABELS_SHORT_NB[m] ?? String(m + 1),
+      inntekt: income[m] ?? 0,
+      utgift: expense[m] ?? 0,
+    })
+  }
+  return out
+}
+
 /** Budsjettert sum per måned (0–11) aggregert over alle kategorier av gitt type. */
 export function sumBudgetedByMonthForType(budgetCategories: BudgetCategory[], type: 'income' | 'expense'): number[] {
   return Array.from({ length: 12 }, (__, m) => {

@@ -32,6 +32,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Du kjører nå en ny versjon. Sjekk ut det som er nytt i appen — og husk at du alltid finner siste beskjeder her under klokken.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.0',
+    version: '0.3.0',
+    title: 'Smart Budsjett v0.3 er ute',
+    body:
+      'I samlet husholdning viser transaksjonslisten nå en merkelapp med hvilken profil hver rad tilhører — enklere å holde oversikt når dere er flere.\n\nForbedret kategorivalg og filtre på transaksjoner, små justeringer i dashboard og på landingssider, og oppdaterte personvern- og vilkårstekster. Små feilrettinger og forbedringer under panseret.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {
