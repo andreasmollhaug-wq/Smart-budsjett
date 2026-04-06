@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CTA_HREF } from './constants'
+import { CTA_HREF, LOGIN_HREF } from './constants'
 
 export default function LandingFooter() {
   return (
@@ -10,7 +10,7 @@ export default function LandingFooter() {
             Smart Budsjett
           </p>
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            En produkt fra EnkelExcel · kontakt@enkelexcel.no (oppdater med ekte adresse)
+            Et produkt fra EnkelExcel · kontakt@enkelexcel.no (oppdater med ekte adresse)
           </p>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">
@@ -21,6 +21,9 @@ export default function LandingFooter() {
             Vilkår
           </Link>
           <Link href={CTA_HREF} className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
+            Kom i gang
+          </Link>
+          <Link href={LOGIN_HREF} className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
             Logg inn
           </Link>
         </nav>

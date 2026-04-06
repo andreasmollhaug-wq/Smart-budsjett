@@ -1,35 +1,42 @@
-# Landingsside (`/`) — struktur og budskap
+# Landingsside (`/` og `/iris`) — struktur og budskap
 
-Denne filen beskriver **innhold og rekkefølge** på markedsføringsforsiden. Implementasjonen ligger i [`src/app/page.tsx`](../src/app/page.tsx) og [`src/components/marketing/`](../src/components/marketing/).
+Implementasjon: [`src/app/page.tsx`](../src/app/page.tsx), [`src/app/iris/page.tsx`](../src/app/iris/page.tsx), og delt innhold i [`src/components/marketing/`](../src/components/marketing/) (samlet i `LandingMain.tsx`).
 
 ## Teknisk kontekst
 
-- Forsiden ligger på **`/`** og har **ikke** app-sidebar.
-- App-sider (med sidebar) ligger i route group **`(app)`** — samme URL-er som før (f.eks. `/dashboard`).
-- Primær-CTA bruker konstanten **`CTA_HREF`** i [`src/components/marketing/constants.ts`](../src/components/marketing/constants.ts) (per i dag `/dashboard` til dedikert onboarding eller betaling finnes).
+- Markedsføringssider har **ikke** app-sidebar. App ligger i route group **`(app)`** (f.eks. `/dashboard`).
+- Primær-CTA: **`CTA_HREF`** → [`/registrer`](../src/components/marketing/constants.ts). Innlogging: **`LOGIN_HREF`** → `/logg-inn`.
+- **`/iris`**: Kampanjeinngang med `variant="partnerCampaign"` — samme produktbudskap i hero, partnerskap med Iris **høyere** i siden; Iris fremstår som partner, ikke som nettstedets eier.
+- Query **`?ref=iris`** på `/` redirectes til **`/iris`** ([`middleware.ts`](../src/middleware.ts)).
 
-## Seksjoner (rekkefølge)
+## Seksjoner — standard (`/`)
 
-1. **Sticky header** — Logo, anker til priser, «Logg inn», CTA «Start gratis prøveperiode».
-2. **Hero** — Hovedbudskap, 14 dagers prøveperiode, at betalingskort registreres ved oppstart.
-3. **For hvem** — Tre kort (pengene forsvinner, inntekt/utgift, bedre valg).
-4. **Verdiforslag** — Fire kort (inntekter/faste kostnader; føre/kategorisere; visuelt; igjen etter kostnader).
-5. **Posisjonering** — Ikke avansert økonomistyring; oversikt, kontroll, enkelt.
-6. **Slik fungerer det** — Fire steg (klar struktur → tall → oversikt → juster).
-7. **Produktglimt** — Statisk illustrasjon inspirert av dashboard.
-8. **Priser** — Solo og Familie — se [PRIS-OG-ABONNEMENT.md](./PRIS-OG-ABONNEMENT.md).
-9. **FAQ** — Prøveperiode, kort, familie-definisjon, bytte plan, oppsigelse, data.
-10. **Trygghet** — Kort personvern-avsnitt med lenke til full tekst.
-11. **Avsluttende CTA** — Gradient-blokk med gjentatt budskap.
-12. **Footer** — Kontakt-placeholder, lenker til `/personvern` og `/vilkar`.
+1. **Sticky header** — Logo, anker til `#funksjoner`, `#priser`, `#faq` (større skjermer), «Logg inn», CTA «Start gratis prøveperiode».
+2. **Hero** — Hovedbudskap (Smart Budsjett først), prøveperiode, kort; diskret linje med lenke til `#partnerskap` (Iris som partner).
+3. **For hvem** — Tre kort.
+4. **Verdiforslag** — Fire kort («Hva du får med Smart Budsjett»).
+5. **Alt i appen** — `#funksjoner`: moduler som i app-menyen (budsjett, transaksjoner, sparing, gjeld, osv.).
+6. **Posisjonering** — Ikke avansert økonomistyring.
+7. **Slik fungerer det** — Fire steg.
+8. **Produktglimt** — Illustrasjon (erstatt gjerne med ekte skjermbilder).
+9. **Partnerskap Iris** — `#partnerskap`.
+10. **Priser** — `#priser` — se [PRIS-OG-ABONNEMENT.md](./PRIS-OG-ABONNEMENT.md).
+11. **FAQ** — `#faq`.
+12. **Trygghet** — Lenker til `/personvern` og `/vilkar`.
+13. **Avsluttende CTA**.
+14. **Footer** — Personvern, vilkår, «Kom i gang», «Logg inn».
+
+## Seksjoner — kampanje (`/iris`)
+
+Samme seksjoner som over, men **Partnerskap Iris** kommer **rett etter hero** (ingen duplikat lenger ned).
 
 ## Metadata (SEO)
 
-- Tittel og beskrivelse settes i `src/app/page.tsx` (`export const metadata`).
-- Rot-layout bruker `title.template` slik at undersider kan få meningsfulle fanetitler.
+- `metadata` i `page.tsx` / `iris/page.tsx`: beskrivelse, **Open Graph**, **Twitter**, **canonical**.
+- Sett **`NEXT_PUBLIC_APP_URL`** i produksjon (full URL uten trailing slash) slik at OG-URL og canonical blir riktige — se [.env.example](../.env.example).
 
 ## Videre forbedringer (valgfritt)
 
 - Ekte skjermbilder eller video i produktglimt.
-- Dedikert innlogging-URL i stedet for «Logg inn» → dashboard.
+- Oppdater kontakt e-post i footer når endelig adresse er klar.
 - Juridisk gjennomgått tekst på personvern og vilkår.

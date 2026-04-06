@@ -1,7 +1,15 @@
 import Link from 'next/link'
 import { CTA_HREF } from './constants'
 
-export default function LandingHero() {
+export type LandingHeroVariant = 'default' | 'partnerCampaign'
+
+type Props = {
+  variant?: LandingHeroVariant
+}
+
+export default function LandingHero({ variant = 'default' }: Props) {
+  const partnerCampaign = variant === 'partnerCampaign'
+
   return (
     <section className="relative overflow-hidden px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16">
       <div
@@ -29,6 +37,11 @@ export default function LandingHero() {
           Smart Budsjett er et enkelt og strukturert budsjettverktøy som hjelper deg å se inntekter, utgifter og hva du har igjen
           — med ferdig oppsett, så du bare fyller inn dine egne tall.
         </p>
+        {partnerCampaign && (
+          <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-relaxed sm:text-base" style={{ color: 'var(--text-muted)' }}>
+            I samarbeid med Iris Eyfjord — samme enkle struktur som hun deler i sitt arbeid med EnkelExcel.
+          </p>
+        )}
         <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           Ved oppstart registrerer du betalingskort. Du betaler ikke før etter prøveperioden er over — vi er tydelige på det, så du
           slipper overraskelser.
@@ -53,6 +66,15 @@ export default function LandingHero() {
             Se priser
           </a>
         </div>
+        {!partnerCampaign && (
+          <p className="mt-8 text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
+            <a href="#partnerskap" className="font-medium underline underline-offset-2 transition-opacity hover:opacity-90" style={{ color: 'var(--primary)' }}>
+              I samarbeid med Iris Eyfjord
+            </a>
+            <span className="mx-1">·</span>
+            Partner som deler erfaring — Smart Budsjett er et produkt fra EnkelExcel.
+          </p>
+        )}
       </div>
     </section>
   )

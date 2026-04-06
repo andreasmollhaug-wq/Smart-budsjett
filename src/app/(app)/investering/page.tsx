@@ -4,7 +4,18 @@ import Header from '@/components/layout/Header'
 import { useActivePersonFinance, Investment } from '@/lib/store'
 import { formatNOK, generateId } from '@/lib/utils'
 import { fetchRateToNok, valueInNok } from '@/lib/fxToNok'
-import { Plus, Trash2, TrendingUp, TrendingDown, Clock, X, Search, RefreshCw } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  X,
+  Search,
+  RefreshCw,
+  Info,
+  ChevronDown,
+} from 'lucide-react'
 import {
   fetchQuoteSnapshots,
   fetchQuoteSearch,
@@ -94,6 +105,9 @@ export default function InvesteringPage() {
   const [quoteAddSaving, setQuoteAddSaving] = useState(false)
   const [quoteAddError, setQuoteAddError] = useState<string | null>(null)
   const [quoteRefreshTick, setQuoteRefreshTick] = useState(0)
+  const [quoteSectionOpen, setQuoteSectionOpen] = useState(false)
+  const [dailyInsightOpen, setDailyInsightOpen] = useState(false)
+  const [quoteModalFxHint, setQuoteModalFxHint] = useState<string | null>(null)
 
   const trackedSyncKey = useMemo(
     () =>
@@ -172,6 +186,45 @@ export default function InvesteringPage() {
       cancelled = true
     }
   }, [trackedSyncKey, quoteRefreshTick])
+
+  useEffect(() => {
+    if (!quoteAddModal) {
+      setQuoteModalFxHint(null)
+      return
+    }
+    const q = quoteAddModal.quote
+    if (q?.ok) {
+      const cur = q.currency?.trim() || 'USD'
+      if (cur === 'NOK') {
+        setQuoteModalFxHint('Kursnotering i NOK — ingen valutaomregning.')
+        return
+      }
+      let cancelled = false
+      setQuoteModalFxHint(null)
+      ;(async () => {
+        try {
+          const r = await fetchRateToNok(cur)
+          if (cancelled) return
+          const formatted = new Intl.NumberFormat('nb-NO', { maximumFractionDigits: 4 }).format(r)
+          setQuoteModalFxHint(
+            `Valuta fra kurs: ${cur}. Omregning til NOK: 1 ${cur} = ${formatted} NOK (Frankfurter — gratis dagskurs, hentet via vår server).`,
+          )
+        } catch {
+          if (!cancelled) {
+            setQuoteModalFxHint(
+              `Valuta fra kurs: ${cur}. NOK-beløp regnes som pris × antall × kurs per 1 ${cur} (Frankfurter) ved lagring.`,
+            )
+          }
+        }
+      })()
+      return () => {
+        cancelled = true
+      }
+    }
+    setQuoteModalFxHint(
+      'Ved lagring hentes instrumentets valuta fra kurs (f.eks. USD) og omregnes til NOK med Frankfurter — samme kilde som vises i tabellen.',
+    )
+  }, [quoteAddModal])
 
   function todayISO() {
     return isoDateLocal()
@@ -530,16 +583,35 @@ export default function InvesteringPage() {
         return
       }
       const cur = q.currency?.trim() || 'USD'
-      const rate = await fetchRateToNok(cur)
-      const marketNok = valueInNok(shareNum * price, cur, rate)
+      const purchaseDigits = quoteAddForm.purchaseNok.replace(/\D/g, '')
+      const manualPurchase = purchaseDigits ? Number(purchaseDigits) : 0
+
+      let marketNok: number
+      try {
+        const rate = await fetchRateToNok(cur)
+        marketNok = valueInNok(shareNum * price, cur, rate)
+      } catch {
+        if (quoteAddForm.useQuotePlusFee) {
+          setQuoteAddError(
+            'Kunne ikke hente valutakurs akkurat nå. Prøv igjen om et øyeblikk.',
+          )
+          return
+        }
+        if (manualPurchase > 0) {
+          marketNok = manualPurchase
+        } else {
+          setQuoteAddError(
+            'Kunne ikke hente valutakurs. Fyll inn kjøpsbeløp i NOK, eller prøv igjen senere.',
+          )
+          return
+        }
+      }
 
       let purchaseNok: number
       if (quoteAddForm.useQuotePlusFee) {
         purchaseNok = marketNok + DEFAULT_VALUTASURTASJE_NOK
       } else {
-        const purchaseDigits = quoteAddForm.purchaseNok.replace(/\D/g, '')
-        const manual = purchaseDigits ? Number(purchaseDigits) : 0
-        purchaseNok = manual > 0 ? manual : marketNok
+        purchaseNok = manualPurchase > 0 ? manualPurchase : marketNok
       }
 
       addInvestment({
@@ -571,21 +643,19 @@ export default function InvesteringPage() {
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
-      <Header
-        title="Investering"
-        subtitle="Følg hvordan porteføljeverdien utvikler seg — særlig med kurskoblede posisjoner som oppdateres når du åpner siden"
-      />
+      <Header title="Investering" subtitle="Porteføljeoversikt og avkastning" />
       <div className="p-8 space-y-6">
 
-        <div
-          className="rounded-2xl px-4 py-3 text-sm leading-relaxed"
-          style={{ background: 'var(--primary-pale)', border: '1px solid var(--accent)' }}
-        >
-          <span className="font-semibold" style={{ color: 'var(--text)' }}>Daglig innsikt i verdi</span>
-          <span style={{ color: 'var(--text-muted)' }}>
-            {' '}
-            For posisjoner du har koblet til kurs, lagres et verdipunkt for dagens dato hver gang du besøker siden eller trykker «Oppdater kurskoblet portefølje». Over tid ser du i grafen hvordan totalverdien har beveget seg — uten at appen trenger å kjøre i bakgrunnen.
-          </span>
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setDailyInsightOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ color: 'var(--primary)' }}
+          >
+            <Info size={14} aria-hidden />
+            Mer om daglig verdi
+          </button>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -663,14 +733,39 @@ export default function InvesteringPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-1">
-            <h2 className="font-semibold" style={{ color: 'var(--text)' }}>Kursoppslag</h2>
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        >
+          <div
+            className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 ${quoteSectionOpen ? 'pt-6 pb-0' : 'py-4'}`}
+          >
+            <button
+              type="button"
+              onClick={() => setQuoteSectionOpen((o) => !o)}
+              className="flex items-center gap-3 min-w-0 text-left rounded-xl px-2 py-2 -ml-2 transition-colors hover:opacity-90"
+              style={{ color: 'var(--text)' }}
+              aria-expanded={quoteSectionOpen}
+            >
+              <ChevronDown
+                size={20}
+                className="shrink-0 transition-transform duration-300 ease-out motion-reduce:transition-none"
+                style={{
+                  color: 'var(--text-muted)',
+                  transform: quoteSectionOpen ? 'rotate(180deg)' : undefined,
+                }}
+                aria-hidden
+              />
+              <span className="font-semibold">Kursoppslag</span>
+              <span className="text-xs font-normal truncate hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
+                {quoteSectionOpen ? 'Skjul' : 'Åpne for søk i aksjer og fond'}
+              </span>
+            </button>
             {trackedSyncKey ? (
               <button
                 type="button"
                 onClick={() => setQuoteRefreshTick((t) => t + 1)}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors hover:opacity-90 shrink-0"
+                className="inline-flex items-center justify-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors hover:opacity-90 shrink-0"
                 style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 title="Hent fersk kurs og lagre dagens verdi i historikken"
               >
@@ -679,10 +774,17 @@ export default function InvesteringPage() {
               </button>
             ) : null}
           </div>
-          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-            <strong>Uten komma:</strong> søk på navn (f.eks. <code className="text-xs">apple</code>) — bruk «Legg til» for å koble en posisjon til kurs, slik at du kan følge verdiutvikling over tid.{' '}
+
+          <div
+            className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
+            style={{ gridTemplateRows: quoteSectionOpen ? '1fr' : '0fr' }}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="px-6 pb-6 pt-1 space-y-4">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            <strong>Uten komma:</strong> søk på navn (f.eks. <code className="text-xs">apple</code> eller <code className="text-xs">vår energi</code>) — vi prøver også uten æ/ø/å og kjente tickere (EQNR). Bruk «Legg til» for å lagre posisjon.{' '}
             <strong>Med komma:</strong> bare oppslag (f.eks. <code className="text-xs">AAPL, MSFT</code>) uten å lagre posisjon.{' '}
-            Kurskoblede verdier regnes i NOK (Frankfurter) ved hvert besøk eller når du oppdaterer.
+            Instrumentvaluta (USD, EUR, …) fra kurs omregnes til NOK med Frankfurters gratiskurs (ECB) via vår server — samme ved hvert besøk eller når du oppdaterer.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 mb-4">
             <input
@@ -870,6 +972,9 @@ export default function InvesteringPage() {
           <p className="text-xs mt-3" style={{ color: 'var(--text-muted)' }}>
             Data fra Finnhub under deres vilkår og kvoter. Priser i instrumentets valuta — ikke bland med NOK uten egen omregning.
           </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -1141,6 +1246,11 @@ export default function InvesteringPage() {
                 <p className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>
                   {quoteAddModal.displaySymbol ?? quoteAddModal.symbol}
                 </p>
+                {quoteModalFxHint ? (
+                  <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                    {quoteModalFxHint}
+                  </p>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -1272,6 +1382,49 @@ export default function InvesteringPage() {
                 Avbryt
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {dailyInsightOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          onClick={() => setDailyInsightOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-6"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <h2 className="text-lg font-semibold pr-2" style={{ color: 'var(--text)' }}>
+                Daglig innsikt i verdi
+              </h2>
+              <button
+                type="button"
+                onClick={() => setDailyInsightOpen(false)}
+                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+                title="Lukk"
+              >
+                <X size={16} style={{ color: 'var(--text-muted)' }} />
+              </button>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              For aksjer og annet du har koblet til kurs, lagres et verdipunkt for dagens dato når du åpner siden eller trykker
+              «Oppdater kurs og dagens verdi». I tillegg kjøres en daglig serverjobb (planlagt ca. kl. 16:00 norsk vintertid) som
+              henter kurs på nytt og oppdaterer bare disse posisjonene i lagret data — slik at verdiene kan være ferske selv om du
+              ikke har vært innom. Sommertid blir klokkeslettet tilsvarende én time annerledes (UTC).
+            </p>
+            <button
+              type="button"
+              onClick={() => setDailyInsightOpen(false)}
+              className="mt-5 w-full px-4 py-2 rounded-xl text-sm font-medium"
+              style={{ background: 'var(--primary)', color: 'white' }}
+            >
+              Lukk
+            </button>
           </div>
         </div>
       ) : null}

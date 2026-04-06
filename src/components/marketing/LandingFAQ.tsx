@@ -27,7 +27,7 @@ const faqs: { q: string; a: string }[] = [
 
 export default function LandingFAQ() {
   return (
-    <section className="px-4 py-14 sm:px-6" style={{ background: 'color-mix(in srgb, var(--primary-pale) 35%, var(--bg))' }}>
+    <section id="faq" className="scroll-mt-24 px-4 py-14 sm:px-6" style={{ background: 'color-mix(in srgb, var(--primary-pale) 35%, var(--bg))' }}>
       <div className="mx-auto max-w-3xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Ofte stilte spørsmål

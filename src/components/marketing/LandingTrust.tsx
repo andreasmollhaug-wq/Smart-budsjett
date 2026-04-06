@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Shield } from 'lucide-react'
 
 export default function LandingTrust() {
@@ -19,7 +20,15 @@ export default function LandingTrust() {
           </h2>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
             Økonomidata er sensitivt. Smart Budsjett er bygget for at du skal eie oversikten din — med tydelige innstillinger og
-            respekt for personvern. Les mer i personvernerklæringen og vilkårene under.
+            respekt for personvern. Les mer i{' '}
+            <Link href="/personvern" className="font-medium underline underline-offset-2 transition-opacity hover:opacity-90" style={{ color: 'var(--primary)' }}>
+              personvernerklæringen
+            </Link>{' '}
+            og{' '}
+            <Link href="/vilkar" className="font-medium underline underline-offset-2 transition-opacity hover:opacity-90" style={{ color: 'var(--primary)' }}>
+              vilkårene
+            </Link>
+            .
           </p>
         </div>
       </div>

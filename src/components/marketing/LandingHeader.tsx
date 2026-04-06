@@ -28,13 +28,27 @@ export default function LandingHeader() {
           </div>
         </Link>
 
-        <nav className="flex items-center gap-2 sm:gap-3">
+        <nav className="flex items-center gap-1 sm:gap-2">
+          <a
+            href="#funksjoner"
+            className="hidden rounded-lg px-2 py-2 text-sm font-medium lg:inline-block"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Funksjoner
+          </a>
           <a
             href="#priser"
-            className="hidden rounded-lg px-3 py-2 text-sm font-medium sm:inline-block"
+            className="hidden rounded-lg px-2 py-2 text-sm font-medium sm:inline-block"
             style={{ color: 'var(--text-muted)' }}
           >
             Priser
+          </a>
+          <a
+            href="#faq"
+            className="hidden rounded-lg px-2 py-2 text-sm font-medium lg:inline-block"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            FAQ
           </a>
           <Link
             href={LOGIN_HREF}

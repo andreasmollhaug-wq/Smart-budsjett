@@ -43,6 +43,14 @@ export function finnhubSymbolVariants(userSymbol: string): string[] {
     list.push(s.replace(/\.OSE$/i, '.OL'))
   } else {
     list.push(s)
+    // Uten suffiks: Finnhub gratis gir ofte 403 på én notering mens en annen (OSE/OL/US) fungerer.
+    if (!s.includes('.')) {
+      const upper = s.trim().toUpperCase()
+      if (/^[A-Z0-9-]{2,10}$/.test(upper)) {
+        list.push(`${upper}.OSE`)
+        list.push(`${upper}.OL`)
+      }
+    }
   }
 
   return [...new Set(list)]
@@ -133,9 +141,10 @@ export async function fetchFinnhubSnapshot(
     }
 
     if (!qRes.ok) {
-      // 403 kan være ugyldig symbol/format hos Finnhub — prøv neste variant (f.eks. .OSE etter .OL).
+      // 403: ofte ikke tilgjengelig for denne børs-/noteringskoden på gratisplan — neste variant prøves.
       if (qRes.status === 403) {
-        lastError = 'Fant ikke kurs for denne ticker-varianten (403).'
+        lastError =
+          'Ingen kurs for denne noteringen hos Finnhub (403). Prøv annen ticker eller vent — vi prøver flere varianter automatisk.'
       } else {
         lastError = `Kursleverandør svarte med ${qRes.status}.`
       }

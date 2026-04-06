@@ -4,7 +4,7 @@ const IRIS_PAGE_HREF = 'https://enkelexcel.no/pages/iriseyfjord'
 
 export default function LandingIrisPartnership() {
   return (
-    <section className="px-4 py-12 sm:px-6">
+    <section id="partnerskap" className="scroll-mt-24 px-4 py-12 sm:px-6">
       <div
         className="mx-auto flex max-w-3xl flex-col gap-4 rounded-2xl p-8 sm:flex-row sm:items-start sm:gap-8"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
