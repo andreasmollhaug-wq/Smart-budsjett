@@ -17,7 +17,7 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: 'Hvordan sier jeg opp?',
-    a: 'Du administrerer abonnementet fra kontoinnstillingene i appen. Ingen binding utover det du allerede har betalt for inneværende periode.',
+    a: 'Du administrerer abonnementet fra kontoinnstillingene i Smart Budsjett. Ingen binding utover det du allerede har betalt for inneværende periode.',
   },
   {
     q: 'Hva skjer med dataene mine?',

@@ -43,7 +43,7 @@ const features: FeatureItem[] = [
     color: '#4C6EF5',
     paragraphs: [
       'Budsjettsiden er satt opp med struktur og kategorier på forhånd, så du slipper å bygge alt fra bunnen av.',
-      'Du fyller inn egne beløp og justerer underveis når inntekt eller vaner endrer seg — tallene henger sammen med resten av appen.',
+      'Du fyller inn egne beløp og justerer underveis når inntekt eller vaner endrer seg — tallene henger sammen med resten av løsningen.',
     ],
   },
   {
@@ -87,7 +87,7 @@ const features: FeatureItem[] = [
     color: '#7048E8',
     paragraphs: [
       'Snøballmetoden handler om å prioritere ekstra innsats mot ett lån av gangen, i en fastlagt rekkefølge, for å bygge motivasjon og spare renter over tid.',
-      'Verktøyet i appen støtter planlegging — du må selv vurdere hva som passer din situasjon og eventuelle lånevilkår.',
+      'Verktøyet i Smart Budsjett støtter planlegging — du må selv vurdere hva som passer din situasjon og eventuelle lånevilkår.',
     ],
   },
   {
@@ -97,7 +97,7 @@ const features: FeatureItem[] = [
     text: 'Enkel oversikt over investeringer du registrerer.',
     color: '#0B7285',
     paragraphs: [
-      'Registrer posisjoner du ønsker å følge med på, slik at verdi og utvikling vises samlet i appen der det er støttet.',
+      'Registrer posisjoner du ønsker å følge med på, slik at verdi og utvikling vises samlet i Smart Budsjett der det er støttet.',
       'Dette er oversikt og struktur — ikke personlig investeringsrådgivning. Vurder alltid egen risiko og vilkår hos megler/bank.',
     ],
   },
@@ -116,10 +116,10 @@ const features: FeatureItem[] = [
     id: 'enkelexcel-ai',
     icon: MessageSquare,
     title: 'EnkelExcel AI',
-    text: 'Spør om tall og budsjett i appen — et hjelpeverktøy, ikke personlig rådgivning.',
+    text: 'Spør om tall og budsjett i Smart Budsjett — et hjelpeverktøy, ikke personlig rådgivning.',
     color: '#364FC7',
     paragraphs: [
-      'EnkelExcel AI lar deg stille spørsmål om tallene og strukturen i appen, for eksempel hvordan kategorier henger sammen eller hvordan du finner noe i grensesnittet.',
+      'EnkelExcel AI lar deg stille spørsmål om tallene og strukturen i Smart Budsjett, for eksempel hvordan kategorier henger sammen eller hvordan du finner noe i grensesnittet.',
       'Svarene er automatiserte og kan ta feil — bruk dem som hjelp, ikke som juridisk, skattemessig eller personlig økonomisk rådgivning. Ved viktige valg bør du kontakte fagfolk.',
     ],
   },
@@ -152,10 +152,10 @@ export default function LandingAppFeatures() {
     <section id="funksjoner" className="scroll-mt-24 px-4 py-14 sm:px-6">
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
-          Alt i appen
+          Funksjoner i Smart Budsjett
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
-          Samme moduler som i menyen — én app til hele flyten fra oversikt til sparing og gjeld.
+          Samme moduler som i menyen etter innlogging — én oversikt fra tall til sparing og gjeld.
         </p>
         <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {features.map(({ id, icon: Icon, title, text, color }) => (

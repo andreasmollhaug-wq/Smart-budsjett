@@ -15,7 +15,7 @@ Implementasjon: [`src/app/page.tsx`](../src/app/page.tsx), [`src/app/iris/page.t
 2. **Hero** — Hovedbudskap (Smart Budsjett først), prøveperiode, kort; diskret linje med lenke til `#partnerskap` (Iris som partner).
 3. **For hvem** — Tre kort.
 4. **Verdiforslag** — Fire kort («Hva du får med Smart Budsjett»).
-5. **Alt i appen** — `#funksjoner`: moduler som beskrevet i [`LandingAppFeatures.tsx`](../src/components/marketing/LandingAppFeatures.tsx) (samme rekkefølge som i app-menyen der det er naturlig):
+5. **Funksjoner i Smart Budsjett** — `#funksjoner`: moduler som beskrevet i [`LandingAppFeatures.tsx`](../src/components/marketing/LandingAppFeatures.tsx) (samme rekkefølge som i app-menyen der det er naturlig):
    - **Oversikt** (dashboard)
    - **Budsjett**
    - **Transaksjoner**

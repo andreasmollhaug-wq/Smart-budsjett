@@ -6,7 +6,7 @@ export default function LandingProductPreview() {
           Slik ser oversikten ut
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
-          Ryddig dashboard med tall og grafer — samme rolige uttrykk som i resten av appen.
+          Ryddig dashboard med tall og grafer — samme rolige uttrykk som i resten av løsningen.
         </p>
 
         <div
@@ -55,7 +55,7 @@ export default function LandingProductPreview() {
               ))}
             </div>
             <p className="mt-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-              Illustrasjon — tall i appen baseres på dine egne registreringer
+              Illustrasjon — tallene i Smart Budsjett baseres på dine egne registreringer
             </p>
           </div>
         </div>
