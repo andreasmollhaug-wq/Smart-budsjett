@@ -67,7 +67,9 @@ export async function POST(req: Request) {
         const subRef = session.subscription
         const subId = typeof subRef === 'string' ? subRef : subRef?.id
         if (!subId) break
-        const subscription = await stripe.subscriptions.retrieve(subId)
+        const subscription = await stripe.subscriptions.retrieve(subId, {
+          expand: ['items.data.price'],
+        })
         const fallbackUserId = session.client_reference_id ?? undefined
         await upsertSubscriptionFromStripe(admin, subscription, fallbackUserId)
         break
@@ -86,7 +88,11 @@ export async function POST(req: Request) {
         break
     }
   } catch (e) {
-    console.error('[stripe] webhook handler', event.type, e)
+    const detail =
+      e && typeof e === 'object' && 'message' in e
+        ? String((e as { message: unknown }).message)
+        : String(e)
+    console.error('[stripe] webhook handler', event.type, detail, e)
     return NextResponse.json({ error: 'Webhook-behandling feilet.' }, { status: 500 })
   }
 
