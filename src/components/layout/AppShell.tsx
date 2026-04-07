@@ -6,9 +6,13 @@ import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import SidebarContent, { SidebarDrawerCloseButton } from '@/components/layout/SidebarContent'
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { appReadOnly, loading: readOnlyLoading } = useSubscriptionReadOnly()
+  const kontoSection = pathname.startsWith('/konto')
+  const mainReadOnly = !readOnlyLoading && appReadOnly && !kontoSection
   const [mobileOpen, setMobileOpen] = useState(false)
   const demoDataEnabled = useStore((s) => s.demoDataEnabled)
   const logoBg = demoDataEnabled
@@ -76,7 +80,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarContent />
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+        <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          {mainReadOnly && (
+            <div
+              className="shrink-0 border-b px-3 py-2.5 text-sm md:px-4"
+              style={{
+                background: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)',
+              }}
+            >
+              <span className="font-medium">Skrivebeskyttet.</span>{' '}
+              Du kan se appen og navigere, men ikke endre data uten aktivt abonnement eller prøveperiode.{' '}
+              <Link href="/konto/betalinger" className="underline font-medium" style={{ color: 'var(--primary)' }}>
+                Betalinger
+              </Link>{' '}
+              og øvrige valg under{' '}
+              <Link href="/konto/innstillinger" className="underline font-medium" style={{ color: 'var(--primary)' }}>
+                Min konto
+              </Link>{' '}
+              fungerer som vanlig.
+            </div>
+          )}
+          <div
+            className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
+              mainReadOnly ? 'pointer-events-none select-none opacity-[0.97]' : ''
+            }`}
+          >
+            {children}
+          </div>
+        </main>
       </div>
 
       {mobileOpen && (

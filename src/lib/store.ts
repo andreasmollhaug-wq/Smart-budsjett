@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
-import { generateId } from './utils'
+import { generateId, type BudgetCategoryFrequency } from './utils'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
 import type { ParentCategory } from './budgetCategoryCatalog'
@@ -70,7 +70,7 @@ export interface BudgetCategory {
   type: 'income' | 'expense'
   color: string
   parentCategory: ParentCategory
-  frequency: 'monthly' | 'yearly' | 'quarterly' | 'weekly' | 'once'
+  frequency: BudgetCategoryFrequency
 }
 
 export interface SavingsDeposit {

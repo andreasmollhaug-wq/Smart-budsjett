@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      /** Mange klienter ber om /favicon.ico; vi bruker dynamisk /icon (ImageResponse). */
+      {
+        source: '/favicon.ico',
+        destination: '/icon',
+        permanent: false,
+      },
       {
         source: '/rapporter/sparemål',
         destination: '/rapporter/sparemal',

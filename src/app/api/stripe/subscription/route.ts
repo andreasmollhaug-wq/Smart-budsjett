@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import {
+  computeAppReadOnly,
+  hasSubscriptionAccess,
+  isSubscriptionEnforcementEnabled,
+} from '@/lib/stripe/subscriptionAccess'
+import { subscriptionTrialPeriodDaysForClient } from '@/lib/stripe/trialPeriodDays'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,5 +37,13 @@ export async function GET() {
     return NextResponse.json({ error: 'Kunne ikke hente abonnement.' }, { status: 500 })
   }
 
-  return NextResponse.json({ subscription: data ?? null })
+  const subscription = data ?? null
+  const status = subscription?.status ?? null
+  return NextResponse.json({
+    subscription,
+    appReadOnly: computeAppReadOnly(status),
+    hasSubscriptionAccess: hasSubscriptionAccess(status),
+    enforcementEnabled: isSubscriptionEnforcementEnabled(),
+    trialPeriodDays: subscriptionTrialPeriodDaysForClient(),
+  })
 }

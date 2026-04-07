@@ -38,6 +38,21 @@ function welcomeTitle(displayName: string, isFirstAppState: boolean): string {
   return name ? `${base}, ${name}` : base
 }
 
+function dashboardSubtitle(
+  isHouseholdAggregate: boolean,
+  activeProfileId: string,
+  profiles: { id: string; name: string }[],
+): string {
+  if (isHouseholdAggregate) {
+    return 'Oversikt · Samlet husholdning — alle profiler'
+  }
+  const profileName = profiles.find((p) => p.id === activeProfileId)?.name?.trim()
+  if (profileName) {
+    return `Oversikt · ${profileName} — din økonomiske oversikt i dag`
+  }
+  return 'Oversikt · Din økonomiske oversikt i dag'
+}
+
 export default function DashboardPage() {
   const { displayName, isFirstAppState } = useAppUser()
   const {
@@ -121,11 +136,7 @@ export default function DashboardPage() {
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
         title={welcomeTitle(displayName, isFirstAppState)}
-        subtitle={
-          isHouseholdAggregate
-            ? 'Oversikt · Samlet husholdning — alle profiler'
-            : 'Oversikt · Din økonomiske oversikt i dag'
-        }
+        subtitle={dashboardSubtitle(isHouseholdAggregate, activeProfileId, profiles)}
       />
       <div className="p-8 space-y-6">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

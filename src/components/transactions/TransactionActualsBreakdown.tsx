@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, type KeyboardEvent } from 'react'
 import type { BudgetCategory, Transaction } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { formatNOK } from '@/lib/utils'
@@ -104,68 +104,123 @@ export default function TransactionActualsBreakdown({ transactions, budgetCatego
 
   const colorFor = (name: string) => budgetCategories.find((c) => c.name === name)?.color ?? 'var(--text-muted)'
 
+  const accent = (sectionType: 'income' | 'expense') =>
+    sectionType === 'income' ? 'var(--success)' : 'var(--danger)'
+
   const renderGroup = (
     groups: { parent: ParentCategory | 'unknown'; lines: AggregatedLine[] }[],
     sectionType: 'income' | 'expense',
   ) => (
     <div className="space-y-3">
-      {groups.map(({ parent, lines: groupLines }) => (
-        <details
-          key={`${sectionType}-${parent}`}
-          className="rounded-xl border overflow-hidden"
-          style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
-          open
-        >
-          <summary
-            className="cursor-pointer list-none px-4 py-2.5 text-sm font-medium [&::-webkit-details-marker]:hidden flex items-center justify-between gap-2"
-            style={{ color: 'var(--text)' }}
+      {groups.map(({ parent, lines: groupLines }) => {
+        const groupTotal = groupLines.reduce((a, l) => a + l.sum, 0)
+        const label =
+          parent === 'unknown' ? 'Ukjent kategori' : PARENT_LABEL[parent as ParentCategory]
+        const n = groupLines.length
+        const categoryWord = n === 1 ? 'kategori' : 'kategorier'
+
+        return (
+          <div
+            key={`${sectionType}-${parent}`}
+            className="rounded-2xl overflow-hidden"
+            style={{ border: '1px solid var(--border)', background: 'var(--bg)' }}
           >
-            <span>
-              {parent === 'unknown'
-                ? 'Ukjent kategori'
-                : PARENT_LABEL[parent as ParentCategory]}
-            </span>
-            <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
-              {groupLines.length} {groupLines.length === 1 ? 'linje' : 'linjer'}
-            </span>
-          </summary>
-          <ul className="border-t divide-y" style={{ borderColor: 'var(--border)' }}>
-            {groupLines.map((line) => (
-              <li key={`${line.categoryName}-${line.type}`}>
-                <button
-                  type="button"
-                  onClick={() => onPickCategory(line.categoryName)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-opacity hover:opacity-90 focus-visible:outline focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded-none"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ background: line.isUnknown ? 'var(--text-muted)' : colorFor(line.categoryName) }}
-                    />
-                    <span className="min-w-0">
-                      <span className="block truncate" style={{ color: 'var(--text)' }}>
-                        {line.categoryName}
-                      </span>
-                      {line.isUnknown && (
-                        <span className="block text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                          Finnes ikke i budsjettkategorier
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                  <span
-                    className="tabular-nums font-semibold shrink-0"
-                    style={{ color: sectionType === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                  >
-                    {sectionType === 'income' ? '+' : '-'}
-                    {formatNOK(line.sum)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ))}
+            <div className="flex items-center justify-between gap-3 px-4 py-3 text-left">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm sm:text-base" style={{ color: 'var(--text)' }}>
+                  {label}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {n} {categoryWord}
+                </p>
+              </div>
+              <p
+                className="shrink-0 font-semibold tabular-nums text-sm sm:text-base"
+                style={{ color: accent(sectionType) }}
+              >
+                {sectionType === 'income' ? '+' : '-'}
+                {formatNOK(groupTotal)}
+              </p>
+            </div>
+
+            <div className="overflow-x-auto mt-2 px-0 pb-1" style={{ background: 'var(--surface)' }}>
+              <table className="w-full min-w-[16rem] text-sm border-collapse">
+                <caption className="sr-only">
+                  {label}: faktiske beløp per kategori
+                </caption>
+                <thead>
+                  <tr>
+                    <th
+                      scope="col"
+                      className="text-left py-2 px-4 font-medium align-middle"
+                      style={{ borderBottom: '1px solid var(--border)', color: 'var(--text)' }}
+                    >
+                      Kategori
+                    </th>
+                    <th
+                      scope="col"
+                      className="text-right py-2 px-4 font-medium align-middle whitespace-nowrap tabular-nums"
+                      style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                    >
+                      Beløp
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupLines.map((line) => {
+                    const pick = () => onPickCategory(line.categoryName)
+                    const onRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        pick()
+                      }
+                    }
+                    return (
+                      <tr
+                        key={`${line.categoryName}-${line.type}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Åpne transaksjonsliste for ${line.categoryName}`}
+                        onClick={pick}
+                        onKeyDown={onRowKeyDown}
+                        className="cursor-pointer transition-colors hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]"
+                        style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}
+                      >
+                        <td className="py-2.5 px-4 align-middle max-w-[min(100%,20rem)]">
+                          <div className="flex items-start gap-2 min-w-0">
+                            <span
+                              className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5"
+                              style={{ background: line.isUnknown ? 'var(--text-muted)' : colorFor(line.categoryName) }}
+                              aria-hidden
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm truncate" title={line.categoryName}>
+                                {line.categoryName}
+                              </span>
+                              {line.isUnknown && (
+                                <span className="block text-xs truncate mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                  Finnes ikke i budsjettkategorier
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </td>
+                        <td
+                          className="py-2.5 px-4 text-right align-middle tabular-nums font-semibold text-sm whitespace-nowrap"
+                          style={{ color: accent(sectionType) }}
+                        >
+                          {sectionType === 'income' ? '+' : '-'}
+                          {formatNOK(line.sum)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 

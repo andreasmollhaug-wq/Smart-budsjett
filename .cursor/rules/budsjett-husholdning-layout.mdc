@@ -1,0 +1,12 @@
+---
+description: Budsjett Husholdning — layout og kortbredde
+globs:
+  - "**/budsjett/husholdning/**"
+  - "**/components/budget/household/**"
+alwaysApply: false
+---
+
+# Budsjett · Husholdning
+
+- **Innholdsstyrt bredde:** Kort/seksjoner skal ikke fylle hele viewport-bredden uten grunn. Bruk `max-w-*` (evt. `min(100%, …rem)`), `w-fit` der det passer, og `mr-auto` for venstrejustering slik at det blir plass til mer innhold ved siden av på sikt. Eksempel: «Budsjett: inntekt per person» bruker ca. `17.5rem`; «Faktisk inntekt og utgift per person» ca. `22.5rem` (tabell trenger litt mer bredde).
+- Unngå fullbredds «hvite bokser» når informasjonstettheten er lav — match kortstørrelse til innhold.

@@ -76,14 +76,39 @@ export function mixHexWithBlack(hex: string, blackBlend: number): string {
   return `#${rr.toString(16).padStart(2, '0')}${gg.toString(16).padStart(2, '0')}${bb.toString(16).padStart(2, '0')}`
 }
 
-export function toMonthly(
-  amount: number,
-  frequency: 'monthly' | 'yearly' | 'quarterly' | 'weekly' | 'once',
-): number {
-  if (frequency === 'yearly') return amount / 12
-  if (frequency === 'quarterly') return amount / 3
-  if (frequency === 'weekly') return amount * 4.33
-  return amount // monthly + once
+/** Frekvens for budsjettlinje — må matche `BudgetCategory.frequency` i store. */
+export type BudgetCategoryFrequency =
+  | 'monthly'
+  | 'yearly'
+  | 'quarterly'
+  | 'semiAnnual'
+  | 'weekly'
+  | 'once'
+
+/**
+ * Fyller 12 måneder (jan = 0 … des = 11) ut fra beløp og frekvens.
+ * Kvartal: jan/apr/jul/okt. Halvår: jan/jul. Én gang: kun januar.
+ */
+export function budgetedMonthsFromFrequency(amount: number, frequency: BudgetCategoryFrequency): number[] {
+  const base = Array(12).fill(0)
+  switch (frequency) {
+    case 'monthly':
+      return Array(12).fill(amount)
+    case 'yearly':
+      return Array(12).fill(amount / 12)
+    case 'quarterly':
+      for (const i of [0, 3, 6, 9] as const) base[i] = amount
+      return base
+    case 'semiAnnual':
+      base[0] = amount
+      base[6] = amount
+      return base
+    case 'weekly':
+      return Array(12).fill(amount * 4.33)
+    case 'once':
+      base[0] = amount
+      return base
+  }
 }
 
 export function formatThousands(value: number | string): string {

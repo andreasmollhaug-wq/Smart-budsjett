@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe/server'
 import type { BillingPlan } from '@/lib/stripe/plan'
+import { subscriptionTrialPeriodDays } from '@/lib/stripe/trialPeriodDays'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,18 +11,6 @@ function appBaseUrl(): string {
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
   )
-}
-
-/** Prøveperiode på abonnement (Stripe `trialing`). Default 14 dager; sett STRIPE_SUBSCRIPTION_TRIAL_DAYS=0 for å deaktivere. */
-function subscriptionTrialPeriodDays(): number | undefined {
-  const raw = process.env.STRIPE_SUBSCRIPTION_TRIAL_DAYS
-  const fallback = 14
-  if (raw === undefined || raw === '') {
-    return fallback
-  }
-  const n = parseInt(raw, 10)
-  if (!Number.isFinite(n) || n <= 0) return undefined
-  return n
 }
 
 export async function POST(req: Request) {
@@ -68,6 +57,7 @@ export async function POST(req: Request) {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
+      payment_method_collection: 'always',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${base}/konto/betalinger?checkout=success`,
       cancel_url: `${base}/konto/betalinger?checkout=canceled`,

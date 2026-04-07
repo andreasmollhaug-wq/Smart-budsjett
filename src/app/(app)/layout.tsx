@@ -5,6 +5,7 @@ import { AppUserProvider } from '@/components/app/AppUserContext'
 import OnboardingHost from '@/components/onboarding/OnboardingHost'
 import DemoModeBanner from '@/components/app/DemoModeBanner'
 import SubscriptionPastDueBanner from '@/components/app/SubscriptionPastDueBanner'
+import { SubscriptionReadOnlyProvider } from '@/components/app/SubscriptionReadOnlyProvider'
 import { createClient } from '@/lib/supabase/server'
 import { getDisplayNameFromUser } from '@/lib/authDisplayName'
 import { getOrCreateUserAppState } from '@/lib/userAppStateServer'
@@ -28,12 +29,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppStateProvider initialState={state} wasCreated={wasCreated} userId={user.id}>
       <AppUserProvider displayName={displayName} isFirstAppState={wasCreated}>
-        <OnboardingHost />
-        <div className="flex min-h-screen flex-col">
-          <SubscriptionPastDueBanner />
-          <DemoModeBanner />
-          <AppShell>{children}</AppShell>
-        </div>
+        <SubscriptionReadOnlyProvider>
+          <OnboardingHost />
+          <div className="flex min-h-screen flex-col">
+            <SubscriptionPastDueBanner />
+            <DemoModeBanner />
+            <AppShell>{children}</AppShell>
+          </div>
+        </SubscriptionReadOnlyProvider>
       </AppUserProvider>
     </AppStateProvider>
   )

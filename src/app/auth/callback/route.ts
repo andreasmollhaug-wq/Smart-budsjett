@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
 
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
+  /** E-postbekreftelse: sett `emailRedirectTo` til `/auth/callback?next=…` (f.eks. `/konto/betalinger?trial=welcome`). */
   const next = safeRedirectPath(requestUrl.searchParams.get('next'))
 
   if (!code) {

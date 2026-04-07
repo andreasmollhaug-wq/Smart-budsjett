@@ -1,11 +1,13 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CreditCard, Check, ExternalLink, Loader2 } from 'lucide-react'
 import { useActivePersonFinance } from '@/lib/store'
 import { hasSubscriptionAccess } from '@/lib/stripe/subscriptionAccess'
 import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
+import TrialWelcomeModal from '@/components/billing/TrialWelcomeModal'
 
 const soloFeatures = ['Én brukerkonto', 'Full tilgang til alle funksjoner', 'Passer deg som styrer økonomien alene']
 const familyFeatures = [
@@ -80,9 +82,14 @@ function statusLabel(status: string): string {
 }
 
 function BetalingerContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const checkout = searchParams.get('checkout')
   const reason = searchParams.get('reason')
+  const trialWelcome = searchParams.get('trial')
+
+  const { trialPeriodDays } = useSubscriptionReadOnly()
+  const [trialModalOpen, setTrialModalOpen] = useState(false)
 
   const { subscriptionPlan, setSubscriptionPlan } = useActivePersonFinance()
   const [downgradeError, setDowngradeError] = useState(false)
@@ -145,15 +152,44 @@ function BetalingerContent() {
     }
   }, [checkout, loadStripeSubscription, loadInvoices])
 
-  const chooseSolo = () => {
-    setDowngradeError(false)
-    const r = setSubscriptionPlan('solo')
-    if (!r.ok) setDowngradeError(true)
-  }
+  const paidActive = stripeSub && hasSubscriptionAccess(stripeSub.status)
 
-  const chooseFamily = () => {
+  useEffect(() => {
+    if (paidActive) {
+      setTrialModalOpen(false)
+      return
+    }
+    if (typeof window !== 'undefined' && sessionStorage.getItem('trialWelcomeModalDismissed') === '1') {
+      setTrialModalOpen(false)
+      return
+    }
+    if (trialWelcome === 'welcome' || reason === 'subscription') {
+      setTrialModalOpen(true)
+    }
+  }, [paidActive, trialWelcome, reason])
+
+  const closeTrialModal = useCallback(() => {
+    setTrialModalOpen(false)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('trial')
+    const q = params.toString()
+    router.replace(q ? `/konto/betalinger?${q}` : '/konto/betalinger')
+  }, [router, searchParams])
+
+  /** Setter app-plan (profiler) og sender til Stripe Checkout – én handling per kort. */
+  const subscribeWithPlan = async (plan: 'solo' | 'family') => {
     setDowngradeError(false)
-    setSubscriptionPlan('family')
+    setCheckoutError(null)
+    if (plan === 'solo') {
+      const r = setSubscriptionPlan('solo')
+      if (!r.ok) {
+        setDowngradeError(true)
+        return
+      }
+    } else {
+      setSubscriptionPlan('family')
+    }
+    await startStripeCheckout(plan)
   }
 
   const startStripeCheckout = async (plan: 'solo' | 'family') => {
@@ -182,13 +218,18 @@ function BetalingerContent() {
     }
   }
 
-  const paidActive = stripeSub && hasSubscriptionAccess(stripeSub.status)
-
   const invoicesSorted =
     invoices?.slice().sort((a, b) => b.created - a.created) ?? []
 
   return (
     <>
+      <TrialWelcomeModal
+        open={trialModalOpen}
+        trialDays={trialPeriodDays}
+        loadingCheckout={checkoutLoading === 'solo'}
+        onClose={closeTrialModal}
+        onStartSolo={() => void subscribeWithPlan('solo')}
+      />
       {reason === 'subscription' && (
         <div
           className="rounded-xl p-4 mb-6 text-sm"
@@ -265,7 +306,7 @@ function BetalingerContent() {
           ) : null}
           {stripeSub.current_period_end ? (
             <span className="block mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Periode slutter{' '}
+              {stripeSub.status === 'trialing' ? 'Prøveperioden avsluttes' : 'Periode slutter'}{' '}
               {new Date(stripeSub.current_period_end).toLocaleDateString('nb-NO', {
                 day: 'numeric',
                 month: 'long',
@@ -285,9 +326,8 @@ function BetalingerContent() {
           Abonnement
         </h2>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          Velg Solo for én person eller Familie for flere brukere i samme husholdning. App-innstilling for plan
-          (profiler) lagres lokalt på enheten; faktisk abonnement og betaling styres via Stripe når du bruker knappene
-          under.
+          Velg Solo eller Familie og betal med kort via Stripe. Valget styrer både abonnement og hvordan husholdningen
+          settes opp i appen (lagret på enheten).
         </p>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -324,21 +364,9 @@ function BetalingerContent() {
             </ul>
             <button
               type="button"
-              onClick={chooseSolo}
-              className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold"
-              style={{
-                background: subscriptionPlan === 'solo' ? 'var(--primary-pale)' : 'var(--surface)',
-                color: 'var(--primary)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {subscriptionPlan === 'solo' ? 'Valgt (app)' : 'Velg Solo (app)'}
-            </button>
-            <button
-              type="button"
-              onClick={() => void startStripeCheckout('solo')}
+              onClick={() => void subscribeWithPlan('solo')}
               disabled={checkoutLoading !== null}
-              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+              className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg, #364FC7, #4C6EF5)' }}
             >
               {checkoutLoading === 'solo' ? (
@@ -347,7 +375,7 @@ function BetalingerContent() {
                   Kobler til Stripe…
                 </>
               ) : (
-                'Abonner med kort (Solo)'
+                'Abonnér på Solo'
               )}
             </button>
           </div>
@@ -385,18 +413,10 @@ function BetalingerContent() {
             </ul>
             <button
               type="button"
-              onClick={chooseFamily}
-              className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
-            >
-              {subscriptionPlan === 'family' ? 'Valgt (app)' : 'Velg Familie (app)'}
-            </button>
-            <button
-              type="button"
-              onClick={() => void startStripeCheckout('family')}
+              onClick={() => void subscribeWithPlan('family')}
               disabled={checkoutLoading !== null}
-              className="mt-3 w-full rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-center gap-2 border disabled:opacity-60"
-              style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface)' }}
+              className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
             >
               {checkoutLoading === 'family' ? (
                 <>
@@ -404,7 +424,7 @@ function BetalingerContent() {
                   Kobler til Stripe…
                 </>
               ) : (
-                'Abonner med kort (Familie)'
+                'Abonnér på Familie'
               )}
             </button>
           </div>

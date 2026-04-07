@@ -40,15 +40,21 @@ export default function RegistrerPage() {
     try {
       const supabase = createClient()
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
-      const { error } = await supabase.auth.signUp({
+      const afterConfirmPath = '/konto/betalinger?trial=welcome'
+      const { data, error } = await supabase.auth.signUp({
         email: values.email.trim(),
         password: values.password,
         options: {
-          emailRedirectTo: `${origin}/auth/callback`,
+          emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(afterConfirmPath)}`,
         },
       })
       if (error) {
         setServerError(error.message)
+        return
+      }
+      if (data.session) {
+        router.push(afterConfirmPath)
+        router.refresh()
         return
       }
       setSuccess(
@@ -169,7 +175,11 @@ export default function RegistrerPage() {
 
         <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
           Har du allerede konto?{' '}
-          <Link href="/logg-inn" className="font-medium" style={{ color: 'var(--primary)' }}>
+          <Link
+            href={`/logg-inn?next=${encodeURIComponent('/konto/betalinger?trial=welcome')}`}
+            className="font-medium"
+            style={{ color: 'var(--primary)' }}
+          >
             Logg inn
           </Link>
         </p>

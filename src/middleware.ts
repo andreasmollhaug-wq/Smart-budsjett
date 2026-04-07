@@ -1,14 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import {
-  fetchUserSubscriptionStatus,
-  hasSubscriptionAccess,
-  isSubscriptionEnforcementEnabled,
-} from '@/lib/stripe/subscriptionAccess'
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true
   if (pathname === '/iris') return true
+  if (pathname.startsWith('/guider')) return true
+  if (pathname === '/sitemap.xml' || pathname === '/robots.txt') return true
   if (pathname.startsWith('/personvern')) return true
   if (pathname.startsWith('/vilkar')) return true
   if (pathname.startsWith('/logg-inn')) return true
@@ -21,31 +18,26 @@ function isPublicPath(pathname: string): boolean {
   return false
 }
 
-/** Stier innlogget bruker kan nå uten aktivt abonnement (Checkout, historikk, status). */
-function isSubscriptionExemptPath(pathname: string): boolean {
-  if (pathname.startsWith('/konto')) return true
-  if (pathname === '/api/stripe/checkout' || pathname.startsWith('/api/stripe/checkout/')) return true
-  if (pathname === '/api/stripe/subscription' || pathname.startsWith('/api/stripe/subscription/')) return true
-  if (pathname === '/api/stripe/ai-credits-checkout' || pathname.startsWith('/api/stripe/ai-credits-checkout/'))
-    return true
-  if (pathname === '/api/stripe/invoices' || pathname.startsWith('/api/stripe/invoices/')) return true
-  return false
-}
-
 function isAuthOnlyPath(pathname: string): boolean {
   return pathname.startsWith('/logg-inn') || pathname.startsWith('/registrer')
 }
 
 export async function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname === '/' && request.nextUrl.searchParams.get('ref') === 'iris') {
+  const pathname = request.nextUrl.pathname
+
+  if (pathname === '/' && request.nextUrl.searchParams.get('ref') === 'iris') {
     return NextResponse.redirect(new URL('/iris', request.url))
+  }
+
+  /** Favicon / app-ikoner må ikke kreve innlogging (matcher unngår ikke alltid /icon uten filendelse). */
+  if (pathname === '/icon' || pathname === '/apple-icon') {
+    return NextResponse.next()
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !key) {
-    const pathname = request.nextUrl.pathname
     if (!isPublicPath(pathname)) {
       return NextResponse.redirect(new URL('/logg-inn?error=config', request.url))
     }
@@ -71,8 +63,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const pathname = request.nextUrl.pathname
-
   if (isPublicPath(pathname)) {
     if (user && isAuthOnlyPath(pathname)) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
@@ -86,19 +76,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  /** API-ruter returnerer 403 fra route handler — ikke redirect (ødelegger fetch/JSON). */
-  if (
-    isSubscriptionEnforcementEnabled() &&
-    !pathname.startsWith('/api/') &&
-    !isSubscriptionExemptPath(pathname)
-  ) {
-    const status = await fetchUserSubscriptionStatus(supabase, user.id)
-    if (!hasSubscriptionAccess(status)) {
-      const dest = new URL('/konto/betalinger', request.url)
-      dest.searchParams.set('reason', 'subscription')
-      return NextResponse.redirect(dest)
-    }
-  }
+  /**
+   * Abonnement håndheves i app (skrivebeskyttet visning) og i API-ruter — ikke hard redirect,
+   * slik at brukere kan navigere og se innhold uten aktivt abonnement (unntatt full tilgang på /konto).
+   */
 
   return supabaseResponse
 }

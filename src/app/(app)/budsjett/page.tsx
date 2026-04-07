@@ -12,7 +12,7 @@ import {
   type BudgetYearCopySource,
 } from '@/lib/store'
 import { budgetedArrayForCategoryName } from '@/lib/budgetYearHelpers'
-import { formatNOK, formatPercent, generateId, parseThousands, toMonthly } from '@/lib/utils'
+import { budgetedMonthsFromFrequency, formatNOK, formatPercent, generateId, parseThousands } from '@/lib/utils'
 import {
   getAvailableLabels,
   DEFAULT_STANDARD_LABELS,
@@ -143,7 +143,7 @@ export default function BudsjettPage() {
   useEffect(() => {
     if (readOnly) setAddModalGroup(null)
   }, [readOnly])
-  const [view, setView] = useState<'month' | 'year'>('month')
+  const [view, setView] = useState<'month' | 'year'>('year')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     inntekter: true,
@@ -228,13 +228,13 @@ export default function BudsjettPage() {
     if (shouldRegisterCustom(group, name)) addCustomBudgetLabel(group, name)
 
     const raw = parseThousands(String(newForm.amount))
-    const monthly = toMonthly(raw, newForm.freq)
+    const budgeted = budgetedMonthsFromFrequency(raw, newForm.freq)
 
     const cat: BudgetCategory = {
       id: generateId(),
       name,
-      budgeted: Array(12).fill(monthly),
-      spent: monthly,
+      budgeted,
+      spent: 0,
       type: GROUPS.find((g) => g.id === group)?.type || 'expense',
       color: COLORS[displayCategories.length % COLORS.length],
       parentCategory: group,
@@ -355,7 +355,7 @@ export default function BudsjettPage() {
         <div className="flex flex-wrap justify-between items-center gap-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-              {(['month', 'year'] as const).map((v) => (
+              {(['year', 'month'] as const).map((v) => (
                 <button
                   key={v}
                   type="button"

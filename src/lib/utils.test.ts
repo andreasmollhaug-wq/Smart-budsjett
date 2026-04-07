@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dateInMonth, daysInMonth, formatIsoDateDdMmYyyy } from './utils'
+import { budgetedMonthsFromFrequency, dateInMonth, daysInMonth, formatIsoDateDdMmYyyy } from './utils'
 
 describe('daysInMonth', () => {
   it('februar skilleår', () => {
@@ -16,6 +16,45 @@ describe('daysInMonth', () => {
 describe('formatIsoDateDdMmYyyy', () => {
   it('konverterer yyyy-mm-dd til dd.mm.yyyy', () => {
     expect(formatIsoDateDdMmYyyy('2026-04-06')).toBe('06.04.2026')
+  })
+})
+
+describe('budgetedMonthsFromFrequency', () => {
+  it('månedlig: samme beløp alle måneder', () => {
+    expect(budgetedMonthsFromFrequency(1000, 'monthly')).toEqual(Array(12).fill(1000))
+  })
+
+  it('årlig: tolvtedel hver måned', () => {
+    const b = budgetedMonthsFromFrequency(12000, 'yearly')
+    expect(b).toEqual(Array(12).fill(1000))
+  })
+
+  it('kvartalsvis: fire måneder med fullt beløp', () => {
+    const b = budgetedMonthsFromFrequency(3000, 'quarterly')
+    expect(b[0]).toBe(3000)
+    expect(b[3]).toBe(3000)
+    expect(b[6]).toBe(3000)
+    expect(b[9]).toBe(3000)
+    expect(b.reduce((a, x) => a + x, 0)).toBe(12000)
+  })
+
+  it('halvårlig: jan og jul', () => {
+    const b = budgetedMonthsFromFrequency(5000, 'semiAnnual')
+    expect(b[0]).toBe(5000)
+    expect(b[6]).toBe(5000)
+    expect(b.filter((x) => x > 0).length).toBe(2)
+  })
+
+  it('ukentlig: jevnt månedlig ekvivalent', () => {
+    const b = budgetedMonthsFromFrequency(100, 'weekly')
+    expect(b.length).toBe(12)
+    b.forEach((x) => expect(x).toBeCloseTo(433, 5))
+  })
+
+  it('én gang: kun januar', () => {
+    const b = budgetedMonthsFromFrequency(9999, 'once')
+    expect(b[0]).toBe(9999)
+    expect(b.slice(1).every((x) => x === 0)).toBe(true)
   })
 })
 

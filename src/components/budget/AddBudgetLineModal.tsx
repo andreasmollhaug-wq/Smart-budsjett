@@ -13,6 +13,8 @@ function amountPlaceholder(freq: BudgetCategory['frequency']): string {
       return 'Beløp per år'
     case 'quarterly':
       return 'Beløp per kvartal'
+    case 'semiAnnual':
+      return 'Beløp per halvår'
     case 'weekly':
       return 'Beløp per uke'
     case 'once':
@@ -190,8 +192,8 @@ export default function AddBudgetLineModal({
                       color: 'var(--text-muted)',
                     }}
                   >
-                    Beløpet fordeles jevnt på alle måneder. Årlig deles på 12, kvartalsvis på 3, ukentlig
-                    til omtrent månedlig nivå.
+                    Månedlig, årlig (÷12) og ukentlig (omtrent månedlig nivå) fylles jevnt. Kvartalsvis
+                    settes beløpet i jan/apr/jul/okt; halvårlig i jan og jul; én gang kun i januar.
                   </p>
                 </div>
                 <select
@@ -204,6 +206,7 @@ export default function AddBudgetLineModal({
                 >
                   <option value="monthly">Månedlig</option>
                   <option value="quarterly">Kvartalsvis</option>
+                  <option value="semiAnnual">Halvårlig</option>
                   <option value="yearly">Årlig</option>
                   <option value="weekly">Ukentlig</option>
                   <option value="once">Én gang</option>
