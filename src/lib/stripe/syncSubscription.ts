@@ -14,12 +14,14 @@ export async function upsertSubscriptionFromStripe(
   }
 
   const firstItem = subscription.items.data[0]
-  const priceId = firstItem?.price.id
+  const priceRef = firstItem?.price
+  const priceId = typeof priceRef === 'string' ? priceRef : priceRef?.id
   const plan = planFromStripePriceId(priceId)
   const customerId =
     typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id
 
-  const periodEndUnix = firstItem?.current_period_end
+  /** Bruk alltid Subscription-feltet; SubscriptionItem har ikke alltid `current_period_end` i nyere API-versjoner. */
+  const periodEndUnix = subscription.current_period_end
   const row = {
     user_id: userId,
     stripe_customer_id: customerId ?? null,
