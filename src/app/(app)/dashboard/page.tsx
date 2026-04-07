@@ -6,16 +6,22 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { useAppUser } from '@/components/app/AppUserContext'
 import { useActivePersonFinance } from '@/lib/store'
-import { buildDashboardSixMonthIncomeExpense } from '@/lib/bankReportData'
+import {
+  buildDashboardSixMonthIncomeExpense,
+  MONTH_LABELS_SHORT_NB,
+  referenceMonthIndexForBudgetYear,
+  sumBudgetedFixedMonthlyExpensesForMonth,
+  sumBudgetedIncomeForMonth,
+} from '@/lib/bankReportData'
 import { getTotalEffectiveSaved } from '@/lib/savingsDerived'
 import { formatNOK } from '@/lib/utils'
 import StatCard from '@/components/ui/StatCard'
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ChevronRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ChevronRight, Receipt } from 'lucide-react'
 import DashboardInvestmentsModal from '@/components/dashboard/DashboardInvestmentsModal'
 import DashboardSavingsGoalsModal from '@/components/dashboard/DashboardSavingsGoalsModal'
 import DashboardCategoryExpenseModal from '@/components/dashboard/DashboardCategoryExpenseModal'
 import DashboardIncomeExpenseMonthlyModal from '@/components/dashboard/DashboardIncomeExpenseMonthlyModal'
-import DashboardFixedExpensesCard from '@/components/dashboard/DashboardFixedExpensesCard'
+import DashboardFixedExpensesModal from '@/components/dashboard/DashboardFixedExpensesModal'
 
 const DashboardIncomeExpenseChart = dynamic(
   () => import('@/components/dashboard/DashboardIncomeExpenseChart'),
@@ -50,6 +56,7 @@ export default function DashboardPage() {
   const [savingsModalOpen, setSavingsModalOpen] = useState(false)
   const [categoryModal, setCategoryModal] = useState<{ category: string; total: number } | null>(null)
   const [kpiModal, setKpiModal] = useState<'income' | 'expense' | null>(null)
+  const [fixedExpensesModalOpen, setFixedExpensesModalOpen] = useState(false)
 
   const totalIncome = budgetCategories.filter((c) => c.type === 'income').reduce((a, b) => a + b.spent, 0)
   const totalExpenses = budgetCategories.filter((c) => c.type === 'expense').reduce((a, b) => a + b.spent, 0)
@@ -94,6 +101,21 @@ export default function DashboardPage() {
   }, [transactions, budgetYear])
 
   const invGainUp = portfolio.totalGain >= 0
+
+  const fixedExpensesKpi = useMemo(() => {
+    const refMonth = referenceMonthIndexForBudgetYear(budgetYear)
+    const fixed = sumBudgetedFixedMonthlyExpensesForMonth(budgetCategories, refMonth)
+    const inc = sumBudgetedIncomeForMonth(budgetCategories, refMonth)
+    const pct = inc > 0 ? (fixed / inc) * 100 : null
+    const monthLabel = MONTH_LABELS_SHORT_NB[refMonth] ?? ''
+    let sub = `Budsjett for ${monthLabel} · månedlig`
+    if (pct != null && Number.isFinite(pct)) {
+      sub += ` · ca. ${pct.toFixed(0)} % av inntekt`
+    } else if (fixed > 0) {
+      sub += ' · ingen budsjettert inntekt for måneden'
+    }
+    return { fixedSum: fixed, sub }
+  }, [budgetCategories, budgetYear])
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
@@ -280,7 +302,18 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <DashboardFixedExpensesCard budgetYear={budgetYear} budgetCategories={budgetCategories} />
+        <div className="w-full max-w-sm">
+          <StatCard
+            label="Faste utgifter"
+            value={formatNOK(fixedExpensesKpi.fixedSum)}
+            sub={fixedExpensesKpi.sub}
+            icon={Receipt}
+            trend="down"
+            color="#F08C00"
+            onClick={() => setFixedExpensesModalOpen(true)}
+            aria-label="Se hvilke faste utgifter som inngår"
+          />
+        </div>
       </div>
 
       <DashboardInvestmentsModal
@@ -316,6 +349,12 @@ export default function DashboardPage() {
         transactions={transactions}
         budgetCategories={budgetCategories}
         activeProfileId={activeProfileId}
+      />
+      <DashboardFixedExpensesModal
+        open={fixedExpensesModalOpen}
+        onClose={() => setFixedExpensesModalOpen(false)}
+        budgetYear={budgetYear}
+        budgetCategories={budgetCategories}
       />
     </div>
   )

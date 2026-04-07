@@ -948,6 +948,16 @@ function migrateFromLegacy(p: LegacyPersistedState): Pick<AppState, 'subscriptio
   }
 }
 
+function resolveTransactionOwnerProfileId(
+  s: Pick<AppState, 'profiles' | 'people' | 'activeProfileId'>,
+  profileId?: string,
+): string {
+  if (profileId && s.profiles.some((p) => p.id === profileId) && s.people[profileId]) {
+    return profileId
+  }
+  return s.activeProfileId
+}
+
 export const useStore = create<AppState>()((set, get) => {
       const initialPeople = { [DEFAULT_PROFILE_ID]: createEmptyPersonData() }
 
@@ -1162,10 +1172,10 @@ export const useStore = create<AppState>()((set, get) => {
 
         addTransaction: (t) =>
           set((s) => {
-            const pid = s.activeProfileId
+            const pid = resolveTransactionOwnerProfileId(s, t.profileId)
             const person = s.people[pid]
             if (!person) return s
-            const tx: Transaction = { ...t, profileId: t.profileId ?? pid }
+            const tx: Transaction = { ...t, profileId: pid }
             const next = syncLinkedSavingsGoalsCurrent(
               { ...person, transactions: [tx, ...person.transactions] },
               pid,
@@ -1181,20 +1191,28 @@ export const useStore = create<AppState>()((set, get) => {
         addTransactions: (incoming) =>
           set((s) => {
             if (!incoming.length) return s
-            const pid = s.activeProfileId
-            const person = s.people[pid]
-            if (!person) return s
-            const txs: Transaction[] = incoming.map((t) => ({ ...t, profileId: t.profileId ?? pid }))
-            const next = syncLinkedSavingsGoalsCurrent(
-              { ...person, transactions: [...txs, ...person.transactions] },
-              pid,
-            )
-            return {
-              people: {
-                ...s.people,
-                [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
-              },
+            const groups = new Map<string, Transaction[]>()
+            for (const t of incoming) {
+              const pid = resolveTransactionOwnerProfileId(s, t.profileId)
+              const tx: Transaction = { ...t, profileId: pid }
+              const arr = groups.get(pid) ?? []
+              arr.push(tx)
+              groups.set(pid, arr)
             }
+            let nextPeople = { ...s.people }
+            for (const [pid, txs] of groups) {
+              const person = nextPeople[pid]
+              if (!person) continue
+              const next = syncLinkedSavingsGoalsCurrent(
+                { ...person, transactions: [...txs, ...person.transactions] },
+                pid,
+              )
+              nextPeople = {
+                ...nextPeople,
+                [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
+              }
+            }
+            return { people: nextPeople }
           }),
 
         removeTransaction: (id) =>

@@ -23,7 +23,7 @@ export default function LandingPricing() {
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           <div
-            className="flex flex-col rounded-2xl p-8"
+            className="flex flex-col rounded-2xl p-5 sm:p-8"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
@@ -59,7 +59,7 @@ export default function LandingPricing() {
           </div>
 
           <div
-            className="relative flex flex-col rounded-2xl p-8"
+            className="relative flex flex-col rounded-2xl p-5 sm:p-8"
             style={{
               background: 'var(--surface)',
               border: '2px solid var(--primary)',

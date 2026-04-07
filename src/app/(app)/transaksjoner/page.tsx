@@ -49,6 +49,7 @@ function TransaksjonerPageInner() {
     recalcBudgetSpent,
     isHouseholdAggregate,
     profiles,
+    activeProfileId,
     customBudgetLabels,
     addBudgetCategory,
     addCustomBudgetLabel,
@@ -69,6 +70,9 @@ function TransaksjonerPageInner() {
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkMonths, setBulkMonths] = useState(() => Array.from({ length: 12 }, () => true))
   const [formError, setFormError] = useState<string | null>(null)
+  const [formTargetProfileId, setFormTargetProfileId] = useState(activeProfileId)
+
+  const showHouseholdProfilePicker = isHouseholdAggregate && profiles.length >= 2
 
   const selectedCat = allCats.find((c) => c.name === form.category)
   const txType = selectedCat?.type || 'expense'
@@ -95,6 +99,10 @@ function TransaksjonerPageInner() {
     setFormError(null)
   }, [form.description, form.category, form.amount, form.date, bulkMode, bulkMonths])
 
+  useEffect(() => {
+    setFormTargetProfileId(activeProfileId)
+  }, [activeProfileId])
+
   const resetTransactionForm = () => {
     setForm({
       date: new Date().toISOString().split('T')[0],
@@ -106,7 +114,11 @@ function TransaksjonerPageInner() {
     setBulkMode(false)
     setBulkMonths(Array.from({ length: 12 }, () => true))
     setFormError(null)
+    setFormTargetProfileId(activeProfileId)
   }
+
+  const newTxProfilePatch = (): Pick<Transaction, 'profileId'> | Record<string, never> =>
+    showHouseholdProfilePicker ? { profileId: formTargetProfileId } : {}
 
   const handleAdd = () => {
     const desc = form.description.trim()
@@ -152,6 +164,7 @@ function TransaksjonerPageInner() {
           amount: amountNum,
           category: form.category,
           type: txType,
+          ...newTxProfilePatch(),
           ...(sub ? { subcategory: sub } : {}),
         })
       }
@@ -174,6 +187,7 @@ function TransaksjonerPageInner() {
       amount: amountNum,
       category: form.category,
       type: txType,
+      ...newTxProfilePatch(),
       ...(sub ? { subcategory: sub } : {}),
     }
     addTransaction(newTx)
@@ -183,6 +197,7 @@ function TransaksjonerPageInner() {
   }
 
   const handleDelete = (tx: Transaction) => {
+    if (typeof window !== 'undefined' && !window.confirm('Slette denne transaksjonen?')) return
     removeTransaction(tx.id)
     if (!isHouseholdAggregate) recalcBudgetSpent(tx.category)
   }
@@ -341,6 +356,29 @@ function TransaksjonerPageInner() {
             {showForm ? (
               <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Ny transaksjon</h2>
+                {showHouseholdProfilePicker && (
+                  <div className="mb-4 max-w-md">
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                      Profil
+                    </label>
+                    <select
+                      value={formTargetProfileId}
+                      onChange={(e) => setFormTargetProfileId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl text-sm"
+                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                      aria-label="Velg profil for ny transaksjon"
+                    >
+                      {profiles.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+                      Nye transaksjoner legges til valgt profil.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="min-w-0">
                     <input

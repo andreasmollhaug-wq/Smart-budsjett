@@ -17,7 +17,7 @@ Kontakt og juridiske sider (utenfor innlogget app)
 
 Hovednavigasjon (venstremeny etter innlogging)
 - /dashboard — Oversikt
-- /budsjett — Budsjett (med underfane /budsjett/dashboard — Budsjett dashboard)
+- /budsjett — Budsjett (underfaner: /budsjett/dashboard — Budsjett dashboard; /budsjett/husholdning — Husholdning, kun når «Viser data for» er husholdning med Familie og minst to profiler)
 - /transaksjoner — Transaksjoner (med underfane /transaksjoner/dashboard — Transaksjonsdashboard)
 - /sparing — Sparing (under /sparing/formuebygger — Formuebyggeren PRO)
 - /gjeld — Gjeld
@@ -26,7 +26,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /rapporter — Rapporter (under /rapporter/bank og /rapporter/sparemal)
 - /enkelexcel-ai — EnkelExcel AI
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
-- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Budsjettkategorier, Betalinger, Sikkerhet, Roadmap
+- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap
 
 Profiler, abonnement og «Viser data for»
 - Solo-abonnement: én profil i appen.
@@ -42,6 +42,7 @@ Startveiledning (første gangs oppsett, 6 steg)
 - Vises som dialog over appen når ny bruker starter (kan åpnes på nytt fra Min konto → Innstillinger → «Vis veiledningen på nytt»).
 - Steg: velkomst → navn på profil → budsjettår (eller melding hvis du allerede har arkiverte år) → omtrentlig hovedinntekt per måned (setter «Lønn» i budsjettet) → valgfritt demodata → «Du er klar» med lenker til oversikt, transaksjoner, budsjett.
 - «Hopp over» avslutter veiledningen uten alle steg.
+- Utvidet valgfri guide (anbefalt rekkefølge, moduler, tips): /konto/kom-i-gang — også lenket fra siste steg i startveiledningen og fra Min konto → Innstillinger.
 
 Demodata
 - Slås på/av under startveiledning eller Min konto → Innstillinger (seksjonen «Demodata»). Når demodata er på, vises eksempeldata for blant annet budsjett, transaksjoner, sparemål, investeringer og lån; egne data lagres og gjenopprettes når demodata slås av.
@@ -55,7 +56,7 @@ Budsjett (/budsjett)
 - Planlegg inntekter og utgifter per måned for valgt budsjettår.
 - Grupper: Inntekter; Regninger; Utgifter; Gjeld; Sparing — hver med egne budsjettlinjer du kan legge til.
 - Månedsvisning eller årsvisning; «brukt» mot plan kobles til transaksjoner i samme kategori der det er relevant.
-- Underfaner: «Budsjett» og «Budsjett dashboard» — dashboard har blant annet sammenligning plan vs. faktisk og knapp «Last ned CSV» for eksport.
+- Underfaner: «Budsjett», «Budsjett dashboard» (plan vs. faktisk, «Last ned CSV»), og «Husholdning» (kun i husholdningsvisning) med fordeling per person: budsjettert inntekt og faktiske beløp per profil.
 - Bytt budsjettår, start nytt år, åpne arkiverte år (visning av gamle år kan være skrivebeskyttet; aktivt år redigeres normalt).
 
 Transaksjoner (/transaksjoner)
@@ -108,11 +109,11 @@ EnkelExcel AI (/enkelexcel-ai)
 - Erstatter ikke menneskelig rådgivning.
 
 Min konto — oversikt
-- Header «Min konto» med undertittel om administrasjon. Venstre undermeny: Innstillinger, Budsjettkategorier, Betalinger, Sikkerhet, Roadmap.
+- Header «Min konto» med undertittel om administrasjon. Venstre undermeny: Innstillinger, Kom i gang, Budsjettkategorier, Betalinger, Sikkerhet, Roadmap.
 
 Innstillinger (/konto/innstillinger)
 - Profil: navn og e-post (Supabase), lagre endringer.
-- Demodata og startveiledning (se over).
+- Demodata og startveiledning (se over); lenke «Les utvidet guide» til /konto/kom-i-gang.
 - Varsler: visuelle brytere i grensesnittet (visningsformål i appen).
 
 Budsjettkategorier (/konto/budsjett-kategorier)

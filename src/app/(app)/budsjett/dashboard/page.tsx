@@ -15,45 +15,16 @@ import {
 } from '@/lib/bankReportData'
 import { downloadBudgetVsCsv } from '@/lib/budgetDashboardCsv'
 import { transactionsHrefForCategory } from '@/lib/budgetDashboardLinks'
+import {
+  BUDGET_MONTH_LABELS,
+  periodHelpText,
+  periodRange,
+  periodSubtitle,
+  type PeriodMode,
+} from '@/lib/budgetPeriod'
 import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance } from '@/lib/store'
 import { formatNOK } from '@/lib/utils'
 import { AlertTriangle, Download, Scale, TrendingDown, Wallet } from 'lucide-react'
-
-const MONTH_OPTIONS = [
-  'Januar',
-  'Februar',
-  'Mars',
-  'April',
-  'Mai',
-  'Juni',
-  'Juli',
-  'August',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
-]
-
-type PeriodMode = 'month' | 'ytd' | 'year'
-
-function periodRange(mode: PeriodMode, monthIndex: number): { start: number; end: number } {
-  if (mode === 'month') return { start: monthIndex, end: monthIndex }
-  if (mode === 'ytd') return { start: 0, end: monthIndex }
-  return { start: 0, end: 11 }
-}
-
-function periodSubtitle(mode: PeriodMode, year: number, monthIndex: number): string {
-  if (mode === 'month') return `${MONTH_OPTIONS[monthIndex]} ${year}`
-  if (mode === 'ytd') return `Januar–${MONTH_OPTIONS[monthIndex]} ${year} (hittil i år)`
-  return `Hele kalenderåret ${year}`
-}
-
-function periodHelpText(mode: PeriodMode): string {
-  if (mode === 'month') return 'Faktiske beløp og budsjett gjelder valgt måned.'
-  if (mode === 'ytd')
-    return 'Faktiske beløp og budsjett summeres fra januar til og med valgt måned i året.'
-  return 'Faktiske beløp og budsjett summeres for alle tolv månedene i året.'
-}
 
 export default function BudsjettDashboardPage() {
   const {
@@ -221,7 +192,7 @@ export default function BudsjettDashboardPage() {
                   className="w-full sm:w-auto min-h-[44px] px-3 py-2.5 rounded-xl text-base sm:text-sm"
                   style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                 >
-                  {MONTH_OPTIONS.map((m, i) => (
+                  {BUDGET_MONTH_LABELS.map((m, i) => (
                     <option key={m} value={i}>
                       {m}
                     </option>

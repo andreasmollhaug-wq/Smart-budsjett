@@ -1,9 +1,10 @@
 import { redirect } from 'next/navigation'
-import Sidebar from '@/components/layout/Sidebar'
+import AppShell from '@/components/layout/AppShell'
 import { AppStateProvider } from '@/components/app/AppStateProvider'
 import { AppUserProvider } from '@/components/app/AppUserContext'
 import OnboardingHost from '@/components/onboarding/OnboardingHost'
 import DemoModeBanner from '@/components/app/DemoModeBanner'
+import SubscriptionPastDueBanner from '@/components/app/SubscriptionPastDueBanner'
 import { createClient } from '@/lib/supabase/server'
 import { getDisplayNameFromUser } from '@/lib/authDisplayName'
 import { getOrCreateUserAppState } from '@/lib/userAppStateServer'
@@ -29,11 +30,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppUserProvider displayName={displayName} isFirstAppState={wasCreated}>
         <OnboardingHost />
         <div className="flex min-h-screen flex-col">
+          <SubscriptionPastDueBanner />
           <DemoModeBanner />
-          <div className="flex min-h-0 flex-1 min-w-0">
-            <Sidebar />
-            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
-          </div>
+          <AppShell>{children}</AppShell>
         </div>
       </AppUserProvider>
     </AppStateProvider>

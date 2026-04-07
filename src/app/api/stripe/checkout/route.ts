@@ -12,6 +12,18 @@ function appBaseUrl(): string {
   )
 }
 
+/** Prøveperiode på abonnement (Stripe `trialing`). Default 14 dager; sett STRIPE_SUBSCRIPTION_TRIAL_DAYS=0 for å deaktivere. */
+function subscriptionTrialPeriodDays(): number | undefined {
+  const raw = process.env.STRIPE_SUBSCRIPTION_TRIAL_DAYS
+  const fallback = 14
+  if (raw === undefined || raw === '') {
+    return fallback
+  }
+  const n = parseInt(raw, 10)
+  if (!Number.isFinite(n) || n <= 0) return undefined
+  return n
+}
+
 export async function POST(req: Request) {
   const stripe = getStripe()
   if (!stripe) {
@@ -51,6 +63,7 @@ export async function POST(req: Request) {
   }
 
   const base = appBaseUrl()
+  const trialDays = subscriptionTrialPeriodDays()
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -67,6 +80,7 @@ export async function POST(req: Request) {
         metadata: {
           supabase_user_id: user.id,
         },
+        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
       },
     })
 

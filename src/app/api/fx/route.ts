@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import {
+  fetchUserSubscriptionStatus,
+  subscriptionForbiddenUnlessAccess,
+} from '@/lib/stripe/subscriptionAccess'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +25,10 @@ export async function GET(req: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Du må være innlogget.' }, { status: 401 })
   }
+
+  const subStatus = await fetchUserSubscriptionStatus(supabase, user.id)
+  const denied = subscriptionForbiddenUnlessAccess(subStatus)
+  if (denied) return denied
 
   const url = new URL(req.url)
   const from = url.searchParams.get('from')?.trim().toUpperCase() ?? ''

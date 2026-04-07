@@ -278,6 +278,18 @@ export default function OnboardingWizard() {
               , legg inn <Link href="/transaksjoner" className="underline font-medium" style={{ color: 'var(--primary)' }}>transaksjoner</Link>, eller gå rett til{' '}
               <Link href="/budsjett" className="underline font-medium" style={{ color: 'var(--primary)' }}>budsjettet</Link>.
             </p>
+            <p className="text-sm mt-4 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Vil du ha en lengre gjennomgang med anbefalt rekkefølge og tips?{' '}
+              <Link
+                href="/konto/kom-i-gang"
+                className="underline font-medium"
+                style={{ color: 'var(--primary)' }}
+                onClick={() => completeOnboarding()}
+              >
+                Les utvidet guide
+              </Link>
+              .
+            </p>
           </div>
         )}
 

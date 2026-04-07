@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
   buildMonthlyBudgetActualSeries,
+  listBudgetedFixedMonthlyExpensesForMonth,
   referenceMonthIndexForBudgetYear,
   sumActualsByMonthForType,
   sumBudgetedByMonthForType,
@@ -161,6 +162,38 @@ describe('faste utgifter og inntekt per måned (budsjett)', () => {
       }),
     ]
     expect(sumBudgetedIncomeForMonth(budgetCategories, 1)).toBe(45000)
+  })
+
+  it('lister månedlige utgifter med beløp > 0, sortert', () => {
+    const budgetCategories: BudgetCategory[] = [
+      cat({
+        id: 'a',
+        name: 'Husleie',
+        type: 'expense',
+        parentCategory: 'regninger',
+        frequency: 'monthly',
+        budgeted: [12000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      }),
+      cat({
+        id: 'b',
+        name: 'Strøm',
+        type: 'expense',
+        parentCategory: 'regninger',
+        frequency: 'monthly',
+        budgeted: [500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      }),
+      cat({
+        id: 'c',
+        name: 'Tom',
+        type: 'expense',
+        parentCategory: 'regninger',
+        frequency: 'monthly',
+        budgeted: Array(12).fill(0),
+      }),
+    ]
+    const list = listBudgetedFixedMonthlyExpensesForMonth(budgetCategories, 0)
+    expect(list.map((r) => r.name)).toEqual(['Husleie', 'Strøm'])
+    expect(list[0].amount).toBe(12000)
   })
 })
 

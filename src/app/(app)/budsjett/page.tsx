@@ -1,22 +1,35 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, Fragment } from 'react'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
 import BudgetAmountCell from '@/components/budget/BudgetAmountCell'
 import AddBudgetLineModal from '@/components/budget/AddBudgetLineModal'
 import {
+  useStore,
   useActivePersonFinance,
   BudgetCategory,
   mergeBudgetCategoriesFromSnapshots,
   type BudgetYearCopySource,
 } from '@/lib/store'
+import { budgetedArrayForCategoryName } from '@/lib/budgetYearHelpers'
 import { formatNOK, formatPercent, generateId, parseThousands, toMonthly } from '@/lib/utils'
 import {
   getAvailableLabels,
   DEFAULT_STANDARD_LABELS,
   type ParentCategory,
 } from '@/lib/budgetCategoryCatalog'
-import { Plus, Trash2, ChevronDown, ChevronUp, Wallet, TrendingDown, Scale, Copy, Percent } from 'lucide-react'
+import {
+  Plus,
+  Minus,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Wallet,
+  TrendingDown,
+  Scale,
+  Copy,
+  Percent,
+} from 'lucide-react'
 import BudsjettSubnav from '@/components/budget/BudsjettSubnav'
 import BudsjettOpenArchiveModal from '@/components/budget/BudsjettOpenArchiveModal'
 import BudsjettNewYearModal from '@/components/budget/BudsjettNewYearModal'
@@ -64,6 +77,10 @@ export default function BudsjettPage() {
     isHouseholdAggregate,
   } = useActivePersonFinance()
 
+  const people = useStore((s) => s.people)
+  /** Husholdning: hvilken budsjettlinje (aggregat-id) som viser bidrag per person. */
+  const [householdLineBreakdownOpen, setHouseholdLineBreakdownOpen] = useState<string | null>(null)
+
   const [viewingYear, setViewingYear] = useState(budgetYear)
   const [newYearModalOpen, setNewYearModalOpen] = useState(false)
   const [openArchiveModalOpen, setOpenArchiveModalOpen] = useState(false)
@@ -103,6 +120,21 @@ export default function BudsjettPage() {
     const s = new Set<number>([budgetYear, ...Object.keys(archivedBudgetsByYear).map(Number)])
     return [...s].sort((a, b) => b - a)
   }, [budgetYear, archivedBudgetsByYear])
+
+  const getHouseholdLineBreakdown = useCallback(
+    (parentCategory: ParentCategory, categoryName: string) => {
+      return profiles.map((p) => {
+        const cats =
+          viewingYear === budgetYear
+            ? people[p.id]?.budgetCategories
+            : archivedBudgetsByYear[String(viewingYear)]?.[p.id]
+        const monthly = budgetedArrayForCategoryName(cats, parentCategory, categoryName)
+        const yearTotal = monthly.reduce((a, b) => a + b, 0)
+        return { profileId: p.id, name: p.name, monthly, yearTotal }
+      })
+    },
+    [profiles, viewingYear, budgetYear, people, archivedBudgetsByYear],
+  )
 
   const readOnly = isHouseholdAggregate || viewingYear !== budgetYear
   const canOpenArchiveForEdit =
@@ -226,7 +258,7 @@ export default function BudsjettPage() {
     : []
 
   return (
-    <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
+    <div className="min-w-0 flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
         title="Budsjett"
         subtitle={
@@ -284,7 +316,7 @@ export default function BudsjettPage() {
         focusAmountSignal={focusAmountSignal}
       />
 
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
         {isHouseholdAggregate && (
           <div
             className="rounded-xl px-4 py-3 text-sm"
@@ -668,66 +700,127 @@ export default function BudsjettPage() {
                       <tbody>
                         {items.map((cat) => {
                           const budgetedArr = ensureArrayBudgeted(cat.budgeted)
+                          const lineOpen = householdLineBreakdownOpen === cat.id
+                          const showHouseholdLineBreakdown = isHouseholdAggregate
                           return (
-                            <tr key={cat.id} className="align-middle" style={{ borderTop: '1px solid var(--border)' }}>
-                              <td className="py-2 px-2 align-middle max-w-[14rem] md:max-w-[18rem]">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div
-                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                    style={{ background: cat.color }}
-                                  />
-                                  <span
-                                    className="text-sm truncate flex-1 min-w-0"
-                                    style={{ color: 'var(--text)' }}
-                                    title={cat.name}
+                            <Fragment key={cat.id}>
+                              <tr className="align-middle" style={{ borderTop: '1px solid var(--border)' }}>
+                                <td className="py-2 px-2 align-middle max-w-[14rem] md:max-w-[18rem]">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <div
+                                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                      style={{ background: cat.color }}
+                                    />
+                                    <span
+                                      className="text-sm truncate flex-1 min-w-0"
+                                      style={{ color: 'var(--text)' }}
+                                      title={cat.name}
+                                    >
+                                      {cat.name}
+                                    </span>
+                                    {showHouseholdLineBreakdown && (
+                                      <button
+                                        type="button"
+                                        className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity"
+                                        style={{ color: 'var(--text-muted)' }}
+                                        onClick={() =>
+                                          setHouseholdLineBreakdownOpen((o) =>
+                                            o === cat.id ? null : cat.id,
+                                          )
+                                        }
+                                        aria-expanded={lineOpen}
+                                        aria-label={`Vis eller skjul bidrag per person for ${cat.name} (${group.label})`}
+                                      >
+                                        {lineOpen ? (
+                                          <Minus size={14} strokeWidth={2} />
+                                        ) : (
+                                          <Plus size={14} strokeWidth={2} />
+                                        )}
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => removeBudgetCategory(cat.id)}
+                                      className="p-1 opacity-60 hover:opacity-100 flex-shrink-0"
+                                      aria-label={`Slett ${cat.name}`}
+                                    >
+                                      <Trash2 size={14} style={{ color: 'var(--danger)' }} />
+                                    </button>
+                                  </div>
+                                </td>
+                                {monthColumnIndices.map((mi) => (
+                                  <td
+                                    key={mi}
+                                    className="align-middle py-1 px-0.5"
+                                    style={{ borderLeft: '1px solid var(--border)' }}
                                   >
-                                    {cat.name}
-                                  </span>
+                                    <BudgetAmountCell
+                                      value={budgetedArr[mi] ?? 0}
+                                      onChange={(n) => {
+                                        const newBudgeted = [...budgetedArr]
+                                        newBudgeted[mi] = n
+                                        updateBudgetCategory(cat.id, { budgeted: newBudgeted })
+                                      }}
+                                    />
+                                  </td>
+                                ))}
+                                <td
+                                  className="align-middle py-2 px-2 text-xs tabular-nums whitespace-nowrap text-right font-semibold"
+                                  style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                >
+                                  {formatNOK(budgetedArr.reduce((a, b) => a + b, 0))}
+                                </td>
+                                <td className="align-middle py-1 px-1 text-center">
                                   <button
                                     type="button"
-                                    onClick={() => removeBudgetCategory(cat.id)}
-                                    className="p-1 opacity-60 hover:opacity-100 flex-shrink-0"
-                                    aria-label={`Slett ${cat.name}`}
+                                    onClick={() => fillAllMonthsFromSelected(cat)}
+                                    className="inline-flex items-center justify-center p-1.5 rounded-lg opacity-80 hover:opacity-100"
+                                    style={{ background: 'var(--bg)', color: 'var(--primary)' }}
+                                    title={`Kopier beløpet fra ${MONTHS_FULL[selectedMonth]} til alle tolv måneder`}
+                                    aria-label="Samme beløp alle måneder"
                                   >
-                                    <Trash2 size={14} style={{ color: 'var(--danger)' }} />
+                                    <Copy size={16} strokeWidth={2} />
                                   </button>
-                                </div>
-                              </td>
-                              {monthColumnIndices.map((mi) => (
-                                <td
-                                  key={mi}
-                                  className="align-middle py-1 px-0.5"
-                                  style={{ borderLeft: '1px solid var(--border)' }}
-                                >
-                                  <BudgetAmountCell
-                                    value={budgetedArr[mi] ?? 0}
-                                    onChange={(n) => {
-                                      const newBudgeted = [...budgetedArr]
-                                      newBudgeted[mi] = n
-                                      updateBudgetCategory(cat.id, { budgeted: newBudgeted })
-                                    }}
-                                  />
                                 </td>
-                              ))}
-                              <td
-                                className="align-middle py-2 px-2 text-xs tabular-nums whitespace-nowrap text-right font-semibold"
-                                style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
-                              >
-                                {formatNOK(budgetedArr.reduce((a, b) => a + b, 0))}
-                              </td>
-                              <td className="align-middle py-1 px-1 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => fillAllMonthsFromSelected(cat)}
-                                  className="inline-flex items-center justify-center p-1.5 rounded-lg opacity-80 hover:opacity-100"
-                                  style={{ background: 'var(--bg)', color: 'var(--primary)' }}
-                                  title={`Kopier beløpet fra ${MONTHS_FULL[selectedMonth]} til alle tolv måneder`}
-                                  aria-label="Samme beløp alle måneder"
-                                >
-                                  <Copy size={16} strokeWidth={2} />
-                                </button>
-                              </td>
-                            </tr>
+                              </tr>
+                              {lineOpen &&
+                                showHouseholdLineBreakdown &&
+                                getHouseholdLineBreakdown(group.id, cat.name).map((row) => (
+                                  <tr
+                                    key={`${cat.id}-${row.profileId}`}
+                                    className="align-middle"
+                                    style={{
+                                      borderTop: '1px solid var(--border)',
+                                      background: 'var(--bg)',
+                                    }}
+                                  >
+                                    <td className="py-1.5 px-2 pl-8 align-middle max-w-[14rem] md:max-w-[18rem]">
+                                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                        {row.name}
+                                      </span>
+                                    </td>
+                                    {monthColumnIndices.map((mi) => (
+                                      <td
+                                        key={mi}
+                                        className="align-middle py-1 px-0.5 text-right text-xs tabular-nums"
+                                        style={{
+                                          borderLeft: '1px solid var(--border)',
+                                          color: 'var(--text)',
+                                        }}
+                                      >
+                                        {formatNOK(row.monthly[mi] ?? 0)}
+                                      </td>
+                                    ))}
+                                    <td
+                                      className="align-middle py-1.5 px-2 text-xs tabular-nums whitespace-nowrap text-right font-medium"
+                                      style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                    >
+                                      {formatNOK(row.yearTotal)}
+                                    </td>
+                                    <td className="align-middle py-1 px-1" aria-hidden />
+                                  </tr>
+                                ))}
+                            </Fragment>
                           )
                         })}
                         <tr className="align-middle" style={{ background: 'var(--bg)', fontWeight: 600 }}>
@@ -765,6 +858,8 @@ export default function BudsjettPage() {
                       <div className="min-w-[640px] space-y-3">
                         {items.map((cat) => {
                           const budgetedArr = ensureArrayBudgeted(cat.budgeted)
+                          const lineOpen = householdLineBreakdownOpen === cat.id
+                          const showHouseholdLineBreakdown = isHouseholdAggregate
                           return (
                             <div key={cat.id} className="p-3 rounded-lg" style={{ background: 'var(--bg)' }}>
                               <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
@@ -777,6 +872,26 @@ export default function BudsjettPage() {
                                   >
                                     {cat.name}
                                   </span>
+                                  {showHouseholdLineBreakdown && (
+                                    <button
+                                      type="button"
+                                      className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity"
+                                      style={{ color: 'var(--text-muted)' }}
+                                      onClick={() =>
+                                        setHouseholdLineBreakdownOpen((o) =>
+                                          o === cat.id ? null : cat.id,
+                                        )
+                                      }
+                                      aria-expanded={lineOpen}
+                                      aria-label={`Vis eller skjul bidrag per person for ${cat.name} (${group.label})`}
+                                    >
+                                      {lineOpen ? (
+                                        <Minus size={14} strokeWidth={2} />
+                                      ) : (
+                                        <Plus size={14} strokeWidth={2} />
+                                      )}
+                                    </button>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                   <button
@@ -819,6 +934,36 @@ export default function BudsjettPage() {
                                   />
                                 ))}
                               </div>
+                              {lineOpen && showHouseholdLineBreakdown && (
+                                <div
+                                  className="mt-3 pt-3 space-y-2 pointer-events-auto"
+                                  style={{ borderTop: '1px solid var(--border)' }}
+                                >
+                                  {getHouseholdLineBreakdown(group.id, cat.name).map((row) => (
+                                    <div
+                                      key={row.profileId}
+                                      className="rounded-lg p-2 text-xs"
+                                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                                    >
+                                      <div className="font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
+                                        {row.name}
+                                      </div>
+                                      <div className="overflow-x-auto -mx-1 px-1">
+                                        <div className="flex gap-2 min-w-max pb-1">
+                                          {MONTH_INDEXES.map((mi) => (
+                                            <div key={mi} className="text-center shrink-0 w-11">
+                                              <div style={{ color: 'var(--text-muted)' }}>{MONTHS[mi]}</div>
+                                              <div className="tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>
+                                                {formatNOK(row.monthly[mi] ?? 0)}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )
                         })}
@@ -826,6 +971,8 @@ export default function BudsjettPage() {
                     ) : (
                       items.map((cat) => {
                         const budgetedArr = ensureArrayBudgeted(cat.budgeted)
+                        const lineOpen = householdLineBreakdownOpen === cat.id
+                        const showHouseholdLineBreakdown = isHouseholdAggregate
                         return (
                           <div key={cat.id} className="p-3 rounded-lg" style={{ background: 'var(--bg)' }}>
                             <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
@@ -838,6 +985,26 @@ export default function BudsjettPage() {
                                 >
                                   {cat.name}
                                 </span>
+                                {showHouseholdLineBreakdown && (
+                                  <button
+                                    type="button"
+                                    className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    onClick={() =>
+                                      setHouseholdLineBreakdownOpen((o) =>
+                                        o === cat.id ? null : cat.id,
+                                      )
+                                    }
+                                    aria-expanded={lineOpen}
+                                    aria-label={`Vis eller skjul bidrag per person for ${cat.name} (${group.label})`}
+                                  >
+                                    {lineOpen ? (
+                                      <Minus size={14} strokeWidth={2} />
+                                    ) : (
+                                      <Plus size={14} strokeWidth={2} />
+                                    )}
+                                  </button>
+                                )}
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <button
@@ -876,6 +1043,29 @@ export default function BudsjettPage() {
                                 {formatNOK(budgetedArr.reduce((a, b) => a + b, 0))}
                               </div>
                             </div>
+                            {lineOpen && showHouseholdLineBreakdown && (
+                              <div
+                                className="mt-3 pt-3 space-y-2 pointer-events-auto"
+                                style={{ borderTop: '1px solid var(--border)' }}
+                              >
+                                {getHouseholdLineBreakdown(group.id, cat.name).map((row) => (
+                                  <div
+                                    key={row.profileId}
+                                    className="flex items-start justify-between gap-2 text-xs"
+                                  >
+                                    <span style={{ color: 'var(--text-muted)' }}>{row.name}</span>
+                                    <div className="text-right shrink-0">
+                                      <div className="tabular-nums font-medium" style={{ color: 'var(--text)' }}>
+                                        {formatNOK(row.monthly[selectedMonth] ?? 0)}
+                                      </div>
+                                      <div style={{ color: 'var(--text-muted)' }}>
+                                        Totalt/år {formatNOK(row.yearTotal)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )
                       })

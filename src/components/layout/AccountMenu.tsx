@@ -36,7 +36,7 @@ export default function AccountMenu() {
         >
           <User size={12} />
         </div>
-        <span>Min konto</span>
+        <span className="hidden min-[340px]:inline">Min konto</span>
         <ChevronDown
           size={14}
           style={{ color: 'var(--text-muted)' }}

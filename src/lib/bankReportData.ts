@@ -285,6 +285,25 @@ export function sumBudgetedFixedMonthlyExpensesForMonth(
   return s
 }
 
+export type BudgetedFixedMonthlyExpenseRow = { id: string; name: string; amount: number }
+
+/** Månedlige utgiftskategorier med budsjett > 0 for én måned, sortert synkende på beløp. */
+export function listBudgetedFixedMonthlyExpensesForMonth(
+  budgetCategories: BudgetCategory[],
+  monthIndex: number,
+): BudgetedFixedMonthlyExpenseRow[] {
+  const rows: BudgetedFixedMonthlyExpenseRow[] = []
+  for (const c of budgetCategories) {
+    if (c.type !== 'expense' || c.frequency !== 'monthly') continue
+    const arr = ensureBudgetedArray(c.budgeted)
+    const amount = arr[monthIndex] ?? 0
+    if (amount <= 0) continue
+    rows.push({ id: c.id, name: c.name, amount })
+  }
+  rows.sort((a, b) => b.amount - a.amount)
+  return rows
+}
+
 /** Sum budsjettert inntekt én måned (alle inntektskategorier). */
 export function sumBudgetedIncomeForMonth(budgetCategories: BudgetCategory[], monthIndex: number): number {
   let s = 0

@@ -81,3 +81,62 @@ describe('addTransactions', () => {
     expect(useStore.getState().people[DEFAULT_PROFILE_ID]!.transactions).toHaveLength(1)
   })
 })
+
+describe('addTransaction profileId routing', () => {
+  beforeEach(() => {
+    resetStoreForLogout()
+    useStore.setState({ subscriptionPlan: 'family' })
+    const r = useStore.getState().addProfile('Partner')
+    if (!r.ok) throw new Error('addProfile failed')
+    useStore.getState().setActiveProfileId(DEFAULT_PROFILE_ID)
+  })
+
+  afterEach(() => {
+    resetStoreForLogout()
+  })
+
+  it('legger transaksjon på valgt profil når profileId er satt og aktiv er en annen', () => {
+    const partnerId = useStore.getState().profiles.find((p) => p.id !== DEFAULT_PROFILE_ID)!.id
+    useStore.getState().addTransaction({
+      id: 'tx-on-partner',
+      date: '2026-03-01',
+      description: 'Delt',
+      amount: 50,
+      category: 'Mat',
+      type: 'expense',
+      profileId: partnerId,
+    })
+    expect(useStore.getState().people[DEFAULT_PROFILE_ID]!.transactions).toHaveLength(0)
+    const partnerTxs = useStore.getState().people[partnerId]!.transactions
+    expect(partnerTxs).toHaveLength(1)
+    expect(partnerTxs[0]!.id).toBe('tx-on-partner')
+    expect(partnerTxs[0]!.profileId).toBe(partnerId)
+  })
+
+  it('addTransactions med samme profileId som ikke er aktiv prepender til riktig profil', () => {
+    const partnerId = useStore.getState().profiles.find((p) => p.id !== DEFAULT_PROFILE_ID)!.id
+    useStore.getState().addTransactions([
+      {
+        id: 'tx-1',
+        date: '2026-01-10',
+        description: 'a',
+        amount: 10,
+        category: 'Mat',
+        type: 'expense',
+        profileId: partnerId,
+      },
+      {
+        id: 'tx-2',
+        date: '2026-02-10',
+        description: 'b',
+        amount: 20,
+        category: 'Mat',
+        type: 'expense',
+        profileId: partnerId,
+      },
+    ])
+    expect(useStore.getState().people[DEFAULT_PROFILE_ID]!.transactions).toHaveLength(0)
+    const ids = useStore.getState().people[partnerId]!.transactions.map((t) => t.id).sort()
+    expect(ids).toEqual(['tx-1', 'tx-2'].sort())
+  })
+})

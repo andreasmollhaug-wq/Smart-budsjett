@@ -79,6 +79,7 @@ export default function AddBudgetLineModal({
   if (!open || !group) return null
 
   const ph = amountPlaceholder(newForm.freq)
+  const canSubmitCustom = Boolean(newForm.name.trim() && newForm.amount.trim())
 
   return (
     <div
@@ -212,7 +213,13 @@ export default function AddBudgetLineModal({
             <button
               type="button"
               onClick={onAddCustom}
-              className="w-full px-3 py-2.5 text-sm font-medium rounded-xl text-white"
+              disabled={!canSubmitCustom}
+              title={
+                !canSubmitCustom
+                  ? 'Fyll inn navn og beløp (beløp kan ikke være tomt).'
+                  : undefined
+              }
+              className="w-full px-3 py-2.5 text-sm font-medium rounded-xl text-white disabled:opacity-45 disabled:cursor-not-allowed"
               style={{ background: 'var(--primary)' }}
             >
               Legg til egendefinert

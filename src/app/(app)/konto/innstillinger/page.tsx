@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { User, Bell, Sparkles, FlaskConical } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -205,14 +206,23 @@ function StartveiledningCard() {
       <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
         Gå gjennom introduksjonen på nytt — navn på profil, budsjettår, hovedinntekt og tips om demodata.
       </p>
-      <button
-        type="button"
-        className="px-4 py-2 rounded-xl text-sm font-medium text-white"
-        style={{ background: 'var(--primary)' }}
-        onClick={() => openOnboardingAgain()}
-      >
-        Vis veiledningen på nytt
-      </button>
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 items-start">
+        <button
+          type="button"
+          className="px-4 py-2 rounded-xl text-sm font-medium text-white"
+          style={{ background: 'var(--primary)' }}
+          onClick={() => openOnboardingAgain()}
+        >
+          Vis veiledningen på nytt
+        </button>
+        <Link
+          href="/konto/kom-i-gang"
+          className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium"
+          style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+        >
+          Les utvidet guide
+        </Link>
+      </div>
     </div>
   )
 }

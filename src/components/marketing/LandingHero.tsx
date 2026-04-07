@@ -11,7 +11,7 @@ export default function LandingHero({ variant = 'default' }: Props) {
   const partnerCampaign = variant === 'partnerCampaign'
 
   return (
-    <section className="relative overflow-hidden px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16">
+    <section className="relative overflow-hidden px-4 pb-8 pt-12 sm:px-6 sm:pb-12 sm:pt-16">
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{

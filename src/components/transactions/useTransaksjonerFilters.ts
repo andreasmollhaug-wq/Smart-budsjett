@@ -22,7 +22,14 @@ function safeDecodeCategoryParam(raw: string): string {
 export function useTransaksjonerFilters() {
   const searchParams = useSearchParams()
   const finance = useActivePersonFinance()
-  const { transactions, budgetCategories, budgetYear, customBudgetLabels, hiddenBudgetLabels } = finance
+  const {
+    transactions,
+    budgetCategories,
+    budgetYear,
+    customBudgetLabels,
+    hiddenBudgetLabels,
+    activeProfileId,
+  } = finance
 
   const categoriesForPicker = useMemo(
     () =>
@@ -166,5 +173,6 @@ export function useTransaksjonerFilters() {
     customBudgetLabels: finance.customBudgetLabels,
     addBudgetCategory: finance.addBudgetCategory,
     addCustomBudgetLabel: finance.addCustomBudgetLabel,
+    activeProfileId,
   }
 }

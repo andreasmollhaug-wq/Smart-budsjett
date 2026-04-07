@@ -11,15 +11,15 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const now = new Date().toLocaleDateString('nb-NO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
   return (
-    <header className="flex items-center justify-between px-8 py-5 border-b"
+    <header className="flex min-w-0 items-center justify-between gap-3 border-b px-4 py-4 sm:px-6 lg:px-8 sm:py-5"
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-      <div>
-        <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{title}</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+      <div className="min-w-0 flex-1">
+        <h1 className="text-lg font-bold sm:text-xl" style={{ color: 'var(--text)' }}>{title}</h1>
+        <p className="mt-0.5 text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
           {subtitle ?? now}
         </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <NotificationBell />
         <AccountMenu />
       </div>

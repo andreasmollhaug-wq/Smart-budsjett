@@ -13,6 +13,11 @@ out
 .env.local
 .env.*.local
 
+# Playwright
+/playwright-report/
+/test-results/
+/blob-report/
+
 # debug
 npm-debug.log*
 .cursor/debug-*.log
@@ -23,3 +28,5 @@ npm-debug.log*
 
 # Supabase CLI lokal cache
 supabase/.temp/
+
+.vercel

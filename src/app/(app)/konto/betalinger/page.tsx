@@ -2,8 +2,9 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CreditCard, Check, Loader2 } from 'lucide-react'
+import { CreditCard, Check, ExternalLink, Loader2 } from 'lucide-react'
 import { useActivePersonFinance } from '@/lib/store'
+import { hasSubscriptionAccess } from '@/lib/stripe/subscriptionAccess'
 import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 
 const soloFeatures = ['Én brukerkonto', 'Full tilgang til alle funksjoner', 'Passer deg som styrer økonomien alene']
@@ -20,6 +21,41 @@ type StripeSubscriptionRow = {
   current_period_end: string | null
   updated_at: string
 } | null
+
+/** Inkluderer abonnementsfakturaer og evt. engangskjøp (f.eks. AI-kreditter) på samme Stripe-kunde. */
+type StripeInvoiceRow = {
+  id: string
+  created: number
+  amount_paid: number
+  currency: string
+  hosted_invoice_url: string | null
+  invoice_pdf: string | null
+  description: string | null
+}
+
+function formatStripeInvoiceAmount(amountPaid: number, currency: string): string {
+  const c = currency.toUpperCase()
+  const zeroDecimal = new Set([
+    'BIF',
+    'CLP',
+    'DJF',
+    'GNF',
+    'JPY',
+    'KMF',
+    'KRW',
+    'MGA',
+    'PYG',
+    'RWF',
+    'UGX',
+    'VND',
+    'VUV',
+    'XAF',
+    'XOF',
+    'XPF',
+  ])
+  const divisor = zeroDecimal.has(c) ? 1 : 100
+  return new Intl.NumberFormat('nb-NO', { style: 'currency', currency: c }).format(amountPaid / divisor)
+}
 
 function statusLabel(status: string): string {
   switch (status) {
@@ -46,12 +82,16 @@ function statusLabel(status: string): string {
 function BetalingerContent() {
   const searchParams = useSearchParams()
   const checkout = searchParams.get('checkout')
+  const reason = searchParams.get('reason')
 
   const { subscriptionPlan, setSubscriptionPlan } = useActivePersonFinance()
   const [downgradeError, setDowngradeError] = useState(false)
   const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
   const [checkoutLoading, setCheckoutLoading] = useState<'solo' | 'family' | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [invoices, setInvoices] = useState<StripeInvoiceRow[] | undefined>(undefined)
+  const [paidCount, setPaidCount] = useState<number | undefined>(undefined)
+  const [invoicesError, setInvoicesError] = useState<string | null>(null)
 
   const loadStripeSubscription = useCallback(async () => {
     try {
@@ -67,15 +107,43 @@ function BetalingerContent() {
     }
   }, [])
 
+  const loadInvoices = useCallback(async () => {
+    setInvoicesError(null)
+    try {
+      const res = await fetch('/api/stripe/invoices')
+      if (!res.ok) {
+        setInvoices(undefined)
+        setPaidCount(undefined)
+        setInvoicesError('Kunne ikke hente betalingshistorikk.')
+        return
+      }
+      const data = (await res.json()) as { paidCount?: number; invoices?: StripeInvoiceRow[]; error?: string }
+      if (data.error) {
+        setInvoicesError(data.error)
+        setInvoices(undefined)
+        setPaidCount(undefined)
+        return
+      }
+      setPaidCount(data.paidCount ?? 0)
+      setInvoices(data.invoices ?? [])
+    } catch {
+      setInvoicesError('Kunne ikke hente betalingshistorikk.')
+      setInvoices(undefined)
+      setPaidCount(undefined)
+    }
+  }, [])
+
   useEffect(() => {
     void loadStripeSubscription()
-  }, [loadStripeSubscription])
+    void loadInvoices()
+  }, [loadStripeSubscription, loadInvoices])
 
   useEffect(() => {
     if (checkout === 'success') {
       void loadStripeSubscription()
+      void loadInvoices()
     }
-  }, [checkout, loadStripeSubscription])
+  }, [checkout, loadStripeSubscription, loadInvoices])
 
   const chooseSolo = () => {
     setDowngradeError(false)
@@ -114,12 +182,27 @@ function BetalingerContent() {
     }
   }
 
-  const paidActive =
-    stripeSub &&
-    (stripeSub.status === 'active' || stripeSub.status === 'trialing' || stripeSub.status === 'past_due')
+  const paidActive = stripeSub && hasSubscriptionAccess(stripeSub.status)
+
+  const invoicesSorted =
+    invoices?.slice().sort((a, b) => b.created - a.created) ?? []
 
   return (
     <>
+      {reason === 'subscription' && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          style={{
+            background: 'color-mix(in srgb, #E03131 10%, transparent)',
+            border: '1px solid #E03131',
+            color: 'var(--text)',
+          }}
+          role="alert"
+        >
+          Abonnementet er ikke aktivt. Registrer betaling under for å fortsette å bruke Smart Budsjett med dine egne
+          tall. Dataene dine er lagret.
+        </div>
+      )}
       {checkout === 'success' && (
         <div
           className="rounded-xl p-4 mb-6 text-sm"
@@ -347,6 +430,93 @@ function BetalingerContent() {
             {paidActive ? 'Abonnement er knyttet til Stripe.' : 'Ingen aktiv Stripe-betaling registrert ennå'}
           </span>
         </div>
+      </div>
+
+      <div
+        className="rounded-2xl p-6"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+      >
+        <h2 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>
+          Betalingshistorikk
+        </h2>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+          Oversikt over vellykkede trekk registrert i Stripe (abonnement og eventuelle tilleggskjøp på samme konto).
+        </p>
+        {invoicesError && (
+          <p className="text-sm mb-4" style={{ color: '#E03131' }}>
+            {invoicesError}
+          </p>
+        )}
+        {paidCount === undefined && !invoicesError && (
+          <p className="text-sm flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Laster…
+          </p>
+        )}
+        {paidCount !== undefined && paidCount === 0 && !invoicesError && (
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            Ingen registrerte betalinger ennå.
+          </p>
+        )}
+        {paidCount !== undefined && paidCount > 0 && (
+          <>
+            <p className="text-sm font-medium mb-4" style={{ color: 'var(--text)' }}>
+              Du har blitt trukket {paidCount} {paidCount === 1 ? 'gang' : 'ganger'}.
+            </p>
+            <div className="overflow-x-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+              <table className="w-full text-sm text-left">
+                <thead>
+                  <tr style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>
+                    <th className="px-4 py-3 font-medium">Dato</th>
+                    <th className="px-4 py-3 font-medium">Beløp</th>
+                    <th className="px-4 py-3 font-medium w-32">Kvittering</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoicesSorted.map((inv) => (
+                    <tr key={inv.id} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {new Date(inv.created * 1000).toLocaleDateString('nb-NO', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td className="px-4 py-3">{formatStripeInvoiceAmount(inv.amount_paid, inv.currency)}</td>
+                      <td className="px-4 py-3">
+                        {inv.hosted_invoice_url ? (
+                          <a
+                            href={inv.hosted_invoice_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 font-medium underline"
+                            style={{ color: 'var(--primary)' }}
+                          >
+                            Åpne
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        ) : inv.invoice_pdf ? (
+                          <a
+                            href={inv.invoice_pdf}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 font-medium underline"
+                            style={{ color: 'var(--primary)' }}
+                          >
+                            PDF
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </>
   )

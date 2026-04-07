@@ -10,25 +10,28 @@ export default function LandingHeader() {
         borderColor: 'var(--border)',
       }}
     >
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/" className="flex items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 rounded-xl">
+      <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+        <Link
+          href="/"
+          className="flex min-w-0 max-w-[min(100%,12rem)] shrink items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:max-w-none sm:gap-3"
+        >
           <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-bold text-white"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
             style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
           >
             SB
           </div>
-          <div>
-            <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
               Smart Budsjett
             </p>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
               by EnkelExcel
             </p>
           </div>
         </Link>
 
-        <nav className="flex items-center gap-1 sm:gap-2">
+        <nav className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
           <a
             href="#funksjoner"
             className="hidden rounded-lg px-2 py-2 text-sm font-medium lg:inline-block"
@@ -52,17 +55,18 @@ export default function LandingHeader() {
           </a>
           <Link
             href={LOGIN_HREF}
-            className="rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-3 py-2 text-sm font-medium transition-colors"
             style={{ color: 'var(--text-muted)' }}
           >
             Logg inn
           </Link>
           <Link
             href={CTA_HREF}
-            className="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-95"
+            className="inline-flex min-h-[44px] max-w-[11rem] flex-col items-center justify-center rounded-xl px-3 py-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-opacity hover:opacity-95 sm:max-w-none sm:px-4 sm:text-sm"
             style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
           >
-            Start gratis prøveperiode
+            <span className="sm:hidden">Start gratis</span>
+            <span className="hidden sm:inline">Start gratis prøveperiode</span>
           </Link>
         </nav>
       </div>

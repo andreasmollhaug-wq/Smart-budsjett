@@ -30,7 +30,7 @@
 | `/personvern`, `/vilkar` | Juridiske sider |
 | `/auth/*` | OAuth / callback |
 
-**App** — route group [`(app)`](../src/app/(app)/) med [`Sidebar`](../src/components/layout/Sidebar.tsx):
+**App** — route group [`(app)`](../src/app/(app)/) med [`AppShell`](../src/components/layout/AppShell.tsx) (desktop-sidebar + mobilmeny; navigasjonsinnhold i [`SidebarContent`](../src/components/layout/SidebarContent.tsx)):
 
 | Sti | Merknad |
 |-----|---------|

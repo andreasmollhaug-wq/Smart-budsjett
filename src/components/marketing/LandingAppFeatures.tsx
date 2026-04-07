@@ -193,7 +193,7 @@ export default function LandingAppFeatures() {
       <dialog
         id="landing-feature-dialog"
         ref={dialogRef}
-        className="fixed left-1/2 top-1/2 z-[100] w-[min(100%-2rem,28rem)] max-h-[min(85vh,32rem)] translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border p-0 shadow-xl backdrop:bg-black/50 open:flex open:flex-col"
+        className="fixed left-1/2 top-1/2 z-[100] w-[min(100%-2rem,28rem)] max-h-[min(85dvh,32rem)] translate-x-[-50%] translate-y-[-50%] overflow-hidden rounded-2xl border p-0 shadow-xl backdrop:bg-black/50"
         style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
         aria-labelledby={titleId}
         onClose={onDialogClose}
@@ -229,7 +229,7 @@ export default function LandingAppFeatures() {
                     <X size={20} strokeWidth={2} />
                   </button>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                <div className="overflow-y-auto overscroll-contain px-5 py-4 max-h-[min(70dvh,calc(32rem-5.75rem))]">
                   <div className="space-y-3 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                     {active.paragraphs.map((p, i) => (
                       <p key={i}>{p}</p>

@@ -5,7 +5,7 @@ Målet er **samme visuelle uttrykk** på landing (`/`) og i appen: rolig, trover
 ## Kilder i kode
 
 - **Farger og tokens:** [`src/app/globals.css`](../src/app/globals.css) (`:root`)
-- **App-navigasjon:** [`src/components/layout/Sidebar.tsx`](../src/components/layout/Sidebar.tsx)
+- **App-navigasjon:** [`src/components/layout/AppShell.tsx`](../src/components/layout/AppShell.tsx) + [`SidebarContent.tsx`](../src/components/layout/SidebarContent.tsx)
 - **Kort / oversikt:** [`src/components/ui/StatCard.tsx`](../src/components/ui/StatCard.tsx), dashboard m.fl.
 - **Landing:** [`src/components/marketing/`](../src/components/marketing/)
 

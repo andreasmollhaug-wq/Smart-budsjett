@@ -1,0 +1,20 @@
+Manuell mobil-QA (Smart Budsjett)
+================================
+
+Enheter: iPhone-bredde ~390px, Android 360–412px, stress 320px.
+Nettlesere: Safari (iOS), Chrome (Android).
+
+Flyt:
+  Landing / → Logg inn → Dashboard → Budsjett → Budsjett dashboard → Transaksjoner → Min konto (flere undersider)
+
+Sjekkliste per skjerm:
+  [ ] Ingen uventet horisontell scroll på body (hele siden som sklir).
+  [ ] Touch: primærknapper/lenker minst ~44px der kritisk.
+  [ ] Sticky/fixed header overlapper ikke innhold uten mulighet til å scrolle til det.
+  [ ] Mobilmeny (hamburger): åpner drawer, lukk med X, Escape, tap utenfor, eller etter navigasjon.
+  [ ] Budsjett: horisontell scroll i tabellområde fungerer; innhold bruker full viewport-bredde (ikke smalt pga. dobbel meny).
+  [ ] Min konto: sekundærnavigasjon (faner) synlig og brukbar uten to sidekolonner.
+
+Chrome DevTools: Responsive mode, samme bredder som over.
+
+Automatisert (valgfritt): etter `npx playwright install` kjør `npm run test:e2e` (starter Next på port 3005 ved behov, mobil-viewport mot landing).

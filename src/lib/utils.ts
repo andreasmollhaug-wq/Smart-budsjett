@@ -93,7 +93,13 @@ export function formatThousands(value: number | string): string {
 }
 
 export function parseThousands(formatted: string): number {
-  return Number(formatted.replace(/\s/g, '').replace(/,/g, '')) || 0
+  const cleaned = formatted
+    .replace(/\s/g, '')
+    .replace(/\u00a0/g, '')
+    .replace(/\u202f/g, '')
+    .replace(/,/g, '')
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : 0
 }
 
 /** Viser ISO-dato (yyyy-mm-dd) som lesbar norsk dato (dag, måned, år). */
