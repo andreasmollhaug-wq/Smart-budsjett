@@ -20,8 +20,9 @@ export async function upsertSubscriptionFromStripe(
   const customerId =
     typeof subscription.customer === 'string' ? subscription.customer : subscription.customer?.id
 
-  /** Bruk alltid Subscription-feltet; SubscriptionItem har ikke alltid `current_period_end` i nyere API-versjoner. */
-  const periodEndUnix = subscription.current_period_end
+  /** API returnerer `current_period_end`; Stripe TS-typer (v21) mangler feltet på `Subscription` i noen profiler. */
+  const periodEndUnix = (subscription as Stripe.Subscription & { current_period_end?: number })
+    .current_period_end
   const row = {
     user_id: userId,
     stripe_customer_id: customerId ?? null,
