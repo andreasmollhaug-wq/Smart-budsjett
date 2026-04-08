@@ -24,6 +24,11 @@ import {
   normalizeFormuebyggerPersistedState,
   type FormuebyggerPersistedState,
 } from '@/lib/formuebyggerPro/persistedState'
+import {
+  buildDemoTransactionsForNonZeroVariant,
+  createDemoBasePersonDataForNonZeroVariant,
+  getDemoVariantIndexForProfile,
+} from './demoPersonVariants'
 
 export type { BudgetYearCopySource } from './budgetActualsToBudgeted'
 export type SwitchActiveBudgetYearResult =
@@ -221,6 +226,8 @@ interface AppState {
   deliverRoadmapInviteNotification: () => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
+  /** Bruker-/hendelsesvarsler (f.eks. ved import av data); id genereres automatisk. */
+  addAppNotification: (payload: { title: string; body: string; kind?: AppNotificationKind }) => void
 
   setSubscriptionPlan: (plan: SubscriptionPlan) => { ok: true } | { ok: false; reason: 'solo_requires_one_profile' }
   setActiveProfileId: (id: string) => void
@@ -771,15 +778,28 @@ function buildDemoTransactionsForYear(year: number, profileId: string): Transact
   return txs
 }
 
-/** Full demoprofil (budsjett, transaksjoner, sparing, investeringer, lån) for én profil. */
-export function createDemoPersonDataForProfile(profileId: string, budgetYear: number): PersonData {
-  const base = createInitialPersonData()
-  const transactions = buildDemoTransactionsForYear(budgetYear, profileId)
+/** Full demoprofil (budsjett, transaksjoner, sparing, investeringer, lån) for én profil. `variantIndex` 0 = dagens standard; 1–4 brukes for andre medlemmer i familiehusholdning. */
+export function createDemoPersonDataForProfile(
+  profileId: string,
+  budgetYear: number,
+  variantIndex: number = 0,
+): PersonData {
+  const v = Math.min(Math.max(0, Math.floor(variantIndex)), 4)
+  const base =
+    v === 0
+      ? createInitialPersonData()
+      : createDemoBasePersonDataForNonZeroVariant(v as 1 | 2 | 3 | 4)
+  const transactions =
+    v === 0
+      ? buildDemoTransactionsForYear(budgetYear, profileId)
+      : buildDemoTransactionsForNonZeroVariant(budgetYear, profileId, v as 1 | 2 | 3 | 4)
   let person: PersonData = { ...base, transactions }
   person = recalcPersonBudgetSpentForYear(person, profileId, budgetYear)
   person = syncLinkedSavingsGoalsCurrent(person, profileId)
   return person
 }
+
+export { getDemoVariantIndexForProfile }
 
 function sumMonthlyArrays(a: number[], b: number[]): number[] {
   return Array.from({ length: 12 }, (_, i) => (a[i] ?? 0) + (b[i] ?? 0))
@@ -1061,8 +1081,10 @@ export const useStore = create<AppState>()((set, get) => {
                 backup = emptyBackup
               }
               const nextPeople: Record<string, PersonData> = {}
-              for (const pr of s.profiles) {
-                nextPeople[pr.id] = createDemoPersonDataForProfile(pr.id, s.budgetYear)
+              for (let i = 0; i < s.profiles.length; i++) {
+                const pr = s.profiles[i]!
+                const vi = getDemoVariantIndexForProfile(s.subscriptionPlan, s.profiles.length, i)
+                nextPeople[pr.id] = createDemoPersonDataForProfile(pr.id, s.budgetYear, vi)
               }
               return {
                 demoDataEnabled: true,
@@ -1190,6 +1212,23 @@ export const useStore = create<AppState>()((set, get) => {
             notifications: s.notifications.map((n) => ({ ...n, read: true })),
           })),
 
+        addAppNotification: (payload) => {
+          const id = `user-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+          set((s) => ({
+            notifications: [
+              {
+                id,
+                title: payload.title,
+                body: payload.body,
+                kind: payload.kind ?? 'budget',
+                createdAt: new Date().toISOString(),
+                read: false,
+              },
+              ...s.notifications,
+            ],
+          }))
+        },
+
         setSubscriptionPlan: (plan) => {
           const s = get()
           if (plan === 'solo' && s.profiles.length > 1) {
@@ -1227,7 +1266,15 @@ export const useStore = create<AppState>()((set, get) => {
           }
 
           const id = generateId()
-          const nextPeople = { ...s.people, [id]: createEmptyPersonData() }
+          const initialPerson =
+            s.demoDataEnabled && s.subscriptionPlan === 'family'
+              ? createDemoPersonDataForProfile(
+                  id,
+                  s.budgetYear,
+                  getDemoVariantIndexForProfile(s.subscriptionPlan, s.profiles.length + 1, s.profiles.length),
+                )
+              : createEmptyPersonData()
+          const nextPeople = { ...s.people, [id]: initialPerson }
           const nextProfiles = [...s.profiles, { id, name: trimmed }]
           set({
             people: nextPeople,

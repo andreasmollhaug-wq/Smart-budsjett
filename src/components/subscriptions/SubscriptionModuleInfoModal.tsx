@@ -60,6 +60,15 @@ export default function SubscriptionModuleInfoModal({ open, onClose }: Props) {
             <strong className="font-medium" style={{ color: 'var(--text)' }}>EnkelExcel AI</strong> kan bruke de
             registrerte abonnementene når du spør om tall — for eksempel «hva koster streaming til sammen?».
           </p>
+          <p>
+            Oversikten viser også <strong className="font-medium" style={{ color: 'var(--text)' }}>antall aktive</strong>{' '}
+            abonnement sammen med summene.
+          </p>
+          <p>
+            Ved <strong className="font-medium" style={{ color: 'var(--text)' }}>samlet husholdning</strong> kan du få et
+            forslag når flere profiler har valgt samme tjeneste fra listen — da kan det lønne seg å sjekke om dere kan
+            bruke et delt eller familieabonnement hos leverandøren (kun et tips, ikke et løfte om besparelse).
+          </p>
         </div>
         <div className="mt-6 flex justify-end">
           <button

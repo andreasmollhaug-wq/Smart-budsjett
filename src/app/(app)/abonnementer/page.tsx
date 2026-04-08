@@ -4,7 +4,11 @@ import { useMemo, useState } from 'react'
 import Header from '@/components/layout/Header'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
 import SubscriptionModuleInfoModal from '@/components/subscriptions/SubscriptionModuleInfoModal'
-import { monthlyEquivalentNok, yearlyEquivalentNok } from '@/lib/serviceSubscriptionHelpers'
+import {
+  findDuplicatePresetServiceGroups,
+  monthlyEquivalentNok,
+  yearlyEquivalentNok,
+} from '@/lib/serviceSubscriptionHelpers'
 import { SERVICE_SUBSCRIPTION_PRESETS } from '@/lib/serviceSubscriptionPresets'
 import { useActivePersonFinance, type ServiceSubscription } from '@/lib/store'
 import { formatNOK } from '@/lib/utils'
@@ -32,13 +36,20 @@ export default function AbonnementerPage() {
   const totals = useMemo(() => {
     let m = 0
     let y = 0
+    let activeCount = 0
     for (const s of serviceSubscriptions) {
       if (!s.active) continue
+      activeCount += 1
       m += monthlyEquivalentNok(s)
       y += yearlyEquivalentNok(s)
     }
-    return { monthly: m, yearly: y }
+    return { monthly: m, yearly: y, activeCount }
   }, [serviceSubscriptions])
+
+  const duplicatePresetGroups = useMemo(
+    () => (isHouseholdAggregate ? findDuplicatePresetServiceGroups(serviceSubscriptions) : []),
+    [isHouseholdAggregate, serviceSubscriptions],
+  )
 
   const readonly = isHouseholdAggregate
 
@@ -78,7 +89,7 @@ export default function AbonnementerPage() {
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
         title="Tjenesteabonnementer"
-        subtitle="Oversikt over faste abonnementer — ikke Stripe-abonnement for appen"
+        subtitle="Oversikt over faste abonnementer"
         titleAddon={
           <button
             type="button"
@@ -104,7 +115,33 @@ export default function AbonnementerPage() {
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        {readonly && duplicatePresetGroups.length > 0 && (
+          <div
+            className="rounded-xl border px-4 py-3 text-sm space-y-2"
+            style={{
+              borderColor: 'var(--border)',
+              background: 'var(--primary-pale)',
+              color: 'var(--text-muted)',
+            }}
+            role="status"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--primary)' }}>
+              Mulig å samle abonnement
+            </p>
+            <ul className="list-none space-y-2 m-0 p-0">
+              {duplicatePresetGroups.map((g) => (
+                <li key={g.presetKey}>
+                  <DuplicateServiceHintSentence
+                    serviceLabel={g.serviceLabel}
+                    profileNames={g.profileIds.map((id) => profileName(id))}
+                  />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-3">
           <div
             className="rounded-2xl border p-4"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
@@ -127,6 +164,17 @@ export default function AbonnementerPage() {
               {formatNOK(totals.yearly)}
             </p>
           </div>
+          <div
+            className="rounded-2xl border p-4"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+          >
+            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              Antall aktive abonnementer
+            </p>
+            <p className="mt-1 text-xl font-bold tabular-nums" style={{ color: 'var(--text)' }}>
+              {totals.activeCount}
+            </p>
+          </div>
         </div>
 
         <section
@@ -140,12 +188,23 @@ export default function AbonnementerPage() {
           </div>
           {serviceSubscriptions.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-              Ingen abonnementer ennå. Legg til under.
+              {readonly ? (
+                <>
+                  Ingen abonnementer registrert i denne visningen ennå. Velg <strong style={{ color: 'var(--text)' }}>én
+                  profil</strong> i menyen øverst for å legge inn eller redigere tjenesteabonnementer.
+                </>
+              ) : (
+                <>Ingen abonnementer ennå. Legg til under.</>
+              )}
             </p>
           ) : (
-            <ul className="divide-y" style={{ borderColor: 'var(--border)' }}>
+            <ul>
               {serviceSubscriptions.map((s) => (
-                <li key={s.id} className="px-4 py-4">
+                <li
+                  key={s.id}
+                  className="border-t px-4 py-4 first:border-t-0"
+                  style={{ borderColor: 'var(--border)' }}
+                >
                   {editingId === s.id && !readonly ? (
                     <EditRow
                       initial={s}
@@ -187,7 +246,7 @@ export default function AbonnementerPage() {
                             type="button"
                             className="rounded-lg p-2"
                             style={{ color: 'var(--text-muted)' }}
-                            aria-label="Rediger"
+                            aria-label={`Rediger ${subLabelForAria(s.label)}`}
                             onClick={() => setEditingId(s.id)}
                           >
                             <Pencil size={18} />
@@ -196,7 +255,7 @@ export default function AbonnementerPage() {
                             type="button"
                             className="rounded-lg p-2"
                             style={{ color: 'var(--danger)' }}
-                            aria-label="Slett"
+                            aria-label={`Slett ${subLabelForAria(s.label)}`}
                             onClick={() => {
                               if (window.confirm(`Fjerne «${s.label}» fra listen?`)) removeServiceSubscription(s.id)
                             }}
@@ -306,6 +365,47 @@ export default function AbonnementerPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function subLabelForAria(label: string): string {
+  const t = label.trim()
+  return t || 'abonnement'
+}
+
+const DUPLICATE_HINT_SUFFIX =
+  ' Mange slike tjenester tilbyr familie- eller delt abonnement – det kan være verdt å sjekke om dere kan samle det.'
+
+function DuplicateServiceHintSentence({
+  serviceLabel,
+  profileNames,
+}: {
+  serviceLabel: string
+  profileNames: string[]
+}) {
+  const namesPart =
+    profileNames.length === 2 ? (
+      <>
+        for både <strong>{profileNames[0]}</strong> og <strong>{profileNames[1]}</strong>
+      </>
+    ) : (
+      <>
+        for{' '}
+        {profileNames.map((n, i) => (
+          <span key={`${n}-${i}`}>
+            {i > 0 && (i === profileNames.length - 1 ? ' og ' : ', ')}
+            <strong>{n}</strong>
+          </span>
+        ))}
+      </>
+    )
+
+  return (
+    <p className="m-0" style={{ color: 'var(--text)' }}>
+      Dere har registrert <strong>{serviceLabel}</strong> {namesPart}
+      {'.'}
+      {DUPLICATE_HINT_SUFFIX}
+    </p>
   )
 }
 

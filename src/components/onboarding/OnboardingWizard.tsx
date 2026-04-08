@@ -224,6 +224,10 @@ export default function OnboardingWizard() {
               transaksjoner, sparemål, investeringer og lån. Dine egne data lagres trygt mens demodata er på, og
               gjenopprettes når du slår det av igjen.
             </p>
+            <p className="text-sm mt-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              I familiehusholdning med flere profiler får hvert medlem et eget eksempelsett (ulike tall per person;
+              første profil følger standarddemoen).
+            </p>
             <div
               className="mt-5 rounded-xl px-4 py-4"
               style={{ background: 'var(--primary-pale)', border: '1px solid var(--border)' }}

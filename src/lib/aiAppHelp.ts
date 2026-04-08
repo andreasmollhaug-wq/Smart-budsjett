@@ -25,9 +25,9 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /investering — Investering
 - /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
 - /enkelexcel-ai — EnkelExcel AI
-- /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år; valgfri synk til budsjett under Regninger)
+- /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
-- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap
+- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; nederst i menyen)
 
 Profiler, abonnement og «Viser data for»
 - Solo-abonnement: én profil i appen.
@@ -46,7 +46,7 @@ Startveiledning (første gangs oppsett, 6 steg)
 - Utvidet valgfri guide (anbefalt rekkefølge, moduler, tips): /konto/kom-i-gang — også lenket fra siste steg i startveiledningen og fra Min konto → Innstillinger.
 
 Demodata
-- Slås på/av under startveiledning eller Min konto → Innstillinger (seksjonen «Demodata»). Når demodata er på, vises eksempeldata for blant annet budsjett, transaksjoner, sparemål, investeringer og lån; egne data lagres og gjenopprettes når demodata slås av.
+- Slås på/av under startveiledning eller Min konto → Innstillinger (seksjonen «Demodata»). Når demodata er på, vises eksempeldata for blant annet budsjett, transaksjoner, sparemål, investeringer og lån; egne data lagres og gjenopprettes når demodata slås av. I familiehusholdning med flere profiler er eksempeldata ulike per medlem (første profil følger standardsettet).
 
 Oversikt (/dashboard)
 - Undertittel: personlig oversikt, eller «Samlet husholdning — alle profiler» i husholdningsmodus.
@@ -96,10 +96,10 @@ Investering (/investering) — sidetittel «Investering», undertittel «Portef�
 - «Legg til investering»: manuelt skjema — navn, type, kjøpsverdi (NOK), nåværende verdi (NOK), kjøpsdato; «Legg til» / «Avbryt».
 
 Tjenesteabonnementer (/abonnementer)
-- Oversikt over faste tjenesteabonnementer (streaming, programvare m.m.) med sum per måned og per år.
+- Oversikt over faste tjenesteabonnementer (streaming, programvare m.m.) med sum per måned og per år og antall aktive abonnement.
 - Valgfritt: «Legg inn i budsjettet» synkroniserer planbeløp til en linje under Regninger (du slipper å taste samme beløp to ganger).
 - Faktisk «brukt» i budsjettet følger fortsatt transaksjoner når du fører trekk i samme kategori.
-- I Familie vises abonnementer samlet i husholdning med profilnavn; redigering gjøres når én profil er valgt.
+- I Familie vises abonnementer samlet i husholdning med profilnavn; redigering gjøres når én profil er valgt. Når flere profiler har valgt samme tjeneste fra forhåndslisten, kan appen vise et nøytralt forslag om delt eller familieabonnement hos leverandøren.
 - Registrerte abonnementer inngår i tallkonteksten til EnkelExcel AI når du spør om slike kostnader.
 
 Rapporter

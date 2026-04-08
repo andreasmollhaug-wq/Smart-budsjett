@@ -16,7 +16,8 @@ export default function DemoModeBanner() {
       }}
       role="status"
     >
-      Du ser demodata — tall og forslag under er eksempler. Slå av i Innstillinger når du vil bruke egne tall.
+      Du ser demodata — tall og forslag under er eksempler. I familie med flere profiler varierer eksempeltall per
+      person. Slå av i Innstillinger når du vil bruke egne tall.
     </div>
   )
 }

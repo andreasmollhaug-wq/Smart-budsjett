@@ -1,5 +1,6 @@
 'use client'
 import { Suspense, useState, useMemo, useEffect } from 'react'
+import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionDetailModal, { type TransactionSavePatch } from '@/components/transactions/TransactionDetailModal'
@@ -255,6 +256,13 @@ function TransaksjonerPageInner() {
       />
       <div className="p-8 space-y-6">
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href="/konto/importer-transaksjoner"
+            className="text-sm font-medium"
+            style={{ color: 'var(--primary)' }}
+          >
+            Importer fra CSV
+          </Link>
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Vis:
           </span>

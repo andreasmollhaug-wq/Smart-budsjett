@@ -114,6 +114,11 @@ export default function NotificationBell() {
                               Innsikt
                             </span>
                           )}
+                          {n.kind === 'budget' && (
+                            <span className="ml-2 rounded px-1.5 py-0.5" style={{ background: 'var(--bg)' }}>
+                              Data
+                            </span>
+                          )}
                         </p>
                       </div>
                       {!n.read && (

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createDemoPersonDataForProfile,
   DEFAULT_PROFILE_ID,
+  getDemoVariantIndexForProfile,
   resetStoreForLogout,
   useStore,
 } from './store'
@@ -46,6 +47,53 @@ describe('setDemoDataEnabled', () => {
     const person = useStore.getState().people[DEFAULT_PROFILE_ID]!
     expect(person.budgetCategories).toHaveLength(0)
     expect(person.transactions).toHaveLength(0)
+  })
+})
+
+describe('demo varianter familie', () => {
+  beforeEach(() => {
+    resetStoreForLogout()
+  })
+
+  afterEach(() => {
+    resetStoreForLogout()
+  })
+
+  it('getDemoVariantIndexForProfile: solo eller én profil gir alltid 0', () => {
+    expect(getDemoVariantIndexForProfile('solo', 1, 0)).toBe(0)
+    expect(getDemoVariantIndexForProfile('family', 1, 0)).toBe(0)
+  })
+
+  it('getDemoVariantIndexForProfile: familie med flere følger indeks opp til 4', () => {
+    expect(getDemoVariantIndexForProfile('family', 3, 0)).toBe(0)
+    expect(getDemoVariantIndexForProfile('family', 3, 1)).toBe(1)
+    expect(getDemoVariantIndexForProfile('family', 3, 2)).toBe(2)
+    expect(getDemoVariantIndexForProfile('family', 6, 5)).toBe(4)
+  })
+
+  it('createDemoPersonDataForProfile: variant 0 og 1 har ulik årlig lønnsum (transaksjoner)', () => {
+    const year = 2026
+    const a = createDemoPersonDataForProfile('p1', year, 0)
+    const b = createDemoPersonDataForProfile('p2', year, 1)
+    const sumIncome = (p: typeof a) =>
+      p.transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    expect(sumIncome(a)).toBe(11 * 50_000 + 80_000)
+    expect(sumIncome(b)).toBe(11 * 28_000 + 42_000)
+    expect(sumIncome(a)).not.toBe(sumIncome(b))
+  })
+
+  it('setDemoDataEnabled med to familieprofiler gir ulike demodata per person', () => {
+    useStore.setState({ subscriptionPlan: 'family' })
+    const r = useStore.getState().addProfile('Partner')
+    if (!r.ok) throw new Error('addProfile')
+    useStore.getState().setDemoDataEnabled(true)
+    const ids = useStore.getState().profiles.map((p) => p.id)
+    const p0 = useStore.getState().people[ids[0]!]!
+    const p1 = useStore.getState().people[ids[1]!]!
+    const sumIncome = (p: typeof p0) =>
+      p.transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    expect(sumIncome(p0)).toBe(11 * 50_000 + 80_000)
+    expect(sumIncome(p1)).toBe(11 * 28_000 + 42_000)
   })
 })
 

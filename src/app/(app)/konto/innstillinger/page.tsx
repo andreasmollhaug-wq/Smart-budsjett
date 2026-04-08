@@ -158,7 +158,8 @@ function DemoDataCard() {
       <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
         Vis eksempeldata for budsjett, transaksjoner, sparemål, investeringer og lån (boliglån utenfor snøball,
         studielån og kredittkort i snøball) slik at du kan utforske appen uten å fylle inn egne tall. Dine egne data
-        lagres trygt mens demodata er på, og gjenopprettes når du slår det av.
+        lagres trygt mens demodata er på, og gjenopprettes når du slår det av. I familiehusholdning med flere profiler
+        er eksempeltallene forskjellige per medlem (første profil tilsvarer standarddemoen).
       </p>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <button

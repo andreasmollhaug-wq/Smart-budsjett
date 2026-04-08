@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings, CreditCard, Shield, ChevronRight, Tags, Map, BookOpen } from 'lucide-react'
+import { Settings, CreditCard, Shield, ChevronRight, Tags, Map, BookOpen, Upload } from 'lucide-react'
 
 const links = [
   { href: '/konto/innstillinger', label: 'Innstillinger', labelShort: 'Innst.', icon: Settings },
@@ -10,6 +10,7 @@ const links = [
   { href: '/konto/betalinger', label: 'Betalinger', labelShort: 'Betaling', icon: CreditCard },
   { href: '/konto/sikkerhet', label: 'Sikkerhet', labelShort: 'Sikkerhet', icon: Shield },
   { href: '/konto/roadmap', label: 'Roadmap', labelShort: 'Roadmap', icon: Map },
+  { href: '/konto/importer-transaksjoner', label: 'Importer transaksjoner', labelShort: 'Import', icon: Upload },
 ] as const
 
 export default function KontoNav() {
