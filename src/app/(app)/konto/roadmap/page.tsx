@@ -53,12 +53,12 @@ function formatCardDate(iso: string): string {
 
 function RoadmapBoardSkeleton() {
   return (
-    <div className="overflow-x-auto -mx-4 sm:-mx-5 px-4 sm:px-5 pb-1" aria-hidden>
-      <div className="flex gap-3 min-w-max md:min-w-0 md:grid md:grid-cols-5 md:gap-4 items-start">
+    <div className="overflow-x-auto overflow-y-visible -mx-4 sm:-mx-5 px-4 sm:px-5 pb-2" aria-hidden>
+      <div className="flex gap-3 min-w-max items-start">
         {STATUS_ORDER.map((status) => (
           <div
             key={status}
-            className="w-[min(92vw,280px)] shrink-0 md:w-auto md:min-w-0 flex flex-col gap-2"
+            className="w-[min(85vw,260px)] sm:w-[260px] shrink-0 flex flex-col gap-2"
           >
             <div className="h-4 w-24 rounded animate-pulse" style={{ background: 'var(--border)' }} />
             <div className="space-y-2">
@@ -518,7 +518,7 @@ export default function KontoRoadmapPage() {
       </section>
 
       <section
-        className="rounded-xl p-4 sm:p-5 space-y-4"
+        className="rounded-xl p-4 sm:p-5 space-y-4 min-w-0"
         style={{
           background: '#ffffff',
           border: '1px solid var(--border)',
@@ -572,14 +572,14 @@ export default function KontoRoadmapPage() {
         )}
 
         {!loading && !loadError && (
-        <div className="overflow-x-auto -mx-4 sm:-mx-5 px-4 sm:px-5 pb-1">
-          <div className="flex gap-3 min-w-max md:min-w-0 md:grid md:grid-cols-5 md:gap-4 items-start">
+        <div className="overflow-x-auto overflow-y-visible -mx-4 sm:-mx-5 px-4 sm:px-5 pb-2">
+          <div className="flex gap-3 min-w-max items-start">
             {STATUS_ORDER.map((status) => {
               const items = byStatus.get(status) ?? []
               return (
                 <div
                   key={status}
-                  className="w-[min(92vw,280px)] shrink-0 md:w-auto md:min-w-0 flex flex-col gap-2"
+                  className="w-[min(85vw,260px)] sm:w-[260px] shrink-0 flex flex-col gap-2"
                 >
                   <div className="flex items-center gap-2 px-1">
                     <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
