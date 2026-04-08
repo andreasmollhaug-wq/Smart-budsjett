@@ -40,6 +40,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'I samlet husholdning viser transaksjonslisten nå en merkelapp med hvilken profil hver rad tilhører — enklere å holde oversikt når dere er flere.\n\nForbedret kategorivalg og filtre på transaksjoner, små justeringer i dashboard og på landingssider, og oppdaterte personvern- og vilkårstekster. Små feilrettinger og forbedringer under panseret.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.1',
+    version: '0.3.1',
+    title: 'Smart Budsjett v0.3.1 er ute',
+    body:
+      'Du kan nå importere transaksjoner fra CSV under Min konto → Importer transaksjoner (mal og steg-for-steg veiledning). Etter opplasting og når importen er bekreftet, får du også varsler under klokken om at data er lastet inn.\n\nDiverse små forbedringer i konto, demo og abonnement.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {
