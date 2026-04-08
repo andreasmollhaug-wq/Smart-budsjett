@@ -49,6 +49,7 @@ export async function POST() {
   try {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
+      locale: 'nb',
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${base}/enkelexcel-ai?ai_credits=success`,
       cancel_url: `${base}/enkelexcel-ai?ai_credits=canceled`,

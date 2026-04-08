@@ -96,6 +96,9 @@ function BetalingerContent() {
   const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
   const [checkoutLoading, setCheckoutLoading] = useState<'solo' | 'family' | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [canOpenBillingPortal, setCanOpenBillingPortal] = useState(false)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [portalError, setPortalError] = useState<string | null>(null)
   const [invoices, setInvoices] = useState<StripeInvoiceRow[] | undefined>(undefined)
   const [paidCount, setPaidCount] = useState<number | undefined>(undefined)
   const [invoicesError, setInvoicesError] = useState<string | null>(null)
@@ -105,12 +108,18 @@ function BetalingerContent() {
       const res = await fetch('/api/stripe/subscription')
       if (!res.ok) {
         setStripeSub(null)
+        setCanOpenBillingPortal(false)
         return
       }
-      const data = (await res.json()) as { subscription?: StripeSubscriptionRow }
+      const data = (await res.json()) as {
+        subscription?: StripeSubscriptionRow
+        canOpenBillingPortal?: boolean
+      }
       setStripeSub(data.subscription ?? null)
+      setCanOpenBillingPortal(Boolean(data.canOpenBillingPortal))
     } catch {
       setStripeSub(null)
+      setCanOpenBillingPortal(false)
     }
   }, [])
 
@@ -218,6 +227,28 @@ function BetalingerContent() {
     }
   }
 
+  const openBillingPortal = async () => {
+    setPortalError(null)
+    setPortalLoading(true)
+    try {
+      const res = await fetch('/api/stripe/billing-portal', { method: 'POST' })
+      const data = (await res.json()) as { url?: string; error?: string }
+      if (!res.ok) {
+        setPortalError(data.error ?? 'Kunne ikke åpne kundeportal.')
+        return
+      }
+      if (data.url) {
+        window.location.href = data.url
+        return
+      }
+      setPortalError('Manglende lenke fra Stripe.')
+    } catch {
+      setPortalError('Nettverksfeil ved oppstart av kundeportal.')
+    } finally {
+      setPortalLoading(false)
+    }
+  }
+
   const invoicesSorted =
     invoices?.slice().sort((a, b) => b.created - a.created) ?? []
 
@@ -226,7 +257,7 @@ function BetalingerContent() {
       <TrialWelcomeModal
         open={trialModalOpen}
         trialDays={trialPeriodDays}
-        loadingCheckout={checkoutLoading === 'solo'}
+        loadingCheckout={checkoutLoading === 'solo' || portalLoading}
         onClose={closeTrialModal}
         onStartSolo={() => void subscribeWithPlan('solo')}
       />
@@ -288,7 +319,7 @@ function BetalingerContent() {
         </div>
       )}
 
-      {paidActive && stripeSub && (
+      {stripeSub && (paidActive || canOpenBillingPortal) && (
         <div
           className="rounded-xl p-4 mb-6 text-sm"
           style={{
@@ -313,6 +344,37 @@ function BetalingerContent() {
                 year: 'numeric',
               })}
             </span>
+          ) : null}
+          {canOpenBillingPortal ? (
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <button
+                type="button"
+                onClick={() => void openBillingPortal()}
+                disabled={portalLoading || checkoutLoading !== null}
+                className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: 'linear-gradient(135deg, #364FC7, #4C6EF5)' }}
+              >
+                {portalLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Åpner Stripe…
+                  </>
+                ) : (
+                  <>
+                    Administrer abonnement
+                    <ExternalLink className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+              <span className="text-xs sm:max-w-md" style={{ color: 'var(--text-muted)' }}>
+                Kort, oppsigelse og fakturaer håndteres i Stripes kundeportal.
+              </span>
+            </div>
+          ) : null}
+          {portalError ? (
+            <p className="mt-2 text-sm" style={{ color: '#E03131' }}>
+              {portalError}
+            </p>
           ) : null}
         </div>
       )}
@@ -365,7 +427,7 @@ function BetalingerContent() {
             <button
               type="button"
               onClick={() => void subscribeWithPlan('solo')}
-              disabled={checkoutLoading !== null}
+              disabled={checkoutLoading !== null || portalLoading}
               className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg, #364FC7, #4C6EF5)' }}
             >
@@ -414,7 +476,7 @@ function BetalingerContent() {
             <button
               type="button"
               onClick={() => void subscribeWithPlan('family')}
-              disabled={checkoutLoading !== null}
+              disabled={checkoutLoading !== null || portalLoading}
               className="mt-6 w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
               style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
             >
@@ -439,15 +501,19 @@ function BetalingerContent() {
           Betalingsmetode
         </h2>
         <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-          Når du abonnerer via Stripe over, registreres kortet der. Du kan senere legge til kundeportal for
-          oppdatering av kort (valgfritt videre steg).
+          Når du abonnerer via Stripe over, registreres kortet der. Oppdatering av kort og abonnement skjer i Stripes
+          kundeportal via knappen «Administrer abonnement» over (når du har et aktivt Stripe-kundeforhold).
         </p>
         <div
           className="flex items-center justify-between p-4 rounded-xl"
           style={{ border: '1px dashed var(--border)', background: 'var(--bg)' }}
         >
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            {paidActive ? 'Abonnement er knyttet til Stripe.' : 'Ingen aktiv Stripe-betaling registrert ennå'}
+            {paidActive
+              ? 'Abonnement er knyttet til Stripe.'
+              : canOpenBillingPortal
+                ? 'Du har en Stripe-kunde — bruk «Administrer abonnement» over for kort og oppsigelse.'
+                : 'Ingen aktiv Stripe-betaling registrert ennå'}
           </span>
         </div>
       </div>

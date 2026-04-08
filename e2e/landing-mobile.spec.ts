@@ -17,4 +17,17 @@ test.describe('Landing (mobil viewport)', () => {
     const cta = page.getByRole('link', { name: /Start gratis/ })
     await expect(cta.first()).toBeVisible()
   })
+
+  test('mobilmeny åpner fullskjerms-overlay', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Åpne meny' }).click()
+    const nav = page.locator('#landing-mobile-nav')
+    await expect(nav).toBeVisible()
+    const box = await nav.boundingBox()
+    const vp = page.viewportSize()
+    expect(box).not.toBeNull()
+    expect(vp).not.toBeNull()
+    expect(box!.height).toBeGreaterThanOrEqual(vp!.height - 8)
+  })
 })

@@ -123,8 +123,8 @@ Betalinger og abonnement (/konto/betalinger)
 - Stripe-abonnement Solo eller Familie: knappene «Abonner med kort (Solo)» / «Abonner med kort (Familie)» starter Stripe Checkout.
 - «Velg Solo (app)» / «Velg Familie (app)» styrer hvilken plan som gjelder profiler lokalt i appen (opp mot maks profiler for Solo).
 - Ved aktivt Stripe-abonnement vises status og ofte sluttdato for gjeldende periode.
-- Endre betalingskort eller si opp abonnement: ingen full Stripe-kundeportal innebygd i app per nå (teksten på siden sier kundeportal kan komme senere). For kortbytte eller oppsigelse: kontakt post@enkelexcel.no eller bruk det du har mottatt fra Stripe på e-post.
-- Seksjonen «Betalingsmetode» forklarer at kort knyttes til Stripe ved abonnement.
+- Endre betalingskort eller si opp abonnement: knappen «Administrer abonnement» på /konto/betalinger åpner Stripes kundeportal (når brukeren har Stripe-kunde). Ved behov kan bruker også kontakte post@enkelexcel.no.
+- Seksjonen «Betalingsmetode» forklarer at kort knyttes til Stripe ved abonnement og at administrasjon skjer via kundeportalen.
 
 Sikkerhet (/konto/sikkerhet)
 - Passord: skjema for å endre innloggingspassord.

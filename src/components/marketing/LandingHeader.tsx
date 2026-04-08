@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import { CTA_HREF, LOGIN_HREF } from './constants'
@@ -30,7 +31,73 @@ export default function LandingHeader() {
     }
   }, [mobileOpen])
 
+  const mobileNav =
+    mobileOpen && typeof document !== 'undefined' ? (
+      <div
+        className="fixed inset-0 z-[60] lg:hidden"
+        id="landing-mobile-nav"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigasjon"
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/40"
+          aria-label="Lukk meny"
+          onClick={close}
+        />
+        <aside
+          className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto shadow-xl"
+          style={{
+            background: 'var(--surface)',
+            borderRight: '1px solid var(--border)',
+          }}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b px-3 py-3" style={{ borderColor: 'var(--border)' }}>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              Meny
+            </span>
+            <button
+              type="button"
+              onClick={close}
+              className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:opacity-90"
+              style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+              aria-label="Lukk meny"
+            >
+              <X size={22} />
+            </button>
+          </div>
+          <div className="flex flex-col gap-1 p-3">
+            {NAV_ITEMS.map((item) =>
+              item.href.startsWith('#') ? (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={close}
+                  className="flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {item.label}
+                </a>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={close}
+                  className="flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {item.label}
+                </Link>
+              ),
+            )}
+          </div>
+        </aside>
+      </div>
+    ) : null
+
   return (
+    <>
     <header
       className="sticky top-0 z-50 border-b backdrop-blur-md"
       style={{
@@ -62,14 +129,14 @@ export default function LandingHeader() {
         <nav className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
           <button
             type="button"
-            onClick={() => setMobileOpen(true)}
+            onClick={() => setMobileOpen((o) => !o)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors hover:opacity-90 lg:hidden"
             style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }}
             aria-expanded={mobileOpen}
             aria-controls="landing-mobile-nav"
-            aria-label="Åpne meny"
+            aria-label={mobileOpen ? 'Lukk meny' : 'Åpne meny'}
           >
-            <Menu size={22} />
+            {mobileOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
 
           {NAV_ITEMS.map((item) =>
@@ -110,70 +177,8 @@ export default function LandingHeader() {
           </Link>
         </nav>
       </div>
-
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-[60] lg:hidden"
-          id="landing-mobile-nav"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Navigasjon"
-        >
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            aria-label="Lukk meny"
-            onClick={close}
-          />
-          <aside
-            className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto shadow-xl"
-            style={{
-              background: 'var(--surface)',
-              borderRight: '1px solid var(--border)',
-            }}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b px-3 py-3" style={{ borderColor: 'var(--border)' }}>
-              <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                Meny
-              </span>
-              <button
-                type="button"
-                onClick={close}
-                className="flex h-11 w-11 items-center justify-center rounded-xl transition-colors hover:opacity-90"
-                style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }}
-                aria-label="Lukk meny"
-              >
-                <X size={22} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-1 p-3">
-              {NAV_ITEMS.map((item) =>
-                item.href.startsWith('#') ? (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    onClick={close}
-                    className="flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {item.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={close}
-                    className="flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {item.label}
-                  </Link>
-                ),
-              )}
-            </div>
-          </aside>
-        </div>
-      )}
     </header>
+    {mobileNav ? createPortal(mobileNav, document.body) : null}
+    </>
   )
 }

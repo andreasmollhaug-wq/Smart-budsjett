@@ -39,7 +39,7 @@ Funksjonelt innhold i appen kan være likt på begge planer; **forskjellen** er 
 
 - **Stripe Checkout** opprettes fra API-ruter under [`src/app/api/stripe/`](../src/app/api/stripe/) (abonnement og AI-kreditter).
 - **Webhook** ([`stripe/webhook`](../src/app/api/stripe/webhook/route.ts)) oppdaterer bl.a. tabellen `user_subscription` (plan, status, periode) og behandler fullførte AI-kreditkjøp. Krever `SUPABASE_SERVICE_ROLE_KEY` og Stripe-signatur.
-- Abonnementsstatus leses i app fra Supabase; administrasjon for brukeren ligger under **`/konto/betalinger`** (Customer Portal / Checkout der det er implementert).
+- Abonnementsstatus leses i app fra Supabase; betaling starter via **Stripe Checkout** fra **`/konto/betalinger`**. Selvbetjent administrasjon (kort, oppsigelse) skjer via **Stripe Customer Portal**, åpnet fra knappen «Administrer abonnement» (API: `stripe/billing-portal`). Stripe Dashboard må ha Customer portal aktivert.
 
 ## Eksisterende kunder
 

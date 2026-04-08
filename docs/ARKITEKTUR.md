@@ -53,7 +53,8 @@
 | [`enkelexcel-ai`](../src/app/api/enkelexcel-ai/route.ts) | AI-svar (OpenAI) |
 | [`enkelexcel-ai/usage`](../src/app/api/enkelexcel-ai/usage/route.ts) | Månedlig AI-bruk / kvote for innlogget bruker |
 | [`stripe/checkout`](../src/app/api/stripe/checkout/route.ts) | Checkout for abonnement |
-| [`stripe/subscription`](../src/app/api/stripe/subscription/route.ts) | Portal / abonnementshåndtering |
+| [`stripe/subscription`](../src/app/api/stripe/subscription/route.ts) | Les abonnementsstatus (`user_subscription`) for innlogget bruker |
+| [`stripe/billing-portal`](../src/app/api/stripe/billing-portal/route.ts) | Oppretter Stripe Customer Portal-økt (administrer kort, oppsigelse) |
 | [`stripe/webhook`](../src/app/api/stripe/webhook/route.ts) | Stripe events → `user_subscription`, bonus-AI-kreditter, m.m. |
 | [`stripe/ai-credits-checkout`](../src/app/api/stripe/ai-credits-checkout/route.ts) | Engangskjøp av ekstra AI-meldinger |
 | [`fx`](../src/app/api/fx/route.ts), [`quote`](../src/app/api/quote/route.ts), [`quote/search`](../src/app/api/quote/search/route.ts) | Valuta og kurs (investering) |
