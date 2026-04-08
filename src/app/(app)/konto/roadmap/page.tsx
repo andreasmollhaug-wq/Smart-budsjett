@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { ChevronUp, Loader2, Search } from 'lucide-react'
+import { ChevronUp, Loader2, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStore } from '@/lib/store'
 import { DEMO_FEATURE_REQUESTS, isDemoRoadmapId } from '@/lib/demoRoadmap'
@@ -19,9 +19,6 @@ const STATUS_LABELS: Record<FeatureStatus, string> = {
   done: 'Ferdig',
   rejected: 'Avvist',
 }
-
-/** Tekst lenger enn dette kan utvides med «Vis mer». */
-const BODY_PREVIEW_CHARS = 220
 
 const formSchema = z.object({
   title: z
@@ -56,7 +53,7 @@ function formatCardDate(iso: string): string {
 
 function RoadmapBoardSkeleton() {
   return (
-    <div className="overflow-x-auto -mx-2 px-2 pb-2" aria-hidden>
+    <div className="overflow-x-auto -mx-4 sm:-mx-5 px-4 sm:px-5 pb-1" aria-hidden>
       <div className="flex gap-3 min-w-max md:min-w-0 md:grid md:grid-cols-5 md:gap-4 items-start">
         {STATUS_ORDER.map((status) => (
           <div
@@ -69,7 +66,7 @@ function RoadmapBoardSkeleton() {
                 <div
                   key={`${status}-${i}`}
                   className="rounded-xl p-3 h-[88px] animate-pulse"
-                  style={{ background: '#ffffff', border: '1px solid var(--border)' }}
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                 >
                   <div className="h-3 rounded mb-2 w-[85%]" style={{ background: 'var(--border)' }} />
                   <div className="h-2 w-full rounded mb-1" style={{ background: 'var(--border)' }} />
@@ -84,28 +81,118 @@ function RoadmapBoardSkeleton() {
   )
 }
 
-function RequestCardBody({ body }: { body: string }) {
-  const [expanded, setExpanded] = useState(false)
-  const long = body.length > BODY_PREVIEW_CHARS
+function RequestCardBodyPreview({ body }: { body: string }) {
+  return (
+    <p className="text-xs mt-1 whitespace-pre-wrap line-clamp-4" style={{ color: 'var(--text-muted)' }}>
+      {body}
+    </p>
+  )
+}
+
+function RoadmapRequestDetailModal({
+  request,
+  onClose,
+  votedIds,
+  onToggleVote,
+}: {
+  request: FeatureRequestRow | null
+  onClose: () => void
+  votedIds: Set<string>
+  onToggleVote: (id: string) => void
+}) {
+  useEffect(() => {
+    if (!request) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [request, onClose])
+
+  if (!request) return null
+
+  const dateLabel = formatCardDate(request.created_at)
+  const statusLabel = STATUS_LABELS[request.status]
 
   return (
-    <div className="mt-1">
-      <p
-        className={`text-xs whitespace-pre-wrap ${expanded ? '' : 'line-clamp-4'}`}
-        style={{ color: 'var(--text-muted)' }}
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="roadmap-detail-title"
+    >
+      <button type="button" className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" aria-label="Lukk" onClick={onClose} />
+      <div
+        className="relative flex max-h-[min(90vh,720px)] w-full max-w-lg flex-col rounded-2xl shadow-2xl md:max-w-xl"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 25px 50px -12px rgba(30, 43, 79, 0.12)',
+        }}
       >
-        {body}
-      </p>
-      {long && (
-        <button
-          type="button"
-          onClick={() => setExpanded((e) => !e)}
-          className="text-xs mt-1.5 font-medium hover:underline"
-          style={{ color: 'var(--primary)' }}
+        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4 shrink-0 border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 gap-y-1 mb-2">
+              <span
+                className="text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md"
+                style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+              >
+                {statusLabel}
+              </span>
+              {dateLabel && (
+                <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                  {dateLabel}
+                </span>
+              )}
+            </div>
+            <h2 id="roadmap-detail-title" className="text-[17px] font-semibold tracking-tight leading-snug" style={{ color: 'var(--text)' }}>
+              {request.title}
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 outline-none transition-colors hover:opacity-70 focus-visible:ring-2 focus-visible:ring-[var(--primary)] shrink-0"
+            style={{ background: 'var(--bg)' }}
+            aria-label="Lukk"
+          >
+            <X size={18} style={{ color: 'var(--text-muted)' }} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          {request.body?.trim() ? (
+            <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              {request.body}
+            </p>
+          ) : (
+            <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
+              Ingen beskrivelse lagt ved.
+            </p>
+          )}
+        </div>
+
+        <div
+          className="flex items-center justify-end gap-3 px-6 py-4 shrink-0 border-t rounded-b-2xl"
+          style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
         >
-          {expanded ? 'Vis mindre' : 'Vis mer'}
-        </button>
-      )}
+          <button
+            type="button"
+            onClick={() => void onToggleVote(request.id)}
+            className="shrink-0 flex flex-col items-center justify-center min-w-[3.25rem] py-2 px-2 rounded-xl text-xs font-semibold transition-colors"
+            style={{
+              background: votedIds.has(request.id) ? '#F4F6FA' : '#ffffff',
+              border: '1px solid var(--border)',
+              color: votedIds.has(request.id) ? 'var(--text)' : 'var(--text-muted)',
+            }}
+            aria-pressed={votedIds.has(request.id)}
+            aria-label={votedIds.has(request.id) ? 'Trekk stemme' : 'Stem'}
+          >
+            <ChevronUp size={18} strokeWidth={2.5} />
+            <span>{request.vote_count}</span>
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -122,6 +209,7 @@ export default function KontoRoadmapPage() {
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [sortBy, setSortBy] = useState<'votes' | 'newest'>('votes')
   const [searchQuery, setSearchQuery] = useState('')
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null)
 
   const {
     register,
@@ -194,6 +282,15 @@ export default function KontoRoadmapPage() {
     }))
     return [...demoWithVotes, ...rows]
   }, [demoDataEnabled, rows, demoVoteCounts])
+
+  const detailRequest = useMemo(
+    () => (detailRequestId ? rowsForUi.find((r) => r.id === detailRequestId) ?? null : null),
+    [detailRequestId, rowsForUi],
+  )
+
+  useEffect(() => {
+    if (detailRequestId && !detailRequest) setDetailRequestId(null)
+  }, [detailRequestId, detailRequest])
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -420,7 +517,14 @@ export default function KontoRoadmapPage() {
         </form>
       </section>
 
-      <div className="space-y-3">
+      <section
+        className="rounded-xl p-4 sm:p-5 space-y-4"
+        style={{
+          background: '#ffffff',
+          border: '1px solid var(--border)',
+          boxShadow: '0 1px 3px rgba(30, 43, 79, 0.06)',
+        }}
+      >
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h2 className="text-sm font-semibold shrink-0" style={{ color: 'var(--text)' }}>
             Roadmap
@@ -439,7 +543,7 @@ export default function KontoRoadmapPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Søk i tittel eller beskrivelse …"
                 className="w-full pl-9 pr-3 py-2 rounded-xl text-sm shadow-[inset_0_1px_2px_rgba(30,43,79,0.04)]"
-                style={{ border: '1px solid var(--border)', background: '#ffffff', color: 'var(--text)' }}
+                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                 autoComplete="off"
                 aria-label="Søk i forslag"
               />
@@ -450,7 +554,7 @@ export default function KontoRoadmapPage() {
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'votes' | 'newest')}
                 className="px-3 py-2 rounded-lg text-sm shadow-[inset_0_1px_2px_rgba(30,43,79,0.04)] min-w-[10rem]"
-                style={{ border: '1px solid var(--border)', background: '#ffffff', color: 'var(--text)' }}
+                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               >
                 <option value="votes">Etter stemmer</option>
                 <option value="newest">Nyeste først</option>
@@ -458,18 +562,17 @@ export default function KontoRoadmapPage() {
             </label>
           </div>
         </div>
-      </div>
 
-      {loading && <RoadmapBoardSkeleton />}
+        {loading && <RoadmapBoardSkeleton />}
 
-      {loadError && !loading && (
-        <p className="text-sm rounded-xl p-3" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>
-          {loadError}
-        </p>
-      )}
+        {loadError && !loading && (
+          <p className="text-sm rounded-xl p-3" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>
+            {loadError}
+          </p>
+        )}
 
-      {!loading && !loadError && (
-        <div className="overflow-x-auto -mx-2 px-2 pb-2">
+        {!loading && !loadError && (
+        <div className="overflow-x-auto -mx-4 sm:-mx-5 px-4 sm:px-5 pb-1">
           <div className="flex gap-3 min-w-max md:min-w-0 md:grid md:grid-cols-5 md:gap-4 items-start">
             {STATUS_ORDER.map((status) => {
               const items = byStatus.get(status) ?? []
@@ -484,7 +587,7 @@ export default function KontoRoadmapPage() {
                     </span>
                     <span
                       className="text-xs px-1.5 py-0.5 rounded-md"
-                      style={{ background: '#ffffff', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                      style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
                     >
                       {items.length}
                     </span>
@@ -492,8 +595,8 @@ export default function KontoRoadmapPage() {
                   <div className="space-y-2 min-h-[120px]">
                     {items.length === 0 ? (
                       <p
-                        className="text-xs px-1 py-6 text-center rounded-xl bg-white"
-                        style={{ color: 'var(--text-muted)', border: '1px dashed var(--border)' }}
+                        className="text-xs px-1 py-6 text-center rounded-xl"
+                        style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px dashed var(--border)' }}
                       >
                         {searchQuery.trim() ? 'Ingen treff i denne kolonnen.' : 'Ingen her ennå.'}
                       </p>
@@ -511,7 +614,12 @@ export default function KontoRoadmapPage() {
                             }}
                           >
                             <div className="flex gap-2 min-h-0">
-                              <div className="min-w-0 flex-1 flex flex-col min-h-0 max-h-[min(55vh,18rem)] overflow-y-auto pr-1">
+                              <button
+                                type="button"
+                                onClick={() => setDetailRequestId(r.id)}
+                                className="min-w-0 flex-1 flex flex-col min-h-0 text-left rounded-lg px-1 py-0.5 -mx-1 -my-0.5 hover:bg-black/[0.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 transition-colors"
+                                aria-label={`Åpne detaljer: ${r.title}`}
+                              >
                                 <h3 className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>
                                   {r.title}
                                 </h3>
@@ -520,8 +628,11 @@ export default function KontoRoadmapPage() {
                                     {dateLabel}
                                   </p>
                                 )}
-                                {r.body && <RequestCardBody body={r.body} />}
-                              </div>
+                                {r.body && <RequestCardBodyPreview body={r.body} />}
+                                <span className="text-[11px] mt-1.5 font-medium" style={{ color: 'var(--primary)' }}>
+                                  Trykk for detaljer
+                                </span>
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => void toggleVote(r.id)}
@@ -548,7 +659,15 @@ export default function KontoRoadmapPage() {
             })}
           </div>
         </div>
-      )}
+        )}
+      </section>
+
+      <RoadmapRequestDetailModal
+        request={detailRequest}
+        onClose={() => setDetailRequestId(null)}
+        votedIds={votedIds}
+        onToggleVote={toggleVote}
+      />
     </div>
   )
 }

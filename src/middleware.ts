@@ -9,6 +9,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/personvern')) return true
   if (pathname.startsWith('/vilkar')) return true
   if (pathname.startsWith('/logg-inn')) return true
+  if (pathname.startsWith('/glemt-passord')) return true
   if (pathname.startsWith('/registrer')) return true
   if (pathname.startsWith('/auth')) return true
   /** Stripe webhook har ikke bruker-sesjon; må ikke redirectes til innlogging. */

@@ -8,6 +8,7 @@ import { hasSubscriptionAccess } from '@/lib/stripe/subscriptionAccess'
 import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import TrialWelcomeModal from '@/components/billing/TrialWelcomeModal'
+import { householdSingleLoginNote } from '@/lib/kontoCopy'
 
 const soloFeatures = ['Én brukerkonto', 'Full tilgang til alle funksjoner', 'Passer deg som styrer økonomien alene']
 const familyFeatures = [
@@ -473,6 +474,12 @@ function BetalingerContent() {
                 </li>
               ))}
             </ul>
+            <p
+              className="mt-4 pt-4 text-sm border-t"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+            >
+              {householdSingleLoginNote}
+            </p>
             <button
               type="button"
               onClick={() => void subscribeWithPlan('family')}

@@ -14,8 +14,8 @@
 
 ## Autentisering og tilgang
 
-- Innlogging/registrering: Supabase Auth (`/logg-inn`, `/registrer`, `/auth/callback`).
-- [`middleware.ts`](../src/middleware.ts) sjekker sesjon for alle ruter unntatt offentlige stier (landing, juridiske sider, innlogging/registrering). Uten `NEXT_PUBLIC_SUPABASE_*` redirectes beskyttede ruter til innlogging med `?error=config`.
+- Innlogging/registrering: Supabase Auth (`/logg-inn`, `/registrer`, `/auth/callback`). Glemt passord: `/glemt-passord` sender e-post; etter lenke etableres økt via `/auth/callback` og bruker settes nytt passord på `/tilbakestill-passord` (kun når Supabase emitter `PASSWORD_RECOVERY`; ellers redirect til `/konto/sikkerhet`). I Supabase Dashboard må **Redirect URLs** inkludere appens `/auth/callback`, og malen **Reset password** må tillate samme redirect som `resetPasswordForEmail` bruker (se [`.env.example`](../.env.example)).
+- [`middleware.ts`](../src/middleware.ts) sjekker sesjon for alle ruter unntatt offentlige stier (landing, juridiske sider, innlogging/registrering/glemt passord). Uten `NEXT_PUBLIC_SUPABASE_*` redirectes beskyttede ruter til innlogging med `?error=config`.
 - Brukerdata og server-side operasjoner som krever hemmelige nøkler (Stripe-webhook, AI-kvote) bruker **service role** eller server routes — se [`.env.example`](../.env.example).
 
 ## Ruter (utvalg)
@@ -26,7 +26,7 @@
 |-----|-------------|
 | `/` | Markedsføringslanding |
 | `/iris` | Kampanjevariant (partner); `/?ref=iris` redirectes hit |
-| `/logg-inn`, `/registrer` | Auth |
+| `/logg-inn`, `/registrer`, `/glemt-passord` | Auth (glemt passord er offentlig; `/tilbakestill-passord` krever økt etter e-postlenke) |
 | `/personvern`, `/vilkar` | Juridiske sider |
 | `/auth/*` | OAuth / callback |
 

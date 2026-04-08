@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe/server'
 import type { BillingPlan } from '@/lib/stripe/plan'
+import { subscriptionTrialPeriodDaysForAuthUser } from '@/lib/stripe/extendedTrial'
 import { subscriptionTrialPeriodDays } from '@/lib/stripe/trialPeriodDays'
 
 export const dynamic = 'force-dynamic'
@@ -52,7 +53,8 @@ export async function POST(req: Request) {
   }
 
   const base = appBaseUrl()
-  const trialDays = subscriptionTrialPeriodDays()
+  const trialDays =
+    subscriptionTrialPeriodDaysForAuthUser(user) ?? subscriptionTrialPeriodDays()
 
   try {
     const session = await stripe.checkout.sessions.create({

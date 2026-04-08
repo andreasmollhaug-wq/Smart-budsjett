@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
+import AuthLoadingCard from '@/components/auth/AuthLoadingCard'
 
 const schema = z.object({
   email: z.string().min(1, 'E-post er påkrevd').email('Ugyldig e-post'),
@@ -16,11 +17,23 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+function authCallbackErrorMessage(code: string | null): string | null {
+  switch (code) {
+    case 'missing_code':
+      return 'Innloggingslenken var ugyldig eller utløpt. Prøv å logge inn på nytt, eller be om ny lenke under glemt passord.'
+    case 'session':
+      return 'Vi kunne ikke etablere økt fra lenken. Prøv å logge inn på nytt, eller bruk glemt passord hvis du skulle tilbakestille.'
+    default:
+      return null
+  }
+}
+
 function LoggInnForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const next = safeRedirectPath(searchParams.get('next'))
   const configError = searchParams.get('error') === 'config'
+  const callbackError = authCallbackErrorMessage(searchParams.get('error'))
 
   const [serverError, setServerError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -83,6 +96,12 @@ function LoggInnForm() {
           </p>
         )}
 
+        {callbackError && !configError && (
+          <p className="mb-4 rounded-xl px-3 py-2 text-sm" style={{ background: '#fff4f4', color: '#c92a2a' }}>
+            {callbackError}
+          </p>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <label htmlFor="email" className="mb-1 block text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -119,6 +138,11 @@ function LoggInnForm() {
                 {errors.password.message}
               </p>
             )}
+            <p className="mt-2 text-right">
+              <Link href="/glemt-passord" className="text-xs font-medium" style={{ color: 'var(--primary)' }}>
+                Glemt passord?
+              </Link>
+            </p>
           </div>
           {serverError && (
             <p className="text-sm" style={{ color: '#c92a2a' }}>
@@ -153,7 +177,7 @@ function LoggInnForm() {
 
 export default function LoggInnPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen" style={{ background: 'var(--bg)' }} />}>
+    <Suspense fallback={<AuthLoadingCard label="Laster innlogging…" />}>
       <LoggInnForm />
     </Suspense>
   )

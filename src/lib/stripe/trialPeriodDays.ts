@@ -1,3 +1,8 @@
+import {
+  subscriptionTrialPeriodDaysForAuthUser,
+  subscriptionTrialPeriodDaysForEmail,
+} from '@/lib/stripe/extendedTrial'
+
 /**
  * Delt logikk for Stripe-prøveperiode (Checkout + API-respons til klient).
  * Default 14 dager; STRIPE_SUBSCRIPTION_TRIAL_DAYS=0 eller ugyldig → ingen prøveperiode i Checkout.
@@ -17,4 +22,24 @@ export function subscriptionTrialPeriodDays(): number | undefined {
 export function subscriptionTrialPeriodDaysForClient(): number | null {
   const n = subscriptionTrialPeriodDays()
   return n === undefined ? null : n
+}
+
+/** Klient: utvidet prøve for VIP-e-poster, ellers samme som `subscriptionTrialPeriodDaysForClient`. */
+export function subscriptionTrialPeriodDaysForClientForEmail(
+  email: string | null | undefined
+): number | null {
+  const extended = subscriptionTrialPeriodDaysForEmail(email)
+  if (extended != null) return extended
+  return subscriptionTrialPeriodDaysForClient()
+}
+
+/** Klient: utvidet prøve via e-post- eller bruker-ID-liste (anbefalt for API). */
+export function subscriptionTrialPeriodDaysForClientForAuthUser(user: {
+  id: string
+  email?: string | null
+  identities?: Array<{ identity_data?: Record<string, unknown> }> | null
+}): number | null {
+  const extended = subscriptionTrialPeriodDaysForAuthUser(user)
+  if (extended != null) return extended
+  return subscriptionTrialPeriodDaysForClient()
 }

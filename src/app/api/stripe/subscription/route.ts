@@ -5,7 +5,7 @@ import {
   hasSubscriptionAccess,
   isSubscriptionEnforcementEnabled,
 } from '@/lib/stripe/subscriptionAccess'
-import { subscriptionTrialPeriodDaysForClient } from '@/lib/stripe/trialPeriodDays'
+import { subscriptionTrialPeriodDaysForClientForAuthUser } from '@/lib/stripe/trialPeriodDays'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,6 +55,6 @@ export async function GET() {
     appReadOnly: computeAppReadOnly(status),
     hasSubscriptionAccess: hasSubscriptionAccess(status),
     enforcementEnabled: isSubscriptionEnforcementEnabled(),
-    trialPeriodDays: subscriptionTrialPeriodDaysForClient(),
+    trialPeriodDays: subscriptionTrialPeriodDaysForClientForAuthUser(user),
   })
 }
