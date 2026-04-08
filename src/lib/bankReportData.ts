@@ -328,6 +328,30 @@ export function sumMonthlyIncomeExpense(totals: CategoryMonthTotals): {
   return { income, expense }
 }
 
+/** Summer inntekt og utgift for tre hele måneder bakover fra valgt måned (inkludert valgt måned). */
+export function sumIncomeExpenseNetThreeMonthWindow(
+  transactions: Transaction[],
+  endYear: number,
+  endMonthIndex: number,
+): { income: number; expense: number; net: number } {
+  let y = endYear
+  let mi = endMonthIndex
+  let income = 0
+  let expense = 0
+  for (let i = 0; i < 3; i++) {
+    const totals = sumTransactionsByCategoryForMonth(transactions, y, mi)
+    const ie = sumMonthlyIncomeExpense(totals)
+    income += ie.income
+    expense += ie.expense
+    mi -= 1
+    if (mi < 0) {
+      mi = 11
+      y -= 1
+    }
+  }
+  return { income, expense, net: income - expense }
+}
+
 export interface BankReportKpis {
   netCashflowMonth: number
   totalDebtRemaining: number

@@ -23,6 +23,7 @@ describe('getBudgetCategoriesForProfileYear', () => {
         savingsGoals: [],
         debts: [],
         investments: [],
+        serviceSubscriptions: [],
       },
     }
     const got = getBudgetCategoriesForProfileYear(people, {}, 'a', 2026, 2026)
@@ -40,6 +41,7 @@ describe('getBudgetCategoriesForProfileYear', () => {
         savingsGoals: [],
         debts: [],
         investments: [],
+        serviceSubscriptions: [],
       },
     }
     const archived = {
@@ -87,6 +89,7 @@ describe('buildHouseholdPeriodData', () => {
       savingsGoals: [],
       debts: [],
       investments: [],
+      serviceSubscriptions: [],
     },
     [p2]: {
       transactions: [],
@@ -111,6 +114,7 @@ describe('buildHouseholdPeriodData', () => {
       savingsGoals: [],
       debts: [],
       investments: [],
+      serviceSubscriptions: [],
     },
   }
 

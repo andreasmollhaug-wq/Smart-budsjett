@@ -258,9 +258,11 @@ function BetalingerContent() {
       <TrialWelcomeModal
         open={trialModalOpen}
         trialDays={trialPeriodDays}
-        loadingCheckout={checkoutLoading === 'solo' || portalLoading}
+        loadingPlan={checkoutLoading}
+        portalLoading={portalLoading}
         onClose={closeTrialModal}
         onStartSolo={() => void subscribeWithPlan('solo')}
+        onStartFamily={() => void subscribeWithPlan('family')}
       />
       {reason === 'subscription' && (
         <div

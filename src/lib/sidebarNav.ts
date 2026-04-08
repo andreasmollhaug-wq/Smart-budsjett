@@ -9,6 +9,7 @@ import {
   Receipt,
   FileText,
   Snowflake,
+  Repeat,
 } from 'lucide-react'
 
 export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = [
@@ -21,6 +22,7 @@ export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = 
   { href: '/investering', label: 'Investering', icon: TrendingUp },
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
   { href: '/enkelexcel-ai', label: 'EnkelExcel AI', icon: MessageSquare },
+  { href: '/abonnementer', label: 'Abonnementer', icon: Repeat },
 ]
 
 export function isSidebarNavActive(pathname: string, href: string): boolean {

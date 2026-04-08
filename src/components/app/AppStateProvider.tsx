@@ -42,6 +42,7 @@ export function AppStateProvider({
     // Etter server-/legacy-hydrering — ellers kan NotificationBell sin tidligere sync
     // bli overskrevet og nye kunngjøringer vises aldri.
     useStore.getState().syncProductAnnouncements()
+    useStore.getState().syncInsightNotifications()
 
     syncReady.current = true
   }, [initialState, wasCreated])

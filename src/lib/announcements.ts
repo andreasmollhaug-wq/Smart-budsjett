@@ -1,6 +1,6 @@
 import { APP_VERSION, compareSemver } from '@/lib/version'
 
-export type AnnouncementKind = 'product' | 'budget'
+export type AnnouncementKind = 'product' | 'budget' | 'insight'
 
 export interface ProductAnnouncement {
   /** Stabil nøkkel; brukes for å unngå duplikater og sporing i localStorage. */

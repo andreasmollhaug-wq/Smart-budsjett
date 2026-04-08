@@ -6,6 +6,7 @@ import {
   type PersonData,
   type Transaction,
 } from '@/lib/store'
+import { monthlyEquivalentNok, yearlyEquivalentNok } from '@/lib/serviceSubscriptionHelpers'
 import { formatTransactionDateNbNo } from '@/lib/utils'
 
 const MAX_TRANSACTION_LINES = 300
@@ -123,6 +124,29 @@ export function buildAiFinanceContextText(
     }
     if (omitted > 0) {
       lines.push(`… og ${omitted} eldre transaksjoner vises ikke.`)
+    }
+  }
+
+  lines.push('')
+  const subs = person.serviceSubscriptions ?? []
+  lines.push('Tjenesteabonnementer (streaming, programvare m.m., registrert i appen):')
+  if (subs.length === 0) {
+    lines.push('Ingen tjenesteabonnementer registrert.')
+  } else {
+    let sumM = 0
+    let sumY = 0
+    for (const s of subs) {
+      if (!s.active) continue
+      sumM += monthlyEquivalentNok(s)
+      sumY += yearlyEquivalentNok(s)
+    }
+    lines.push(`Aktive abonnementer: ca. ${Math.round(sumM)} kr/mnd til sammen, ca. ${Math.round(sumY)} kr/år (omregnet).`)
+    for (const s of subs) {
+      const status = s.active ? 'aktiv' : 'på pause'
+      const sync = s.syncToBudget ? ', synket til budsjett (Regninger)' : ''
+      lines.push(
+        `- ${s.label}: ${s.amountNok} kr per ${s.billing === 'monthly' ? 'måned' : 'år'}, ${status}${sync}`,
+      )
     }
   }
 

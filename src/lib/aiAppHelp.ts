@@ -23,8 +23,9 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /gjeld — Gjeld
 - /snoball — Snøball
 - /investering — Investering
-- /rapporter — Rapporter (under /rapporter/bank og /rapporter/sparemal)
+- /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
 - /enkelexcel-ai — EnkelExcel AI
+- /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år; valgfri synk til budsjett under Regninger)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
 - Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap
 
@@ -94,9 +95,17 @@ Investering (/investering) — sidetittel «Investering», undertittel «Portef�
 - «Fordeling»: kakediagram etter type (Aksjer, Fond, Krypto, Obligasjoner, Annet).
 - «Legg til investering»: manuelt skjema — navn, type, kjøpsverdi (NOK), nåværende verdi (NOK), kjøpsdato; «Legg til» / «Avbryt».
 
+Tjenesteabonnementer (/abonnementer)
+- Oversikt over faste tjenesteabonnementer (streaming, programvare m.m.) med sum per måned og per år.
+- Valgfritt: «Legg inn i budsjettet» synkroniserer planbeløp til en linje under Regninger (du slipper å taste samme beløp to ganger).
+- Faktisk «brukt» i budsjettet følger fortsatt transaksjoner når du fører trekk i samme kategori.
+- I Familie vises abonnementer samlet i husholdning med profilnavn; redigering gjøres når én profil er valgt.
+- Registrerte abonnementer inngår i tallkonteksten til EnkelExcel AI når du spør om slike kostnader.
+
 Rapporter
-- /rapporter — menyvalg «Rapport til bank» og «Sparemålrapport».
-- /rapporter/bank — velg år og måned; utskrift eller lagre som PDF; innhold: blant annet gjeld, sparing, investeringer, budsjett mot faktisk for måneden.
+- /rapporter — menyvalg «Rapport til bank», «Månedsinnsikt» og «Sparemålrapport».
+- /rapporter/bank — velg år og måned; kryss av hvilke deler som skal med; valgfri fritekst til saksbehandler; tre måneders sammenligning fra transaksjoner; utskrift eller lagre som PDF.
+- /rapporter/manedsinnsikt — velg år og måned; generer ett AI-sammendrag per kalendermåned (serverstyrt kvote); nøkkeltall og tabeller mot budsjett; utskrift eller lagre som PDF (PDF teller ikke som ny generering).
 - /rapporter/sparemal — sparemål, fremdrift, aktivitet; PDF/utskrift.
 
 EnkelExcel AI (/enkelexcel-ai)

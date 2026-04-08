@@ -6,6 +6,13 @@ import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind 
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
 import type { ParentCategory } from './budgetCategoryCatalog'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
+import { computeInsightDeltas } from './insightNotifications'
+import {
+  buildBudgetCategoryForSubscription,
+  budgetedTwelveFromMonthly,
+  monthlyEquivalentNok,
+  uniqueRegningerName,
+} from './serviceSubscriptionHelpers'
 import {
   cloneBudgetCategories,
   sumTxForCategoryInYear,
@@ -137,6 +144,22 @@ export interface InvestmentHistoryPoint {
   value: number
 }
 
+/** Faste tjenesteabonnementer (streaming, programvare m.m.) — ikke Stripe-abonnement. */
+export interface ServiceSubscription {
+  id: string
+  label: string
+  amountNok: number
+  billing: 'monthly' | 'yearly'
+  active: boolean
+  /** Når sann: oppretthold én budsjettlinje under Regninger (planbeløp). */
+  syncToBudget: boolean
+  linkedBudgetCategoryId?: string | null
+  note?: string
+  presetKey?: string
+  /** Kun satt i husholdningsaggregat for visning. */
+  sourceProfileId?: string
+}
+
 export interface PersonProfile {
   id: string
   name: string
@@ -154,6 +177,7 @@ export interface PersonData {
   savingsGoals: SavingsGoal[]
   debts: Debt[]
   investments: Investment[]
+  serviceSubscriptions: ServiceSubscription[]
   /** Ekstra nedbetaling per måned (snøball), kr — per profil */
   snowballExtraMonthly?: number
   /** Rekkefølge for fokuslån; husholdningsaggregat setter ikke feltet */
@@ -180,6 +204,8 @@ interface AppState {
 
   notifications: AppNotification[]
   deliveredAnnouncementIds: string[]
+  /** Idempotente id-er for innsiktsvarsler (f.eks. per måned). */
+  deliveredInsightIds: string[]
   /** Førstegangs- / gjenåpnet veiledning; persisteres. */
   onboarding: OnboardingState
 
@@ -190,6 +216,7 @@ interface AppState {
   /** Erstatter tidligere Zustand-persist + brukes ved innlasting fra Supabase. */
   hydrateFromPayload: (payload: unknown) => void
   syncProductAnnouncements: () => void
+  syncInsightNotifications: () => void
   /** Én gang etter ~30 min synlig bruk; idempotent via deliveredAnnouncementIds. */
   deliverRoadmapInviteNotification: () => void
   markNotificationRead: (id: string) => void
@@ -242,6 +269,13 @@ interface AppState {
     point: { id?: string; date: string; value: number },
   ) => void
 
+  addServiceSubscription: (input: Omit<ServiceSubscription, 'id' | 'sourceProfileId'>) => { ok: true; id: string } | { ok: false; reason: 'household_readonly' }
+  updateServiceSubscription: (
+    id: string,
+    patch: Partial<Omit<ServiceSubscription, 'id' | 'sourceProfileId'>>,
+  ) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
+  removeServiceSubscription: (id: string) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
+
   /** Felles kalenderår for alle profilers budsjett (12 kolonner). */
   budgetYear: number
   /** Arkiverte budsjett: år → profilId → kategorier */
@@ -278,6 +312,7 @@ export type PersistedAppSlice = Pick<
   | 'people'
   | 'notifications'
   | 'deliveredAnnouncementIds'
+  | 'deliveredInsightIds'
   | 'budgetYear'
   | 'archivedBudgetsByYear'
   | 'onboarding'
@@ -306,6 +341,7 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     formuebyggerPro: createDefaultFormuebyggerPersistedState(),
     demoDataEnabled: false,
     peopleBeforeDemo: null,
+    deliveredInsightIds: [],
   }
 }
 
@@ -324,6 +360,7 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     formuebyggerPro: state.formuebyggerPro,
     demoDataEnabled: state.demoDataEnabled,
     peopleBeforeDemo: state.peopleBeforeDemo,
+    deliveredInsightIds: state.deliveredInsightIds,
   }
 }
 
@@ -425,6 +462,7 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     const person = base.people[pr.id]
     if (!person.customBudgetLabels) person.customBudgetLabels = emptyLabelLists().customBudgetLabels
     if (!person.hiddenBudgetLabels) person.hiddenBudgetLabels = emptyLabelLists().hiddenBudgetLabels
+    if (!Array.isArray(person.serviceSubscriptions)) person.serviceSubscriptions = []
     person.transactions = (person.transactions ?? []).map((t) =>
       t.profileId ? t : { ...t, profileId: pr.id },
     )
@@ -441,6 +479,7 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
 
   if (!Array.isArray(base.notifications)) base.notifications = []
   if (!Array.isArray(base.deliveredAnnouncementIds)) base.deliveredAnnouncementIds = []
+  if (!Array.isArray(base.deliveredInsightIds)) base.deliveredInsightIds = []
 
   base.onboarding = normalizeOnboardingFromMerge(p)
 
@@ -644,6 +683,7 @@ export function createInitialPersonData(): PersonData {
     savingsGoals: defaultGoals,
     debts: defaultDebts,
     investments: defaultInvestments,
+    serviceSubscriptions: [],
     snowballExtraMonthly: 0,
     debtPayoffStrategy: 'snowball',
   }
@@ -657,6 +697,7 @@ export function createEmptyPersonData(): PersonData {
     savingsGoals: [],
     debts: [],
     investments: [],
+    serviceSubscriptions: [],
     snowballExtraMonthly: 0,
     debtPayoffStrategy: 'snowball',
   }
@@ -837,6 +878,7 @@ export function aggregateHouseholdData(
   const savingsGoals: SavingsGoal[] = []
   const debts: Debt[] = []
   const investments: Investment[] = []
+  const serviceSubscriptions: ServiceSubscription[] = []
   let snowballExtraMonthly = 0
 
   for (const pid of profileIds) {
@@ -848,6 +890,13 @@ export function aggregateHouseholdData(
   for (const pid of profileIds) {
     const p = people[pid]
     if (!p) continue
+    for (const sub of p.serviceSubscriptions ?? []) {
+      serviceSubscriptions.push({
+        ...sub,
+        id: `hh-${pid}-${sub.id}`,
+        sourceProfileId: pid,
+      })
+    }
     for (const g of p.savingsGoals ?? []) {
       savingsGoals.push({
         ...g,
@@ -881,6 +930,7 @@ export function aggregateHouseholdData(
     savingsGoals,
     debts,
     investments,
+    serviceSubscriptions,
     snowballExtraMonthly,
   }
 }
@@ -936,6 +986,9 @@ function migrateFromLegacy(p: LegacyPersistedState): Pick<AppState, 'subscriptio
     savingsGoals: Array.isArray(p.savingsGoals) && p.savingsGoals.length > 0 ? p.savingsGoals : [],
     debts: Array.isArray(p.debts) && p.debts.length > 0 ? p.debts : [],
     investments: Array.isArray(p.investments) && p.investments.length > 0 ? p.investments : [],
+    serviceSubscriptions: Array.isArray((p as PersonData).serviceSubscriptions)
+      ? (p as PersonData).serviceSubscriptions!
+      : [],
     snowballExtraMonthly: typeof p.snowballExtraMonthly === 'number' ? p.snowballExtraMonthly : 0,
     debtPayoffStrategy: p.debtPayoffStrategy === 'avalanche' ? 'avalanche' : 'snowball',
   }
@@ -982,6 +1035,7 @@ export const useStore = create<AppState>()((set, get) => {
         people: initialPeople,
         notifications: [] as AppNotification[],
         deliveredAnnouncementIds: [] as string[],
+        deliveredInsightIds: [] as string[],
         budgetYear: new Date().getFullYear(),
         archivedBudgetsByYear: {} as ArchivedBudgetsByYear,
         onboarding: { status: 'pending' } as OnboardingState,
@@ -1079,6 +1133,28 @@ export const useStore = create<AppState>()((set, get) => {
               newDelivered.push(a.id)
             }
             return { notifications: next, deliveredAnnouncementIds: newDelivered }
+          })
+        },
+
+        syncInsightNotifications: () => {
+          set((s) => {
+            const existingIds = new Set(s.notifications.map((n) => n.id))
+            const { toAdd, newDeliveredIds } = computeInsightDeltas({
+              financeScope: s.financeScope,
+              subscriptionPlan: s.subscriptionPlan,
+              profiles: s.profiles,
+              activeProfileId: s.activeProfileId,
+              people: s.people,
+              budgetYear: s.budgetYear,
+              onboarding: s.onboarding,
+              deliveredInsightIds: s.deliveredInsightIds ?? [],
+              existingNotificationIds: existingIds,
+            })
+            if (toAdd.length === 0) return s
+            return {
+              notifications: [...toAdd, ...s.notifications],
+              deliveredInsightIds: [...(s.deliveredInsightIds ?? []), ...newDeliveredIds],
+            }
           })
         },
 
@@ -1446,7 +1522,13 @@ export const useStore = create<AppState>()((set, get) => {
             const nextGoals = d.savingsGoals.map((g) =>
               g.linkedBudgetCategoryId === id ? { ...g, linkedBudgetCategoryId: undefined, baselineAmount: undefined } : g,
             )
-            return syncLinkedSavingsGoalsCurrent({ ...d, budgetCategories: nextCats, savingsGoals: nextGoals }, pid)
+            const nextSubs = (d.serviceSubscriptions ?? []).map((s) =>
+              s.linkedBudgetCategoryId === id ? { ...s, linkedBudgetCategoryId: null, syncToBudget: false } : s,
+            )
+            return syncLinkedSavingsGoalsCurrent(
+              { ...d, budgetCategories: nextCats, savingsGoals: nextGoals, serviceSubscriptions: nextSubs },
+              pid,
+            )
           }),
 
         addCustomBudgetLabel: (parent, name) =>
@@ -1605,6 +1687,181 @@ export const useStore = create<AppState>()((set, get) => {
               return { ...inv, history: history.length > 0 ? history : undefined, currentValue }
             }),
           })),
+
+        addServiceSubscription: (input) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'household_readonly' }
+          const id = generateId()
+          const label = (input.label ?? '').trim() || 'Abonnement'
+          const active = input.active !== false
+          const syncToBudget = !!(input.syncToBudget && active)
+          const baseSub: ServiceSubscription = {
+            id,
+            label,
+            amountNok: Math.max(0, Number.isFinite(input.amountNok) ? input.amountNok : 0),
+            billing: input.billing === 'yearly' ? 'yearly' : 'monthly',
+            active,
+            syncToBudget: false,
+            linkedBudgetCategoryId: null,
+            note: input.note?.trim() || undefined,
+            presetKey: input.presetKey,
+          }
+          let sub: ServiceSubscription = { ...baseSub, syncToBudget }
+          let budgetCategories = [...person.budgetCategories]
+          if (syncToBudget) {
+            const catId = generateId()
+            const displayName = uniqueRegningerName(
+              label,
+              budgetCategories.map((c) => c.name),
+            )
+            const monthly = monthlyEquivalentNok(baseSub)
+            const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly)
+            const spent = sumTxForCategoryInYear(
+              person.transactions,
+              displayName,
+              'expense',
+              s.budgetYear,
+              pid,
+            )
+            budgetCategories = [...budgetCategories, { ...raw, spent }]
+            sub = {
+              ...baseSub,
+              syncToBudget: true,
+              linkedBudgetCategoryId: catId,
+            }
+          }
+          const nextPersonRaw = {
+            ...person,
+            budgetCategories,
+            serviceSubscriptions: [...(person.serviceSubscriptions ?? []), sub],
+          }
+          const nextPerson = recalcPersonBudgetSpentForYear(
+            syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
+            pid,
+            s.budgetYear,
+          )
+          set((state) => ({
+            people: { ...state.people, [pid]: nextPerson },
+          }))
+          return { ok: true as const, id }
+        },
+
+        updateServiceSubscription: (id, patch) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'not_found' }
+          const list = person.serviceSubscriptions ?? []
+          const idx = list.findIndex((x) => x.id === id)
+          if (idx < 0) return { ok: false as const, reason: 'not_found' }
+          const prev = list[idx]!
+          const merged: ServiceSubscription = {
+            ...prev,
+            ...patch,
+            id: prev.id,
+            label: patch.label !== undefined ? patch.label.trim() || 'Abonnement' : prev.label,
+            amountNok:
+              patch.amountNok !== undefined
+                ? Math.max(0, Number.isFinite(patch.amountNok) ? patch.amountNok : 0)
+                : prev.amountNok,
+            billing: patch.billing ?? prev.billing,
+            active: patch.active !== undefined ? patch.active : prev.active,
+            syncToBudget: patch.syncToBudget !== undefined ? patch.syncToBudget : prev.syncToBudget,
+            note: patch.note !== undefined ? patch.note?.trim() || undefined : prev.note,
+            presetKey: patch.presetKey !== undefined ? patch.presetKey : prev.presetKey,
+          }
+          const wantSync = !!(merged.syncToBudget && merged.active)
+          let budgetCategories = [...person.budgetCategories]
+          let nextSub: ServiceSubscription = { ...merged, syncToBudget: wantSync }
+
+          if (!wantSync && prev.linkedBudgetCategoryId) {
+            budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
+            nextSub = { ...nextSub, linkedBudgetCategoryId: null, syncToBudget: false }
+          } else if (wantSync) {
+            const monthly = monthlyEquivalentNok(nextSub)
+            if (!prev.linkedBudgetCategoryId) {
+              const catId = generateId()
+              const displayName = uniqueRegningerName(
+                nextSub.label,
+                budgetCategories.map((c) => c.name),
+              )
+              const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly)
+              const spent = sumTxForCategoryInYear(
+                person.transactions,
+                displayName,
+                'expense',
+                s.budgetYear,
+                pid,
+              )
+              budgetCategories = [...budgetCategories, { ...raw, spent }]
+              nextSub = { ...nextSub, linkedBudgetCategoryId: catId, syncToBudget: true }
+            } else {
+              const catId = prev.linkedBudgetCategoryId
+              budgetCategories = budgetCategories.map((c) => {
+                if (c.id !== catId) return c
+                const otherNames = budgetCategories.filter((x) => x.id !== catId).map((x) => x.name)
+                const newName =
+                  patch.label !== undefined
+                    ? uniqueRegningerName(nextSub.label, otherNames)
+                    : c.name
+                const budgeted = budgetedTwelveFromMonthly(monthly)
+                const spent = sumTxForCategoryInYear(
+                  person.transactions,
+                  newName,
+                  'expense',
+                  s.budgetYear,
+                  pid,
+                )
+                return { ...c, name: newName, budgeted, spent }
+              })
+              nextSub = { ...nextSub, linkedBudgetCategoryId: catId, syncToBudget: true }
+            }
+          }
+
+          const nextList = [...list]
+          nextList[idx] = nextSub
+          const nextPersonRaw = { ...person, budgetCategories, serviceSubscriptions: nextList }
+          const nextPerson = recalcPersonBudgetSpentForYear(
+            syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
+            pid,
+            s.budgetYear,
+          )
+          set((state) => ({
+            people: { ...state.people, [pid]: nextPerson },
+          }))
+          return { ok: true as const }
+        },
+
+        removeServiceSubscription: (id) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'not_found' }
+          const list = person.serviceSubscriptions ?? []
+          const idx = list.findIndex((x) => x.id === id)
+          if (idx < 0) return { ok: false as const, reason: 'not_found' }
+          const prev = list[idx]!
+          let budgetCategories = person.budgetCategories
+          if (prev.linkedBudgetCategoryId) {
+            budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
+          }
+          const nextList = list.filter((x) => x.id !== id)
+          const nextPersonRaw = { ...person, budgetCategories, serviceSubscriptions: nextList }
+          const nextPerson = recalcPersonBudgetSpentForYear(
+            syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
+            pid,
+            s.budgetYear,
+          )
+          set((state) => ({
+            people: { ...state.people, [pid]: nextPerson },
+          }))
+          return { ok: true as const }
+        },
       }
 })
 
@@ -1618,6 +1875,7 @@ export function resetStoreForLogout() {
     people: initialPeople,
     notifications: [],
     deliveredAnnouncementIds: [],
+    deliveredInsightIds: [],
     budgetYear: new Date().getFullYear(),
     archivedBudgetsByYear: {},
     onboarding: { status: 'pending' },
@@ -1666,6 +1924,9 @@ export function useActivePersonFinance() {
       removeInvestment: s.removeInvestment,
       addInvestmentHistoryValue: s.addInvestmentHistoryValue,
       removeInvestmentHistoryValue: s.removeInvestmentHistoryValue,
+      addServiceSubscription: s.addServiceSubscription,
+      updateServiceSubscription: s.updateServiceSubscription,
+      removeServiceSubscription: s.removeServiceSubscription,
       setActiveProfileId: s.setActiveProfileId,
       setFinanceScope: s.setFinanceScope,
       setSubscriptionPlan: s.setSubscriptionPlan,
@@ -1696,6 +1957,7 @@ export function useActivePersonFinance() {
     savingsGoals: person.savingsGoals,
     debts: person.debts,
     investments: person.investments,
+    serviceSubscriptions: person.serviceSubscriptions ?? [],
     snowballExtraMonthly: person.snowballExtraMonthly ?? 0,
     debtPayoffStrategy: person.debtPayoffStrategy ?? 'snowball',
     activeProfileId: state.activeProfileId,
@@ -1728,6 +1990,9 @@ export function useActivePersonFinance() {
     removeInvestment: state.removeInvestment,
     addInvestmentHistoryValue: state.addInvestmentHistoryValue,
     removeInvestmentHistoryValue: state.removeInvestmentHistoryValue,
+    addServiceSubscription: state.addServiceSubscription,
+    updateServiceSubscription: state.updateServiceSubscription,
+    removeServiceSubscription: state.removeServiceSubscription,
     setActiveProfileId: state.setActiveProfileId,
     setFinanceScope: state.setFinanceScope,
     setSubscriptionPlan: state.setSubscriptionPlan,

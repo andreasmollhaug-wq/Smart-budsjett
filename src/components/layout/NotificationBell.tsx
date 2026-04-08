@@ -109,6 +109,11 @@ export default function NotificationBell() {
                               App
                             </span>
                           )}
+                          {n.kind === 'insight' && (
+                            <span className="ml-2 rounded px-1.5 py-0.5" style={{ background: 'var(--bg)' }}>
+                              Innsikt
+                            </span>
+                          )}
                         </p>
                       </div>
                       {!n.read && (

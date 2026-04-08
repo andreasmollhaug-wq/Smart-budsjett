@@ -28,6 +28,25 @@ const MONTHS_FULL = [
   'Desember',
 ]
 
+export type BankReportSectionKey =
+  | 'summary'
+  | 'debts'
+  | 'savings'
+  | 'investments'
+  | 'budgetVs'
+  | 'freeText'
+  | 'rolling3m'
+
+const DEFAULT_SECTIONS: Record<BankReportSectionKey, boolean> = {
+  summary: true,
+  debts: true,
+  savings: true,
+  investments: true,
+  budgetVs: true,
+  freeText: true,
+  rolling3m: true,
+}
+
 export interface BankReportDocumentProps {
   generatedAt: Date
   year: number
@@ -38,6 +57,13 @@ export interface BankReportDocumentProps {
   savingsGoals: SavingsGoal[]
   investments: Investment[]
   budgetVsByParent: Record<ParentCategory, BudgetVsActualRow[]>
+  /** Hvilke blokker som vises i PDF/utskrift. */
+  sections?: Partial<Record<BankReportSectionKey, boolean>>
+  /** Valgfri fritekst til saksbehandler. */
+  freeTextSituation?: string
+  freeTextPurpose?: string
+  /** Tre måneder bakover fra valgt måned (transaksjoner). */
+  rolling3m?: { income: number; expense: number; net: number } | null
 }
 
 const tableClass =
@@ -75,9 +101,14 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
       savingsGoals,
       investments,
       budgetVsByParent,
+      sections: sectionsProp,
+      freeTextSituation,
+      freeTextPurpose,
+      rolling3m,
     },
     ref,
   ) {
+    const sec = { ...DEFAULT_SECTIONS, ...sectionsProp }
     const periodLabel = `${MONTHS_FULL[monthIndex]} ${year}`
     const dateStr = generatedAt.toLocaleString('nb-NO', {
       dateStyle: 'long',
@@ -127,33 +158,76 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
           </div>
         </header>
 
-        <section>
-          <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
-            Sammendrag
-          </h3>
-          <div className={cardGrid}>
-            <KpiCard label="Netto denne måneden (transaksjoner)" value={formatNOK(kpis.netCashflowMonth)} />
-            <KpiCard label="Samlet restgjeld" value={formatNOK(kpis.totalDebtRemaining)} />
-            <KpiCard
-              label="Samlet månedlig gjeldsbetaling"
-              value={formatNOK(kpis.totalMonthlyDebtPayments)}
-            />
-            <KpiCard label="Investeringer (verdi)" value={formatNOK(kpis.totalInvestmentsValue)} />
-            <KpiCard
-              label="Sparing mot mål (spart / mål)"
-              value={
-                kpis.savingsGoalsCount === 0
-                  ? '—'
-                  : `${formatNOK(kpis.savingsGoalsTotalCurrent)} / ${formatNOK(kpis.savingsGoalsTotalTarget)}`
-              }
-            />
-          </div>
-        </section>
+        {sec.freeText && (freeTextSituation?.trim() || freeTextPurpose?.trim()) ? (
+          <section className="mb-6">
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Merknad til saksbehandler
+            </h3>
+            {freeTextSituation?.trim() ? (
+              <p className="text-sm whitespace-pre-wrap mb-2" style={{ color: 'var(--text)' }}>
+                <span className="font-medium" style={{ color: 'var(--text-muted)' }}>
+                  Situasjon:{' '}
+                </span>
+                {freeTextSituation.trim()}
+              </p>
+            ) : null}
+            {freeTextPurpose?.trim() ? (
+              <p className="text-sm whitespace-pre-wrap" style={{ color: 'var(--text)' }}>
+                <span className="font-medium" style={{ color: 'var(--text-muted)' }}>
+                  Formål:{' '}
+                </span>
+                {freeTextPurpose.trim()}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
-        <section>
-          <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
-            Gjeld
-          </h3>
+        {sec.rolling3m && rolling3m != null ? (
+          <section className="mb-6">
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Tre måneder (transaksjoner)
+            </h3>
+            <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>
+              Summert inntekt og utgift for tre hele måneder bakover fra valgt måned (inkludert valgt måned).
+            </p>
+            <div className={cardGrid}>
+              <KpiCard label="Inntekt (3 mnd)" value={formatNOK(rolling3m.income)} />
+              <KpiCard label="Utgift (3 mnd)" value={formatNOK(rolling3m.expense)} />
+              <KpiCard label="Netto (3 mnd)" value={formatNOK(rolling3m.net)} />
+            </div>
+          </section>
+        ) : null}
+
+        {sec.summary ? (
+          <section>
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Sammendrag
+            </h3>
+            <div className={cardGrid}>
+              <KpiCard label="Netto denne måneden (transaksjoner)" value={formatNOK(kpis.netCashflowMonth)} />
+              <KpiCard label="Samlet restgjeld" value={formatNOK(kpis.totalDebtRemaining)} />
+              <KpiCard
+                label="Samlet månedlig gjeldsbetaling"
+                value={formatNOK(kpis.totalMonthlyDebtPayments)}
+              />
+              <KpiCard label="Investeringer (verdi)" value={formatNOK(kpis.totalInvestmentsValue)} />
+              <KpiCard
+                label="Sparing mot mål (spart / mål)"
+                value={
+                  kpis.savingsGoalsCount === 0
+                    ? '—'
+                    : `${formatNOK(kpis.savingsGoalsTotalCurrent)} / ${formatNOK(kpis.savingsGoalsTotalTarget)}`
+                }
+              />
+            </div>
+          </section>
+        ) : null}
+
+        {sec.debts ? (
+          <section>
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Gjeld
+            </h3>
           {debts.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Ingen gjeld registrert.
@@ -177,6 +251,9 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
                   <th className={`${thClass} text-right`} style={{ borderColor: 'var(--border)' }}>
                     Mnd. betaling
                   </th>
+                  <th className={thClass} style={{ borderColor: 'var(--border)' }}>
+                    Pause til
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -198,17 +275,22 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
                     <td className={`${tdClass} text-right tabular-nums`} style={{ borderColor: 'var(--border)' }}>
                       {d.repaymentPaused ? '—' : formatNOK(d.monthlyPayment)}
                     </td>
+                    <td className={tdClass} style={{ borderColor: 'var(--border)' }}>
+                      {d.repaymentPaused && d.pauseEndDate ? d.pauseEndDate : '—'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </section>
+        ) : null}
 
-        <section>
-          <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
-            Sparing
-          </h3>
+        {sec.savings ? (
+          <section>
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Sparing
+            </h3>
           {savingsGoals.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Ingen sparemål registrert.
@@ -252,11 +334,13 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
             </table>
           )}
         </section>
+        ) : null}
 
-        <section>
-          <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
-            Investeringer
-          </h3>
+        {sec.investments ? (
+          <section>
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Investeringer
+            </h3>
           {investments.length === 0 ? (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Ingen investeringer registrert.
@@ -315,11 +399,13 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
             </>
           )}
         </section>
+        ) : null}
 
-        <section>
-          <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
-            Budsjett vs faktisk
-          </h3>
+        {sec.budgetVs ? (
+          <section>
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Budsjett vs faktisk
+            </h3>
           <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
             Faktiske beløp er summert fra transaksjoner i valgt måned. Avvik = faktisk minus budsjettert.
           </p>
@@ -385,6 +471,7 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
             )
           })}
         </section>
+        ) : null}
 
         <footer className="mt-10 pt-6 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           <p>

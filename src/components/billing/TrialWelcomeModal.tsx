@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
+import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 
 const STORAGE_KEY = 'trialWelcomeModalDismissed'
 
@@ -13,19 +14,25 @@ function dismissTrialWelcomeModalPersist(): void {
 type Props = {
   open: boolean
   trialDays: number | null
-  loadingCheckout: boolean
+  loadingPlan: 'solo' | 'family' | null
+  portalLoading?: boolean
   onClose: () => void
   onStartSolo: () => void
+  onStartFamily: () => void
 }
 
 export default function TrialWelcomeModal({
   open,
   trialDays,
-  loadingCheckout,
+  loadingPlan,
+  portalLoading = false,
   onClose,
   onStartSolo,
+  onStartFamily,
 }: Props) {
   if (!open) return null
+
+  const busy = loadingPlan !== null || portalLoading
 
   const trialLine =
     trialDays != null && trialDays > 0 ? (
@@ -39,6 +46,9 @@ export default function TrialWelcomeModal({
       </p>
     )
 
+  const soloLabel = `${subscriptionPlanCopy.solo.title} (${subscriptionPlanCopy.solo.price}${subscriptionPlanCopy.solo.period})`
+  const familyLabel = `${subscriptionPlanCopy.family.title} (${subscriptionPlanCopy.family.price}${subscriptionPlanCopy.family.period})`
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
@@ -48,7 +58,7 @@ export default function TrialWelcomeModal({
       aria-labelledby="trial-welcome-title"
     >
       <div
-        className="w-full max-w-md rounded-2xl p-6 shadow-lg"
+        className="w-full max-w-lg rounded-2xl p-6 shadow-lg"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <h2 id="trial-welcome-title" className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
@@ -65,7 +75,7 @@ export default function TrialWelcomeModal({
         <div className="mt-6 flex flex-col gap-3">
           <button
             type="button"
-            disabled={loadingCheckout}
+            disabled={busy}
             onClick={() => {
               dismissTrialWelcomeModalPersist()
               onStartSolo()
@@ -73,18 +83,37 @@ export default function TrialWelcomeModal({
             className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
             style={{ background: 'linear-gradient(135deg, #364FC7, #4C6EF5)' }}
           >
-            {loadingCheckout ? (
+            {loadingPlan === 'solo' ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Kobler til Stripe…
               </>
             ) : (
-              'Legg til kort og start (Solo)'
+              `Legg til kort og start — ${soloLabel}`
             )}
           </button>
           <button
             type="button"
-            disabled={loadingCheckout}
+            disabled={busy}
+            onClick={() => {
+              dismissTrialWelcomeModalPersist()
+              onStartFamily()
+            }}
+            className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+          >
+            {loadingPlan === 'family' ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Kobler til Stripe…
+              </>
+            ) : (
+              `Legg til kort og start — ${familyLabel}`
+            )}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
             onClick={() => {
               dismissTrialWelcomeModalPersist()
               onClose()
