@@ -94,6 +94,19 @@ DATO;TRANSAKSJON;KATEGORI;BELØP;Beskrivelse
     expect(r.rows[0]!.amount).toBe(200)
   })
 
+  it('parses amounts with comma decimal and rounds to whole kroner', () => {
+    const csv = `DATO;TRANSAKSJON;KATEGORI;BELØP
+01.01.25;Regning;Husleie;13 000,50
+02.01.25;Utgift;Mat;1050,66
+03.01.25;Utgift;Transport;1.050,66
+`
+    const r = parseTransactionCsvText(csv)
+    expect(r.rows).toHaveLength(3)
+    expect(r.rows[0]!.amount).toBe(13001)
+    expect(r.rows[1]!.amount).toBe(1051)
+    expect(r.rows[2]!.amount).toBe(1051)
+  })
+
   it('records invalid rows', () => {
     const csv = `DATO;TRANSAKSJON;KATEGORI;BELØP
 xx;y;Mat;100

@@ -1,4 +1,4 @@
-import { parseIntegerNbNo } from '@/lib/utils'
+import { parseAmountImportNbNo } from '@/lib/transactionImport/parseAmountImportNbNo'
 import {
   TRANSACTION_IMPORT_MAX_DATA_ROWS,
   TRANSACTION_IMPORT_MAX_FILE_BYTES,
@@ -252,7 +252,7 @@ export function parseTransactionCsvText(text: string): ParseTransactionCsvResult
       continue
     }
 
-    const amount = parseIntegerNbNo(amountRaw.replace(/\s/g, ' '))
+    const amount = parseAmountImportNbNo(amountRaw)
     if (!Number.isFinite(amount)) {
       rowErrors.push({ fileLine, reason: 'invalid_amount', detail: amountRaw })
       continue

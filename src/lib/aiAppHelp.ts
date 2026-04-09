@@ -27,7 +27,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /enkelexcel-ai — EnkelExcel AI
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
-- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; nederst i menyen)
+- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; beløp støtter norsk tallformat med tusenskille og komma som desimal, avrundet til hele kroner; nederst i menyen)
 
 Profiler, abonnement og «Viser data for»
 - Solo-abonnement: én profil i appen.

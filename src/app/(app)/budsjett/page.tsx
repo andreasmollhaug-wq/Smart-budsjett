@@ -316,7 +316,7 @@ export default function BudsjettPage() {
         focusAmountSignal={focusAmountSignal}
       />
 
-      <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="space-y-6 p-4 md:p-6 lg:p-8">
         {isHouseholdAggregate && (
           <div
             className="rounded-xl px-4 py-3 text-sm"

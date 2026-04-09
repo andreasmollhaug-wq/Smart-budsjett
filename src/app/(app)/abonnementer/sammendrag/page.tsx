@@ -115,7 +115,7 @@ export default function AbonnementerSammendragPage() {
       />
       <AbonnementerSubnav />
 
-      <div className="mx-auto max-w-4xl space-y-6 px-3 py-5 sm:px-6 sm:py-6 [padding-left:max(0.75rem,env(safe-area-inset-left))] [padding-right:max(0.75rem,env(safe-area-inset-right))]">
+      <div className="mx-auto max-w-4xl space-y-6 px-3 py-5 sm:px-6 sm:py-6">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div
             className="rounded-2xl border p-4"

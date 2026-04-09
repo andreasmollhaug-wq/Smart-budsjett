@@ -56,6 +56,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Når du legger til et abonnement kan du nå velge «Legg også inn planlagte utgifter i transaksjoner» — da opprettes én linje per måned for resten av budsjettåret.\n\nNy fane «Avsluttede» under Abonnementer: marker abonnement som avsluttet med måned og år, så justeres budsjettet og planlagte transaksjoner automatisk. Avsluttede abonnement lagres for fremtidig besparelsesanalyse.\n\nDu kan nå trykke på en rad i abonnementlisten for å redigere — enklere å korrigere beløp, navn og innstillinger etter registrering.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.3',
+    version: '0.3.3',
+    title: 'Smart Budsjett v0.3.3 er ute — viktig fiks for CSV-import av beløp',
+    body:
+      'Denne oppdateringen er nå på live.\n\nVi har rettet en feil i import av transaksjoner fra CSV: beløp med norsk formattering (tusenskille og komma som desimal, f.eks. 1 050,66) ble tidligere tolket feil og kunne gi helt gale summer. Nå leser appen slike beløp korrekt og avrunder til hele kroner, som i resten av appen.\n\nHvis du har importert filer med desimaler i BELØP-kolonnen før denne versjonen, bør du sjekke transaksjonene og rette eller slette rader som ser urimelige ut. Nye importer med norsk tallformat skal stemme.\n\nTeksten på importsiden og i veiledningen er oppdatert.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {

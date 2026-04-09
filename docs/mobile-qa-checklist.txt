@@ -17,4 +17,10 @@ Sjekkliste per skjerm:
 
 Chrome DevTools: Responsive mode, samme bredder som over.
 
-Automatisert (valgfritt): etter `npx playwright install` kjør `npm run test:e2e` (starter Next på port 3005 ved behov, mobil-viewport mot landing).
+Globale tekniske grep (regresjon):
+  [ ] `body` har safe-area padding (notch / home-indikator) uten å ødelegge desktop (inset 0).
+  [ ] Full høyde: ingen «hopp» pga. adresselinje (100dvh i `globals.css` + `.min-h-screen-dvh` i innlogget layout).
+
+Responsiv kode: foretrekk Tailwind `max-md:` / `md:`. Bruk `useIsNarrowScreen` fra `src/lib/useIsNarrowScreen.ts` kun der CSS ikke strekker til (se JSDoc i filen).
+
+Automatisert (valgfritt): etter `npx playwright install` kjør `npm run test:e2e` (starter Next på port 3005 ved behov; landing og logg-inn sjekkes for horisontell overflow på mobil-viewport).

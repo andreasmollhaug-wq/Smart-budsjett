@@ -52,7 +52,7 @@ function TransaksjonerDashboardInner() {
         subtitle="Transaksjonsdashboard — faktiske beløp gruppert etter kategori (ikke budsjett)"
       />
       <TransaksjonerSubnav />
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 px-4 py-6 md:p-8">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Vis:
@@ -155,7 +155,7 @@ export default function TransaksjonerDashboardPage() {
         <div className="flex-1 overflow-auto min-h-[40vh]" style={{ background: 'var(--bg)' }}>
           <Header title="Transaksjoner" subtitle="Transaksjonsdashboard" />
           <TransaksjonerSubnav />
-          <p className="p-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-6 text-sm md:p-8" style={{ color: 'var(--text-muted)' }}>
             Laster …
           </p>
         </div>

@@ -31,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppUserProvider displayName={displayName} isFirstAppState={wasCreated}>
         <SubscriptionReadOnlyProvider>
           <OnboardingHost />
-          <div className="flex min-h-screen flex-col">
+          <div className="flex min-h-screen-dvh flex-col">
             <SubscriptionPastDueBanner />
             <DemoModeBanner />
             <AppShell>{children}</AppShell>

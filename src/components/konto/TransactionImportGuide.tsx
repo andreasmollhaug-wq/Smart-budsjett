@@ -23,6 +23,7 @@ const STEPS: GuideStep[] = [
       'Lagre som CSV UTF-8 (Excel: «Lagre som» → CSV UTF-8 eller tilsvarende).',
       'Du kan laste ned vår tomme mal fra knappen på importsiden og lime inn egne rader.',
       'Kolonnen TRANSAKSJON styrer om raden blir inntekt eller utgift: «Inntekt» → inntekt; alt annet (Regning, Utgift, …) → utgift.',
+      'BELØP kan inneholde tusenskille og komma som desimal (f.eks. 1 050,66). Appen avrunder til hele kroner.',
     ],
     primary: { href: '#import-opplasting', label: 'Hopp til opplasting' },
     pitfall:

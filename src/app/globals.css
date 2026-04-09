@@ -19,11 +19,24 @@ body {
   background-color: var(--bg);
   color: var(--text);
   font-family: 'Inter', system-ui, sans-serif;
+  /* 100vh først (eldre motorer), deretter dynamisk viewport-høyde på mobil */
   min-height: 100vh;
+  min-height: 100dvh;
+  /* iOS notch / home-indikator — 0 på de fleste skrivebord */
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/** Min høyde som full viewport; 100vh fallback der 100dvh ikke støttes (samme mønster som body). */
+.min-h-screen-dvh {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 ::-webkit-scrollbar {

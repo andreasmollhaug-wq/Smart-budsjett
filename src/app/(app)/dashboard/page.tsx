@@ -138,7 +138,7 @@ export default function DashboardPage() {
         title={welcomeTitle(displayName, isFirstAppState)}
         subtitle={dashboardSubtitle(isHouseholdAggregate, activeProfileId, profiles)}
       />
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 px-4 py-6 md:p-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             label="Inntekt i år"

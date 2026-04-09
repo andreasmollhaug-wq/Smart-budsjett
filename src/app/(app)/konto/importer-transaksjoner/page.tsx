@@ -291,8 +291,9 @@ export default function ImporterTransaksjonerPage() {
         </h1>
         <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
           Last opp en fil eksportert fra Excel (CSV UTF-8). Kolonnene skal tilsvare malen: DATO, TRANSAKSJON (ignoreres i
-          appen), KATEGORI, BELØP, valgfri beskrivelse. Format {IMPORT_FORMAT_V1}. Har du flere profiler i husholdningen,
-          velg riktig profil over før du laster opp.
+          appen), KATEGORI, BELØP, valgfri beskrivelse. Format {IMPORT_FORMAT_V1}. BELØP kan ha tusenskille og komma som
+          desimal (f.eks. 1&nbsp;050,66) — appen avrunder til hele kroner. Har du flere profiler i husholdningen, velg
+          riktig profil over før du laster opp.
         </p>
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <button

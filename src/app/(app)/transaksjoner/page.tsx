@@ -254,7 +254,7 @@ function TransaksjonerPageInner() {
         householdHint={isHouseholdAggregate}
         createCategory={createCategoryProps}
       />
-      <div className="p-8 space-y-6">
+      <div className="space-y-6 px-4 py-6 md:p-8">
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/konto/importer-transaksjoner"
@@ -592,7 +592,7 @@ function TransaksjonerPageInner() {
               </div>
               <div className="space-y-2">
                 {displayFilteredTx.length === 0 && txInPeriod.length > 0 && filtersActive ? (
-                  <div className="rounded-xl p-8 text-center" style={{ background: 'var(--bg)' }}>
+                  <div className="rounded-xl p-6 text-center md:p-8" style={{ background: 'var(--bg)' }}>
                     <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
                       Ingen treff med valgte filtre.
                     </p>
@@ -692,7 +692,7 @@ export default function TransaksjonerPage() {
         <div className="flex-1 overflow-auto min-h-[40vh]" style={{ background: 'var(--bg)' }}>
           <Header title="Transaksjoner" subtitle="Logg inntekter og utgifter" />
           <TransaksjonerSubnav />
-          <p className="p-8 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-6 text-sm md:p-8" style={{ color: 'var(--text-muted)' }}>
             Laster …
           </p>
         </div>
