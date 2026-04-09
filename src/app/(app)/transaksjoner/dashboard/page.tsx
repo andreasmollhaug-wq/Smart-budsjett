@@ -1,12 +1,16 @@
 'use client'
 
-import { Suspense } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useMemo, useState } from 'react'
 import Header from '@/components/layout/Header'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionActualsBreakdown from '@/components/transactions/TransactionActualsBreakdown'
+import TransactionActualsCategoryModal from '@/components/transactions/TransactionActualsCategoryModal'
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
+import { REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
+import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
+import type { Transaction } from '@/lib/store'
+import { isIsoDateString, todayIsoLocal } from '@/lib/transactionPeriodFilter'
 import { formatNOK } from '@/lib/utils'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 
@@ -14,18 +18,17 @@ const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Se
 
 function buildTransaksjonerListeHref(
   year: number,
-  month: number | 'all',
+  month: number | 'all' | 'ytd',
   category: string,
 ): string {
   const p = new URLSearchParams()
   p.set('year', String(year))
-  p.set('month', month === 'all' ? 'all' : String(month))
+  p.set('month', month === 'all' ? 'all' : month === 'ytd' ? 'ytd' : String(month))
   p.set('category', category)
   return `/transaksjoner?${p.toString()}`
 }
 
 function TransaksjonerDashboardInner() {
-  const router = useRouter()
   const {
     filterYear,
     setFilterYear,
@@ -33,17 +36,85 @@ function TransaksjonerDashboardInner() {
     setFilterMonth,
     filterCategory,
     setFilterCategory,
+    filterParent,
+    setFilterParent,
     searchQuery,
     setSearchQuery,
     allCats,
     yearOptions,
     categoryOptions,
     displayFilteredTx,
+    hasFutureDatedInPeriod,
     periodIncome,
     periodExpense,
     filtersActive,
     clearFilters,
+    profiles,
+    isHouseholdAggregate,
+    transactions,
   } = useTransaksjonerFilters()
+
+  const [categoryDetail, setCategoryDetail] = useState<{
+    name: string
+    type: 'income' | 'expense'
+    lineTotal: number
+  } | null>(null)
+
+  const periodLabel = useMemo(() => {
+    if (filterMonth === 'all') return `Hele ${filterYear}`
+    if (filterMonth === 'ytd') return `Hittil i år ${filterYear}`
+    return `${MONTHS_FULL[filterMonth]} ${filterYear}`
+  }, [filterYear, filterMonth])
+
+  const categoryModalTxs = useMemo(() => {
+    if (!categoryDetail) return []
+    const { name, type } = categoryDetail
+    const base = displayFilteredTx.filter((t) => t.category === name && t.type === type)
+
+    /** Samme filtre som listen (hovedgruppe, kategori, søk), men uten dato-vindu — brukes til å hente inn fremtidige linjer ved YTD. */
+    const matchesFilters = (t: Transaction): boolean => {
+      if (filterParent !== 'all') {
+        const meta = allCats.find((c) => c.name === t.category && c.type === t.type)
+        if (meta?.parentCategory !== filterParent) return false
+      }
+      if (filterCategory !== 'all' && t.category !== filterCategory) return false
+      const q = searchQuery.trim().toLowerCase()
+      if (q && !(t.description ?? '').toLowerCase().includes(q)) return false
+      return true
+    }
+
+    if (filterMonth !== 'ytd') return base
+
+    const today = todayIsoLocal()
+    const prefix = `${filterYear}-`
+    const seen = new Set(base.map((x) => x.id))
+    const extras: Transaction[] = []
+    for (const t of transactions) {
+      if (t.category !== name || t.type !== type) continue
+      if (!matchesFilters(t)) continue
+      const d = t.date
+      if (typeof d !== 'string' || !d.startsWith(prefix) || !isIsoDateString(d)) continue
+      if (d <= today) continue
+      if (seen.has(t.id)) continue
+      seen.add(t.id)
+      extras.push(t)
+    }
+    return [...base, ...extras]
+  }, [
+    categoryDetail,
+    displayFilteredTx,
+    filterMonth,
+    filterYear,
+    transactions,
+    allCats,
+    filterParent,
+    filterCategory,
+    searchQuery,
+  ])
+
+  const categoryModalHref = categoryDetail
+    ? buildTransaksjonerListeHref(filterYear, filterMonth, categoryDetail.name)
+    : '/transaksjoner'
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
@@ -70,14 +141,17 @@ function TransaksjonerDashboardInner() {
             ))}
           </select>
           <select
-            value={filterMonth === 'all' ? 'all' : String(filterMonth)}
+            value={filterMonth === 'all' ? 'all' : filterMonth === 'ytd' ? 'ytd' : String(filterMonth)}
             onChange={(e) => {
               const v = e.target.value
-              setFilterMonth(v === 'all' ? 'all' : Number(v))
+              if (v === 'all') setFilterMonth('all')
+              else if (v === 'ytd') setFilterMonth('ytd')
+              else setFilterMonth(Number(v))
             }}
             className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
             style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
           >
+            <option value="ytd">Hittil i år</option>
             <option value="all">Hele året</option>
             {MONTHS_FULL.map((m, i) => (
               <option key={m} value={i}>
@@ -85,9 +159,26 @@ function TransaksjonerDashboardInner() {
               </option>
             ))}
           </select>
+          <select
+            value={filterParent}
+            onChange={(e) =>
+              setFilterParent(e.target.value === 'all' ? 'all' : (e.target.value as ParentCategory))
+            }
+            className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+            aria-label="Filtrer på hovedgruppe"
+          >
+            <option value="all">Alle hovedgrupper</option>
+            {REPORT_GROUP_ORDER.map((p) => (
+              <option key={p} value={p}>
+                {REPORT_GROUP_LABELS[p]}
+              </option>
+            ))}
+          </select>
           <div className="min-w-[12rem] max-w-[min(100%,20rem)] flex-1">
             <BudgetCategoryPicker
               variant="filter"
+              sortAlphabetically={false}
               value={filterCategory}
               onChange={(v) => setFilterCategory(v === 'all' ? 'all' : v)}
               categories={categoryOptions}
@@ -135,14 +226,36 @@ function TransaksjonerDashboardInner() {
             </div>
           ))}
         </div>
+        {hasFutureDatedInPeriod ? (
+          <p className="text-xs -mt-2" style={{ color: 'var(--text-muted)' }}>
+            Kortene (inntekt, utgifter, netto) viser beløp til og med i dag. Fremtidige transaksjoner i valgt
+            periode vises i oversikten under.
+          </p>
+        ) : null}
 
         <TransactionActualsBreakdown
           transactions={displayFilteredTx}
           budgetCategories={allCats}
-          onPickCategory={(name) => {
-            router.push(buildTransaksjonerListeHref(filterYear, filterMonth, name))
+          onPickCategory={(name, type, lineTotal) => {
+            setCategoryDetail({ name, type, lineTotal })
           }}
         />
+
+        {categoryDetail ? (
+          <TransactionActualsCategoryModal
+            open
+            onClose={() => setCategoryDetail(null)}
+            categoryName={categoryDetail.name}
+            txType={categoryDetail.type}
+            periodLabel={periodLabel}
+            lineTotal={categoryDetail.lineTotal}
+            transactions={categoryModalTxs}
+            transactionsListeHref={categoryModalHref}
+            profiles={profiles}
+            isHouseholdAggregate={isHouseholdAggregate}
+            ytdPerspective={filterMonth === 'ytd'}
+          />
+        ) : null}
       </div>
     </div>
   )

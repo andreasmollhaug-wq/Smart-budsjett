@@ -88,7 +88,8 @@ function groupByParent(lines: AggregatedLine[], type: 'income' | 'expense'): { p
 type Props = {
   transactions: Transaction[]
   budgetCategories: BudgetCategory[]
-  onPickCategory: (categoryName: string) => void
+  /** Klikk på en kategori-rad: navn, type og sum i tabellen (samme periode som listen). */
+  onPickCategory: (categoryName: string, type: 'income' | 'expense', lineTotal: number) => void
 }
 
 export default function TransactionActualsBreakdown({ transactions, budgetCategories, onPickCategory }: Props) {
@@ -168,7 +169,7 @@ export default function TransactionActualsBreakdown({ transactions, budgetCatego
                 </thead>
                 <tbody>
                   {groupLines.map((line) => {
-                    const pick = () => onPickCategory(line.categoryName)
+                    const pick = () => onPickCategory(line.categoryName, line.type, line.sum)
                     const onRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
@@ -180,7 +181,7 @@ export default function TransactionActualsBreakdown({ transactions, budgetCatego
                         key={`${line.categoryName}-${line.type}`}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Åpne transaksjonsliste for ${line.categoryName}`}
+                        aria-label={`Vis transaksjoner for ${line.categoryName}`}
                         onClick={pick}
                         onKeyDown={onRowKeyDown}
                         className="cursor-pointer transition-colors hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--primary)]"
@@ -230,7 +231,8 @@ export default function TransactionActualsBreakdown({ transactions, budgetCatego
         Sammendrag etter kategori (faktisk)
       </h2>
       <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-        Summer fra transaksjoner i valgt periode med gjeldende filtre. Klikk en linje for å åpne transaksjonslisten med samme filter.
+        Summer fra transaksjoner i valgt periode med gjeldende filtre. Klikk en linje for å se detaljer og enkeltdokumenter
+        (du kan også åpne full liste derfra).
       </p>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div>

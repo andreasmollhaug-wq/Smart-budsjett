@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { generateId, type BudgetCategoryFrequency } from './utils'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
+import { applyCategoryRemap, type CategoryRemapErrorReason } from './categoryRemap'
 import type { ParentCategory } from './budgetCategoryCatalog'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
 import { computeInsightDeltas } from './insightNotifications'
@@ -284,6 +285,11 @@ interface AppState {
   removeCustomBudgetLabel: (parent: ParentCategory, name: string) => void
   hideStandardBudgetLabel: (parent: ParentCategory, name: string) => void
   unhideStandardBudgetLabel: (parent: ParentCategory, name: string) => void
+  remapBudgetCategoryName: (
+    parent: ParentCategory,
+    fromName: string,
+    toName: string,
+  ) => { ok: true } | { ok: false; reason: CategoryRemapErrorReason }
 
   addSavingsGoal: (g: SavingsGoal) => void
   updateSavingsGoal: (id: string, data: Partial<SavingsGoal>) => void
@@ -1688,6 +1694,23 @@ export const useStore = create<AppState>()((set, get) => {
             },
           })),
 
+        remapBudgetCategoryName: (parent, fromName, toName) => {
+          const s = get()
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false, reason: 'empty_name' }
+          const res = applyCategoryRemap(person, s.archivedBudgetsByYear, pid, parent, fromName, toName)
+          if (!res.ok) return res
+          let next = res.person
+          next = applySubscriptionCancellationsToBudgetForYear(next, s.budgetYear)
+          next = recalcPersonBudgetSpentForYear(next, pid, s.budgetYear)
+          set({
+            people: { ...s.people, [pid]: next },
+            archivedBudgetsByYear: res.archivedBudgetsByYear,
+          })
+          return { ok: true }
+        },
+
         addSavingsGoal: (g) =>
           patchActive((d) => {
             const pid = get().activeProfileId
@@ -2123,6 +2146,7 @@ export function useActivePersonFinance() {
       removeCustomBudgetLabel: s.removeCustomBudgetLabel,
       hideStandardBudgetLabel: s.hideStandardBudgetLabel,
       unhideStandardBudgetLabel: s.unhideStandardBudgetLabel,
+      remapBudgetCategoryName: s.remapBudgetCategoryName,
       addSavingsGoal: s.addSavingsGoal,
       updateSavingsGoal: s.updateSavingsGoal,
       removeSavingsGoal: s.removeSavingsGoal,
@@ -2190,6 +2214,7 @@ export function useActivePersonFinance() {
     removeCustomBudgetLabel: state.removeCustomBudgetLabel,
     hideStandardBudgetLabel: state.hideStandardBudgetLabel,
     unhideStandardBudgetLabel: state.unhideStandardBudgetLabel,
+    remapBudgetCategoryName: state.remapBudgetCategoryName,
     addSavingsGoal: state.addSavingsGoal,
     updateSavingsGoal: state.updateSavingsGoal,
     removeSavingsGoal: state.removeSavingsGoal,

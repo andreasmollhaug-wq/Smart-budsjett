@@ -7,6 +7,8 @@ import TransactionDetailModal, { type TransactionSavePatch } from '@/components/
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
+import { REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
+import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
 import {
   dateInMonth,
@@ -28,6 +30,8 @@ function TransaksjonerPageInner() {
     setFilterMonth,
     filterCategory,
     setFilterCategory,
+    filterParent,
+    setFilterParent,
     searchQuery,
     setSearchQuery,
     transactions,
@@ -39,6 +43,7 @@ function TransaksjonerPageInner() {
     txInPeriod,
     categoryOptions,
     displayFilteredTx,
+    hasFutureDatedInPeriod,
     periodIncome,
     periodExpense,
     filtersActive,
@@ -58,7 +63,9 @@ function TransaksjonerPageInner() {
 
   const [showForm, setShowForm] = useState(false)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
+  /** Kun for rent dato-sortering; ved «hovedgruppe» brukes dateSort som retning innen gruppe. */
   const [dateSort, setDateSort] = useState<'desc' | 'asc'>('desc')
+  const [listSortMode, setListSortMode] = useState<'date' | 'parent'>('date')
   const [newCatOpen, setNewCatOpen] = useState(false)
 
   const [form, setForm] = useState({
@@ -87,9 +94,26 @@ function TransaksjonerPageInner() {
   const sortedDisplayTx = useMemo(() => {
     const list = [...displayFilteredTx]
     const mul = dateSort === 'desc' ? -1 : 1
+    const parentRank = (t: Transaction): [number, number] => {
+      const m = allCats.find((c) => c.name === t.category && c.type === t.type)
+      if (!m) return [2, 999]
+      if (m.type === 'income') return [0, REPORT_GROUP_ORDER.indexOf('inntekter')]
+      const i = REPORT_GROUP_ORDER.indexOf(m.parentCategory as ParentCategory)
+      return [1, i === -1 ? 999 : i]
+    }
+    if (listSortMode === 'parent') {
+      list.sort((a, b) => {
+        const [ka, ia] = parentRank(a)
+        const [kb, ib] = parentRank(b)
+        if (ka !== kb) return ka - kb
+        if (ia !== ib) return ia - ib
+        return mul * (new Date(a.date).getTime() - new Date(b.date).getTime())
+      })
+      return list
+    }
     list.sort((a, b) => mul * (new Date(a.date).getTime() - new Date(b.date).getTime()))
     return list
-  }, [displayFilteredTx, dateSort])
+  }, [displayFilteredTx, dateSort, listSortMode, allCats])
 
   const bulkYearLabel = useMemo(() => {
     const y = parseInt(form.date.slice(0, 4), 10)
@@ -279,14 +303,17 @@ function TransaksjonerPageInner() {
             ))}
           </select>
           <select
-            value={filterMonth === 'all' ? 'all' : String(filterMonth)}
+            value={filterMonth === 'all' ? 'all' : filterMonth === 'ytd' ? 'ytd' : String(filterMonth)}
             onChange={(e) => {
               const v = e.target.value
-              setFilterMonth(v === 'all' ? 'all' : Number(v))
+              if (v === 'all') setFilterMonth('all')
+              else if (v === 'ytd') setFilterMonth('ytd')
+              else setFilterMonth(Number(v))
             }}
             className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
             style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
           >
+            <option value="ytd">Hittil i år</option>
             <option value="all">Hele året</option>
             {MONTHS_FULL.map((m, i) => (
               <option key={m} value={i}>
@@ -294,9 +321,26 @@ function TransaksjonerPageInner() {
               </option>
             ))}
           </select>
+          <select
+            value={filterParent}
+            onChange={(e) =>
+              setFilterParent(e.target.value === 'all' ? 'all' : (e.target.value as ParentCategory))
+            }
+            className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+            aria-label="Filtrer på hovedgruppe"
+          >
+            <option value="all">Alle hovedgrupper</option>
+            {REPORT_GROUP_ORDER.map((p) => (
+              <option key={p} value={p}>
+                {REPORT_GROUP_LABELS[p]}
+              </option>
+            ))}
+          </select>
           <div className="min-w-[12rem] max-w-[min(100%,20rem)] flex-1">
             <BudgetCategoryPicker
               variant="filter"
+              sortAlphabetically={false}
               value={filterCategory}
               onChange={(v) => setFilterCategory(v === 'all' ? 'all' : v)}
               categories={categoryOptions}
@@ -344,6 +388,12 @@ function TransaksjonerPageInner() {
             </div>
           ))}
         </div>
+        {hasFutureDatedInPeriod ? (
+          <p className="text-xs -mt-2" style={{ color: 'var(--text-muted)' }}>
+            Kortene (inntekt, utgifter, netto) viser beløp til og med i dag. Fremtidige transaksjoner i valgt
+            periode vises i listen under.
+          </p>
+        ) : null}
 
         {txInPeriod.length === 0 && !showForm ? (
           <div className="rounded-2xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -506,8 +556,9 @@ function TransaksjonerPageInner() {
                     <BudgetCategoryPicker
                       value={form.category}
                       onChange={(name) => setForm({ ...form, category: name })}
-                      categories={allCats}
+                      categories={categoryOptions}
                       variant="pick"
+                      sortAlphabetically={false}
                     />
                   </div>
                   {createCategoryProps && (
@@ -577,18 +628,34 @@ function TransaksjonerPageInner() {
                 <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
                   Transaksjoner
                 </h2>
-                <label className="flex items-center gap-2 text-sm shrink-0">
-                  <span style={{ color: 'var(--text-muted)' }}>Sorter dato</span>
-                  <select
-                    value={dateSort}
-                    onChange={(e) => setDateSort(e.target.value as 'desc' | 'asc')}
-                    className="px-3 py-2 rounded-xl text-sm"
-                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                  >
-                    <option value="desc">Nyeste først</option>
-                    <option value="asc">Eldste først</option>
-                  </select>
-                </label>
+                <div className="flex flex-wrap items-center gap-2 text-sm shrink-0">
+                  <label className="flex items-center gap-2">
+                    <span style={{ color: 'var(--text-muted)' }}>Sortering</span>
+                    <select
+                      value={listSortMode}
+                      onChange={(e) => setListSortMode(e.target.value as 'date' | 'parent')}
+                      className="px-3 py-2 rounded-xl text-sm"
+                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                    >
+                      <option value="date">Etter dato</option>
+                      <option value="parent">Etter hovedgruppe</option>
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {listSortMode === 'parent' ? 'Deretter dato' : 'Rekkefølge'}
+                    </span>
+                    <select
+                      value={dateSort}
+                      onChange={(e) => setDateSort(e.target.value as 'desc' | 'asc')}
+                      className="px-3 py-2 rounded-xl text-sm"
+                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                    >
+                      <option value="desc">Nyeste først</option>
+                      <option value="asc">Eldste først</option>
+                    </select>
+                  </label>
+                </div>
               </div>
               <div className="space-y-2">
                 {displayFilteredTx.length === 0 && txInPeriod.length > 0 && filtersActive ? (

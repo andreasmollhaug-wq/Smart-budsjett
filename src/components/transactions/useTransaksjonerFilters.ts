@@ -2,8 +2,18 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
+import { REPORT_GROUP_ORDER } from '@/lib/bankReportData'
 import { useActivePersonFinance } from '@/lib/store'
+import type { BudgetCategory } from '@/lib/store'
 import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
+import {
+  isIsoDateString,
+  todayIsoLocal,
+  transactionInPeriod,
+  transactionOnOrBeforeToday,
+  type TransactionPeriodMode,
+} from '@/lib/transactionPeriodFilter'
 
 function safeDecodeCategoryParam(raw: string): string {
   try {
@@ -13,8 +23,21 @@ function safeDecodeCategoryParam(raw: string): string {
   }
 }
 
+function parentRank(c: BudgetCategory): number {
+  const i = REPORT_GROUP_ORDER.indexOf(c.parentCategory)
+  return i === -1 ? 999 : i
+}
+
+function compareCategoriesForPicker(a: BudgetCategory, b: BudgetCategory): number {
+  if (a.type !== b.type) return a.type === 'income' ? -1 : 1
+  const ra = parentRank(a)
+  const rb = parentRank(b)
+  if (ra !== rb) return ra - rb
+  return a.name.localeCompare(b.name, 'nb')
+}
+
 /**
- * Felles filtre for transaksjonsliste og transaksjonsdashboard (år, måned, kategori, søk).
+ * Felles filtre for transaksjonsliste og transaksjonsdashboard (år, måned/YTD/hele året, kategori, søk).
  * Synkroniseres med query (?year=&month=&category=) som budsjett-dashboard lenker til.
  *
  * Én useActivePersonFinance()-kilde (unngår dobbelt abonnement sammen med liste-siden).
@@ -41,8 +64,9 @@ export function useTransaksjonerFilters() {
   )
 
   const [filterYear, setFilterYear] = useState(budgetYear)
-  const [filterMonth, setFilterMonth] = useState<number | 'all'>('all')
+  const [filterMonth, setFilterMonth] = useState<TransactionPeriodMode>('ytd')
   const [filterCategory, setFilterCategory] = useState<'all' | string>('all')
+  const [filterParent, setFilterParent] = useState<ParentCategory | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   const querySignature = searchParams.toString()
@@ -62,6 +86,7 @@ export function useTransaksjonerFilters() {
 
     if (m !== null) {
       if (m === 'all') setFilterMonth('all')
+      else if (m === 'ytd') setFilterMonth('ytd')
       else {
         const mi = parseInt(m, 10)
         if (Number.isFinite(mi) && mi >= 0 && mi <= 11) setFilterMonth(mi)
@@ -104,40 +129,56 @@ export function useTransaksjonerFilters() {
     return [...y].sort((a, b) => b - a)
   }, [transactions, budgetYear, filterYear])
 
-  const datePrefix =
-    filterMonth === 'all'
-      ? `${filterYear}-`
-      : `${filterYear}-${String(filterMonth + 1).padStart(2, '0')}`
-
   const txInPeriod = useMemo(
-    () => transactions.filter((t) => typeof t.date === 'string' && t.date.startsWith(datePrefix)),
-    [transactions, datePrefix],
+    () =>
+      transactions.filter((t) => transactionInPeriod(t, filterMonth, filterYear)),
+    [transactions, filterMonth, filterYear],
   )
 
   const categoryOptions = useMemo(
-    () => [...allCats].sort((a, b) => a.name.localeCompare(b.name, 'nb')),
+    () => [...allCats].sort(compareCategoriesForPicker),
     [allCats],
   )
 
   const displayFilteredTx = useMemo(() => {
     let list = txInPeriod
+    if (filterParent !== 'all') {
+      list = list.filter((t) => {
+        const meta = allCats.find((c) => c.name === t.category && c.type === t.type)
+        return meta?.parentCategory === filterParent
+      })
+    }
     if (filterCategory !== 'all') list = list.filter((t) => t.category === filterCategory)
     const q = searchQuery.trim().toLowerCase()
     if (q) list = list.filter((t) => (t.description ?? '').toLowerCase().includes(q))
     return list
-  }, [txInPeriod, filterCategory, searchQuery])
+  }, [txInPeriod, filterParent, filterCategory, searchQuery, allCats])
 
-  const periodIncome = displayFilteredTx
+  const displayFilteredTxForKpis = useMemo(
+    () => displayFilteredTx.filter((t) => transactionOnOrBeforeToday(t)),
+    [displayFilteredTx],
+  )
+
+  const hasFutureDatedInPeriod = useMemo(() => {
+    const today = todayIsoLocal()
+    return displayFilteredTx.some(
+      (t) => typeof t.date === 'string' && isIsoDateString(t.date) && t.date > today,
+    )
+  }, [displayFilteredTx])
+
+  const periodIncome = displayFilteredTxForKpis
     .filter((t) => t.type === 'income')
     .reduce((a, b) => a + b.amount, 0)
-  const periodExpense = displayFilteredTx
+  const periodExpense = displayFilteredTxForKpis
     .filter((t) => t.type === 'expense')
     .reduce((a, b) => a + b.amount, 0)
 
-  const filtersActive = filterCategory !== 'all' || searchQuery.trim() !== ''
+  const filtersActive =
+    filterCategory !== 'all' || searchQuery.trim() !== '' || filterParent !== 'all'
 
   const clearFilters = () => {
     setFilterCategory('all')
+    setFilterParent('all')
     setSearchQuery('')
   }
 
@@ -148,6 +189,8 @@ export function useTransaksjonerFilters() {
     setFilterMonth,
     filterCategory,
     setFilterCategory,
+    filterParent,
+    setFilterParent,
     searchQuery,
     setSearchQuery,
     transactions,
@@ -159,6 +202,8 @@ export function useTransaksjonerFilters() {
     txInPeriod,
     categoryOptions,
     displayFilteredTx,
+    displayFilteredTxForKpis,
+    hasFutureDatedInPeriod,
     periodIncome,
     periodExpense,
     filtersActive,

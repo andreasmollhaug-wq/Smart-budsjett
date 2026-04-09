@@ -14,6 +14,8 @@ type Props = {
   className?: string
   /** `pick`: tom streng = ikke valgt. `filter`: `all` = alle kategorier. */
   variant?: 'pick' | 'filter'
+  /** Når false, behold rekkefølgen fra `categories` (f.eks. gruppert etter hovedkategori). */
+  sortAlphabetically?: boolean
   id?: string
 }
 
@@ -25,14 +27,18 @@ export default function BudgetCategoryPicker({
   placeholder = 'Velg kategori',
   className = '',
   variant = 'pick',
+  sortAlphabetically = true,
   id,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const list = useMemo(
-    () => [...categories].sort((a, b) => a.name.localeCompare(b.name, 'nb')),
-    [categories],
+    () =>
+      sortAlphabetically
+        ? [...categories].sort((a, b) => a.name.localeCompare(b.name, 'nb'))
+        : [...categories],
+    [categories, sortAlphabetically],
   )
 
   const queryNorm = searchQuery.trim().toLowerCase()
