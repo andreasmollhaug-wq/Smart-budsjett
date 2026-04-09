@@ -48,6 +48,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Du kan nå importere transaksjoner fra CSV under Min konto → Importer transaksjoner (mal og steg-for-steg veiledning). Etter opplasting og når importen er bekreftet, får du også varsler under klokken om at data er lastet inn.\n\nDiverse små forbedringer i konto, demo og abonnement.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.2',
+    version: '0.3.2',
+    title: 'Planlagte transaksjoner og avsluttede abonnement',
+    body:
+      'Når du legger til et abonnement kan du nå velge «Legg også inn planlagte utgifter i transaksjoner» — da opprettes én linje per måned for resten av budsjettåret.\n\nNy fane «Avsluttede» under Abonnementer: marker abonnement som avsluttet med måned og år, så justeres budsjettet og planlagte transaksjoner automatisk. Avsluttede abonnement lagres for fremtidig besparelsesanalyse.\n\nDu kan nå trykke på en rad i abonnementlisten for å redigere — enklere å korrigere beløp, navn og innstillinger etter registrering.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {

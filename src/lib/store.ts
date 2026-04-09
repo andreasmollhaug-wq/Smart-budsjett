@@ -14,6 +14,12 @@ import {
   uniqueRegningerName,
 } from './serviceSubscriptionHelpers'
 import {
+  applySubscriptionCancellationsToBudgetForYear,
+  buildPlannedSubscriptionTransactions,
+  transactionMatchesCancellationRemoval,
+  zeroBudgetedFromCancellationMonth,
+} from './subscriptionTransactions'
+import {
   cloneBudgetCategories,
   sumTxForCategoryInYear,
   sumTxForCategoryInYearAllProfiles,
@@ -72,6 +78,8 @@ export interface Transaction {
   type: 'income' | 'expense'
   /** Eierprofil (påkrevd for nye rader; migreres for eldre data). */
   profileId?: string
+  /** App-genererte planlagte trekk fra tjenesteabonnement. */
+  linkedServiceSubscriptionId?: string
 }
 
 export interface BudgetCategory {
@@ -161,8 +169,25 @@ export interface ServiceSubscription {
   linkedBudgetCategoryId?: string | null
   note?: string
   presetKey?: string
+  /** Avsluttet fra og med denne måneden (år + måned 1–12). */
+  cancelledFrom?: { year: number; month: number }
+  /** Månedlig ekvivalent ved avslutning (for senere besparelsesanalyse). */
+  monthlyEquivalentNokSnapshot?: number
   /** Kun satt i husholdningsaggregat for visning. */
   sourceProfileId?: string
+}
+
+/** Input ved nytt tjenesteabonnement (planlagte transaksjoner er valgfritt). */
+export type AddServiceSubscriptionInput = Omit<
+  ServiceSubscription,
+  'id' | 'sourceProfileId' | 'cancelledFrom' | 'monthlyEquivalentNokSnapshot'
+> & {
+  plannedTransactions?: {
+    startMonth1: number
+    endMonth1: number
+    dayOfMonth: number
+    budgetYear: number
+  } | null
 }
 
 export interface PersonProfile {
@@ -211,6 +236,11 @@ interface AppState {
   deliveredAnnouncementIds: string[]
   /** Idempotente id-er for innsiktsvarsler (f.eks. per måned). */
   deliveredInsightIds: string[]
+  /** Preset-nøkler der brukeren har skjult tipset «mulig å samle abonnement» (husholdning). */
+  dismissedDuplicateSubscriptionPresetKeys: string[]
+  dismissDuplicateSubscriptionHint: (presetKey: string) => void
+  dismissAllDuplicateSubscriptionHints: (presetKeys: string[]) => void
+  resetDismissedDuplicateSubscriptionHints: () => void
   /** Førstegangs- / gjenåpnet veiledning; persisteres. */
   onboarding: OnboardingState
 
@@ -276,12 +306,18 @@ interface AppState {
     point: { id?: string; date: string; value: number },
   ) => void
 
-  addServiceSubscription: (input: Omit<ServiceSubscription, 'id' | 'sourceProfileId'>) => { ok: true; id: string } | { ok: false; reason: 'household_readonly' }
+  addServiceSubscription: (
+    input: AddServiceSubscriptionInput,
+  ) => { ok: true; id: string } | { ok: false; reason: 'household_readonly' }
   updateServiceSubscription: (
     id: string,
     patch: Partial<Omit<ServiceSubscription, 'id' | 'sourceProfileId'>>,
   ) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
   removeServiceSubscription: (id: string) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
+  markServiceSubscriptionCancelled: (
+    id: string,
+    cancelledFrom: { year: number; month: number },
+  ) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' | 'invalid_date' }
 
   /** Felles kalenderår for alle profilers budsjett (12 kolonner). */
   budgetYear: number
@@ -320,6 +356,7 @@ export type PersistedAppSlice = Pick<
   | 'notifications'
   | 'deliveredAnnouncementIds'
   | 'deliveredInsightIds'
+  | 'dismissedDuplicateSubscriptionPresetKeys'
   | 'budgetYear'
   | 'archivedBudgetsByYear'
   | 'onboarding'
@@ -349,6 +386,7 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     demoDataEnabled: false,
     peopleBeforeDemo: null,
     deliveredInsightIds: [],
+    dismissedDuplicateSubscriptionPresetKeys: [],
   }
 }
 
@@ -368,6 +406,7 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     demoDataEnabled: state.demoDataEnabled,
     peopleBeforeDemo: state.peopleBeforeDemo,
     deliveredInsightIds: state.deliveredInsightIds,
+    dismissedDuplicateSubscriptionPresetKeys: state.dismissedDuplicateSubscriptionPresetKeys,
   }
 }
 
@@ -473,11 +512,9 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     person.transactions = (person.transactions ?? []).map((t) =>
       t.profileId ? t : { ...t, profileId: pr.id },
     )
-    base.people[pr.id] = recalcPersonBudgetSpentForYear(
-      syncLinkedSavingsGoalsCurrent(person, pr.id),
-      pr.id,
-      base.budgetYear,
-    )
+    let synced = syncLinkedSavingsGoalsCurrent(person, pr.id)
+    synced = applySubscriptionCancellationsToBudgetForYear(synced, base.budgetYear)
+    base.people[pr.id] = recalcPersonBudgetSpentForYear(synced, pr.id, base.budgetYear)
   }
 
   if (!base.profiles.some((x) => x.id === base.activeProfileId)) {
@@ -487,6 +524,9 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
   if (!Array.isArray(base.notifications)) base.notifications = []
   if (!Array.isArray(base.deliveredAnnouncementIds)) base.deliveredAnnouncementIds = []
   if (!Array.isArray(base.deliveredInsightIds)) base.deliveredInsightIds = []
+  if (!Array.isArray(base.dismissedDuplicateSubscriptionPresetKeys)) {
+    base.dismissedDuplicateSubscriptionPresetKeys = []
+  }
 
   base.onboarding = normalizeOnboardingFromMerge(p)
 
@@ -1056,6 +1096,7 @@ export const useStore = create<AppState>()((set, get) => {
         notifications: [] as AppNotification[],
         deliveredAnnouncementIds: [] as string[],
         deliveredInsightIds: [] as string[],
+        dismissedDuplicateSubscriptionPresetKeys: [] as string[],
         budgetYear: new Date().getFullYear(),
         archivedBudgetsByYear: {} as ArchivedBudgetsByYear,
         onboarding: { status: 'pending' } as OnboardingState,
@@ -1127,6 +1168,39 @@ export const useStore = create<AppState>()((set, get) => {
 
         hydrateFromPayload: (payload: unknown) => {
           set((current) => mergePersistedIntoFullState(payload, current))
+        },
+
+        dismissDuplicateSubscriptionHint: (presetKey) => {
+          const k = presetKey.trim()
+          if (!k) return
+          set((s) => {
+            if (s.dismissedDuplicateSubscriptionPresetKeys.includes(k)) return s
+            return { dismissedDuplicateSubscriptionPresetKeys: [...s.dismissedDuplicateSubscriptionPresetKeys, k] }
+          })
+        },
+
+        dismissAllDuplicateSubscriptionHints: (presetKeys) => {
+          const trimmed = [...new Set(presetKeys.map((k) => k.trim()).filter(Boolean))]
+          if (trimmed.length === 0) return
+          set((s) => {
+            const merged = new Set(s.dismissedDuplicateSubscriptionPresetKeys)
+            let added = false
+            for (const k of trimmed) {
+              if (!merged.has(k)) {
+                merged.add(k)
+                added = true
+              }
+            }
+            if (!added) return s
+            return { dismissedDuplicateSubscriptionPresetKeys: [...merged] }
+          })
+        },
+
+        resetDismissedDuplicateSubscriptionHints: () => {
+          set((s) => {
+            if (s.dismissedDuplicateSubscriptionPresetKeys.length === 0) return s
+            return { dismissedDuplicateSubscriptionPresetKeys: [] }
+          })
         },
 
         syncProductAnnouncements: () => {
@@ -1501,11 +1575,9 @@ export const useStore = create<AppState>()((set, get) => {
             for (const pr of s.profiles) {
               const restored = cloneBudgetCategories(snap[pr.id]!)
               const p = nextPeople[pr.id]!
-              nextPeople[pr.id] = recalcPersonBudgetSpentForYear(
-                { ...p, budgetCategories: restored },
-                pr.id,
-                targetYear,
-              )
+              let mergedPerson = { ...p, budgetCategories: restored }
+              mergedPerson = applySubscriptionCancellationsToBudgetForYear(mergedPerson, targetYear)
+              nextPeople[pr.id] = recalcPersonBudgetSpentForYear(mergedPerson, pr.id, targetYear)
             }
 
             return {
@@ -1529,11 +1601,9 @@ export const useStore = create<AppState>()((set, get) => {
             for (const pr of s.profiles) {
               const p = nextPeople[pr.id]
               if (!p) continue
-              nextPeople[pr.id] = recalcPersonBudgetSpentForYear(
-                syncLinkedSavingsGoalsCurrent(p, pr.id),
-                pr.id,
-                y,
-              )
+              let next = syncLinkedSavingsGoalsCurrent(p, pr.id)
+              next = applySubscriptionCancellationsToBudgetForYear(next, y)
+              nextPeople[pr.id] = recalcPersonBudgetSpentForYear(next, pr.id, y)
             }
             return { budgetYear: y, people: nextPeople }
           })
@@ -1758,12 +1828,10 @@ export const useStore = create<AppState>()((set, get) => {
           }
           let sub: ServiceSubscription = { ...baseSub, syncToBudget }
           let budgetCategories = [...person.budgetCategories]
+          let displayName: string | undefined
           if (syncToBudget) {
             const catId = generateId()
-            const displayName = uniqueRegningerName(
-              label,
-              budgetCategories.map((c) => c.name),
-            )
+            displayName = uniqueRegningerName(label, budgetCategories.map((c) => c.name))
             const monthly = monthlyEquivalentNok(baseSub)
             const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly)
             const spent = sumTxForCategoryInYear(
@@ -1780,10 +1848,40 @@ export const useStore = create<AppState>()((set, get) => {
               linkedBudgetCategoryId: catId,
             }
           }
-          const nextPersonRaw = {
+
+          const planned = input.plannedTransactions
+          let extraTx: Transaction[] = []
+          if (
+            syncToBudget &&
+            planned &&
+            displayName &&
+            sub.linkedBudgetCategoryId &&
+            planned.budgetYear === s.budgetYear
+          ) {
+            extraTx = buildPlannedSubscriptionTransactions({
+              subscriptionId: id,
+              label,
+              categoryName: displayName,
+              profileId: pid,
+              amountNok: baseSub.amountNok,
+              billing: baseSub.billing,
+              budgetYear: planned.budgetYear,
+              startMonth1: planned.startMonth1,
+              endMonth1: planned.endMonth1,
+              dayOfMonth: planned.dayOfMonth,
+            })
+          }
+
+          let nextPersonRaw: PersonData = {
             ...person,
             budgetCategories,
             serviceSubscriptions: [...(person.serviceSubscriptions ?? []), sub],
+          }
+          if (extraTx.length > 0) {
+            nextPersonRaw = {
+              ...nextPersonRaw,
+              transactions: [...extraTx, ...nextPersonRaw.transactions],
+            }
           }
           const nextPerson = recalcPersonBudgetSpentForYear(
             syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
@@ -1820,15 +1918,24 @@ export const useStore = create<AppState>()((set, get) => {
             syncToBudget: patch.syncToBudget !== undefined ? patch.syncToBudget : prev.syncToBudget,
             note: patch.note !== undefined ? patch.note?.trim() || undefined : prev.note,
             presetKey: patch.presetKey !== undefined ? patch.presetKey : prev.presetKey,
+            cancelledFrom: patch.cancelledFrom !== undefined ? patch.cancelledFrom : prev.cancelledFrom,
+            monthlyEquivalentNokSnapshot:
+              patch.monthlyEquivalentNokSnapshot !== undefined
+                ? patch.monthlyEquivalentNokSnapshot
+                : prev.monthlyEquivalentNokSnapshot,
           }
-          const wantSync = !!(merged.syncToBudget && merged.active)
+          /** Behold Regninger-linje ved avsluttet abonnement (nullstilte måneder). */
+          const wantBudgetLine = !!(
+            merged.syncToBudget &&
+            (merged.active || merged.cancelledFrom != null)
+          )
           let budgetCategories = [...person.budgetCategories]
-          let nextSub: ServiceSubscription = { ...merged, syncToBudget: wantSync }
+          let nextSub: ServiceSubscription = { ...merged, syncToBudget: wantBudgetLine }
 
-          if (!wantSync && prev.linkedBudgetCategoryId) {
+          if (!wantBudgetLine && prev.linkedBudgetCategoryId) {
             budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
             nextSub = { ...nextSub, linkedBudgetCategoryId: null, syncToBudget: false }
-          } else if (wantSync) {
+          } else if (wantBudgetLine) {
             const monthly = monthlyEquivalentNok(nextSub)
             if (!prev.linkedBudgetCategoryId) {
               const catId = generateId()
@@ -1855,7 +1962,10 @@ export const useStore = create<AppState>()((set, get) => {
                   patch.label !== undefined
                     ? uniqueRegningerName(nextSub.label, otherNames)
                     : c.name
-                const budgeted = budgetedTwelveFromMonthly(monthly)
+                let budgeted = budgetedTwelveFromMonthly(monthly)
+                if (nextSub.cancelledFrom && nextSub.cancelledFrom.year === s.budgetYear) {
+                  budgeted = zeroBudgetedFromCancellationMonth(budgeted, nextSub.cancelledFrom.month)
+                }
                 const spent = sumTxForCategoryInYear(
                   person.transactions,
                   newName,
@@ -1897,8 +2007,62 @@ export const useStore = create<AppState>()((set, get) => {
           if (prev.linkedBudgetCategoryId) {
             budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
           }
+          const txs = person.transactions.filter((t) => t.linkedServiceSubscriptionId !== id)
           const nextList = list.filter((x) => x.id !== id)
-          const nextPersonRaw = { ...person, budgetCategories, serviceSubscriptions: nextList }
+          const nextPersonRaw = {
+            ...person,
+            budgetCategories,
+            serviceSubscriptions: nextList,
+            transactions: txs,
+          }
+          const nextPerson = recalcPersonBudgetSpentForYear(
+            syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
+            pid,
+            s.budgetYear,
+          )
+          set((state) => ({
+            people: { ...state.people, [pid]: nextPerson },
+          }))
+          return { ok: true as const }
+        },
+
+        markServiceSubscriptionCancelled: (id, cancelledFrom) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const y = cancelledFrom.year
+          const m = Math.floor(cancelledFrom.month)
+          if (!Number.isFinite(y) || m < 1 || m > 12) {
+            return { ok: false as const, reason: 'invalid_date' }
+          }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'household_readonly' }
+          const list = person.serviceSubscriptions ?? []
+          const idx = list.findIndex((x) => x.id === id)
+          if (idx < 0) return { ok: false as const, reason: 'not_found' }
+          const prev = list[idx]!
+          if (prev.cancelledFrom) return { ok: true as const }
+          const snapshot = monthlyEquivalentNok(prev)
+          const cy = cancelledFrom.year
+          const cm = cancelledFrom.month
+          const txs = person.transactions.filter(
+            (t) => !transactionMatchesCancellationRemoval(t, id, cy, cm),
+          )
+          const nextSub: ServiceSubscription = {
+            ...prev,
+            active: false,
+            cancelledFrom: { year: cy, month: cm },
+            monthlyEquivalentNokSnapshot: snapshot,
+            syncToBudget: !!prev.linkedBudgetCategoryId,
+          }
+          const nextList = [...list]
+          nextList[idx] = nextSub
+          let nextPersonRaw: PersonData = {
+            ...person,
+            transactions: txs,
+            serviceSubscriptions: nextList,
+          }
+          nextPersonRaw = applySubscriptionCancellationsToBudgetForYear(nextPersonRaw, s.budgetYear)
           const nextPerson = recalcPersonBudgetSpentForYear(
             syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
             pid,
@@ -1923,6 +2087,7 @@ export function resetStoreForLogout() {
     notifications: [],
     deliveredAnnouncementIds: [],
     deliveredInsightIds: [],
+    dismissedDuplicateSubscriptionPresetKeys: [],
     budgetYear: new Date().getFullYear(),
     archivedBudgetsByYear: {},
     onboarding: { status: 'pending' },
@@ -1974,6 +2139,7 @@ export function useActivePersonFinance() {
       addServiceSubscription: s.addServiceSubscription,
       updateServiceSubscription: s.updateServiceSubscription,
       removeServiceSubscription: s.removeServiceSubscription,
+      markServiceSubscriptionCancelled: s.markServiceSubscriptionCancelled,
       setActiveProfileId: s.setActiveProfileId,
       setFinanceScope: s.setFinanceScope,
       setSubscriptionPlan: s.setSubscriptionPlan,
@@ -2040,6 +2206,7 @@ export function useActivePersonFinance() {
     addServiceSubscription: state.addServiceSubscription,
     updateServiceSubscription: state.updateServiceSubscription,
     removeServiceSubscription: state.removeServiceSubscription,
+    markServiceSubscriptionCancelled: state.markServiceSubscriptionCancelled,
     setActiveProfileId: state.setActiveProfileId,
     setFinanceScope: state.setFinanceScope,
     setSubscriptionPlan: state.setSubscriptionPlan,

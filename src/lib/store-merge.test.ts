@@ -37,6 +37,15 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.people[DEFAULT_PROFILE_ID]).toBeDefined()
   })
 
+  it('bevarer dismissedDuplicateSubscriptionPresetKeys fra lagret slice', () => {
+    const slice = createDefaultPersistedSlice()
+    const merged = mergePersistedIntoFullState(
+      { ...slice, dismissedDuplicateSubscriptionPresetKeys: ['netflix', 'spotify'] },
+      useStore.getState(),
+    )
+    expect(merged.dismissedDuplicateSubscriptionPresetKeys).toEqual(['netflix', 'spotify'])
+  })
+
   it('nullstiller people når demo er av men lagret people fortsatt har demo-kategorier', () => {
     const slice = createDefaultPersistedSlice()
     const demo = createDemoPersonDataForProfile(DEFAULT_PROFILE_ID, slice.budgetYear)

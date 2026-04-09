@@ -28,6 +28,7 @@ export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = 
 export function isSidebarNavActive(pathname: string, href: string): boolean {
   if (href === '/rapporter') return pathname.startsWith('/rapporter')
   if (href === '/budsjett') return pathname.startsWith('/budsjett')
+  if (href === '/abonnementer') return pathname.startsWith('/abonnementer')
   if (href === '/transaksjoner') return pathname.startsWith('/transaksjoner')
   return pathname === href
 }

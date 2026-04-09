@@ -136,13 +136,13 @@ export function buildAiFinanceContextText(
     let sumM = 0
     let sumY = 0
     for (const s of subs) {
-      if (!s.active) continue
+      if (!s.active || s.cancelledFrom) continue
       sumM += monthlyEquivalentNok(s)
       sumY += yearlyEquivalentNok(s)
     }
     lines.push(`Aktive abonnementer: ca. ${Math.round(sumM)} kr/mnd til sammen, ca. ${Math.round(sumY)} kr/år (omregnet).`)
     for (const s of subs) {
-      const status = s.active ? 'aktiv' : 'på pause'
+      const status = s.cancelledFrom ? 'avsluttet' : s.active ? 'aktiv' : 'på pause'
       const sync = s.syncToBudget ? ', synket til budsjett (Regninger)' : ''
       lines.push(
         `- ${s.label}: ${s.amountNok} kr per ${s.billing === 'monthly' ? 'måned' : 'år'}, ${status}${sync}`,
