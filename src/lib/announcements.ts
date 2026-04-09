@@ -64,6 +64,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Denne oppdateringen er nå på live.\n\nVi har rettet en feil i import av transaksjoner fra CSV: beløp med norsk formattering (tusenskille og komma som desimal, f.eks. 1 050,66) ble tidligere tolket feil og kunne gi helt gale summer. Nå leser appen slike beløp korrekt og avrunder til hele kroner, som i resten av appen.\n\nHvis du har importert filer med desimaler i BELØP-kolonnen før denne versjonen, bør du sjekke transaksjonene og rette eller slette rader som ser urimelige ut. Nye importer med norsk tallformat skal stemme.\n\nTeksten på importsiden og i veiledningen er oppdatert.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.4',
+    version: '0.3.4',
+    title: 'Smart Budsjett v0.3.4 — transaksjoner og budsjettkategorier',
+    body:
+      'Nytt periodevalg på transaksjoner: du kan filtrere på én måned, hele budsjettåret eller «hittil i år», slik at tallene matcher det du ser i sammendrag og dashboard.\n\nPå transaksjoner og i faktisk-oversikten kan du åpne en kategori for å se underliggende transaksjoner i valgt periode, med snarvei videre til hele transaksjonslisten.\n\nSiden for budsjettkategorier (Min konto) er utvidet med bedre oversikt og kobling mot det du gjør i transaksjonsvisningen.\n\nTrykk på klokken øverst til høyre når du vil lese tidligere beskjeder.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {
