@@ -72,6 +72,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Nytt periodevalg på transaksjoner: du kan filtrere på én måned, hele budsjettåret eller «hittil i år», slik at tallene matcher det du ser i sammendrag og dashboard.\n\nPå transaksjoner og i faktisk-oversikten kan du åpne en kategori for å se underliggende transaksjoner i valgt periode, med snarvei videre til hele transaksjonslisten.\n\nSiden for budsjettkategorier (Min konto) er utvidet med bedre oversikt og kobling mot det du gjør i transaksjonsvisningen.\n\nTrykk på klokken øverst til høyre når du vil lese tidligere beskjeder.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.5',
+    version: '0.3.5',
+    title: 'Smart Budsjett v0.3.5 — månedsinnsikt og smartere AI',
+    body:
+      'Ny rapport Månedsinnsikt under Rapporter: få en AI-drevet oppsummering av valgt måned med budsjett mot faktisk, nøkkeltall og eksport til PDF — med tydelig husholdning kontra enkeltprofil.\n\nOppdateringer på Abonnementer og tydeligere informasjon om modulene i abonnementet.\n\nEnkel Excel AI og appens AI-hjelp bruker mer relevant brukerkontekst, slik at svarene treffer bedre.\n\nTrykk på klokken øverst til høyre for å se denne og tidligere beskjeder.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {
