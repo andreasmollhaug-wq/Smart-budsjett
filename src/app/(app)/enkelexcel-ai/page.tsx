@@ -9,14 +9,21 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { generateId } from '@/lib/utils'
 import { shouldShowHalfUsageInfo } from '@/lib/aiUsage'
+import { useActivePersonFinance } from '@/lib/store'
 import { Lightbulb, Trash2 } from 'lucide-react'
 
-const SUGGESTED_QUESTIONS = [
-  'Oppsummer utgiftene mine den siste måneden.',
-  'Hvor kan jeg spare mest uten å endre alt på en gang?',
+/** Første forslag bygges i komponenten med inneværende måned fra enhetens klokke. */
+const SUGGESTED_QUESTIONS_REST = [
+  'Hva koster tjenesteabonnementene mine omtrent per måned til sammen?',
   'Hvordan bør jeg prioritere nedbetaling av gjeld?',
-  'Gi tre konkrete tips basert på budsjettet og transaksjonene mine.',
+  'Hvor skiller faktiske utgifter seg mest fra budsjettet mitt nå?',
 ] as const
+
+function suggestedQuestionCurrentMonthSummary(): string {
+  const now = new Date()
+  const period = now.toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' })
+  return `Oppsummer utgiftene mine i ${period} (inneværende måned).`
+}
 
 type ChatRole = 'user' | 'assistant'
 
@@ -35,10 +42,23 @@ type UsageState = {
 }
 
 export default function EnkelExcelAiPage() {
+  const suggestedQuestions = useMemo(
+    () => [suggestedQuestionCurrentMonthSummary(), ...SUGGESTED_QUESTIONS_REST],
+    [],
+  )
+
+  const { isHouseholdAggregate, profiles, activeProfileId } = useActivePersonFinance()
+  const activeProfileName = profiles.find((p) => p.id === activeProfileId)?.name?.trim() || 'Aktiv profil'
+  const dataScopeLine = isHouseholdAggregate
+    ? 'Grunnlag: samlet husholdning (alle profiler).'
+    : `Grunnlag: kun ${activeProfileName}. Bytt profil eller Husholdning i profilvelgeren til venstre.`
+
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [buyModalOpen, setBuyModalOpen] = useState(false)
+  /** `at_quota`: tom for inkluderte meldinger; `optional`: kjøp ekstra før kvoten er tom. */
+  const [buyModalContext, setBuyModalContext] = useState<'at_quota' | 'optional'>('at_quota')
   const assistantName = 'EnkelExcel AI'
 
   const initialMessages = useMemo<ChatMessage[]>(
@@ -92,6 +112,7 @@ export default function EnkelExcelAiPage() {
       } else {
         setQuotaMessage(null)
         setBuyModalOpen(false)
+        setBuyModalContext('at_quota')
       }
     } catch (e) {
       setUsageLoadError(e instanceof Error ? e.message : 'Kunne ikke hente bruk')
@@ -164,6 +185,7 @@ export default function EnkelExcelAiPage() {
       void loadUsage()
       setQuotaMessage(null)
       setBuyModalOpen(false)
+      setBuyModalContext('at_quota')
       window.history.replaceState({}, '', '/enkelexcel-ai')
     } else if (params.get('ai_credits') === 'canceled') {
       window.history.replaceState({}, '', '/enkelexcel-ai')
@@ -182,6 +204,11 @@ export default function EnkelExcelAiPage() {
     usage !== null
       ? Math.max(0, usage.limit - usage.used) + usage.bonusCredits
       : null
+
+  const hasUsageBanner =
+    showHalfInfo ||
+    (usage !== null && usage.bonusCredits > 0 && usage.used >= usage.limit) ||
+    quotaMessage !== null
 
   const clearConversation = useCallback(() => {
     setInput('')
@@ -303,69 +330,37 @@ export default function EnkelExcelAiPage() {
       <Header title={assistantName} subtitle="Din økonomiassistent" />
 
       <div className="flex flex-1 flex-col min-h-0 min-w-0 px-4 py-4 md:px-8 w-full max-w-6xl overflow-hidden">
+        <div className="w-full max-w-2xl mb-3">
+          <p
+            className="text-xs sm:text-sm rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 leading-snug break-words"
+            style={{
+              color: 'var(--text)',
+              background: 'var(--primary-pale)',
+              border: '1px solid var(--border)',
+            }}
+            role="status"
+          >
+            {dataScopeLine}
+          </p>
+        </div>
         {usageLoadError ? (
-          <p className="text-xs mb-2" style={{ color: 'var(--danger)' }}>
-            {usageLoadError}
-          </p>
-        ) : null}
-
-        {showHalfInfo && usage ? (
-          <p
-            className="text-xs mb-3 rounded-xl px-3 py-2"
-            style={{
-              color: 'var(--text-muted)',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            Du har brukt {usage.used} av {usage.limit} inkluderte meldinger denne måneden.
-            {usage.bonusCredits > 0 ? ` Du har også ${usage.bonusCredits} ekstra meldinger.` : ''}
-          </p>
-        ) : null}
-
-        {usage && usage.bonusCredits > 0 && usage.used >= usage.limit ? (
-          <p
-            className="text-xs mb-3 rounded-xl px-3 py-2"
-            style={{
-              color: 'var(--text-muted)',
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            Månedens inkluderte meldinger er brukt. Du bruker nå {usage.bonusCredits} ekstra
-            melding{usage.bonusCredits === 1 ? '' : 'er'}.
-          </p>
-        ) : null}
-
-        {quotaMessage ? (
-          <div className="mb-3 space-y-2">
-            <p
-              className="text-sm rounded-xl px-3 py-2"
-              style={{
-                color: 'var(--text)',
-                background: 'var(--primary-pale)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {quotaMessage}
-            </p>
-            {atQuota && usage ? (
-              <button
-                type="button"
-                onClick={() => setBuyModalOpen(true)}
-                className="text-sm font-medium underline"
-                style={{ color: 'var(--primary)' }}
-              >
-                Kjøp {usage.bonusPackCredits} meldinger til for {usage.bonusPackPriceNok} kr
-              </button>
+          <div className="text-xs mb-2 max-w-2xl space-y-1.5">
+            <p style={{ color: 'var(--danger)' }}>{usageLoadError}</p>
+            {/\b500\b/.test(usageLoadError) ? (
+              <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Bruksdata kunne ikke lastes fra serveren (HTTP 500). Det skjer vanligvis ved databasefeil eller
+                manglende tabell/tilgang i miljøet — ikke nødvendigvis noe galt hos deg. Oppdater siden og prøv igjen.
+              </p>
             ) : null}
           </div>
         ) : null}
 
-        <p className="text-xs mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          Assistenten får med transaksjoner og budsjettkategorier fra appen din i hver melding, slik at
-          svarene kan tilpasses dine tall.
-        </p>
+        <div className="w-full max-w-2xl mb-3">
+          <p className="text-xs leading-relaxed break-words" style={{ color: 'var(--text-muted)' }}>
+            Assistenten får med transaksjoner og budsjettkategorier fra appen din i hver melding, slik at svarene kan
+            tilpasses dine tall.
+          </p>
+        </div>
 
         <div className="flex flex-col lg:flex-row lg:gap-6 flex-1 min-h-0 w-full">
           <div className="flex flex-1 flex-col min-h-0 min-w-0 max-w-2xl lg:h-full lg:min-h-[min(70dvh,calc(100dvh-11rem))]">
@@ -455,7 +450,7 @@ export default function EnkelExcelAiPage() {
           </div>
 
           <div className="shrink-0 pt-4 border-t mt-4" style={{ borderColor: 'var(--border)' }}>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2 min-[400px]:flex-row min-[400px]:items-center min-[400px]:gap-3">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -468,7 +463,7 @@ export default function EnkelExcelAiPage() {
                       : `Skriv til ${assistantName}...`
                 }
                 disabled={atQuota || isLoading || !chatHydrated}
-                className="flex-1 px-3 py-2 rounded-xl text-sm disabled:opacity-60"
+                className="min-w-0 flex-1 px-3 py-2 rounded-xl text-sm disabled:opacity-60 w-full"
                 style={{
                   border: '1px solid var(--border)',
                   background: 'var(--bg)',
@@ -489,7 +484,7 @@ export default function EnkelExcelAiPage() {
                 type="button"
                 onClick={handleSend}
                 disabled={isLoading || atQuota || !chatHydrated}
-                className="px-4 py-3 rounded-xl text-sm font-medium transition-colors disabled:opacity-70"
+                className="shrink-0 px-4 py-3 rounded-xl text-sm font-medium transition-colors disabled:opacity-70 w-full min-[400px]:w-auto"
                 style={{ background: 'var(--primary)', color: 'white', whiteSpace: 'nowrap' }}
               >
                 Send
@@ -507,33 +502,111 @@ export default function EnkelExcelAiPage() {
             </p>
           </div>
         </div>
+
+          {hasUsageBanner ? (
+            <div className="w-full shrink-0 space-y-2 mt-3">
+              {showHalfInfo && usage ? (
+                <div className="space-y-2">
+                  <p
+                    className="text-xs rounded-xl px-3 py-2"
+                    style={{
+                      color: 'var(--text-muted)',
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    Du har brukt {usage.used} av {usage.limit} inkluderte meldinger denne måneden.
+                    {usage.bonusCredits > 0 ? ` Du har også ${usage.bonusCredits} ekstra meldinger.` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBuyModalContext('optional')
+                      setBuyModalOpen(true)
+                    }}
+                    className="text-xs font-medium rounded-xl px-3 py-2 transition-opacity hover:opacity-95"
+                    style={{
+                      color: 'var(--primary)',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg)',
+                      width: 'fit-content',
+                    }}
+                  >
+                    Kjøp mer tilgang
+                  </button>
+                </div>
+              ) : null}
+
+              {usage && usage.bonusCredits > 0 && usage.used >= usage.limit ? (
+                <p
+                  className="text-xs rounded-xl px-3 py-2"
+                  style={{
+                    color: 'var(--text-muted)',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  Månedens inkluderte meldinger er brukt. Du bruker nå {usage.bonusCredits} ekstra
+                  melding{usage.bonusCredits === 1 ? '' : 'er'}.
+                </p>
+              ) : null}
+
+              {quotaMessage ? (
+                <div className="mb-3 space-y-2">
+                  <p
+                    className="text-sm rounded-xl px-3 py-2"
+                    style={{
+                      color: 'var(--text)',
+                      background: 'var(--primary-pale)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    {quotaMessage}
+                  </p>
+                  {atQuota && usage ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBuyModalContext('at_quota')
+                        setBuyModalOpen(true)
+                      }}
+                      className="text-sm font-medium underline"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      Kjøp {usage.bonusPackCredits} meldinger til for {usage.bonusPackPriceNok} kr
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           </div>
 
           <aside
-            className="shrink-0 w-full lg:w-64 xl:w-72 mt-4 lg:mt-0 lg:self-start lg:sticky lg:top-4 lg:max-h-[min(70dvh,calc(100dvh-8rem))] flex flex-col rounded-2xl p-4"
+            className="shrink-0 w-full lg:w-64 xl:w-72 mt-4 lg:mt-0 lg:self-start lg:sticky lg:top-4 lg:max-h-[min(70dvh,calc(100dvh-8rem))] flex flex-col rounded-2xl p-3 sm:p-4"
             style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
             }}
             aria-label="Forslag til spørsmål"
           >
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <Lightbulb className="h-4 w-4 shrink-0" style={{ color: 'var(--primary)' }} aria-hidden />
               <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                 Forslag til spørsmål
               </p>
             </div>
-            <p className="text-xs mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs mb-2 sm:mb-3 leading-relaxed break-words" style={{ color: 'var(--text-muted)' }}>
               Klikk for å fylle inn — du kan endre teksten før du sender.
             </p>
-            <ul className="space-y-2 overflow-y-auto min-h-0 pr-0.5">
-              {SUGGESTED_QUESTIONS.map((q) => (
+            <ul className="space-y-1.5 sm:space-y-2 overflow-y-auto min-h-0 pr-0.5">
+              {suggestedQuestions.map((q) => (
                 <li key={q}>
                   <button
                     type="button"
                     onClick={() => applySuggestedQuestion(q)}
                     disabled={atQuota || !chatHydrated || isLoading}
-                    className="w-full text-left text-sm rounded-xl px-3 py-2.5 leading-snug transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-95"
+                    className="w-full text-left text-xs sm:text-sm rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5 leading-snug transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-95 break-words"
                     style={{
                       color: 'var(--text)',
                       background: 'var(--bg)',
@@ -554,7 +627,10 @@ export default function EnkelExcelAiPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.45)' }}
           role="presentation"
-          onClick={() => setBuyModalOpen(false)}
+          onClick={() => {
+            setBuyModalOpen(false)
+            setBuyModalContext('at_quota')
+          }}
         >
           <div
             className="max-w-md w-full rounded-2xl p-6 shadow-xl"
@@ -568,10 +644,21 @@ export default function EnkelExcelAiPage() {
               Kjøp flere AI-meldinger
             </h2>
             <p className="text-sm mt-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Du har brukt alle inkluderte meldinger for denne måneden. Du kan kjøpe{' '}
-              <strong style={{ color: 'var(--text)' }}>{usage.bonusPackCredits} ekstra meldinger</strong>{' '}
-              for <strong style={{ color: 'var(--text)' }}>{usage.bonusPackPriceNok} kr</strong> (engangsbetaling
-              med kort via Stripe).
+              {buyModalContext === 'optional' ? (
+                <>
+                  Du kan kjøpe{' '}
+                  <strong style={{ color: 'var(--text)' }}>{usage.bonusPackCredits} ekstra meldinger</strong> for{' '}
+                  <strong style={{ color: 'var(--text)' }}>{usage.bonusPackPriceNok} kr</strong> (engangsbetaling med
+                  kort via Stripe). Ekstra meldinger brukes når månedens inkluderte meldinger er brukt opp.
+                </>
+              ) : (
+                <>
+                  Du har brukt alle inkluderte meldinger for denne måneden. Du kan kjøpe{' '}
+                  <strong style={{ color: 'var(--text)' }}>{usage.bonusPackCredits} ekstra meldinger</strong> for{' '}
+                  <strong style={{ color: 'var(--text)' }}>{usage.bonusPackPriceNok} kr</strong> (engangsbetaling med
+                  kort via Stripe).
+                </>
+              )}
             </p>
             <div className="flex flex-col sm:flex-row gap-2 mt-6">
               <button
@@ -585,7 +672,10 @@ export default function EnkelExcelAiPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setBuyModalOpen(false)}
+                onClick={() => {
+                  setBuyModalOpen(false)
+                  setBuyModalContext('at_quota')
+                }}
                 className="px-4 py-3 rounded-xl text-sm font-medium"
                 style={{
                   border: '1px solid var(--border)',

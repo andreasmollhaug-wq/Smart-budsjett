@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isPersistedAppSlice, resolvePersonDataForAi } from '@/lib/aiUserContext'
+import { isPersistedAppSlice, profileNamesMapFromSlice, resolvePersonDataForAi } from '@/lib/aiUserContext'
 import {
   buildMonthlyInsightPayload,
   formatMonthlyInsightContextForAi,
@@ -106,13 +106,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Fant ikke lagret appdata.' }, { status: 400 })
   }
 
-  const { person, scopeLabel } = resolvePersonDataForAi(raw)
+  const { person, scopeLabel, isHouseholdAggregate } = resolvePersonDataForAi(raw)
+  const profileNamesById = profileNamesMapFromSlice(raw)
   const txs = person.transactions ?? []
   const cats = person.budgetCategories ?? []
 
   let payload: MonthlyInsightPayload
   try {
-    payload = buildMonthlyInsightPayload(txs, cats, year, monthIndex, scopeLabel)
+    payload = buildMonthlyInsightPayload(txs, cats, year, monthIndex, scopeLabel, {
+      isHouseholdAggregate,
+      profileNamesById,
+    })
   } catch (e) {
     console.error('[manedsinnsikt] buildMonthlyInsightPayload', e)
     return NextResponse.json({ error: 'Kunne ikke beregne månedsinnsikt.' }, { status: 500 })

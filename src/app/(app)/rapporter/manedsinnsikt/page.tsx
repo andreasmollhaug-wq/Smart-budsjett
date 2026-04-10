@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import MonthlyInsightDocument from '@/components/reports/MonthlyInsightDocument'
 import { currentYearMonthOslo } from '@/lib/aiUsage'
+import { useActivePersonFinance } from '@/lib/store'
 import { exportBankReportPdf } from '@/lib/exportBankReportPdf'
 import { getMonthKey } from '@/lib/bankReportData'
 import type { MonthlyInsightPayload } from '@/lib/monthlyInsightCompute'
@@ -53,6 +54,12 @@ function firstDayNextMonthAfterYmNb(ym: string): string {
 }
 
 export default function ManedsinnsiktPage() {
+  const { isHouseholdAggregate, profiles, activeProfileId } = useActivePersonFinance()
+  const activeProfileName = profiles.find((p) => p.id === activeProfileId)?.name?.trim() || 'Aktiv profil'
+  const insightScopeLine = isHouseholdAggregate
+    ? 'Månedsinnsikten bygger på samlet data for hele husholdningen (alle profiler).'
+    : `Månedsinnsikten bygger på data kun for ${activeProfileName}. Bytt visning i profilvelgeren til venstre før du genererer.`
+
   const [userId, setUserId] = useState<string | null>(null)
   const [year, setYear] = useState(() => {
     const d = new Date()
@@ -243,6 +250,13 @@ export default function ManedsinnsiktPage() {
           title="Månedsinnsikt"
           subtitle="Faktisk mot budsjett, trender og kort oppsummering med EnkelExcel AI"
         />
+        <p
+          className="px-8 pt-3 pb-1 text-sm max-w-4xl leading-snug"
+          style={{ color: 'var(--text)' }}
+          role="status"
+        >
+          {insightScopeLine}
+        </p>
         <div
           className="px-8 py-4 flex flex-wrap items-center gap-3 border-b"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}

@@ -24,7 +24,7 @@ export default function SubscriptionModuleInfoModal({ open, onClose }: Props) {
   return (
     <dialog
       ref={dialogRef}
-      className="rounded-2xl p-0 max-w-lg w-[min(100vw-2rem,28rem)] backdrop:bg-black/40"
+      className="fixed left-1/2 top-1/2 z-[200] m-0 max-w-lg w-[min(100vw-2rem,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-0 p-0 backdrop:bg-black/40"
       style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
       onClose={onClose}
     >

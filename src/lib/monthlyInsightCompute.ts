@@ -51,6 +51,8 @@ export type MonthlyInsightTopTx = {
   description: string
   amount: number
   category: string
+  /** Satt ved husholdningsaggregat — hvilken profil transaksjonen tilhører. */
+  profileName?: string
 }
 
 export type MonthlyInsightPayload = {
@@ -84,6 +86,12 @@ function rowToVarianceRow(r: BudgetVsActualRow): MonthlyInsightVarianceRow | nul
   }
 }
 
+export type BuildMonthlyInsightPayloadOptions = {
+  /** Når sann: topp-transaksjoner merkes med profilnavn der det finnes. */
+  isHouseholdAggregate?: boolean
+  profileNamesById?: Record<string, string>
+}
+
 /**
  * Bygger strukturert månedsinnsikt fra budsjett og transaksjoner (samme logikk som bankrapport).
  */
@@ -93,6 +101,7 @@ export function buildMonthlyInsightPayload(
   reportYear: number,
   reportMonthIndex: number,
   scopeLabel: string,
+  options?: BuildMonthlyInsightPayloadOptions,
 ): MonthlyInsightPayload {
   const monthTotals = sumTransactionsByCategoryForMonth(transactions, reportYear, reportMonthIndex)
   const rows = buildBudgetVsActual(budgetCategories, monthTotals, reportMonthIndex)
@@ -166,12 +175,19 @@ export function buildMonthlyInsightPayload(
   const topExpenseTransactions: MonthlyInsightTopTx[] = [...monthTxs]
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 8)
-    .map((t) => ({
-      date: t.date,
-      description: (t.description ?? '').trim() || '(uten beskrivelse)',
-      amount: t.amount,
-      category: (t.category ?? '').trim() || '(uten kategori)',
-    }))
+    .map((t) => {
+      const pid = t.profileId
+      const map = options?.profileNamesById
+      const profileName =
+        options?.isHouseholdAggregate && pid && map && map[pid] ? map[pid] : undefined
+      return {
+        date: t.date,
+        description: (t.description ?? '').trim() || '(uten beskrivelse)',
+        amount: t.amount,
+        category: (t.category ?? '').trim() || '(uten kategori)',
+        ...(profileName ? { profileName } : {}),
+      }
+    })
 
   return {
     reportYear,
@@ -242,7 +258,8 @@ export function formatMonthlyInsightContextForAi(payload: MonthlyInsightPayload)
     lines.push('(ingen)')
   } else {
     for (const t of payload.topExpenseTransactions) {
-      lines.push(`- ${t.date} | ${t.description} | ${t.amount.toFixed(0)} kr | ${t.category}`)
+      const prof = t.profileName ? ` | profil: ${t.profileName}` : ''
+      lines.push(`- ${t.date} | ${t.description} | ${t.amount.toFixed(0)} kr | ${t.category}${prof}`)
     }
   }
   return lines.join('\n')

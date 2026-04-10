@@ -100,16 +100,17 @@ Tjenesteabonnementer (/abonnementer)
 - Valgfritt: «Legg inn i budsjettet» synkroniserer planbeløp til en linje under Regninger (du slipper å taste samme beløp to ganger).
 - Faktisk «brukt» i budsjettet følger fortsatt transaksjoner når du fører trekk i samme kategori.
 - I Familie vises abonnementer samlet i husholdning med profilnavn; redigering gjøres når én profil er valgt. Når flere profiler har valgt samme tjeneste fra forhåndslisten, kan appen vise et nøytralt forslag om delt eller familieabonnement hos leverandøren.
-- Registrerte abonnementer inngår i tallkonteksten til EnkelExcel AI når du spør om slike kostnader.
+- Registrerte abonnementer inngår i tallkonteksten til EnkelExcel AI når du spør om slike kostnader. I husholdningsvisning er abonnementer i AI-konteksten merket med profil der det er relevant.
 
 Rapporter
 - /rapporter — menyvalg «Rapport til bank», «Månedsinnsikt» og «Sparemålrapport».
 - /rapporter/bank — velg år og måned; kryss av hvilke deler som skal med; valgfri fritekst til saksbehandler; tre måneders sammenligning fra transaksjoner; utskrift eller lagre som PDF.
-- /rapporter/manedsinnsikt — velg år og måned; generer ett AI-sammendrag per kalendermåned (serverstyrt kvote); nøkkeltall og tabeller mot budsjett; utskrift eller lagre som PDF (PDF teller ikke som ny generering).
+- /rapporter/manedsinnsikt — velg år og måned; generer ett AI-sammendrag per kalendermåned (serverstyrt kvote); nøkkeltall og tabeller mot budsjett; utskrift eller lagre som PDF (PDF teller ikke som ny generering). Tallene følger samme valgte visning som resten av appen (én profil eller samlet husholdning); siden forklarer hvilket grunnlag som brukes.
 - /rapporter/sparemal — sparemål, fremdrift, aktivitet; PDF/utskrift.
 
 EnkelExcel AI (/enkelexcel-ai)
 - Chat med «EnkelExcel AI» om budsjett, sparing, gjeld og hvordan appen brukes (sammen med bruksveiledningen du leser nå og brukerens tall i samme forespørsel).
+- Hvilket tallgrunnlag som sendes til AI følger profilvelgeren til venstre: én profil eller samlet husholdning (Familie med minst to profiler). Chattsiden viser tydelig hvilket grunnlag som gjelder. I husholdningsmodus er transaksjoner og enkeltposter i konteksten merket med profil der det er relevant; konteksten kan også inkludere sparemål, gjeld og investeringer fra appen.
 - Svar skal være ren tekst uten Markdown (ingen **, kodeblokker, osv.) — som beskrevet i systeminstruksen.
 - Meldingskvote: standard inkludert antall meldinger per kalendermåned (serverstyrt; typisk 100 med mindre drift har satt annet). Når inkluderte meldinger er brukt opp, kan du ha «ekstra meldinger» (bonus credits) hvis kjøpt.
 - Kjøp av ekstra AI-meldinger: fra chattsiden går betaling via Stripe (egen checkout); etter vellykket betaling returneres du til chatten med ?ai_credits=success.

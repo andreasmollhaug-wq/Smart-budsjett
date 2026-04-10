@@ -134,6 +134,8 @@ export interface Debt {
   pauseEndDate?: string
   /** Ta med i snøball-rekkefølge (manglende: boliglån nei, ellers ja — se `snowball.ts`) */
   includeInSnowball?: boolean
+  /** Kun satt i husholdningsaggregat — kildeprofil. */
+  sourceProfileId?: string
 }
 
 export interface Investment {
@@ -150,6 +152,8 @@ export interface Investment {
   shares?: number
   /** Sist kjente valuta fra kurs (USD, NOK, …) */
   quoteCurrency?: string
+  /** Kun satt i husholdningsaggregat — kildeprofil. */
+  sourceProfileId?: string
 }
 
 export interface InvestmentHistoryPoint {
@@ -178,17 +182,27 @@ export interface ServiceSubscription {
   sourceProfileId?: string
 }
 
+/** Planlagte trekk i transaksjoner (samme form som ved nytt abonnement). */
+export type ServiceSubscriptionPlannedTxInput = {
+  startMonth1: number
+  endMonth1: number
+  dayOfMonth: number
+  budgetYear: number
+}
+
 /** Input ved nytt tjenesteabonnement (planlagte transaksjoner er valgfritt). */
 export type AddServiceSubscriptionInput = Omit<
   ServiceSubscription,
   'id' | 'sourceProfileId' | 'cancelledFrom' | 'monthlyEquivalentNokSnapshot'
 > & {
-  plannedTransactions?: {
-    startMonth1: number
-    endMonth1: number
-    dayOfMonth: number
-    budgetYear: number
-  } | null
+  plannedTransactions?: ServiceSubscriptionPlannedTxInput | null
+}
+
+/** Ved oppdatering: `null` fjerner alle planlagte trekk for abonnementet. */
+export type UpdateServiceSubscriptionPatch = Partial<
+  Omit<ServiceSubscription, 'id' | 'sourceProfileId'>
+> & {
+  plannedTransactions?: ServiceSubscriptionPlannedTxInput | null
 }
 
 export interface PersonProfile {
@@ -317,7 +331,7 @@ interface AppState {
   ) => { ok: true; id: string } | { ok: false; reason: 'household_readonly' }
   updateServiceSubscription: (
     id: string,
-    patch: Partial<Omit<ServiceSubscription, 'id' | 'sourceProfileId'>>,
+    patch: UpdateServiceSubscriptionPatch,
   ) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
   removeServiceSubscription: (id: string) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
   markServiceSubscriptionCancelled: (
@@ -972,13 +986,14 @@ export function aggregateHouseholdData(
       })
     }
     for (const d of p.debts ?? []) {
-      debts.push({ ...d, id: `hh-${pid}-${d.id}`, name: d.name })
+      debts.push({ ...d, id: `hh-${pid}-${d.id}`, name: d.name, sourceProfileId: pid })
     }
     for (const inv of p.investments ?? []) {
       investments.push({
         ...inv,
         id: `hh-${pid}-${inv.id}`,
         name: inv.name,
+        sourceProfileId: pid,
       })
     }
   }
@@ -1917,7 +1932,8 @@ export const useStore = create<AppState>()((set, get) => {
           return { ok: true as const, id }
         },
 
-        updateServiceSubscription: (id, patch) => {
+        updateServiceSubscription: (id, patchIn) => {
+          const { plannedTransactions: plannedPatch, ...patch } = patchIn
           const s = get()
           if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
           const pid = s.activeProfileId
@@ -2004,7 +2020,41 @@ export const useStore = create<AppState>()((set, get) => {
 
           const nextList = [...list]
           nextList[idx] = nextSub
-          const nextPersonRaw = { ...person, budgetCategories, serviceSubscriptions: nextList }
+
+          let nextTransactions = person.transactions
+          if (plannedPatch !== undefined) {
+            nextTransactions = person.transactions.filter((t) => t.linkedServiceSubscriptionId !== id)
+            if (
+              plannedPatch !== null &&
+              nextSub.syncToBudget &&
+              nextSub.linkedBudgetCategoryId &&
+              plannedPatch.budgetYear === s.budgetYear
+            ) {
+              const displayName = budgetCategories.find((c) => c.id === nextSub.linkedBudgetCategoryId)?.name
+              if (displayName) {
+                const extraTx = buildPlannedSubscriptionTransactions({
+                  subscriptionId: id,
+                  label: nextSub.label,
+                  categoryName: displayName,
+                  profileId: pid,
+                  amountNok: nextSub.amountNok,
+                  billing: nextSub.billing,
+                  budgetYear: plannedPatch.budgetYear,
+                  startMonth1: plannedPatch.startMonth1,
+                  endMonth1: plannedPatch.endMonth1,
+                  dayOfMonth: plannedPatch.dayOfMonth,
+                })
+                nextTransactions = [...extraTx, ...nextTransactions]
+              }
+            }
+          }
+
+          const nextPersonRaw = {
+            ...person,
+            budgetCategories,
+            serviceSubscriptions: nextList,
+            transactions: plannedPatch !== undefined ? nextTransactions : person.transactions,
+          }
           const nextPerson = recalcPersonBudgetSpentForYear(
             syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
             pid,

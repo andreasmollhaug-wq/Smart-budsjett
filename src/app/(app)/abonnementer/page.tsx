@@ -13,7 +13,13 @@ import {
 } from '@/lib/serviceSubscriptionHelpers'
 import { clampBillingDay } from '@/lib/subscriptionTransactions'
 import { SERVICE_SUBSCRIPTION_PRESETS } from '@/lib/serviceSubscriptionPresets'
-import { useActivePersonFinance, useStore, type ServiceSubscription } from '@/lib/store'
+import {
+  useActivePersonFinance,
+  useStore,
+  type ServiceSubscription,
+  type Transaction,
+  type UpdateServiceSubscriptionPatch,
+} from '@/lib/store'
 import { formatNOK } from '@/lib/utils'
 import { Info, Pencil, Plus, Trash2, X } from 'lucide-react'
 
@@ -32,9 +38,54 @@ const MONTH_OPTIONS = [
   { v: 12, label: 'Desember' },
 ] as const
 
+function plannedTxEditDefaults(
+  sub: ServiceSubscription,
+  txs: Transaction[],
+  budgetYear: number,
+): { enabled: boolean; startMonth: number; endMonth: number; day: number } {
+  const y = String(budgetYear)
+  const linked = txs.filter(
+    (t) =>
+      t.linkedServiceSubscriptionId === sub.id &&
+      t.type === 'expense' &&
+      t.date.startsWith(`${y}-`),
+  )
+  if (linked.length === 0) {
+    const n = new Date()
+    return {
+      enabled: false,
+      startMonth: n.getMonth() + 1,
+      endMonth: 12,
+      day: clampBillingDay(n.getDate()),
+    }
+  }
+  linked.sort((a, b) => a.date.localeCompare(b.date))
+  const first = linked[0]!
+  const dayRaw = parseInt(first.date.slice(8, 10), 10) || 1
+  const months = linked
+    .map((t) => parseInt(t.date.slice(5, 7), 10))
+    .filter((m) => m >= 1 && m <= 12)
+  if (months.length === 0) {
+    const n = new Date()
+    return {
+      enabled: true,
+      startMonth: n.getMonth() + 1,
+      endMonth: 12,
+      day: clampBillingDay(dayRaw),
+    }
+  }
+  return {
+    enabled: true,
+    startMonth: Math.min(...months),
+    endMonth: Math.max(...months),
+    day: clampBillingDay(dayRaw),
+  }
+}
+
 export default function AbonnementerPage() {
   const {
     serviceSubscriptions,
+    transactions,
     isHouseholdAggregate,
     addServiceSubscription,
     updateServiceSubscription,
@@ -167,10 +218,12 @@ export default function AbonnementerPage() {
       {editingSubscription && !readonly && (
         <EditSubscriptionDialog
           subscription={editingSubscription}
+          transactions={transactions}
+          budgetYear={budgetYear}
           onClose={() => setEditingSubscription(null)}
           onSave={(patch) => {
-            updateServiceSubscription(editingSubscription.id, patch)
-            setEditingSubscription(null)
+            const res = updateServiceSubscription(editingSubscription.id, patch)
+            if (res.ok) setEditingSubscription(null)
           }}
         />
       )}
@@ -348,9 +401,10 @@ export default function AbonnementerPage() {
                   className="border-t px-4 py-3 sm:py-4 first:border-t-0"
                   style={{ borderColor: 'var(--border)' }}
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
+                  {/* grid: unngå at flex-1-raden visuelt overlapper ikonkolonnen (pennen fikk da ikke klikk) */}
+                  <div className="grid grid-cols-[1fr_auto] gap-x-2 gap-y-2 items-start">
                     {readonly ? (
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0">
                         <SubscriptionRowContent
                           s={s}
                           isHouseholdAggregate={isHouseholdAggregate}
@@ -360,7 +414,7 @@ export default function AbonnementerPage() {
                     ) : (
                       <button
                         type="button"
-                        className="min-w-0 flex-1 text-left rounded-xl px-2 -mx-2 py-2 -my-1 transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                        className="min-w-0 text-left rounded-xl px-2 -mx-2 py-2 -my-1 transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
                         style={{ color: 'inherit' }}
                         aria-label={`Rediger ${subLabelForAria(s.label)}`}
                         onClick={() => setEditingSubscription(s)}
@@ -374,13 +428,17 @@ export default function AbonnementerPage() {
                       </button>
                     )}
                     {!readonly && (
-                      <div className="flex shrink-0 gap-0.5 self-center">
+                      <div className="relative z-10 flex shrink-0 gap-0.5 self-center">
                         <button
                           type="button"
                           className="rounded-lg p-2.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
                           style={{ color: 'var(--text-muted)' }}
                           aria-label={`Rediger ${subLabelForAria(s.label)}`}
-                          onClick={() => setEditingSubscription(s)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setEditingSubscription(s)
+                          }}
                         >
                           <Pencil size={18} aria-hidden />
                         </button>
@@ -622,20 +680,40 @@ function SubscriptionRowContent({
 
 function EditSubscriptionDialog({
   subscription,
+  transactions,
+  budgetYear,
   onClose,
   onSave,
 }: {
   subscription: ServiceSubscription
+  transactions: Transaction[]
+  budgetYear: number
   onClose: () => void
-  onSave: (patch: Partial<ServiceSubscription>) => void
+  onSave: (patch: UpdateServiceSubscriptionPatch) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
     const el = dialogRef.current
     if (!el) return
-    if (!el.open) el.showModal()
+    // Etter neste paint: unngår at klikket som åpnet dialogen samtidig lukker/stopper modal (native <dialog>)
+    const frame = requestAnimationFrame(() => {
+      const d = dialogRef.current
+      if (!d || d.open) return
+      try {
+        d.showModal()
+      } catch {
+        requestAnimationFrame(() => {
+          try {
+            dialogRef.current?.showModal()
+          } catch {
+            /* f.eks. annen modal åpen */
+          }
+        })
+      }
+    })
     return () => {
+      cancelAnimationFrame(frame)
       if (el.open) el.close()
     }
   }, [subscription.id])
@@ -643,7 +721,7 @@ function EditSubscriptionDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="rounded-2xl p-0 max-w-lg w-[min(100vw-1.5rem,28rem)] max-h-[min(90dvh,40rem)] backdrop:bg-black/40"
+      className="fixed left-1/2 top-1/2 z-[200] m-0 max-h-[min(90dvh,40rem)] w-[min(100vw-1.5rem,28rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border-0 p-0 backdrop:bg-black/40"
       style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
       onClose={onClose}
     >
@@ -663,12 +741,14 @@ function EditSubscriptionDialog({
           </button>
         </div>
         <p className="text-xs mt-2 m-0" style={{ color: 'var(--text-muted)' }}>
-          Oppdater beløp, navn, faktureringsperiode eller synk til budsjett.
+          Oppdater beløp, navn, faktureringsperiode, synk til budsjett og eventuelle planlagte transaksjoner.
         </p>
         <div className="mt-4">
           <EditRow
             key={subscription.id}
             initial={subscription}
+            transactions={transactions}
+            budgetYear={budgetYear}
             onSave={(patch) => {
               onSave(patch)
             }}
@@ -718,11 +798,15 @@ function DuplicateServiceHintSentence({
 
 function EditRow({
   initial,
+  transactions,
+  budgetYear,
   onSave,
   onCancel,
 }: {
   initial: ServiceSubscription
-  onSave: (patch: Partial<ServiceSubscription>) => void
+  transactions: Transaction[]
+  budgetYear: number
+  onSave: (patch: UpdateServiceSubscriptionPatch) => void
   onCancel: () => void
 }) {
   const [label, setLabel] = useState(initial.label)
@@ -730,6 +814,34 @@ function EditRow({
   const [billing, setBilling] = useState(initial.billing)
   const [active, setActive] = useState(initial.active)
   const [sync, setSync] = useState(initial.syncToBudget)
+  const [plannedTx, setPlannedTx] = useState(() => plannedTxEditDefaults(initial, transactions, budgetYear))
+
+  const invalidPlannedRange = sync && plannedTx.enabled && plannedTx.startMonth > plannedTx.endMonth
+
+  const handleSave = () => {
+    if (invalidPlannedRange) return
+    let plannedPart: UpdateServiceSubscriptionPatch['plannedTransactions']
+    if (!sync) {
+      plannedPart = null
+    } else if (plannedTx.enabled) {
+      plannedPart = {
+        startMonth1: plannedTx.startMonth,
+        endMonth1: plannedTx.endMonth,
+        dayOfMonth: clampBillingDay(plannedTx.day),
+        budgetYear,
+      }
+    } else {
+      plannedPart = null
+    }
+    onSave({
+      label,
+      amountNok: amount,
+      billing,
+      active,
+      syncToBudget: sync,
+      plannedTransactions: plannedPart,
+    })
+  }
 
   return (
     <div className="space-y-3">
@@ -776,23 +888,103 @@ function EditRow({
         Aktiv
       </label>
       <label className="flex items-center gap-2 text-sm cursor-pointer">
-        <input type="checkbox" checked={sync} onChange={(e) => setSync(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={sync}
+          onChange={(e) => {
+            const v = e.target.checked
+            setSync(v)
+            if (!v) setPlannedTx((p) => ({ ...p, enabled: false }))
+          }}
+        />
         Synk til budsjett (Regninger)
       </label>
+      {sync && (
+        <div className="space-y-3 rounded-xl border px-3 py-3" style={{ borderColor: 'var(--border)' }}>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-0.5 shrink-0"
+              checked={plannedTx.enabled}
+              onChange={(e) => setPlannedTx((p) => ({ ...p, enabled: e.target.checked }))}
+            />
+            <span>
+              <span style={{ color: 'var(--text)' }}>Legg også inn planlagte utgifter i transaksjoner</span>
+              <span className="block text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                Én linje per måned i valgt periode (budsjettår {budgetYear}). Planlagte trekk, ikke bankimport. Brukt-beløp
+                og budsjett kan overlappe — se hjelpeteksten om abonnement.
+              </span>
+            </span>
+          </label>
+          {plannedTx.enabled && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block text-xs">
+                <span style={{ color: 'var(--text-muted)' }}>Fra måned</span>
+                <select
+                  value={plannedTx.startMonth}
+                  onChange={(e) =>
+                    setPlannedTx((p) => ({ ...p, startMonth: parseInt(e.target.value, 10) }))
+                  }
+                  className="mt-1 w-full rounded-lg px-2 py-2 text-sm"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                >
+                  {MONTH_OPTIONS.map((o) => (
+                    <option key={o.v} value={o.v}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs">
+                <span style={{ color: 'var(--text-muted)' }}>Til måned</span>
+                <select
+                  value={plannedTx.endMonth}
+                  onChange={(e) =>
+                    setPlannedTx((p) => ({ ...p, endMonth: parseInt(e.target.value, 10) }))
+                  }
+                  className="mt-1 w-full rounded-lg px-2 py-2 text-sm"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                >
+                  {MONTH_OPTIONS.map((o) => (
+                    <option key={o.v} value={o.v}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-xs">
+                <span style={{ color: 'var(--text-muted)' }}>Dag i måneden (1–28)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={28}
+                  value={plannedTx.day}
+                  onChange={(e) =>
+                    setPlannedTx((p) => ({
+                      ...p,
+                      day: clampBillingDay(parseInt(e.target.value, 10) || 1),
+                    }))
+                  }
+                  className="mt-1 w-full rounded-lg px-2 py-2 text-sm tabular-nums"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                />
+              </label>
+            </div>
+          )}
+          {plannedTx.enabled && invalidPlannedRange && (
+            <p className="text-xs m-0" style={{ color: 'var(--danger)' }}>
+              Startmåned kan ikke være etter sluttmåned.
+            </p>
+          )}
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded-xl px-4 py-2 text-sm font-medium text-white"
+          className="rounded-xl px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           style={{ background: 'var(--primary)' }}
-          onClick={() =>
-            onSave({
-              label,
-              amountNok: amount,
-              billing,
-              active,
-              syncToBudget: sync,
-            })
-          }
+          disabled={invalidPlannedRange}
+          onClick={handleSave}
         >
           Lagre
         </button>
