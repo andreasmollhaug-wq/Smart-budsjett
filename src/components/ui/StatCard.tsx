@@ -41,7 +41,7 @@ export default function StatCard({
   }, [infoOpen])
 
   const cardClass =
-    'rounded-2xl p-5 flex flex-col gap-3' +
+    'rounded-2xl p-4 sm:p-5 flex flex-col gap-3' +
     (onClick
       ? ' outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2'
       : '')
@@ -87,17 +87,17 @@ export default function StatCard({
           <Icon size={18} style={{ color }} />
         </div>
       </div>
-      <div>
-        <p className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
+      <div className="min-w-0">
+        <p className="text-lg font-bold tabular-nums sm:text-2xl" style={{ color: 'var(--text)' }}>
           {value}
         </p>
-        <div className="flex items-center gap-1 mt-1">
+        <div className="mt-1 flex flex-wrap items-start gap-x-1 gap-y-0.5">
           {trend === 'up' ? (
-            <ArrowUpRight size={14} style={{ color: 'var(--success)' }} />
+            <ArrowUpRight size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--success)' }} />
           ) : trend === 'down' ? (
-            <ArrowDownRight size={14} style={{ color: 'var(--danger)' }} />
+            <ArrowDownRight size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--danger)' }} />
           ) : null}
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p className="min-w-0 flex-1 text-xs leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
             {sub}
           </p>
         </div>

@@ -27,7 +27,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /enkelexcel-ai — EnkelExcel AI
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
-- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; beløp støtter norsk tallformat med tusenskille og komma som desimal, avrundet til hele kroner; nederst i menyen)
+- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, **Profiler** (kun synlig med Familie-abonnement — se egen seksjon), Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; beløp støtter norsk tallformat med tusenskille og komma som desimal, avrundet til hele kroner; nederst i menyen)
 
 Profiler, abonnement og «Viser data for»
 - Solo-abonnement: én profil i appen.
@@ -50,8 +50,10 @@ Demodata
 
 Oversikt (/dashboard)
 - Undertittel: personlig oversikt, eller «Samlet husholdning — alle profiler» i husholdningsmodus.
-- Kort: inntekt i år, utgifter i år (budsjettår), total gjeld, investeringer (markedsverdi) — basert på registrerte data.
-- Graf: inntekt vs. utgifter (seks måneder), topp 10 utgiftskategorier (kan åpnes for detaljer), lenke til transaksjoner, modaler for inntekt/utgift per måned, sparing og investeringer der det er implementert.
+- Øverst under overskriften: periodeverktøy (velg år, og periode: «Hittil i år» som standard, eller én måned, eller hele året). For «Hittil i år» kan du også velge siste måned i intervallet (f.eks. januar–april). Dette styrer hvilke transaksjons- og budsjett-tall som vises i de delene av siden som følger filteret (se under).
+- Følger valgt år/periode: KPI-kortene «Inntekt» og «Utgifter» (faktiske beløp i perioden), «Topp 10 utgifter» (summert per kategori i perioden). På brede skjermer er hovedinnholdet i to kolonner (venstrejustert, ikke midtstilt): venstre kolonne har «Mot budsjett» (plan vs. faktisk), under det «Faste trekk (budsjett)» (budsjett for valgt sluttmåned i perioden), og under det eventuelt «Dette bør du sjekke»; høyre kolonne har «Siste aktivitet». På smal skjerm stables samme rekkefølge vertikalt. Modaler som åpnes fra inntekt/utgift-KPI viser hele budsjettåret for budsjett, med tydelig markering av hvilke måneder som er utenfor valgt periode.
+- Følger ikke perioden (uavhengig av datovelgeren): «Total gjeld» (samlet restgjeld per nå), «Investeringer» (markedsverdi per nå), og sparemål-panelet «Sparemål» / «Spart totalt» (bygger på sparemål og tilknyttede beløp — ikke filtrert på valgt måned/år på oversikten). Seks-månedersgrafen «Inntekt vs. utgifter (6 mnd)» følger alltid aktivt budsjettår i appen (trend), ikke nødvendigvis det året du har valgt i filteret; hjelpetekst på siden forklarer når du filtrerer på et annet år enn aktivt budsjettår.
+- Lenker til transaksjoner kan forhåndsfiltere på samme år/periode som på oversikten.
 
 Budsjett (/budsjett)
 - Planlegg inntekter og utgifter per måned for valgt budsjettår.
@@ -119,7 +121,13 @@ EnkelExcel AI (/enkelexcel-ai)
 - Erstatter ikke menneskelig rådgivning.
 
 Min konto — oversikt
-- Header «Min konto» med undertittel om administrasjon. Venstre undermeny: Innstillinger, Kom i gang, Budsjettkategorier, Betalinger, Sikkerhet, Roadmap.
+- Header «Min konto» med undertittel om administrasjon. Venstre undermeny: Innstillinger, (med Familie også Profiler rett etter Innstillinger), Kom i gang, Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner.
+
+Profiler (/konto/profiler) — kun med Familie-abonnement
+- Menypunktet «Profiler» vises bare når appen er satt til Familie-plan (samme som for flere profiler i husholdningen). Med Solo-abonnement finnes ikke dette menypunktet; direkte besøk på /konto/profiler sender til Innstillinger.
+- Her administrerer du **budsjettprofiler** i husholdningen (samme innloggede konto — ikke egne brukerkontoer per familiemedlem): se liste over profiler, **endre visningsnavn** (Lagre navn per rad), og **fjerne en ekstra profil** som ble lagt inn ved en feil eller ikke lenger skal brukes.
+- **Hovedprofilen** (standard «Meg») kan **ikke slettes**; kun ekstra profiler kan fjernes med «Fjern profil» (med bekreftelse). Sletting er permanent og fjerner all økonomidata for den profilen (transaksjoner, budsjett, sparemål, gjeld, investeringer, tjenesteabonnementer m.m. knyttet til profilen).
+- Nye profiler legges fortsatt til via «Legg til» ved «Viser data for» i sidemenyen (ikke på denne siden).
 
 Innstillinger (/konto/innstillinger)
 - Profil: navn og e-post (Supabase), lagre endringer.

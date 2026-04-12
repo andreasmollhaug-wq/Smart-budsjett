@@ -1,0 +1,24 @@
+---
+description: App-siden «Oversikt» (/dashboard) — godkjent layout (brukerpreferanse)
+globs:
+  - "**/app/(app)/dashboard/**"
+  - "**/components/dashboard/**"
+alwaysApply: false
+---
+
+# Oversikt (`/dashboard`) — layout (ønsket oppsett)
+
+**Gjelder kun app-siden Oversikt** (rute `/dashboard`, hovedoversikten etter innlogging). Gjelder **ikke** andre «dashboard»-sider i appen (f.eks. budsjett-dashboard under `/budsjett/...`), med mindre noe annet sies eksplisitt.
+
+**Brukeren har bekreftet at dette oppsettet skal beholdes** — ikke endre det uten eksplisitt ønske.
+
+- **Ikke midstill** hovedblokken med `mx-auto` / smal `max-w-*` som samler «Mot budsjett»-seksjonen alene; innholdet skal bruke tilgjengelig bredde i to kolonner der det er naturlig.
+- **Fra `lg:`:** `grid` med to kolonner (`lg:grid-cols-2`), `gap-8`, `items-start`.
+- **Venstre kolonne** (`min-w-0`, `space-y-6`), i denne rekkefølgen:
+  1. «Mot budsjett» ([`DashboardVsBudgetCard`](src/components/dashboard/DashboardVsBudgetCard.tsx)) eller melding om manglende budsjettdata
+  2. «Faste trekk (budsjett)» ([`DashboardFixedOutgoingCard`](src/components/dashboard/DashboardFixedOutgoingCard.tsx)) når det finnes budsjettdata
+  3. «Dette bør du sjekke» ([`DashboardChecksCard`](src/components/dashboard/DashboardChecksCard.tsx)) kun når det finnes hint — **under** faste trekk, ikke ved siden av aktivitet
+- **Høyre kolonne** (`min-w-0`): «Siste aktivitet» ([`DashboardRecentActivityCard`](src/components/dashboard/DashboardRecentActivityCard.tsx)) alltid her på desktop.
+- **Mobil:** én kolonne; samme DOM-rekkefølge (mot budsjett → faste trekk → ev. sjekk → siste aktivitet).
+
+Ved større omskrivninger av siden: les [`src/app/(app)/dashboard/page.tsx`](src/app/(app)/dashboard/page.tsx) og behold denne strukturen med mindre brukeren ber om noe annet.

@@ -1,9 +1,10 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings, CreditCard, Shield, ChevronRight, Tags, Map, BookOpen, Upload } from 'lucide-react'
+import { Settings, CreditCard, Shield, ChevronRight, Tags, Map, BookOpen, Upload, Users } from 'lucide-react'
+import { useStore } from '@/lib/store'
 
-const links = [
+const baseLinks = [
   { href: '/konto/innstillinger', label: 'Innstillinger', labelShort: 'Innst.', icon: Settings },
   { href: '/konto/kom-i-gang', label: 'Kom i gang', labelShort: 'Guide', icon: BookOpen },
   { href: '/konto/budsjett-kategorier', label: 'Budsjettkategorier', labelShort: 'Kategorier', icon: Tags },
@@ -13,8 +14,21 @@ const links = [
   { href: '/konto/importer-transaksjoner', label: 'Importer transaksjoner', labelShort: 'Import', icon: Upload },
 ] as const
 
+const profilerLink = {
+  href: '/konto/profiler',
+  label: 'Profiler',
+  labelShort: 'Profiler',
+  icon: Users,
+} as const
+
 export default function KontoNav() {
   const pathname = usePathname()
+  const subscriptionPlan = useStore((s) => s.subscriptionPlan)
+
+  const links =
+    subscriptionPlan === 'family'
+      ? [baseLinks[0], profilerLink, ...baseLinks.slice(1)]
+      : [...baseLinks]
 
   return (
     <nav

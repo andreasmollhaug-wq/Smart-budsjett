@@ -1,27 +1,41 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { useAppUser } from '@/components/app/AppUserContext'
-import { useActivePersonFinance } from '@/lib/store'
+import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance } from '@/lib/store'
 import {
+  buildBudgetVsActualForPeriod,
   buildDashboardSixMonthIncomeExpense,
-  MONTH_LABELS_SHORT_NB,
   referenceMonthIndexForBudgetYear,
-  sumBudgetedFixedMonthlyExpensesForMonth,
-  sumBudgetedIncomeForMonth,
+  sumTransactionsByCategoryForMonthRange,
 } from '@/lib/bankReportData'
+import {
+  buildDashboardCheckHints,
+  countMonthsWithAnyTransaction,
+  summarizeBudgetVsRows,
+  sumIncomeExpenseInMonthRange,
+  transactionInMonthRange,
+} from '@/lib/dashboardOverviewHelpers'
 import { getTotalEffectiveSaved } from '@/lib/savingsDerived'
 import { formatNOK } from '@/lib/utils'
 import StatCard from '@/components/ui/StatCard'
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ChevronRight, Receipt } from 'lucide-react'
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ChevronRight } from 'lucide-react'
 import DashboardInvestmentsModal from '@/components/dashboard/DashboardInvestmentsModal'
 import DashboardSavingsGoalsModal from '@/components/dashboard/DashboardSavingsGoalsModal'
 import DashboardCategoryExpenseModal from '@/components/dashboard/DashboardCategoryExpenseModal'
 import DashboardIncomeExpenseMonthlyModal from '@/components/dashboard/DashboardIncomeExpenseMonthlyModal'
 import DashboardFixedExpensesModal from '@/components/dashboard/DashboardFixedExpensesModal'
+import DashboardPeriodToolbar from '@/components/dashboard/DashboardPeriodToolbar'
+import DashboardVsBudgetCard from '@/components/dashboard/DashboardVsBudgetCard'
+import DashboardChecksCard from '@/components/dashboard/DashboardChecksCard'
+import DashboardRecentActivityCard from '@/components/dashboard/DashboardRecentActivityCard'
+import DashboardFixedOutgoingCard from '@/components/dashboard/DashboardFixedOutgoingCard'
+import type { PeriodMode } from '@/lib/budgetPeriod'
+import { periodRange, periodSubtitle } from '@/lib/budgetPeriod'
+import { transactionOnOrBeforeToday } from '@/lib/transactionPeriodFilter'
 
 const DashboardIncomeExpenseChart = dynamic(
   () => import('@/components/dashboard/DashboardIncomeExpenseChart'),
@@ -53,6 +67,12 @@ function dashboardSubtitle(
   return 'Oversikt · Din økonomiske oversikt i dag'
 }
 
+function transaksjonerPeriodHref(year: number, mode: PeriodMode, monthIndex: number): string {
+  if (mode === 'month') return `/transaksjoner?year=${year}&month=${monthIndex}`
+  if (mode === 'ytd') return `/transaksjoner?year=${year}&month=ytd`
+  return `/transaksjoner?year=${year}&month=all`
+}
+
 export default function DashboardPage() {
   const { displayName, isFirstAppState } = useAppUser()
   const {
@@ -65,6 +85,8 @@ export default function DashboardPage() {
     activeProfileId,
     budgetYear,
     profiles,
+    archivedBudgetsByYear,
+    serviceSubscriptions,
   } = useActivePersonFinance()
 
   const [investmentsModalOpen, setInvestmentsModalOpen] = useState(false)
@@ -73,8 +95,115 @@ export default function DashboardPage() {
   const [kpiModal, setKpiModal] = useState<'income' | 'expense' | null>(null)
   const [fixedExpensesModalOpen, setFixedExpensesModalOpen] = useState(false)
 
-  const totalIncome = budgetCategories.filter((c) => c.type === 'income').reduce((a, b) => a + b.spent, 0)
-  const totalExpenses = budgetCategories.filter((c) => c.type === 'expense').reduce((a, b) => a + b.spent, 0)
+  const [filterYear, setFilterYear] = useState(budgetYear)
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('ytd')
+  const [monthIndex, setMonthIndex] = useState(() => referenceMonthIndexForBudgetYear(budgetYear))
+
+  useEffect(() => {
+    setFilterYear(budgetYear)
+  }, [budgetYear])
+
+  useEffect(() => {
+    setMonthIndex(referenceMonthIndexForBudgetYear(filterYear))
+  }, [filterYear])
+
+  const yearOptions = useMemo(() => {
+    const y = new Set<number>([budgetYear, filterYear])
+    for (const t of transactions ?? []) {
+      const d = t.date
+      if (typeof d !== 'string' || d.length < 4) continue
+      const yy = Number.parseInt(d.slice(0, 4), 10)
+      if (Number.isFinite(yy)) y.add(yy)
+    }
+    for (const k of Object.keys(archivedBudgetsByYear)) {
+      const n = Number(k)
+      if (Number.isFinite(n)) y.add(n)
+    }
+    return [...y].sort((a, b) => b - a)
+  }, [budgetYear, filterYear, transactions, archivedBudgetsByYear])
+
+  const displayCategories = useMemo(() => {
+    if (filterYear === budgetYear) return budgetCategories
+    const snap = archivedBudgetsByYear[String(filterYear)]
+    if (!snap) return []
+    if (isHouseholdAggregate) {
+      return mergeBudgetCategoriesFromSnapshots(snap, profiles.map((p) => p.id))
+    }
+    return snap[activeProfileId] ?? []
+  }, [
+    filterYear,
+    budgetYear,
+    budgetCategories,
+    archivedBudgetsByYear,
+    isHouseholdAggregate,
+    profiles,
+    activeProfileId,
+  ])
+
+  const { start, end } = useMemo(() => periodRange(periodMode, monthIndex), [periodMode, monthIndex])
+
+  const periodLabel = useMemo(() => periodSubtitle(periodMode, filterYear, monthIndex), [periodMode, filterYear, monthIndex])
+
+  const periodIncomeExpense = useMemo(
+    () => sumIncomeExpenseInMonthRange(transactions ?? [], filterYear, start, end),
+    [transactions, filterYear, start, end],
+  )
+
+  const monthTotals = useMemo(
+    () => sumTransactionsByCategoryForMonthRange(transactions ?? [], filterYear, start, end),
+    [transactions, filterYear, start, end],
+  )
+
+  const budgetVsRows = useMemo(
+    () => buildBudgetVsActualForPeriod(displayCategories, monthTotals, start, end),
+    [displayCategories, monthTotals, start, end],
+  )
+
+  const vsSummary = useMemo(() => summarizeBudgetVsRows(budgetVsRows), [budgetVsRows])
+
+  const coverage = useMemo(
+    () => countMonthsWithAnyTransaction(transactions ?? [], filterYear, start, end),
+    [transactions, filterYear, start, end],
+  )
+
+  const checkHints = useMemo(
+    () =>
+      buildDashboardCheckHints({
+        transactions: transactions ?? [],
+        filterYear,
+        start,
+        end,
+      }),
+    [transactions, filterYear, start, end],
+  )
+
+  const topExpenseCategories = useMemo(() => {
+    const byCat = new Map<string, { total: number; count: number }>()
+    for (const t of transactions ?? []) {
+      if (t.type !== 'expense') continue
+      if (!transactionInMonthRange(t, filterYear, start, end)) continue
+      const amt = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
+      const cat = typeof t.category === 'string' && t.category.trim() ? t.category.trim() : 'Uten kategori'
+      const cur = byCat.get(cat) ?? { total: 0, count: 0 }
+      cur.total += amt
+      cur.count += 1
+      byCat.set(cat, cur)
+    }
+    return [...byCat.entries()]
+      .map(([category, v]) => ({ category, ...v }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10)
+  }, [transactions, filterYear, start, end])
+
+  const recentInPeriod = useMemo(() => {
+    return (transactions ?? []).filter(
+      (t) =>
+        transactionInMonthRange(t, filterYear, start, end) &&
+        typeof t.date === 'string' &&
+        transactionOnOrBeforeToday(t),
+    )
+  }, [transactions, filterYear, start, end])
+
   const totalDebt = debts.reduce((a, b) => a + b.remainingAmount, 0)
   const totalInvested = investments.reduce((a, b) => a + b.currentValue, 0)
   const totalSaved = useMemo(
@@ -94,43 +223,19 @@ export default function DashboardPage() {
     [transactions, budgetYear],
   )
 
-  /** Topp 10 utgiftskategorier etter summert faktisk forbruk i budsjettåret (ikke enkeltposter). */
-  const topExpenseCategories = useMemo(() => {
-    const prefix = `${budgetYear}-`
-    const byCat = new Map<string, { total: number; count: number }>()
-    for (const t of transactions ?? []) {
-      if (t.type !== 'expense') continue
-      const d = t.date
-      if (typeof d !== 'string' || !d.startsWith(prefix)) continue
-      const amt = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
-      const cat = typeof t.category === 'string' && t.category.trim() ? t.category.trim() : 'Uten kategori'
-      const cur = byCat.get(cat) ?? { total: 0, count: 0 }
-      cur.total += amt
-      cur.count += 1
-      byCat.set(cat, cur)
-    }
-    return [...byCat.entries()]
-      .map(([category, v]) => ({ category, ...v }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 10)
-  }, [transactions, budgetYear])
-
   const invGainUp = portfolio.totalGain >= 0
 
-  const fixedExpensesKpi = useMemo(() => {
-    const refMonth = referenceMonthIndexForBudgetYear(budgetYear)
-    const fixed = sumBudgetedFixedMonthlyExpensesForMonth(budgetCategories, refMonth)
-    const inc = sumBudgetedIncomeForMonth(budgetCategories, refMonth)
-    const pct = inc > 0 ? (fixed / inc) * 100 : null
-    const monthLabel = MONTH_LABELS_SHORT_NB[refMonth] ?? ''
-    let sub = `Budsjett for ${monthLabel} · månedlig`
-    if (pct != null && Number.isFinite(pct)) {
-      sub += ` · ca. ${pct.toFixed(0)} % av inntekt`
-    } else if (fixed > 0) {
-      sub += ' · ingen budsjettert inntekt for måneden'
+  const serviceSubscriptionLine = useMemo(() => {
+    const active = serviceSubscriptions.filter((s) => s.active)
+    if (active.length === 0) return null
+    let monthlySumNok = 0
+    for (const s of active) {
+      monthlySumNok += s.billing === 'yearly' ? s.amountNok / 12 : s.amountNok
     }
-    return { fixedSum: fixed, sub }
-  }, [budgetCategories, budgetYear])
+    return { count: active.length, monthlySumNok }
+  }, [serviceSubscriptions])
+
+  const transaksjonerHref = transaksjonerPeriodHref(filterYear, periodMode, monthIndex)
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
@@ -139,11 +244,31 @@ export default function DashboardPage() {
         subtitle={dashboardSubtitle(isHouseholdAggregate, activeProfileId, profiles)}
       />
       <div className="space-y-6 px-4 py-6 md:p-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <DashboardPeriodToolbar
+          filterYear={filterYear}
+          onFilterYearChange={setFilterYear}
+          periodMode={periodMode}
+          onPeriodModeChange={setPeriodMode}
+          monthIndex={monthIndex}
+          onMonthIndexChange={setMonthIndex}
+          yearOptions={yearOptions}
+        />
+
+        {filterYear !== budgetYear && (
+          <p className="text-sm leading-relaxed break-words" style={{ color: 'var(--text-muted)' }}>
+            Du filtrerer på <strong style={{ color: 'var(--text)' }}>{filterYear}</strong>. Aktivt budsjettår i appen er{' '}
+            <strong style={{ color: 'var(--text)' }}>{budgetYear}</strong> (bl.a. trendgrafen nedenfor).{' '}
+            <Link href="/budsjett" className="font-medium underline-offset-2 hover:underline" style={{ color: 'var(--primary)' }}>
+              Bytt aktivt budsjettår
+            </Link>
+          </p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard
-            label="Inntekt i år"
-            value={formatNOK(totalIncome)}
-            sub={`Budsjettår ${budgetYear}`}
+            label="Inntekt"
+            value={formatNOK(periodIncomeExpense.income)}
+            sub={periodLabel}
             icon={Wallet}
             trend="up"
             color="#3B5BDB"
@@ -151,16 +276,16 @@ export default function DashboardPage() {
             aria-label="Se inntekt per måned"
           />
           <StatCard
-            label="Utgifter i år"
-            value={formatNOK(totalExpenses)}
-            sub={`Budsjettår ${budgetYear}`}
+            label="Utgifter"
+            value={formatNOK(periodIncomeExpense.expense)}
+            sub={periodLabel}
             icon={TrendingDown}
             trend="down"
             color="#E03131"
             onClick={() => setKpiModal('expense')}
             aria-label="Se utgifter per måned"
           />
-          <StatCard label="Total gjeld" value={formatNOK(totalDebt)} sub="Alle lån samlet" icon={CreditCard} color="#F08C00" />
+          <StatCard label="Total gjeld" value={formatNOK(totalDebt)} sub="Alle lån samlet · per i dag" icon={CreditCard} color="#F08C00" />
           <StatCard
             label="Investeringer"
             value={formatNOK(totalInvested)}
@@ -173,7 +298,7 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div
-            className="lg:col-span-2 rounded-2xl p-6"
+            className="min-w-0 lg:col-span-2 rounded-2xl p-4 sm:p-6"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>
@@ -181,20 +306,29 @@ export default function DashboardPage() {
             </h2>
             <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
               Basert på transaksjoner i budsjettår {budgetYear} (siste inntil seks måneder fram til inneværende måned).
+              {filterYear !== budgetYear ? (
+                <>
+                  {' '}
+                  Uavhengig av periodefilter over — viser trend for aktivt budsjettår.
+                </>
+              ) : null}
             </p>
             <DashboardIncomeExpenseChart data={incomeExpenseChartData} />
           </div>
 
-          <div className="rounded-2xl p-6 flex flex-col" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div
+            className="flex min-w-0 flex-col rounded-2xl p-4 sm:p-6"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
             <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>
               Topp 10 utgifter
             </h2>
             <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-              Summert per kategori · budsjettår {budgetYear}
+              Summert per kategori · {periodLabel}
             </p>
             {topExpenseCategories.length === 0 ? (
               <p className="text-sm flex-1" style={{ color: 'var(--text-muted)' }}>
-                Ingen utgifter registrert ennå.
+                Ingen utgifter i perioden ennå.
               </p>
             ) : (
               <div className="space-y-2 flex-1 min-h-0 overflow-y-auto max-h-[280px]">
@@ -203,7 +337,7 @@ export default function DashboardPage() {
                     key={row.category}
                     type="button"
                     onClick={() => setCategoryModal({ category: row.category, total: row.total })}
-                    className="w-full flex items-center justify-between gap-2 rounded-xl p-3 text-left outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+                    className="flex min-h-[44px] w-full items-center justify-between gap-2 rounded-xl p-3 text-left outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
                     style={{ background: 'var(--bg)' }}
                   >
                     <div className="min-w-0 flex-1">
@@ -222,7 +356,7 @@ export default function DashboardPage() {
               </div>
             )}
             <Link
-              href="/transaksjoner"
+              href={transaksjonerHref}
               className="mt-4 inline-flex items-center gap-1 text-sm font-medium outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded-lg"
               style={{ color: 'var(--primary)' }}
             >
@@ -232,11 +366,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <button
             type="button"
             onClick={() => setInvestmentsModalOpen(true)}
-            className="rounded-2xl p-6 text-left outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+            className="rounded-2xl p-4 text-left outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation sm:p-6"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <div className="flex items-start justify-between gap-3">
@@ -279,7 +413,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => setSavingsModalOpen(true)}
-            className="rounded-2xl p-6 text-left outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+            className="rounded-2xl p-4 text-left outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation sm:p-6"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <div className="flex items-start justify-between gap-3">
@@ -313,17 +447,49 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <div className="w-full max-w-sm">
-          <StatCard
-            label="Faste utgifter"
-            value={formatNOK(fixedExpensesKpi.fixedSum)}
-            sub={fixedExpensesKpi.sub}
-            icon={Receipt}
-            trend="down"
-            color="#F08C00"
-            onClick={() => setFixedExpensesModalOpen(true)}
-            aria-label="Se hvilke faste utgifter som inngår"
-          />
+        <div className="w-full">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-start">
+            <div className="min-w-0 space-y-6">
+              {displayCategories.length > 0 ? (
+                <DashboardVsBudgetCard
+                  periodLabel={periodLabel}
+                  filterYear={filterYear}
+                  periodMode={periodMode}
+                  monthIndex={monthIndex}
+                  summary={vsSummary}
+                  coverage={coverage}
+                />
+              ) : (
+                <div
+                  className="rounded-2xl p-6 text-sm"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                >
+                  Ingen budsjettdata for {filterYear}. Velg aktivt budsjettår eller et år med arkiv.
+                </div>
+              )}
+
+              {displayCategories.length > 0 && (
+                <DashboardFixedOutgoingCard
+                  budgetCategories={displayCategories}
+                  endMonthIndex={end}
+                  onOpenDetails={() => setFixedExpensesModalOpen(true)}
+                  serviceSubscriptionLine={serviceSubscriptionLine}
+                />
+              )}
+
+              {checkHints.length > 0 ? <DashboardChecksCard items={checkHints} /> : null}
+            </div>
+
+            <div className="min-w-0">
+              <DashboardRecentActivityCard
+                transactions={recentInPeriod}
+                profiles={profiles}
+                activeProfileId={activeProfileId}
+                isHouseholdAggregate={isHouseholdAggregate}
+                transaksjonerHref={transaksjonerHref}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -338,9 +504,9 @@ export default function DashboardPage() {
           onClose={() => setCategoryModal(null)}
           categoryName={categoryModal.category}
           yearTotal={categoryModal.total}
-          budgetYear={budgetYear}
+          budgetYear={filterYear}
           transactions={transactions ?? []}
-          budgetCategories={budgetCategories}
+          budgetCategories={displayCategories}
           profiles={profiles}
           isHouseholdAggregate={isHouseholdAggregate}
         />
@@ -349,9 +515,10 @@ export default function DashboardPage() {
         open={kpiModal !== null}
         onClose={() => setKpiModal(null)}
         mode={kpiModal ?? 'income'}
-        budgetYear={budgetYear}
+        budgetYear={filterYear}
         transactions={transactions ?? []}
-        budgetCategories={budgetCategories}
+        budgetCategories={displayCategories}
+        focusMonthRange={{ start, end }}
       />
       <DashboardSavingsGoalsModal
         open={savingsModalOpen}
@@ -364,8 +531,8 @@ export default function DashboardPage() {
       <DashboardFixedExpensesModal
         open={fixedExpensesModalOpen}
         onClose={() => setFixedExpensesModalOpen(false)}
-        budgetYear={budgetYear}
-        budgetCategories={budgetCategories}
+        budgetYear={filterYear}
+        budgetCategories={displayCategories}
       />
     </div>
   )

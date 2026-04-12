@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   createDefaultPersistedSlice,
   createDemoPersonDataForProfile,
+  createEmptyPersonData,
   DEFAULT_PROFILE_ID,
   mergePersistedIntoFullState,
+  resetStoreForLogout,
   useStore,
 } from './store'
 
@@ -59,5 +61,52 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.demoDataEnabled).toBe(false)
     expect(merged.people[DEFAULT_PROFILE_ID]!.budgetCategories).toHaveLength(0)
     expect(merged.peopleBeforeDemo).toBeNull()
+  })
+})
+
+describe('removeProfile', () => {
+  beforeEach(() => {
+    resetStoreForLogout()
+  })
+
+  it('fjerner sekundær profil, arkivnøkkel og justerer aktiv profil', () => {
+    const extraId = 'extra-1'
+    const empty = createEmptyPersonData()
+    useStore.setState({
+      subscriptionPlan: 'family',
+      profiles: [
+        { id: DEFAULT_PROFILE_ID, name: 'Meg' },
+        { id: extraId, name: 'Partner' },
+      ],
+      people: {
+        [DEFAULT_PROFILE_ID]: empty,
+        [extraId]: createEmptyPersonData(),
+      },
+      activeProfileId: extraId,
+      financeScope: 'household',
+      archivedBudgetsByYear: {
+        '2026': {
+          [DEFAULT_PROFILE_ID]: [],
+          [extraId]: [],
+        },
+      },
+      peopleBeforeDemo: { [extraId]: createEmptyPersonData() },
+    })
+    const res = useStore.getState().removeProfile(extraId)
+    expect(res).toEqual({ ok: true })
+    const st = useStore.getState()
+    expect(st.profiles.map((p) => p.id)).toEqual([DEFAULT_PROFILE_ID])
+    expect(st.people[extraId]).toBeUndefined()
+    expect(st.activeProfileId).toBe(DEFAULT_PROFILE_ID)
+    expect(st.financeScope).toBe('profile')
+    expect(st.archivedBudgetsByYear['2026']?.[extraId]).toBeUndefined()
+    expect(st.peopleBeforeDemo?.[extraId]).toBeUndefined()
+  })
+
+  it('avviser primærprofil', () => {
+    expect(useStore.getState().removeProfile(DEFAULT_PROFILE_ID)).toEqual({
+      ok: false,
+      reason: 'primary_locked',
+    })
   })
 })

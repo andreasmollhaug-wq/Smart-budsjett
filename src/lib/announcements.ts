@@ -80,6 +80,14 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Ny rapport Månedsinnsikt under Rapporter: få en AI-drevet oppsummering av valgt måned med budsjett mot faktisk, nøkkeltall og eksport til PDF — med tydelig husholdning kontra enkeltprofil.\n\nOppdateringer på Abonnementer og tydeligere informasjon om modulene i abonnementet.\n\nEnkel Excel AI og appens AI-hjelp bruker mer relevant brukerkontekst, slik at svarene treffer bedre.\n\nTrykk på klokken øverst til høyre for å se denne og tidligere beskjeder.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.6',
+    version: '0.3.6',
+    title: 'Smart Budsjett v0.3.6 — ny Oversikt og profiler under Min konto',
+    body:
+      'Oversikt (dashboard) er bygget om: velg periode (måned, hittil i år eller hele året), se «Mot budsjett», faste trekk fra budsjettet, forslag under «Dette bør du sjekke» og siste aktivitet — med tydeligere inntekt- og utgiftsgraf.\n\nHar du Familie-abonnement finner du nå Min konto → Profiler: endre navn på profiler eller fjern en ekstra profil som ble lagt inn ved en feil (sletting fjerner all data for den profilen).\n\nSmå forbedringer i AI-hjelp og i hvordan data lagres og slås sammen. Trykk på klokken øverst til høyre for å lese tidligere beskjeder.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {

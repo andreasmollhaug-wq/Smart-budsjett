@@ -17,6 +17,8 @@ type Props = {
   budgetYear: number
   transactions: Transaction[]
   budgetCategories: BudgetCategory[]
+  /** Når satt, tones måneder utenfor intervallet ned (f.eks. valgt periode på oversikten). */
+  focusMonthRange?: { start: number; end: number }
 }
 
 function signedNOK(n: number): string {
@@ -33,6 +35,7 @@ export default function DashboardIncomeExpenseMonthlyModal({
   budgetYear,
   transactions,
   budgetCategories,
+  focusMonthRange,
 }: Props) {
   useEffect(() => {
     if (!open) return
@@ -81,6 +84,7 @@ export default function DashboardIncomeExpenseMonthlyModal({
             </h2>
             <p className="text-[13px] mt-1 leading-snug" style={{ color: 'var(--text-muted)' }}>
               Budsjettår {budgetYear}
+              {focusMonthRange ? ' · dimmet = utenfor valgt periode på oversikten' : ''}
             </p>
           </div>
           <button
@@ -118,11 +122,15 @@ export default function DashboardIncomeExpenseMonthlyModal({
                     : variance <= 0
                       ? 'var(--success)'
                       : 'var(--danger)'
+                const dim =
+                  focusMonthRange &&
+                  (m < focusMonthRange.start || m > focusMonthRange.end)
 
                 return (
                   <div
                     key={label}
                     className="grid grid-cols-[minmax(0,1.1fr)_repeat(3,minmax(0,4.25rem))] gap-x-3 sm:gap-x-4 px-4 py-2.5 text-[14px] leading-tight items-baseline border-b border-[var(--border)] last:border-b-0"
+                    style={dim ? { opacity: 0.45 } : undefined}
                   >
                     <span style={{ color: 'var(--text)' }}>{label}</span>
                     <span className="text-right tabular-nums font-medium" style={{ color: 'var(--text)' }}>

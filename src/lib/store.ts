@@ -281,6 +281,9 @@ interface AppState {
     | { ok: true; id: string }
     | { ok: false; reason: 'solo_limit' | 'max_profiles' | 'invalid_name' }
   renameProfile: (id: string, name: string) => void
+  removeProfile: (id: string) =>
+    | { ok: true }
+    | { ok: false; reason: 'last_profile' | 'unknown_profile' | 'primary_locked' }
 
   addTransaction: (t: Transaction) => void
   addTransactions: (transactions: Transaction[]) => void
@@ -1388,6 +1391,50 @@ export const useStore = create<AppState>()((set, get) => {
           }))
         },
 
+        removeProfile: (id) => {
+          const s = get()
+          if (id === DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'primary_locked' }
+          if (!s.profiles.some((p) => p.id === id)) return { ok: false as const, reason: 'unknown_profile' }
+          if (s.profiles.length <= 1) return { ok: false as const, reason: 'last_profile' }
+
+          const nextProfiles = s.profiles.filter((p) => p.id !== id)
+          const { [id]: _removed, ...restPeople } = s.people
+
+          let nextArchive: ArchivedBudgetsByYear = { ...s.archivedBudgetsByYear }
+          for (const yearKey of Object.keys(nextArchive)) {
+            const inner = nextArchive[yearKey]
+            if (!inner || typeof inner !== 'object' || !Object.prototype.hasOwnProperty.call(inner, id)) continue
+            const { [id]: _a, ...restInner } = inner as Record<string, BudgetCategory[]>
+            nextArchive = { ...nextArchive, [yearKey]: restInner }
+          }
+
+          let nextPeopleBeforeDemo: Record<string, PersonData> | null = s.peopleBeforeDemo
+          if (nextPeopleBeforeDemo && typeof nextPeopleBeforeDemo === 'object' && id in nextPeopleBeforeDemo) {
+            const { [id]: _b, ...restPbd } = nextPeopleBeforeDemo
+            nextPeopleBeforeDemo = Object.keys(restPbd).length > 0 ? restPbd : null
+          }
+
+          let activeProfileId = s.activeProfileId
+          if (activeProfileId === id) {
+            activeProfileId = nextProfiles[0]?.id ?? DEFAULT_PROFILE_ID
+          }
+
+          let financeScope: FinanceScope = s.financeScope
+          if (financeScope === 'household' && nextProfiles.length < 2) {
+            financeScope = 'profile'
+          }
+
+          set({
+            profiles: nextProfiles,
+            people: restPeople,
+            archivedBudgetsByYear: nextArchive,
+            peopleBeforeDemo: nextPeopleBeforeDemo,
+            activeProfileId,
+            financeScope,
+          })
+          return { ok: true as const }
+        },
+
         addTransaction: (t) =>
           set((s) => {
             const pid = resolveTransactionOwnerProfileId(s, t.profileId)
@@ -2219,6 +2266,7 @@ export function useActivePersonFinance() {
       setSubscriptionPlan: s.setSubscriptionPlan,
       addProfile: s.addProfile,
       renameProfile: s.renameProfile,
+      removeProfile: s.removeProfile,
     })),
   )
 
@@ -2287,6 +2335,7 @@ export function useActivePersonFinance() {
     setSubscriptionPlan: state.setSubscriptionPlan,
     addProfile: state.addProfile,
     renameProfile: state.renameProfile,
+    removeProfile: state.removeProfile,
     budgetYear: state.budgetYear,
     archivedBudgetsByYear: state.archivedBudgetsByYear,
     startNewBudgetYear: state.startNewBudgetYear,
