@@ -12,9 +12,11 @@ import {
 } from './subscriptionTransactions'
 
 describe('clampBillingDay', () => {
-  it('begrenser til 1–28', () => {
+  it('begrenser til 1–31', () => {
     expect(clampBillingDay(0)).toBe(1)
-    expect(clampBillingDay(29)).toBe(28)
+    expect(clampBillingDay(29)).toBe(29)
+    expect(clampBillingDay(31)).toBe(31)
+    expect(clampBillingDay(99)).toBe(31)
     expect(clampBillingDay(15)).toBe(15)
   })
 })
@@ -22,6 +24,10 @@ describe('clampBillingDay', () => {
 describe('formatBudgetDateIso', () => {
   it('bygger yyyy-mm-dd', () => {
     expect(formatBudgetDateIso(2026, 4, 9)).toBe('2026-04-09')
+  })
+  it('klipper dag til siste i måneden (februar)', () => {
+    expect(formatBudgetDateIso(2026, 2, 31)).toBe('2026-02-28')
+    expect(formatBudgetDateIso(2024, 2, 31)).toBe('2024-02-29')
   })
 })
 

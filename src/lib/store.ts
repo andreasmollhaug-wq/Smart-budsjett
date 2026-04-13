@@ -21,6 +21,21 @@ import {
   zeroBudgetedFromCancellationMonth,
 } from './subscriptionTransactions'
 import {
+  appendDebtPlannedTransactionsForBudgetYear,
+  budgetedFromMonthlyFromMonth,
+  buildBudgetCategoryForDebt,
+  buildPlannedDebtTransactions,
+  clampPlannedPaymentDay,
+  clampSyncBudgetFromMonth1,
+  debtColorForType,
+  defaultSyncBudgetFromMonth1ForBudgetYear,
+  effectiveDebtMonthlyPayment,
+  normalizeDebtLinkedBudgetCategoriesToFullYear,
+  stripAllLinkedDebtTransactions,
+  stripLinkedDebtTransactionsForYear,
+  uniqueGjeldName,
+} from './debtBudgetSync'
+import {
   cloneBudgetCategories,
   sumTxForCategoryInYear,
   sumTxForCategoryInYearAllProfiles,
@@ -81,6 +96,8 @@ export interface Transaction {
   profileId?: string
   /** App-genererte planlagte trekk fra tjenesteabonnement. */
   linkedServiceSubscriptionId?: string
+  /** App-genererte planlagte avdrag fra gjeld (synk til budsjett). */
+  linkedDebtId?: string
 }
 
 export interface BudgetCategory {
@@ -143,6 +160,16 @@ export interface Debt {
   pauseEndDate?: string
   /** Ta med i snøball-rekkefølge (manglende: boliglån nei, ellers ja — se `snowball.ts`) */
   includeInSnowball?: boolean
+  /** Koblet budsjettlinje under Gjeld (opprettes ved synk). */
+  linkedBudgetCategoryId?: string | null
+  /** Når sann: månedlig avdrag speiles til budsjett (opt-in). */
+  syncToBudget?: boolean
+  /** Når sann: planlagte månedlige transaksjoner for aktivt budsjettår (krever syncToBudget). */
+  syncPlannedTransactions?: boolean
+  /** Dag i måneden for planlagte trekk (1–28). */
+  plannedPaymentDayOfMonth?: number
+  /** Første måned (1–12) som avdrag tas med i budsjett og planlagte trekk for aktivt budsjettår. */
+  syncBudgetFromMonth1?: number
   /** Kun satt i husholdningsaggregat — kildeprofil. */
   sourceProfileId?: string
 }
@@ -1610,8 +1637,11 @@ export const useStore = create<AppState>()((set, get) => {
                   spent: 0,
                 }
               })
+              let merged: PersonData = { ...p, budgetCategories: newCats }
+              merged = normalizeDebtLinkedBudgetCategoriesToFullYear(merged)
+              merged = appendDebtPlannedTransactionsForBudgetYear(merged, nextYear, pr.id)
               nextPeople[pr.id] = recalcPersonBudgetSpentForYear(
-                { ...p, budgetCategories: newCats },
+                syncLinkedSavingsGoalsCurrent(merged, pr.id),
                 pr.id,
                 nextYear,
               )
@@ -1719,8 +1749,31 @@ export const useStore = create<AppState>()((set, get) => {
             const nextSubs = (d.serviceSubscriptions ?? []).map((s) =>
               s.linkedBudgetCategoryId === id ? { ...s, linkedBudgetCategoryId: null, syncToBudget: false } : s,
             )
+            let nextDebts = d.debts
+            let nextTx = d.transactions
+            for (const debt of d.debts) {
+              if (debt.linkedBudgetCategoryId !== id) continue
+              nextDebts = nextDebts.map((x) =>
+                x.id === debt.id
+                  ? {
+                      ...x,
+                      linkedBudgetCategoryId: null,
+                      syncToBudget: false,
+                      syncPlannedTransactions: false,
+                    }
+                  : x,
+              )
+              nextTx = stripAllLinkedDebtTransactions(nextTx, debt.id)
+            }
             return syncLinkedSavingsGoalsCurrent(
-              { ...d, budgetCategories: nextCats, savingsGoals: nextGoals, serviceSubscriptions: nextSubs },
+              {
+                ...d,
+                budgetCategories: nextCats,
+                savingsGoals: nextGoals,
+                serviceSubscriptions: nextSubs,
+                debts: nextDebts,
+                transactions: nextTx,
+              },
               pid,
             )
           }),
@@ -1808,15 +1861,219 @@ export const useStore = create<AppState>()((set, get) => {
         removeSavingsGoal: (id) =>
           patchActive((d) => ({ ...d, savingsGoals: d.savingsGoals.filter((g) => g.id !== id) })),
 
-        addDebt: (debt) => patchActive((d) => ({ ...d, debts: [...d.debts, debt] })),
+        addDebt: (debtIn) => {
+          set((s) => {
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const budgetYear = s.budgetYear
+            let budgetCategories = [...person.budgetCategories]
+            let transactions = [...person.transactions]
+            let nextDebt: Debt = { ...debtIn }
+            const wantBudget = nextDebt.syncToBudget === true
+            const wantPlanned = nextDebt.syncPlannedTransactions === true && wantBudget
+            if (!wantBudget) {
+              nextDebt = {
+                ...nextDebt,
+                linkedBudgetCategoryId: null,
+                syncToBudget: false,
+                syncPlannedTransactions: false,
+                syncBudgetFromMonth1: undefined,
+              }
+            } else {
+              const startM = clampSyncBudgetFromMonth1(
+                nextDebt.syncBudgetFromMonth1 ?? defaultSyncBudgetFromMonth1ForBudgetYear(budgetYear),
+              )
+              const catId = generateId()
+              const displayName = uniqueGjeldName(nextDebt.name, budgetCategories.map((c) => c.name))
+              const monthly = effectiveDebtMonthlyPayment(nextDebt)
+              const raw = buildBudgetCategoryForDebt(
+                catId,
+                displayName,
+                monthly,
+                debtColorForType(nextDebt.type),
+                startM,
+              )
+              const spent = sumTxForCategoryInYear(
+                person.transactions,
+                displayName,
+                'expense',
+                budgetYear,
+                pid,
+              )
+              budgetCategories = [...budgetCategories, { ...raw, spent }]
+              nextDebt = {
+                ...nextDebt,
+                linkedBudgetCategoryId: catId,
+                syncToBudget: true,
+                syncPlannedTransactions: wantPlanned,
+                syncBudgetFromMonth1: startM,
+              }
+              if (wantPlanned && monthly > 0) {
+                const day = clampPlannedPaymentDay(nextDebt.plannedPaymentDayOfMonth)
+                const extra = buildPlannedDebtTransactions({
+                  debtId: nextDebt.id,
+                  label: nextDebt.name,
+                  categoryName: displayName,
+                  profileId: pid,
+                  amountMonthly: monthly,
+                  budgetYear,
+                  startMonth1: startM,
+                  endMonth1: 12,
+                  dayOfMonth: day,
+                })
+                transactions = [...extra, ...transactions]
+              }
+            }
+            const nextPersonRaw = syncLinkedSavingsGoalsCurrent(
+              {
+                ...person,
+                debts: [...person.debts, nextDebt],
+                budgetCategories,
+                transactions,
+              },
+              pid,
+            )
+            const nextPerson = recalcPersonBudgetSpentForYear(nextPersonRaw, pid, budgetYear)
+            return { people: { ...s.people, [pid]: nextPerson } }
+          })
+        },
 
-        updateDebt: (id, data) =>
-          patchActive((d) => ({
-            ...d,
-            debts: d.debts.map((x) => (x.id === id ? { ...x, ...data } : x)),
-          })),
+        updateDebt: (id, data) => {
+          set((s) => {
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const prev = person.debts.find((x) => x.id === id)
+            if (!prev) return s
+            const budgetYear = s.budgetYear
+            const merged: Debt = { ...prev, ...data, id }
+            let budgetCategories = [...person.budgetCategories]
+            let transactions = [...person.transactions]
+            let nextDebt = merged
 
-        removeDebt: (id) => patchActive((d) => ({ ...d, debts: d.debts.filter((x) => x.id !== id) })),
+            const wantBudget = merged.syncToBudget === true
+            const wantPlanned = merged.syncPlannedTransactions === true && wantBudget
+
+            if (!wantBudget) {
+              if (prev.linkedBudgetCategoryId) {
+                budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
+              }
+              transactions = stripAllLinkedDebtTransactions(transactions, id)
+              nextDebt = {
+                ...merged,
+                linkedBudgetCategoryId: null,
+                syncToBudget: false,
+                syncPlannedTransactions: false,
+                syncBudgetFromMonth1: undefined,
+              }
+            } else {
+              const monthly = effectiveDebtMonthlyPayment(merged)
+              const startM = clampSyncBudgetFromMonth1(
+                merged.syncBudgetFromMonth1 ??
+                  prev.syncBudgetFromMonth1 ??
+                  defaultSyncBudgetFromMonth1ForBudgetYear(budgetYear),
+              )
+              nextDebt = {
+                ...merged,
+                syncToBudget: true,
+                syncPlannedTransactions: wantPlanned,
+                syncBudgetFromMonth1: startM,
+              }
+              if (!prev.linkedBudgetCategoryId) {
+                const catId = generateId()
+                const displayName = uniqueGjeldName(merged.name, budgetCategories.map((c) => c.name))
+                const raw = buildBudgetCategoryForDebt(
+                  catId,
+                  displayName,
+                  monthly,
+                  debtColorForType(merged.type),
+                  startM,
+                )
+                const spent = sumTxForCategoryInYear(
+                  transactions,
+                  displayName,
+                  'expense',
+                  budgetYear,
+                  pid,
+                )
+                budgetCategories = [...budgetCategories, { ...raw, spent }]
+                nextDebt = { ...nextDebt, linkedBudgetCategoryId: catId }
+              } else {
+                transactions = stripLinkedDebtTransactionsForYear(transactions, id, budgetYear)
+                const catId = prev.linkedBudgetCategoryId
+                const prevCat = budgetCategories.find((c) => c.id === catId)
+                const otherNames = budgetCategories.filter((x) => x.id !== catId).map((x) => x.name)
+                const newName =
+                  merged.name !== prev.name
+                    ? uniqueGjeldName(merged.name, otherNames)
+                    : (prevCat?.name ?? merged.name)
+                const budgeted = budgetedFromMonthlyFromMonth(monthly, startM)
+                const spent = sumTxForCategoryInYear(transactions, newName, 'expense', budgetYear, pid)
+                budgetCategories = budgetCategories.map((c) =>
+                  c.id === catId ? { ...c, name: newName, budgeted, spent } : c,
+                )
+                nextDebt = { ...nextDebt, linkedBudgetCategoryId: catId }
+              }
+
+              const cat = budgetCategories.find((c) => c.id === nextDebt.linkedBudgetCategoryId)
+              if (wantPlanned && monthly > 0 && cat) {
+                const day = clampPlannedPaymentDay(nextDebt.plannedPaymentDayOfMonth)
+                const extra = buildPlannedDebtTransactions({
+                  debtId: id,
+                  label: nextDebt.name,
+                  categoryName: cat.name,
+                  profileId: pid,
+                  amountMonthly: monthly,
+                  budgetYear,
+                  startMonth1: startM,
+                  endMonth1: 12,
+                  dayOfMonth: day,
+                })
+                transactions = [...extra, ...transactions]
+              }
+            }
+
+            const nextPersonRaw = syncLinkedSavingsGoalsCurrent(
+              {
+                ...person,
+                debts: person.debts.map((x) => (x.id === id ? nextDebt : x)),
+                budgetCategories,
+                transactions,
+              },
+              pid,
+            )
+            const nextPerson = recalcPersonBudgetSpentForYear(nextPersonRaw, pid, budgetYear)
+            return { people: { ...s.people, [pid]: nextPerson } }
+          })
+        },
+
+        removeDebt: (id) => {
+          set((s) => {
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const prev = person.debts.find((x) => x.id === id)
+            if (!prev) return s
+            let budgetCategories = person.budgetCategories
+            if (prev.linkedBudgetCategoryId) {
+              budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
+            }
+            const transactions = stripAllLinkedDebtTransactions(person.transactions, id)
+            const budgetYear = s.budgetYear
+            const nextPersonRaw = syncLinkedSavingsGoalsCurrent(
+              {
+                ...person,
+                debts: person.debts.filter((x) => x.id !== id),
+                budgetCategories,
+                transactions,
+              },
+              pid,
+            )
+            const nextPerson = recalcPersonBudgetSpentForYear(nextPersonRaw, pid, budgetYear)
+            return { people: { ...s.people, [pid]: nextPerson } }
+          })
+        },
 
         setSnowballExtraMonthly: (amount) =>
           patchActive((d) => ({

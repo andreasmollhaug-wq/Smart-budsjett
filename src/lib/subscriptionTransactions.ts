@@ -1,5 +1,5 @@
 import type { PersonData, Transaction } from '@/lib/store'
-import { generateId } from '@/lib/utils'
+import { dateInMonth, generateId } from '@/lib/utils'
 import { monthlyEquivalentNok } from '@/lib/serviceSubscriptionHelpers'
 
 /** Måned 1–12 → indeks 0–11 i budsjett-array. */
@@ -9,19 +9,20 @@ export function monthIndexFromOneBased(month: number): number {
   return m - 1
 }
 
-/** Sikker dag 1–28 for faste månedlige datoer (unngår hopp i korte måneder). */
+/** Dag i måneden for planlagte trekk (1–31); korte måneder klippes ved dato-bygging. */
 export function clampBillingDay(day: number): number {
   const d = Math.floor(day)
   if (!Number.isFinite(d)) return 1
-  return Math.min(28, Math.max(1, d))
+  return Math.min(31, Math.max(1, d))
 }
 
+/** ISO-dato for planlagt trekk; `day` klippes til siste gyldige dag i den måneden (f.eks. feb). */
 export function formatBudgetDateIso(year: number, month1: number, day: number): string {
   const m = Math.min(12, Math.max(1, Math.floor(month1)))
-  const d = clampBillingDay(day)
-  const mm = String(m).padStart(2, '0')
-  const dd = String(d).padStart(2, '0')
-  return `${year}-${mm}-${dd}`
+  const mi = m - 1
+  const raw = Math.floor(day)
+  if (!Number.isFinite(raw)) return dateInMonth(year, mi, 1)
+  return dateInMonth(year, mi, raw)
 }
 
 /**

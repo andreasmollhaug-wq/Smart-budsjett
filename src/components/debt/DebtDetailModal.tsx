@@ -1,6 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import type { Debt } from '@/lib/store'
+import { useStore } from '@/lib/store'
+import { defaultSyncBudgetFromMonth1ForBudgetYear } from '@/lib/debtBudgetSync'
+import { BUDGET_MONTH_LABELS_NB } from '@/lib/utils'
 import { effectiveIncludeInSnowball } from '@/lib/snowball'
 import { debtTypeLabels, debtColors, debtIcons } from '@/lib/debtDisplay'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
@@ -17,9 +20,13 @@ type Draft = {
   repaymentPaused: boolean
   pauseEndDate: string
   includeInSnowball: boolean
+  syncToBudget: boolean
+  syncPlannedTransactions: boolean
+  plannedPaymentDayOfMonth: number
+  syncBudgetFromMonth1: number
 }
 
-function debtToDraft(d: Debt): Draft {
+function debtToDraft(d: Debt, budgetYear: number): Draft {
   return {
     name: d.name,
     type: d.type,
@@ -31,6 +38,10 @@ function debtToDraft(d: Debt): Draft {
     repaymentPaused: d.repaymentPaused ?? false,
     pauseEndDate: d.pauseEndDate ?? '',
     includeInSnowball: effectiveIncludeInSnowball(d),
+    syncToBudget: d.syncToBudget === true,
+    syncPlannedTransactions: d.syncPlannedTransactions === true,
+    plannedPaymentDayOfMonth: d.plannedPaymentDayOfMonth ?? 1,
+    syncBudgetFromMonth1: d.syncBudgetFromMonth1 ?? defaultSyncBudgetFromMonth1ForBudgetYear(budgetYear),
   }
 }
 
@@ -53,11 +64,12 @@ export default function DebtDetailModal({
   onSave,
   onDelete,
 }: Props) {
+  const budgetYear = useStore((s) => s.budgetYear)
   const [draft, setDraft] = useState<Draft | null>(null)
 
   useEffect(() => {
-    if (open && debt) setDraft(debtToDraft(debt))
-  }, [open, debt?.id, debt])
+    if (open && debt) setDraft(debtToDraft(debt, budgetYear))
+  }, [open, debt?.id, debt, budgetYear])
 
   useEffect(() => {
     if (!open) return
@@ -86,6 +98,11 @@ export default function DebtDetailModal({
       repaymentPaused: draft.repaymentPaused,
       pauseEndDate: draft.pauseEndDate || undefined,
       includeInSnowball: draft.includeInSnowball,
+      syncToBudget: draft.syncToBudget,
+      syncPlannedTransactions: draft.syncToBudget && draft.syncPlannedTransactions,
+      plannedPaymentDayOfMonth:
+        draft.syncToBudget && draft.syncPlannedTransactions ? draft.plannedPaymentDayOfMonth : undefined,
+      syncBudgetFromMonth1: draft.syncToBudget ? draft.syncBudgetFromMonth1 : undefined,
     })
     onClose()
   }
@@ -202,6 +219,102 @@ export default function DebtDetailModal({
             </span>
           </label>
 
+          <div
+            className="rounded-xl p-4 space-y-3"
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+          >
+            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Budsjett og transaksjoner
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={draft.syncToBudget}
+                disabled={readOnly}
+                onChange={(e) => {
+                  const on = e.target.checked
+                  setDraft({
+                    ...draft,
+                    syncToBudget: on,
+                    syncPlannedTransactions: on ? draft.syncPlannedTransactions : false,
+                    syncBudgetFromMonth1: on
+                      ? draft.syncBudgetFromMonth1 || defaultSyncBudgetFromMonth1ForBudgetYear(budgetYear)
+                      : draft.syncBudgetFromMonth1,
+                  })
+                }}
+                className="rounded"
+              />
+              <span className="text-sm" style={{ color: 'var(--text)' }}>
+                Legg inn i budsjett under Gjeld
+              </span>
+            </label>
+            {draft.syncToBudget && (
+              <div>
+                <label className={labelClass} style={labelStyle}>
+                  Gjelder fra og med måned (budsjettår {budgetYear})
+                </label>
+                <select
+                  value={draft.syncBudgetFromMonth1}
+                  disabled={readOnly}
+                  onChange={(e) =>
+                    setDraft({
+                      ...draft,
+                      syncBudgetFromMonth1: Math.min(12, Math.max(1, Number(e.target.value))),
+                    })
+                  }
+                  className={inputClass}
+                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                >
+                  {BUDGET_MONTH_LABELS_NB.map((label, i) => (
+                    <option key={label} value={i + 1}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={draft.syncPlannedTransactions}
+                disabled={readOnly || !draft.syncToBudget}
+                onChange={(e) => setDraft({ ...draft, syncPlannedTransactions: e.target.checked })}
+                className="rounded"
+              />
+              <span
+                className="text-sm"
+                style={{ color: draft.syncToBudget ? 'var(--text)' : 'var(--text-muted)' }}
+              >
+                Planlagte månedlige betalinger som transaksjoner (dette budsjettåret)
+              </span>
+            </label>
+            {draft.syncToBudget && draft.syncPlannedTransactions && (
+              <div>
+                <label className={labelClass} style={labelStyle}>
+                  Dag i måneden (1–31)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  disabled={readOnly}
+                  value={draft.plannedPaymentDayOfMonth}
+                  onChange={(e) => {
+                    const n = Number(e.target.value)
+                    setDraft({
+                      ...draft,
+                      plannedPaymentDayOfMonth: Number.isFinite(n)
+                        ? Math.min(31, Math.max(1, Math.floor(n)))
+                        : 1,
+                    })
+                  }}
+                  className={inputClass}
+                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className={labelClass} style={labelStyle}>
@@ -281,7 +394,7 @@ export default function DebtDetailModal({
               Nedbetalingspause
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              For egen oversikt (f.eks. studielån eller avdragsfri periode). Påvirker ikke beregninger automatisk.
+              Ved aktiv pause settes synket budsjett og planlagte trekk til 0 kr inntil pausen er over.
             </p>
             <label className="flex items-center gap-2 cursor-pointer">
               <input

@@ -599,11 +599,11 @@ export default function AbonnementerPage() {
                         </select>
                       </label>
                       <label className="block text-xs">
-                        <span style={{ color: 'var(--text-muted)' }}>Dag i måneden (1–28)</span>
+                        <span style={{ color: 'var(--text-muted)' }}>Dag i måneden (1–31)</span>
                         <input
                           type="number"
                           min={1}
-                          max={28}
+                          max={31}
                           value={txDay}
                           onChange={(e) => setTxDay(clampBillingDay(parseInt(e.target.value, 10) || 1))}
                           className="mt-1 w-full rounded-lg px-2 py-2 text-sm tabular-nums"
@@ -953,11 +953,11 @@ function EditRow({
                 </select>
               </label>
               <label className="block text-xs">
-                <span style={{ color: 'var(--text-muted)' }}>Dag i måneden (1–28)</span>
+                <span style={{ color: 'var(--text-muted)' }}>Dag i måneden (1–31)</span>
                 <input
                   type="number"
                   min={1}
-                  max={28}
+                  max={31}
                   value={plannedTx.day}
                   onChange={(e) =>
                     setPlannedTx((p) => ({

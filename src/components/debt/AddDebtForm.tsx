@@ -2,6 +2,9 @@
 
 import { useState, useCallback } from 'react'
 import type { Debt } from '@/lib/store'
+import { useStore } from '@/lib/store'
+import { defaultSyncBudgetFromMonth1ForBudgetYear } from '@/lib/debtBudgetSync'
+import { BUDGET_MONTH_LABELS_NB } from '@/lib/utils'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
 
 export type AddDebtFormPayload = Omit<Debt, 'id' | 'sourceProfileId'>
@@ -21,9 +24,14 @@ type FormState = {
   repaymentPaused: boolean
   pauseEndDate: string
   includeInSnowball: boolean
+  syncToBudget: boolean
+  syncPlannedTransactions: boolean
+  plannedPaymentDayOfMonth: number
+  /** 1–12, kun når syncToBudget */
+  syncBudgetFromMonth1: number
 }
 
-function defaultFormState(): FormState {
+function defaultFormState(budgetYear: number): FormState {
   return {
     name: '',
     type: 'loan',
@@ -35,6 +43,10 @@ function defaultFormState(): FormState {
     repaymentPaused: false,
     pauseEndDate: '',
     includeInSnowball: true,
+    syncToBudget: false,
+    syncPlannedTransactions: false,
+    plannedPaymentDayOfMonth: 1,
+    syncBudgetFromMonth1: defaultSyncBudgetFromMonth1ForBudgetYear(budgetYear),
   }
 }
 
@@ -46,10 +58,11 @@ type Props = {
 }
 
 export default function AddDebtForm({ heading, submitLabel = 'Legg til', onSubmit, onCancel }: Props) {
-  const [form, setForm] = useState<FormState>(defaultFormState)
+  const budgetYear = useStore((s) => s.budgetYear)
+  const [form, setForm] = useState<FormState>(() => defaultFormState(useStore.getState().budgetYear))
 
   const reset = useCallback(() => {
-    setForm(defaultFormState())
+    setForm(defaultFormState(useStore.getState().budgetYear))
   }, [])
 
   const handleSubmit = () => {
@@ -65,6 +78,11 @@ export default function AddDebtForm({ heading, submitLabel = 'Legg til', onSubmi
       repaymentPaused: form.repaymentPaused,
       pauseEndDate: form.pauseEndDate || undefined,
       includeInSnowball: form.includeInSnowball,
+      syncToBudget: form.syncToBudget,
+      syncPlannedTransactions: form.syncToBudget && form.syncPlannedTransactions,
+      plannedPaymentDayOfMonth:
+        form.syncToBudget && form.syncPlannedTransactions ? form.plannedPaymentDayOfMonth : undefined,
+      syncBudgetFromMonth1: form.syncToBudget ? form.syncBudgetFromMonth1 : undefined,
     })
     reset()
   }
@@ -204,10 +222,99 @@ export default function AddDebtForm({ heading, submitLabel = 'Legg til', onSubmi
           style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
         >
           <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+            Budsjett og transaksjoner
+          </p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Valgfritt: koble månedlig avdrag til budsjett under Gjeld, og/eller opprett planlagte utgifter for inneværende
+            budsjettår.
+          </p>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.syncToBudget}
+              onChange={(e) => {
+                const on = e.target.checked
+                setForm({
+                  ...form,
+                  syncToBudget: on,
+                  syncPlannedTransactions: on ? form.syncPlannedTransactions : false,
+                  syncBudgetFromMonth1: on
+                    ? form.syncBudgetFromMonth1 || defaultSyncBudgetFromMonth1ForBudgetYear(budgetYear)
+                    : form.syncBudgetFromMonth1,
+                })
+              }}
+              className="rounded"
+            />
+            <span className="text-sm" style={{ color: 'var(--text)' }}>
+              Legg inn i budsjett under Gjeld
+            </span>
+          </label>
+          {form.syncToBudget && (
+            <div>
+              <label className={labelClass} style={labelStyle}>
+                Gjelder fra og med måned (budsjettår {budgetYear})
+              </label>
+              <select
+                value={form.syncBudgetFromMonth1}
+                onChange={(e) =>
+                  setForm({ ...form, syncBudgetFromMonth1: Math.min(12, Math.max(1, Number(e.target.value))) })
+                }
+                className={inputClass}
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+              >
+                {BUDGET_MONTH_LABELS_NB.map((label, i) => (
+                  <option key={label} value={i + 1}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.syncPlannedTransactions}
+              disabled={!form.syncToBudget}
+              onChange={(e) => setForm({ ...form, syncPlannedTransactions: e.target.checked })}
+              className="rounded"
+            />
+            <span className="text-sm" style={{ color: form.syncToBudget ? 'var(--text)' : 'var(--text-muted)' }}>
+              Planlagte månedlige betalinger som transaksjoner (dette budsjettåret)
+            </span>
+          </label>
+          {form.syncToBudget && form.syncPlannedTransactions && (
+            <div>
+              <label className={labelClass} style={labelStyle}>
+                Dag i måneden (1–31)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={31}
+                value={form.plannedPaymentDayOfMonth}
+                onChange={(e) => {
+                  const n = Number(e.target.value)
+                  setForm({
+                    ...form,
+                    plannedPaymentDayOfMonth: Number.isFinite(n) ? Math.min(31, Math.max(1, Math.floor(n))) : 1,
+                  })
+                }}
+                className={inputClass}
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+              />
+            </div>
+          )}
+        </div>
+
+        <div
+          className="rounded-xl p-4 space-y-3"
+          style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+        >
+          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
             Nedbetalingspause
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            For egen oversikt (f.eks. studielån eller avdragsfri periode). Påvirker ikke beregninger automatisk.
+            Ved aktiv pause settes synket budsjett og planlagte trekk til 0 kr inntil pausen er over.
           </p>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
