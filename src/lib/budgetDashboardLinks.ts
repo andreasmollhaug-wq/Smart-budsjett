@@ -17,3 +17,14 @@ export function transactionsHrefForCategory(
   }
   return `/transaksjoner?year=${year}&month=all&category=${category}`
 }
+
+/** Samme som transactionsHrefForCategory, men tvinger listevisning (vis=liste) for brukere som står i oversikt. */
+export function transactionsListeHrefForCategory(
+  mode: DashboardPeriodMode,
+  year: number,
+  monthIndex: number,
+  categoryName: string,
+): string {
+  const base = transactionsHrefForCategory(mode, year, monthIndex, categoryName)
+  return `${base}&vis=liste`
+}

@@ -77,6 +77,34 @@ export function sumTransactionsByCategoryForMonthRange(
   return map
 }
 
+/**
+ * For hver budsjettkategori: faktisk beløp per kalendermåned (indeks 0–11) i ett år.
+ * Transaksjon knyttes til linje kun når `type` matcher kategoriens type.
+ */
+export function buildCategoryActualsYearMatrix(
+  transactions: Transaction[],
+  year: number,
+  categories: BudgetCategory[],
+): Map<string, number[]> {
+  const metaByName = new Map(categories.map((c) => [c.name, c]))
+  const matrix = new Map<string, number[]>()
+  for (const c of categories) {
+    matrix.set(c.name, Array(12).fill(0))
+  }
+  for (const t of transactions) {
+    if (!t.date || t.date.length < 7) continue
+    const yy = Number(t.date.slice(0, 4))
+    const mm = Number(t.date.slice(5, 7))
+    if (!Number.isFinite(yy) || yy !== year || !Number.isFinite(mm) || mm < 1 || mm > 12) continue
+    const meta = metaByName.get(t.category)
+    if (!meta || meta.type !== t.type) continue
+    const row = matrix.get(t.category)
+    if (!row) continue
+    row[mm - 1] += t.amount
+  }
+  return matrix
+}
+
 function sumBudgetedForMonthRange(arr: number[], monthStart: number, monthEnd: number): number {
   let s = 0
   for (let i = monthStart; i <= monthEnd; i++) {

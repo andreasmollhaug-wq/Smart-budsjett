@@ -22,11 +22,16 @@ function varianceColor(r: BudgetVsActualRow): string {
 export default function BudgetVsActualTables({
   budgetVsByParent,
   linkHrefForCategory,
+  variant = 'default',
 }: {
   budgetVsByParent: Record<ParentCategory, BudgetVsActualRow[]>
   /** Når satt, blir kategorinavn lenket til transaksjoner med forhåndsfilter. */
   linkHrefForCategory?: (categoryName: string) => string
+  /** actual-only: kun kategori + faktisk (transaksjonsoversikt uten budsjett). */
+  variant?: 'default' | 'actual-only'
 }) {
+  const actualOnly = variant === 'actual-only'
+
   return (
     <div className="space-y-6">
       {REPORT_GROUP_ORDER.map((group) => {
@@ -55,15 +60,19 @@ export default function BudgetVsActualTables({
                     <th className={thClass} style={{ borderColor: 'var(--border)' }}>
                       Kategori
                     </th>
-                    <th className={`${thClass} text-right`} style={{ borderColor: 'var(--border)' }}>
-                      Budsjett
-                    </th>
+                    {!actualOnly ? (
+                      <th className={`${thClass} text-right`} style={{ borderColor: 'var(--border)' }}>
+                        Budsjett
+                      </th>
+                    ) : null}
                     <th className={`${thClass} text-right`} style={{ borderColor: 'var(--border)' }}>
                       Faktisk
                     </th>
-                    <th className={`${thClass} text-right`} style={{ borderColor: 'var(--border)' }}>
-                      Avvik
-                    </th>
+                    {!actualOnly ? (
+                      <th className={`${thClass} text-right`} style={{ borderColor: 'var(--border)' }}>
+                        Avvik
+                      </th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -82,24 +91,28 @@ export default function BudgetVsActualTables({
                           r.name
                         )}
                       </td>
-                      <td className={`${tdClass} text-right tabular-nums`} style={{ borderColor: 'var(--border)' }}>
-                        {formatNOK(r.budgeted)}
-                      </td>
+                      {!actualOnly ? (
+                        <td className={`${tdClass} text-right tabular-nums`} style={{ borderColor: 'var(--border)' }}>
+                          {formatNOK(r.budgeted)}
+                        </td>
+                      ) : null}
                       <td className={`${tdClass} text-right tabular-nums`} style={{ borderColor: 'var(--border)' }}>
                         {formatNOK(r.actual)}
                       </td>
-                      <td
-                        className={`${tdClass} text-right tabular-nums align-top sm:align-middle`}
-                        style={{ borderColor: 'var(--border)' }}
-                      >
-                        <div className="inline-flex flex-col items-end gap-0.5 max-w-[9rem] sm:max-w-none">
-                          <span className="font-medium" style={{ color: varianceColor(r) }}>
-                            {r.variance > 0 ? '+' : ''}
-                            {formatNOK(r.variance)}
-                          </span>
-                          <VariancePctLine variance={r.variance} budgeted={r.budgeted} />
-                        </div>
-                      </td>
+                      {!actualOnly ? (
+                        <td
+                          className={`${tdClass} text-right tabular-nums align-top sm:align-middle`}
+                          style={{ borderColor: 'var(--border)' }}
+                        >
+                          <div className="inline-flex flex-col items-end gap-0.5 max-w-[9rem] sm:max-w-none">
+                            <span className="font-medium" style={{ color: varianceColor(r) }}>
+                              {r.variance > 0 ? '+' : ''}
+                              {formatNOK(r.variance)}
+                            </span>
+                            <VariancePctLine variance={r.variance} budgeted={r.budgeted} />
+                          </div>
+                        </td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
@@ -114,34 +127,38 @@ export default function BudgetVsActualTables({
                     <td className={tdClass} style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>
                       Totalt
                     </td>
-                    <td className={`${tdClass} text-right tabular-nums`} style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>
-                      {formatNOK(sumB)}
-                    </td>
+                    {!actualOnly ? (
+                      <td className={`${tdClass} text-right tabular-nums`} style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>
+                        {formatNOK(sumB)}
+                      </td>
+                    ) : null}
                     <td className={`${tdClass} text-right tabular-nums`} style={{ borderColor: 'var(--border)', color: 'var(--text)' }}>
                       {formatNOK(sumA)}
                     </td>
-                    <td className={`${tdClass} text-right tabular-nums align-top sm:align-middle`} style={{ borderColor: 'var(--border)' }}>
-                      <div className="inline-flex flex-col items-end gap-0.5 max-w-[9rem] sm:max-w-none">
-                        <span
-                          style={{
-                            color:
-                              sumV === 0
-                                ? 'var(--text-muted)'
-                                : group === 'inntekter'
-                                  ? sumV >= 0
-                                    ? 'var(--success)'
-                                    : 'var(--danger)'
-                                  : sumV > 0
-                                    ? 'var(--danger)'
-                                    : 'var(--success)',
-                          }}
-                        >
-                          {sumV > 0 ? '+' : ''}
-                          {formatNOK(sumV)}
-                        </span>
-                        <VariancePctLine variance={sumV} budgeted={sumB} />
-                      </div>
-                    </td>
+                    {!actualOnly ? (
+                      <td className={`${tdClass} text-right tabular-nums align-top sm:align-middle`} style={{ borderColor: 'var(--border)' }}>
+                        <div className="inline-flex flex-col items-end gap-0.5 max-w-[9rem] sm:max-w-none">
+                          <span
+                            style={{
+                              color:
+                                sumV === 0
+                                  ? 'var(--text-muted)'
+                                  : group === 'inntekter'
+                                    ? sumV >= 0
+                                      ? 'var(--success)'
+                                      : 'var(--danger)'
+                                    : sumV > 0
+                                      ? 'var(--danger)'
+                                      : 'var(--success)',
+                            }}
+                          >
+                            {sumV > 0 ? '+' : ''}
+                            {formatNOK(sumV)}
+                          </span>
+                          <VariancePctLine variance={sumV} budgeted={sumB} />
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 </tfoot>
               </table>

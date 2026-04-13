@@ -2,12 +2,15 @@
 import { Suspense, useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
+import TransactionActualsYearGrid from '@/components/transactions/TransactionActualsYearGrid'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionDetailModal, { type TransactionSavePatch } from '@/components/transactions/TransactionDetailModal'
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
+import { useTransaksjonPageQuery } from '@/components/transactions/useTransaksjonPageQuery'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
-import { REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
+import { buildCategoryActualsYearMatrix, REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
+import { mergeBudgetCategoriesFromSnapshots } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
 import {
@@ -59,7 +62,11 @@ function TransaksjonerPageInner() {
     customBudgetLabels,
     addBudgetCategory,
     addCustomBudgetLabel,
+    budgetYear,
+    archivedBudgetsByYear,
   } = useTransaksjonerFilters()
+
+  const { vis, setVis, setYearInUrl } = useTransaksjonPageQuery()
 
   const [showForm, setShowForm] = useState(false)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
@@ -114,6 +121,63 @@ function TransaksjonerPageInner() {
     list.sort((a, b) => mul * (new Date(a.date).getTime() - new Date(b.date).getTime()))
     return list
   }, [displayFilteredTx, dateSort, listSortMode, allCats])
+
+  const displayCategories = useMemo(() => {
+    if (filterYear === budgetYear) return budgetCategories
+    const snap = archivedBudgetsByYear[String(filterYear)]
+    if (!snap) return []
+    if (isHouseholdAggregate) {
+      return mergeBudgetCategoriesFromSnapshots(snap, profiles.map((p) => p.id))
+    }
+    return snap[activeProfileId] ?? []
+  }, [
+    filterYear,
+    budgetYear,
+    budgetCategories,
+    archivedBudgetsByYear,
+    isHouseholdAggregate,
+    profiles,
+    activeProfileId,
+  ])
+
+  const filteredCategoriesForOverview = useMemo(() => {
+    if (vis !== 'oversikt') return []
+    let list = displayCategories
+    const q = searchQuery.trim().toLowerCase()
+    if (filterParent !== 'all') list = list.filter((c) => c.parentCategory === filterParent)
+    if (filterCategory !== 'all') list = list.filter((c) => c.name === filterCategory)
+    if (q) list = list.filter((c) => c.name.toLowerCase().includes(q))
+    return list
+  }, [vis, displayCategories, filterParent, filterCategory, searchQuery])
+
+  const actualsMatrixForOverviewKpi = useMemo(() => {
+    if (vis !== 'oversikt') return null
+    return buildCategoryActualsYearMatrix(transactions, filterYear, filteredCategoriesForOverview)
+  }, [vis, transactions, filterYear, filteredCategoriesForOverview])
+
+  const overviewIncome = useMemo(() => {
+    if (!actualsMatrixForOverviewKpi) return 0
+    let s = 0
+    for (const c of filteredCategoriesForOverview) {
+      if (c.type !== 'income') continue
+      const row = actualsMatrixForOverviewKpi.get(c.name)
+      if (!row) continue
+      s += row.reduce((a, b) => a + b, 0)
+    }
+    return s
+  }, [actualsMatrixForOverviewKpi, filteredCategoriesForOverview])
+
+  const overviewExpense = useMemo(() => {
+    if (!actualsMatrixForOverviewKpi) return 0
+    let s = 0
+    for (const c of filteredCategoriesForOverview) {
+      if (c.type !== 'expense') continue
+      const row = actualsMatrixForOverviewKpi.get(c.name)
+      if (!row) continue
+      s += row.reduce((a, b) => a + b, 0)
+    }
+    return s
+  }, [actualsMatrixForOverviewKpi, filteredCategoriesForOverview])
 
   const bulkYearLabel = useMemo(() => {
     const y = parseInt(form.date.slice(0, 4), 10)
@@ -249,9 +313,18 @@ function TransaksjonerPageInner() {
         }
       : undefined
 
+  const hasOverviewGridContent = filteredCategoriesForOverview.length > 0
+
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
-      <Header title="Transaksjoner" subtitle="Logg inntekter og utgifter" />
+      <Header
+        title="Transaksjoner"
+        subtitle={
+          vis === 'oversikt'
+            ? `Faktisk oversikt · Hele kalenderåret ${filterYear}`
+            : 'Logg inntekter og utgifter'
+        }
+      />
       <TransaksjonerSubnav />
       {createCategoryProps && (
         <NewBudgetCategoryModal
@@ -279,6 +352,41 @@ function TransaksjonerPageInner() {
         createCategory={createCategoryProps}
       />
       <div className="space-y-6 px-4 py-6 md:p-8">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span className="text-sm font-medium shrink-0" style={{ color: 'var(--text-muted)' }}>
+            Visning
+          </span>
+          <div
+            className="inline-flex rounded-xl p-0.5 gap-0.5 shrink-0"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+            role="group"
+            aria-label="Velg visning"
+          >
+            <button
+              type="button"
+              onClick={() => setVis('liste')}
+              className="px-3 py-2 text-sm font-medium rounded-lg min-h-[44px] transition-colors"
+              style={{
+                background: vis === 'liste' ? 'var(--primary-pale)' : 'transparent',
+                color: vis === 'liste' ? 'var(--primary)' : 'var(--text-muted)',
+              }}
+            >
+              Transaksjonsliste
+            </button>
+            <button
+              type="button"
+              onClick={() => setVis('oversikt', { ensureYear: filterYear })}
+              className="px-3 py-2 text-sm font-medium rounded-lg min-h-[44px] transition-colors"
+              style={{
+                background: vis === 'oversikt' ? 'var(--primary-pale)' : 'transparent',
+                color: vis === 'oversikt' ? 'var(--primary)' : 'var(--text-muted)',
+              }}
+            >
+              Faktisk oversikt
+            </button>
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/konto/importer-transaksjoner"
@@ -287,40 +395,63 @@ function TransaksjonerPageInner() {
           >
             Importer fra CSV
           </Link>
-          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Vis:
-          </span>
-          <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(Number(e.target.value))}
-            className="px-3 py-2 text-sm rounded-xl"
-            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-          >
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
-          </select>
-          <select
-            value={filterMonth === 'all' ? 'all' : filterMonth === 'ytd' ? 'ytd' : String(filterMonth)}
-            onChange={(e) => {
-              const v = e.target.value
-              if (v === 'all') setFilterMonth('all')
-              else if (v === 'ytd') setFilterMonth('ytd')
-              else setFilterMonth(Number(v))
-            }}
-            className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
-            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-          >
-            <option value="ytd">Hittil i år</option>
-            <option value="all">Hele året</option>
-            {MONTHS_FULL.map((m, i) => (
-              <option key={m} value={i}>
-                {m}
-              </option>
-            ))}
-          </select>
+          {vis === 'liste' ? (
+            <>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Vis:
+              </span>
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(Number(e.target.value))}
+                className="px-3 py-2 text-sm rounded-xl"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filterMonth === 'all' ? 'all' : filterMonth === 'ytd' ? 'ytd' : String(filterMonth)}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v === 'all') setFilterMonth('all')
+                  else if (v === 'ytd') setFilterMonth('ytd')
+                  else setFilterMonth(Number(v))
+                }}
+                className="px-3 py-2 text-sm rounded-xl min-w-[10rem]"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+              >
+                <option value="ytd">Hittil i år</option>
+                <option value="all">Hele året</option>
+                {MONTHS_FULL.map((m, i) => (
+                  <option key={m} value={i}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                År:
+              </span>
+              <select
+                value={filterYear}
+                onChange={(e) => setYearInUrl(Number(e.target.value))}
+                className="px-3 py-2 text-sm rounded-xl min-h-[44px]"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                aria-label="Velg år for faktisk oversikt"
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <select
             value={filterParent}
             onChange={(e) =>
@@ -348,12 +479,12 @@ function TransaksjonerPageInner() {
           </div>
           <input
             type="search"
-            placeholder="Søk i beskrivelse"
+            placeholder={vis === 'oversikt' ? 'Søk i kategorinavn' : 'Søk i beskrivelse'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="min-w-[12rem] flex-1 px-3 py-2 text-sm rounded-xl max-w-xs"
             style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-            aria-label="Søk i beskrivelse"
+            aria-label={vis === 'oversikt' ? 'Søk i kategorinavn' : 'Søk i beskrivelse'}
           />
           {filtersActive && (
             <button
@@ -368,17 +499,30 @@ function TransaksjonerPageInner() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { key: 'income', label: 'Inntekt', value: formatNOK(periodIncome), color: 'var(--success)', icon: ArrowUpRight },
-            { key: 'expense', label: 'Utgifter', value: formatNOK(periodExpense), color: 'var(--danger)', icon: ArrowDownLeft },
-            {
-              key: 'net',
-              label: 'Netto',
-              value: formatNOK(periodIncome - periodExpense),
-              color: periodIncome - periodExpense >= 0 ? 'var(--success)' : 'var(--danger)',
-              icon: periodIncome - periodExpense >= 0 ? ArrowUpRight : ArrowDownLeft,
-            },
-          ].map(({ key, label, value, color, icon: Icon }) => (
+          {(vis === 'liste'
+            ? [
+                { key: 'income', label: 'Inntekt', value: formatNOK(periodIncome), color: 'var(--success)', icon: ArrowUpRight },
+                { key: 'expense', label: 'Utgifter', value: formatNOK(periodExpense), color: 'var(--danger)', icon: ArrowDownLeft },
+                {
+                  key: 'net',
+                  label: 'Netto',
+                  value: formatNOK(periodIncome - periodExpense),
+                  color: periodIncome - periodExpense >= 0 ? 'var(--success)' : 'var(--danger)',
+                  icon: periodIncome - periodExpense >= 0 ? ArrowUpRight : ArrowDownLeft,
+                },
+              ]
+            : [
+                { key: 'income', label: 'Inntekt', value: formatNOK(overviewIncome), color: 'var(--success)', icon: ArrowUpRight },
+                { key: 'expense', label: 'Utgifter', value: formatNOK(overviewExpense), color: 'var(--danger)', icon: ArrowDownLeft },
+                {
+                  key: 'net',
+                  label: 'Netto',
+                  value: formatNOK(overviewIncome - overviewExpense),
+                  color: overviewIncome - overviewExpense >= 0 ? 'var(--success)' : 'var(--danger)',
+                  icon: overviewIncome - overviewExpense >= 0 ? ArrowUpRight : ArrowDownLeft,
+                },
+              ]
+          ).map(({ key, label, value, color, icon: Icon }) => (
             <div key={key} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={16} style={{ color }} />
@@ -388,14 +532,21 @@ function TransaksjonerPageInner() {
             </div>
           ))}
         </div>
-        {hasFutureDatedInPeriod ? (
+        {vis === 'liste' && hasFutureDatedInPeriod ? (
           <p className="text-xs -mt-2" style={{ color: 'var(--text-muted)' }}>
             Kortene (inntekt, utgifter, netto) viser beløp til og med i dag. Fremtidige transaksjoner i valgt
             periode vises i listen under.
           </p>
         ) : null}
 
-        {txInPeriod.length === 0 && !showForm ? (
+        {vis === 'oversikt' ? (
+          <p className="text-xs -mt-2 max-w-3xl" style={{ color: 'var(--text-muted)' }}>
+            Samme oppsett som budsjett «Årlig»: faktiske beløp per måned og per kategori. Kortene viser sum for hele{' '}
+            {filterYear} med gjeldende filtre.
+          </p>
+        ) : null}
+
+        {vis === 'liste' && txInPeriod.length === 0 && !showForm ? (
           <div className="rounded-2xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Ingen transaksjoner i valgt periode
@@ -409,7 +560,7 @@ function TransaksjonerPageInner() {
               Legg til transaksjon
             </button>
           </div>
-        ) : (
+        ) : vis === 'liste' ? (
           <>
             {showForm ? (
               <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
@@ -745,7 +896,71 @@ function TransaksjonerPageInner() {
               </div>
             </div>
           </>
-        )}
+        ) : null}
+
+        {vis === 'oversikt' ? (
+          <div className="space-y-4">
+            <p
+              className="text-sm lg:hidden rounded-xl px-3 py-2"
+              style={{ color: 'var(--text-muted)', background: 'var(--surface)', border: '1px solid var(--border)' }}
+            >
+              Tip: Tabeller er enklest på større skjerm — på mobil kan du sveipe sideveis.
+            </p>
+            {displayCategories.length === 0 ? (
+              <div
+                className="rounded-2xl p-4 sm:p-5 text-sm"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              >
+                <p className="font-medium mb-1" style={{ color: 'var(--text)' }}>
+                  Ingen budsjett for {filterYear}
+                </p>
+                <p>
+                  Det finnes ikke budsjettlinjer for dette året (ikke aktivt budsjett og ikke i arkiv). Velg aktivt budsjettår{' '}
+                  <strong>{budgetYear}</strong> eller et år du har arkivert fra budsjett-siden.
+                </p>
+              </div>
+            ) : !hasOverviewGridContent && filtersActive ? (
+              <div className="rounded-2xl p-6 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
+                  Ingen treff med valgte filtre.
+                </p>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-sm font-medium px-4 py-2 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                  style={{ color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                >
+                  Nullstill filtre
+                </button>
+              </div>
+            ) : !hasOverviewGridContent ? (
+              <div
+                className="rounded-2xl p-6 text-center text-sm"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
+              >
+                Ingen kategorier å vise for {filterYear}. Juster filtre eller velg et annet år.
+              </div>
+            ) : (
+              <>
+                <TransactionActualsYearGrid
+                  year={filterYear}
+                  categories={filteredCategoriesForOverview}
+                  transactions={transactions}
+                />
+                <p className="text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setVis('liste')}
+                    className="font-medium underline underline-offset-2 hover:opacity-90"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    Åpne transaksjonsliste
+                  </button>
+                </p>
+              </>
+            )}
+          </div>
+        ) : null}
 
       </div>
     </div>
