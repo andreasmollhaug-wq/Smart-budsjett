@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 import {
   useStore,
   pickPersistedSlice,
@@ -12,6 +13,11 @@ import { createClient } from '@/lib/supabase/client'
 import { RoadmapVisibleTimeInvite } from '@/components/app/RoadmapVisibleTimeInvite'
 
 const DEBOUNCE_MS = 1500
+
+function isRlsOrPermissionError(message: string, code?: string): boolean {
+  if (code === '42501') return true
+  return /permission denied|row-level security|new row violates row-level security/i.test(message)
+}
 
 export function AppStateProvider({
   children,
@@ -27,6 +33,8 @@ export function AppStateProvider({
   const syncReady = useRef(false)
   /** Unngår identiske upserts når store trigges uten reell endring (samme serialiserte slice). */
   const lastSavedSliceJson = useRef<string | null>(null)
+  const persistRlsWarned = useRef(false)
+  const [persistSaveError, setPersistSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     useStore.getState().hydrateFromPayload(initialState)
@@ -66,6 +74,12 @@ export function AppStateProvider({
         )
         if (error) {
           console.error('[user_app_state]', error.message)
+          if (!persistRlsWarned.current && isRlsOrPermissionError(error.message, error.code)) {
+            persistRlsWarned.current = true
+            setPersistSaveError(
+              'Kunne ikke lagre endringer. Fullfør registrering av betaling for å starte prøveperioden og få lagring.',
+            )
+          }
           return
         }
         lastSavedSliceJson.current = json
@@ -105,6 +119,35 @@ export function AppStateProvider({
   return (
     <>
       <RoadmapVisibleTimeInvite />
+      {persistSaveError ? (
+        <div
+          role="alert"
+          className="fixed bottom-0 left-0 right-0 z-[200] border-t px-4 py-3 text-sm shadow-lg md:left-auto md:right-4 md:bottom-4 md:max-w-md md:rounded-xl"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+            color: 'var(--text)',
+          }}
+        >
+          <p className="mb-2">{persistSaveError}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/konto/betalinger?trial=welcome&reason=subscription"
+              className="font-medium underline underline-offset-2"
+              style={{ color: 'var(--primary)' }}
+            >
+              Gå til betaling
+            </Link>
+            <button
+              type="button"
+              className="text-xs opacity-80 hover:opacity-100"
+              onClick={() => setPersistSaveError(null)}
+            >
+              Lukk
+            </button>
+          </div>
+        </div>
+      ) : null}
       {children}
     </>
   )

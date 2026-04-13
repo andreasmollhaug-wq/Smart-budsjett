@@ -92,6 +92,8 @@ export interface BudgetCategory {
   color: string
   parentCategory: ParentCategory
   frequency: BudgetCategoryFrequency
+  /** Kun for `frequency === 'once'`: måned (0 = jan … 11 = des) der beløpet plasseres. */
+  onceMonthIndex?: number
 }
 
 export interface SavingsDeposit {

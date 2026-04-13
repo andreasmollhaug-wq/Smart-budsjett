@@ -85,11 +85,31 @@ export type BudgetCategoryFrequency =
   | 'weekly'
   | 'once'
 
+/** Lange månedsnavn (indeks 0 = januar) for budsjett-UI. */
+export const BUDGET_MONTH_LABELS_NB = [
+  'Januar',
+  'Februar',
+  'Mars',
+  'April',
+  'Mai',
+  'Juni',
+  'Juli',
+  'August',
+  'September',
+  'Oktober',
+  'November',
+  'Desember',
+] as const
+
 /**
  * Fyller 12 måneder (jan = 0 … des = 11) ut fra beløp og frekvens.
- * Kvartal: jan/apr/jul/okt. Halvår: jan/jul. Én gang: kun januar.
+ * Kvartal: jan/apr/jul/okt. Halvår: jan/jul. Én gang: valgfri måned (`onceMonthIndex`, standard januar).
  */
-export function budgetedMonthsFromFrequency(amount: number, frequency: BudgetCategoryFrequency): number[] {
+export function budgetedMonthsFromFrequency(
+  amount: number,
+  frequency: BudgetCategoryFrequency,
+  onceMonthIndex?: number,
+): number[] {
   const base = Array(12).fill(0)
   switch (frequency) {
     case 'monthly':
@@ -105,9 +125,11 @@ export function budgetedMonthsFromFrequency(amount: number, frequency: BudgetCat
       return base
     case 'weekly':
       return Array(12).fill(amount * 4.33)
-    case 'once':
-      base[0] = amount
+    case 'once': {
+      const m = Math.min(11, Math.max(0, onceMonthIndex ?? 0))
+      base[m] = amount
       return base
+    }
   }
 }
 

@@ -88,6 +88,20 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Oversikt (dashboard) er bygget om: velg periode (måned, hittil i år eller hele året), se «Mot budsjett», faste trekk fra budsjettet, forslag under «Dette bør du sjekke» og siste aktivitet — med tydeligere inntekt- og utgiftsgraf.\n\nHar du Familie-abonnement finner du nå Min konto → Profiler: endre navn på profiler eller fjern en ekstra profil som ble lagt inn ved en feil (sletting fjerner all data for den profilen).\n\nSmå forbedringer i AI-hjelp og i hvordan data lagres og slås sammen. Trykk på klokken øverst til høyre for å lese tidligere beskjeder.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.7',
+    version: '0.3.7',
+    title: 'Smart Budsjett v0.3.7 — ute på live',
+    body:
+      'Denne versjonen er rullet ut på live.\n\n' +
+      'Abonnement og betaling går nå gjennom Stripe: start eller administrer under Min konto → Betalinger (14 dagers prøve der dette gjelder). ' +
+      'Tilgang til å lagre budsjett og økonomidata er koblet til gyldig abonnement eller prøveperiode; fullfør betalingssteget om du ser melding om at lagring ikke er tilgjengelig.\n\n' +
+      'Siden Produktflyt viser hele løpet fra budsjett og transaksjoner til oversikt, sparing og rapporter — før du logger inn. ' +
+      'Landingssider, kom i gang og små forbedringer i budsjettvisning er oppdatert.\n\n' +
+      'Teknisk: nye retningslinjer for tilgang i databasen (abonnementsport) og valgfri serverstyrt omdirigering til betaling når det er slått på i miljøet — i tråd med utrulling i dokumentasjonen.\n\n' +
+      'Trykk på klokken øverst til høyre for å lese denne og tidligere beskjeder.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {

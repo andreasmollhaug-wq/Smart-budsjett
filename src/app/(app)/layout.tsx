@@ -5,6 +5,7 @@ import { AppUserProvider } from '@/components/app/AppUserContext'
 import OnboardingHost from '@/components/onboarding/OnboardingHost'
 import DemoModeBanner from '@/components/app/DemoModeBanner'
 import SubscriptionPastDueBanner from '@/components/app/SubscriptionPastDueBanner'
+import ProductReleaseBanner from '@/components/app/ProductReleaseBanner'
 import { SubscriptionReadOnlyProvider } from '@/components/app/SubscriptionReadOnlyProvider'
 import { createClient } from '@/lib/supabase/server'
 import { getDisplayNameFromUser } from '@/lib/authDisplayName'
@@ -33,6 +34,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <OnboardingHost />
           <div className="flex min-h-screen-dvh flex-col">
             <SubscriptionPastDueBanner />
+            <ProductReleaseBanner />
             <DemoModeBanner />
             <AppShell>{children}</AppShell>
           </div>

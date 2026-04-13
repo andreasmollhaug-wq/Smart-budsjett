@@ -18,6 +18,9 @@ export default function LandingFooter() {
           </p>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">
+          <Link href="/produktflyt" className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
+            Produktflyt
+          </Link>
           <Link href="/guider" className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
             Guider
           </Link>

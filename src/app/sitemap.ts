@@ -6,6 +6,7 @@ const staticPaths: { path: string; changeFrequency: MetadataRoute.Sitemap[0]['ch
   { path: '/', changeFrequency: 'weekly', priority: 1 },
   { path: '/iris', changeFrequency: 'monthly', priority: 0.85 },
   { path: '/guider', changeFrequency: 'weekly', priority: 0.85 },
+  { path: '/produktflyt', changeFrequency: 'monthly', priority: 0.8 },
   { path: '/personvern', changeFrequency: 'yearly', priority: 0.5 },
   { path: '/vilkar', changeFrequency: 'yearly', priority: 0.5 },
   { path: '/logg-inn', changeFrequency: 'monthly', priority: 0.6 },

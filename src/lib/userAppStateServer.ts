@@ -33,7 +33,13 @@ export async function getOrCreateUserAppState(
       return { state: defaultSlice, wasCreated: true }
     }
 
-    console.error('[user_app_state] insert:', insertError.message)
+    if (insertError.code === '42501') {
+      console.warn(
+        '[user_app_state] insert avvist (mangler abonnement / RLS). Forventet til brukeren har fullført Checkout.',
+      )
+    } else {
+      console.error('[user_app_state] insert:', insertError.message)
+    }
 
     // Unik nøkkel: rad opprettet av annen forespørsel (race) — hent på nytt
     if (insertError.code === '23505') {

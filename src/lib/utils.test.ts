@@ -51,10 +51,23 @@ describe('budgetedMonthsFromFrequency', () => {
     b.forEach((x) => expect(x).toBeCloseTo(433, 5))
   })
 
-  it('én gang: kun januar', () => {
+  it('én gang: kun januar (standard)', () => {
     const b = budgetedMonthsFromFrequency(9999, 'once')
     expect(b[0]).toBe(9999)
     expect(b.slice(1).every((x) => x === 0)).toBe(true)
+  })
+
+  it('én gang: valgt måned (f.eks. juni)', () => {
+    const b = budgetedMonthsFromFrequency(8000, 'once', 5)
+    expect(b[5]).toBe(8000)
+    expect(b.filter((x) => x > 0).length).toBe(1)
+  })
+
+  it('én gang: klemmer ugyldig indeks til 0–11', () => {
+    const low = budgetedMonthsFromFrequency(1, 'once', -3)
+    expect(low[0]).toBe(1)
+    const high = budgetedMonthsFromFrequency(2, 'once', 99)
+    expect(high[11]).toBe(2)
   })
 })
 

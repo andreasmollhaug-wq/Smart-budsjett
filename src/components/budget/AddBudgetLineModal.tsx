@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { BudgetCategory } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
-import { parseThousands } from '@/lib/utils'
+import { BUDGET_MONTH_LABELS_NB, parseThousands } from '@/lib/utils'
 import { Info, X } from 'lucide-react'
 
 function amountPlaceholder(freq: BudgetCategory['frequency']): string {
@@ -32,8 +32,13 @@ type Props = {
   onSearchChange: (v: string) => void
   available: string[]
   onPickSuggestion: (name: string) => void
-  newForm: { name: string; amount: string; freq: BudgetCategory['frequency'] }
-  onNewFormChange: (f: { name: string; amount: string; freq: BudgetCategory['frequency'] }) => void
+  newForm: { name: string; amount: string; freq: BudgetCategory['frequency']; onceMonthIndex: number }
+  onNewFormChange: (f: {
+    name: string
+    amount: string
+    freq: BudgetCategory['frequency']
+    onceMonthIndex: number
+  }) => void
   onAddCustom: () => void
   onClose: () => void
   /** Økes når bruker velger et forslag; fokuserer beløpsfeltet. */
@@ -193,7 +198,7 @@ export default function AddBudgetLineModal({
                     }}
                   >
                     Månedlig, årlig (÷12) og ukentlig (omtrent månedlig nivå) fylles jevnt. Kvartalsvis
-                    settes beløpet i jan/apr/jul/okt; halvårlig i jan og jul; én gang kun i januar.
+                    settes beløpet i jan/apr/jul/okt; halvårlig i jan og jul; én gang i én valgfri måned.
                   </p>
                 </div>
                 <select
@@ -213,6 +218,28 @@ export default function AddBudgetLineModal({
                 </select>
               </div>
             </div>
+            {newForm.freq === 'once' && (
+              <div className="flex flex-col gap-1 min-w-0">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Hvilken måned?
+                </span>
+                <select
+                  value={newForm.onceMonthIndex}
+                  onChange={(e) =>
+                    onNewFormChange({ ...newForm, onceMonthIndex: Number(e.target.value) })
+                  }
+                  className="w-full min-w-0 px-3 py-2 text-sm rounded-xl"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  aria-label="Måned for engangsbudsjett"
+                >
+                  {BUDGET_MONTH_LABELS_NB.map((label, i) => (
+                    <option key={label} value={i}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               type="button"
               onClick={onAddCustom}

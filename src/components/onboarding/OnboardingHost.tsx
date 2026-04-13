@@ -14,6 +14,7 @@ export default function OnboardingHost() {
   const blockWizardOnBetaling =
     pathname?.startsWith('/konto/betalinger') === true && !hasSubscriptionAccess
 
+  /** `appReadOnly` (ved SUBSCRIPTION_ENFORCEMENT_ENABLED) hindrer veiledning der lagring til DB er blokkert. */
   if (!pending || loading || appReadOnly || blockWizardOnBetaling) return null
   return <OnboardingWizard />
 }

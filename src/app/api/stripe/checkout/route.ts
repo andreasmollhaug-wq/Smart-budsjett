@@ -57,6 +57,8 @@ export async function POST(req: Request) {
     subscriptionTrialPeriodDaysForAuthUser(user) ?? subscriptionTrialPeriodDays()
 
   try {
+    // Klarna (der Stripe tilbyr det for subscription i Norge): aktiver i Stripe Dashboard → Payment methods.
+    // Unngå å liste `payment_method_types` her med mindre alle er aktivert — ellers kan Checkout feile.
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       locale: 'nb',

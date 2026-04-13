@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 const steps = [
   {
     step: '1',
@@ -30,6 +32,16 @@ export default function LandingHowItWorks() {
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
           Fire enkle steg fra tom konto til ro i hodet.
+        </p>
+        <p className="mx-auto mt-4 max-w-2xl text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+          Vil du se hvordan modulene henger sammen?{' '}
+          <Link
+            href="/produktflyt"
+            className="font-medium underline underline-offset-2 transition-opacity hover:opacity-80"
+            style={{ color: 'var(--primary)' }}
+          >
+            Utforsk produktflyten
+          </Link>
         </p>
         <ol className="mt-10 grid gap-4 md:grid-cols-2">
           {steps.map(({ step, title, text }) => (

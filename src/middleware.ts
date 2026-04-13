@@ -1,10 +1,15 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import {
+  hasSubscriptionAccess,
+  isSubscriptionEnforcementEnabled,
+} from '@/lib/stripe/subscriptionAccess'
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true
   if (pathname === '/iris') return true
   if (pathname.startsWith('/guider')) return true
+  if (pathname === '/produktflyt') return true
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt') return true
   if (pathname.startsWith('/personvern')) return true
   if (pathname.startsWith('/vilkar')) return true
@@ -21,6 +26,19 @@ function isPublicPath(pathname: string): boolean {
 
 function isAuthOnlyPath(pathname: string): boolean {
   return pathname.startsWith('/logg-inn') || pathname.startsWith('/registrer')
+}
+
+/** API-ruter håndhever abonnement selv; la klient kalle f.eks. /api/stripe/subscription fra betalingssiden. */
+function isApiPath(pathname: string): boolean {
+  return pathname.startsWith('/api/')
+}
+
+/** Full tilgang til Min konto uten aktiv Stripe (betaling, innstillinger, sikkerhet, …). */
+function isKontoSectionPath(pathname: string): boolean {
+  if (pathname.startsWith('/konto')) return true
+  /** Snarvei som redirecter til /konto/innstillinger — må ikke stoppes av abonnementsredirect. */
+  if (pathname === '/innstillinger') return true
+  return false
 }
 
 export async function middleware(request: NextRequest) {
@@ -77,10 +95,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  /**
-   * Abonnement håndheves i app (skrivebeskyttet visning) og i API-ruter — ikke hard redirect,
-   * slik at brukere kan navigere og se innhold uten aktivt abonnement (unntatt full tilgang på /konto).
-   */
+  if (isSubscriptionEnforcementEnabled()) {
+    const allowWithoutSubscription = isApiPath(pathname) || isKontoSectionPath(pathname)
+    if (!allowWithoutSubscription) {
+      const { data: subRow } = await supabase
+        .from('user_subscription')
+        .select('status')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (!hasSubscriptionAccess(subRow?.status)) {
+        const billing = new URL('/konto/betalinger', request.url)
+        billing.searchParams.set('trial', 'welcome')
+        billing.searchParams.set('reason', 'subscription')
+        return NextResponse.redirect(billing)
+      }
+    }
+  }
 
   return supabaseResponse
 }

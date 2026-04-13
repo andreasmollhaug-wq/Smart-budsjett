@@ -12,7 +12,14 @@ import {
   type BudgetYearCopySource,
 } from '@/lib/store'
 import { budgetedArrayForCategoryName } from '@/lib/budgetYearHelpers'
-import { budgetedMonthsFromFrequency, formatNOK, formatPercent, generateId, parseThousands } from '@/lib/utils'
+import {
+  BUDGET_MONTH_LABELS_NB,
+  budgetedMonthsFromFrequency,
+  formatNOK,
+  formatPercent,
+  generateId,
+  parseThousands,
+} from '@/lib/utils'
 import {
   getAvailableLabels,
   DEFAULT_STANDARD_LABELS,
@@ -57,6 +64,57 @@ function groupLabel(id: ParentCategory): string {
 function ensureArrayBudgeted(budgeted: unknown): number[] {
   if (Array.isArray(budgeted)) return budgeted
   return Array(12).fill(budgeted || 0)
+}
+
+/** Visnings-/kontrollverdi for «én gang» når `onceMonthIndex` mangler (eldre data eller manuell redigering). */
+function effectiveOnceMonthIndex(cat: BudgetCategory): number {
+  if (cat.onceMonthIndex !== undefined) {
+    return Math.min(11, Math.max(0, cat.onceMonthIndex))
+  }
+  const arr = ensureArrayBudgeted(cat.budgeted)
+  const positive = arr.map((v, i) => (v > 0 ? i : -1)).filter((i): i is number => i >= 0)
+  if (positive.length === 1) return positive[0]!
+  return 0
+}
+
+function OnceBudgetMonthSelect({
+  cat,
+  readOnly,
+  onMonthChange,
+}: {
+  cat: BudgetCategory
+  readOnly: boolean
+  onMonthChange: (cat: BudgetCategory, idx: number) => void
+}) {
+  if (cat.frequency !== 'once') return null
+  const val = effectiveOnceMonthIndex(cat)
+  if (readOnly) {
+    return (
+      <span className="text-xs block mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+        {BUDGET_MONTH_LABELS_NB[val]}
+      </span>
+    )
+  }
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1.5 min-w-0 max-w-full">
+      <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
+        Måned
+      </span>
+      <select
+        value={val}
+        onChange={(e) => onMonthChange(cat, Number(e.target.value))}
+        className="min-w-0 max-w-[11rem] flex-1 px-2 py-1 text-xs rounded-lg"
+        style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+        aria-label={`Måned for ${cat.name}`}
+      >
+        {BUDGET_MONTH_LABELS_NB.map((label, i) => (
+          <option key={label} value={i}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
 }
 
 export default function BudsjettPage() {
@@ -154,7 +212,12 @@ export default function BudsjettPage() {
   })
   const [addModalGroup, setAddModalGroup] = useState<ParentCategory | null>(null)
   const [modalSearch, setModalSearch] = useState('')
-  const [newForm, setNewForm] = useState({ name: '', amount: '', freq: 'monthly' as BudgetCategory['frequency'] })
+  const [newForm, setNewForm] = useState({
+    name: '',
+    amount: '',
+    freq: 'monthly' as BudgetCategory['frequency'],
+    onceMonthIndex: 0,
+  })
   const [focusAmountSignal, setFocusAmountSignal] = useState(0)
 
   const labelLists = { customBudgetLabels, hiddenBudgetLabels }
@@ -209,7 +272,7 @@ export default function BudsjettPage() {
   const closeAddModal = () => {
     setAddModalGroup(null)
     setModalSearch('')
-    setNewForm({ name: '', amount: '', freq: 'monthly' })
+    setNewForm({ name: '', amount: '', freq: 'monthly', onceMonthIndex: 0 })
   }
 
   const handlePickSuggestion = (group: ParentCategory, name: string) => {
@@ -217,7 +280,7 @@ export default function BudsjettPage() {
     if (!trimmed) return
     const items = getCategoriesForGroup(group)
     if (items.some((i) => i.name === trimmed)) return
-    setNewForm({ name: trimmed, amount: '', freq: 'monthly' })
+    setNewForm({ name: trimmed, amount: '', freq: 'monthly', onceMonthIndex: 0 })
     setModalSearch('')
     setFocusAmountSignal((n) => n + 1)
   }
@@ -228,7 +291,11 @@ export default function BudsjettPage() {
     if (shouldRegisterCustom(group, name)) addCustomBudgetLabel(group, name)
 
     const raw = parseThousands(String(newForm.amount))
-    const budgeted = budgetedMonthsFromFrequency(raw, newForm.freq)
+    const budgeted = budgetedMonthsFromFrequency(
+      raw,
+      newForm.freq,
+      newForm.freq === 'once' ? newForm.onceMonthIndex : undefined,
+    )
 
     const cat: BudgetCategory = {
       id: generateId(),
@@ -239,6 +306,7 @@ export default function BudsjettPage() {
       color: COLORS[displayCategories.length % COLORS.length],
       parentCategory: group,
       frequency: newForm.freq as BudgetCategory['frequency'],
+      ...(newForm.freq === 'once' ? { onceMonthIndex: newForm.onceMonthIndex } : {}),
     }
     addBudgetCategory(cat)
     closeAddModal()
@@ -249,6 +317,20 @@ export default function BudsjettPage() {
     const v = arr[selectedMonth] ?? 0
     updateBudgetCategory(cat.id, { budgeted: Array(12).fill(v) })
   }
+
+  const handleOnceMonthChange = useCallback(
+    (cat: BudgetCategory, newIdx: number) => {
+      if (cat.frequency !== 'once') return
+      const arr = ensureArrayBudgeted(cat.budgeted)
+      const total = arr.reduce((a, b) => a + b, 0)
+      const idx = Math.min(11, Math.max(0, newIdx))
+      updateBudgetCategory(cat.id, {
+        onceMonthIndex: idx,
+        budgeted: budgetedMonthsFromFrequency(total, 'once', idx),
+      })
+    },
+    [updateBudgetCategory],
+  )
 
   const monthColumnIndices = view === 'month' ? [selectedMonth] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
@@ -400,23 +482,26 @@ export default function BudsjettPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Måned:
-            </span>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(Number(e.target.value))}
-              className="px-3 py-2 text-sm rounded-xl"
-              style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-            >
-              {MONTHS_FULL.map((m, i) => (
-                <option key={i} value={i}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
+          {view === 'month' && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Måned:
+              </span>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="px-3 py-2 text-sm rounded-xl"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                aria-label="Velg måned for budsjettvisning"
+              >
+                {MONTHS_FULL.map((m, i) => (
+                  <option key={i} value={i}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className={`space-y-6 ${readOnly ? 'pointer-events-none opacity-[0.92]' : ''}`}>
@@ -706,46 +791,53 @@ export default function BudsjettPage() {
                             <Fragment key={cat.id}>
                               <tr className="align-middle" style={{ borderTop: '1px solid var(--border)' }}>
                                 <td className="py-2 px-2 align-middle max-w-[14rem] md:max-w-[18rem]">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <div
-                                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                      style={{ background: cat.color }}
-                                    />
-                                    <span
-                                      className="text-sm truncate flex-1 min-w-0"
-                                      style={{ color: 'var(--text)' }}
-                                      title={cat.name}
-                                    >
-                                      {cat.name}
-                                    </span>
-                                    {showHouseholdLineBreakdown && (
+                                  <div className="flex flex-col gap-0.5 min-w-0">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <div
+                                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                        style={{ background: cat.color }}
+                                      />
+                                      <span
+                                        className="text-sm truncate flex-1 min-w-0"
+                                        style={{ color: 'var(--text)' }}
+                                        title={cat.name}
+                                      >
+                                        {cat.name}
+                                      </span>
+                                      {showHouseholdLineBreakdown && (
+                                        <button
+                                          type="button"
+                                          className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity"
+                                          style={{ color: 'var(--text-muted)' }}
+                                          onClick={() =>
+                                            setHouseholdLineBreakdownOpen((o) =>
+                                              o === cat.id ? null : cat.id,
+                                            )
+                                          }
+                                          aria-expanded={lineOpen}
+                                          aria-label={`Vis eller skjul bidrag per person for ${cat.name} (${group.label})`}
+                                        >
+                                          {lineOpen ? (
+                                            <Minus size={14} strokeWidth={2} />
+                                          ) : (
+                                            <Plus size={14} strokeWidth={2} />
+                                          )}
+                                        </button>
+                                      )}
                                       <button
                                         type="button"
-                                        className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity"
-                                        style={{ color: 'var(--text-muted)' }}
-                                        onClick={() =>
-                                          setHouseholdLineBreakdownOpen((o) =>
-                                            o === cat.id ? null : cat.id,
-                                          )
-                                        }
-                                        aria-expanded={lineOpen}
-                                        aria-label={`Vis eller skjul bidrag per person for ${cat.name} (${group.label})`}
+                                        onClick={() => removeBudgetCategory(cat.id)}
+                                        className="p-1 opacity-60 hover:opacity-100 flex-shrink-0"
+                                        aria-label={`Slett ${cat.name}`}
                                       >
-                                        {lineOpen ? (
-                                          <Minus size={14} strokeWidth={2} />
-                                        ) : (
-                                          <Plus size={14} strokeWidth={2} />
-                                        )}
+                                        <Trash2 size={14} style={{ color: 'var(--danger)' }} />
                                       </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => removeBudgetCategory(cat.id)}
-                                      className="p-1 opacity-60 hover:opacity-100 flex-shrink-0"
-                                      aria-label={`Slett ${cat.name}`}
-                                    >
-                                      <Trash2 size={14} style={{ color: 'var(--danger)' }} />
-                                    </button>
+                                    </div>
+                                    <OnceBudgetMonthSelect
+                                      cat={cat}
+                                      readOnly={readOnly}
+                                      onMonthChange={handleOnceMonthChange}
+                                    />
                                   </div>
                                 </td>
                                 {monthColumnIndices.map((mi) => (
@@ -913,6 +1005,11 @@ export default function BudsjettPage() {
                                   </button>
                                 </div>
                               </div>
+                              <OnceBudgetMonthSelect
+                                cat={cat}
+                                readOnly={readOnly}
+                                onMonthChange={handleOnceMonthChange}
+                              />
                               <div className="grid grid-cols-12 gap-1 text-[10px]">
                                 {MONTHS.map((m) => (
                                   <div key={m} className="text-center" style={{ color: 'var(--text-muted)' }}>
@@ -1026,6 +1123,11 @@ export default function BudsjettPage() {
                                 </button>
                               </div>
                             </div>
+                            <OnceBudgetMonthSelect
+                              cat={cat}
+                              readOnly={readOnly}
+                              onMonthChange={handleOnceMonthChange}
+                            />
                             <div className="grid grid-cols-2 gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                               <div>{MONTHS[selectedMonth]}:</div>
                               <div style={{ textAlign: 'right' }}>
@@ -1092,7 +1194,7 @@ export default function BudsjettPage() {
                     onClick={() => {
                       setAddModalGroup(group.id)
                       setModalSearch('')
-                      setNewForm({ name: '', amount: '', freq: 'monthly' })
+                      setNewForm({ name: '', amount: '', freq: 'monthly', onceMonthIndex: 0 })
                       setFocusAmountSignal(0)
                     }}
                     className="mt-4 flex items-center gap-2 px-3 py-2 text-sm font-medium rounded transition-colors"

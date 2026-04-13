@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
 import { MessageSquare, ArrowDown, ArrowRight } from 'lucide-react'
+import { useRevealOnScroll } from '@/hooks/useRevealOnScroll'
 
 type JourneyStep = {
   id: string
@@ -113,26 +113,6 @@ const STEPS: JourneyStep[] = [
 const EXTRA_MODULES: { href: string; label: string; hint: string }[] = [
   { href: '/sparing/formuebygger', label: 'Formuebyggeren PRO', hint: 'Langsiktig simulering av formue og kjøpekraft.' },
 ]
-
-function useRevealOnScroll() {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setVisible(true)
-      },
-      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' },
-    )
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
-
-  return { ref, visible }
-}
 
 function JourneyStepCard({ step, index }: { step: JourneyStep; index: number }) {
   const { ref, visible } = useRevealOnScroll()
