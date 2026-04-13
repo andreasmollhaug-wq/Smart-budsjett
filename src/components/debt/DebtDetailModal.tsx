@@ -181,6 +181,8 @@ export default function DebtDetailModal({
             >
               <option value="mortgage">Boliglån</option>
               <option value="loan">Lån</option>
+              <option value="consumer_loan">Forbrukslån</option>
+              <option value="refinancing">Refinansiering</option>
               <option value="student_loan">Studielån</option>
               <option value="credit_card">Kredittkort</option>
               <option value="other">Annet</option>

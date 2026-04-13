@@ -127,7 +127,14 @@ export interface Debt {
   remainingAmount: number
   interestRate: number
   monthlyPayment: number
-  type: 'loan' | 'credit_card' | 'mortgage' | 'student_loan' | 'other'
+  type:
+    | 'loan'
+    | 'consumer_loan'
+    | 'refinancing'
+    | 'credit_card'
+    | 'mortgage'
+    | 'student_loan'
+    | 'other'
   /** Fritekst: vilkår, bank, egen kommentar */
   note?: string
   /** Eksplisitt «avdrag pauset» */

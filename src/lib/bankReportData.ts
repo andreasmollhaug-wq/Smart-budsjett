@@ -408,6 +408,8 @@ export function buildBankReportKpis(
 
 const DEBT_TYPE_LABELS: Record<Debt['type'], string> = {
   loan: 'Lån',
+  consumer_loan: 'Forbrukslån',
+  refinancing: 'Refinansiering',
   credit_card: 'Kredittkort',
   mortgage: 'Boliglån',
   student_loan: 'Studielån',

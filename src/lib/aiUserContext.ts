@@ -127,6 +127,10 @@ function debtTypeNb(t: Debt['type']): string {
       return 'kredittkort'
     case 'student_loan':
       return 'studielån'
+    case 'consumer_loan':
+      return 'forbrukslån'
+    case 'refinancing':
+      return 'refinansiering'
     case 'loan':
       return 'lån'
     default:

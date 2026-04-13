@@ -1,11 +1,12 @@
 'use client'
 import { useState } from 'react'
 import Header from '@/components/layout/Header'
-import { useActivePersonFinance, Debt } from '@/lib/store'
+import { useActivePersonFinance } from '@/lib/store'
 import { formatNOK, generateId } from '@/lib/utils'
 import { debtTypeLabels, debtIcons, debtColors } from '@/lib/debtDisplay'
 import { isDebtPauseActive, annualInterestCost } from '@/lib/debtHelpers'
 import { effectiveIncludeInSnowball } from '@/lib/snowball'
+import AddDebtForm, { type AddDebtFormPayload } from '@/components/debt/AddDebtForm'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
 import DebtDetailModal from '@/components/debt/DebtDetailModal'
 import { Plus, Trash2, PauseCircle } from 'lucide-react'
@@ -22,14 +23,6 @@ export default function GjeldPage() {
   const readOnly = isHouseholdAggregate
 
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({
-    name: '',
-    totalAmount: 0,
-    remainingAmount: 0,
-    interestRate: 0,
-    monthlyPayment: 0,
-    type: 'loan' as Debt['type'],
-  })
 
   const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null)
   const selectedDebt = selectedDebtId ? debts.find((d) => d.id === selectedDebtId) ?? null : null
@@ -45,25 +38,10 @@ export default function GjeldPage() {
     total: d.totalAmount,
   }))
 
-  const handleAdd = () => {
-    if (!form.name.trim() || form.remainingAmount <= 0) return
+  const handleAddDebt = (payload: AddDebtFormPayload) => {
     addDebt({
       id: generateId(),
-      name: form.name.trim(),
-      totalAmount: form.totalAmount,
-      remainingAmount: form.remainingAmount,
-      interestRate: form.interestRate,
-      monthlyPayment: form.monthlyPayment,
-      type: form.type,
-      includeInSnowball: form.type !== 'mortgage',
-    })
-    setForm({
-      name: '',
-      totalAmount: 0,
-      remainingAmount: 0,
-      interestRate: 0,
-      monthlyPayment: 0,
-      type: 'loan',
+      ...payload,
     })
     setShowForm(false)
   }
@@ -270,83 +248,11 @@ export default function GjeldPage() {
                   én profil for å administrere gjeld.
                 </p>
               ) : showForm ? (
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
-                    Legg til gjeld
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <input
-                      placeholder="Navn"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="px-3 py-2 rounded-xl text-sm"
-                      style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    />
-                    <select
-                      value={form.type}
-                      onChange={(e) => setForm({ ...form, type: e.target.value as Debt['type'] })}
-                      className="px-3 py-2 rounded-xl text-sm"
-                      style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    >
-                      <option value="mortgage">Boliglån</option>
-                      <option value="loan">Lån</option>
-                      <option value="student_loan">Studielån</option>
-                      <option value="credit_card">Kredittkort</option>
-                      <option value="other">Annet</option>
-                    </select>
-                    <FormattedAmountInput
-                      value={form.totalAmount}
-                      onChange={(n) => setForm({ ...form, totalAmount: n })}
-                      className="px-3 py-2 rounded-xl text-sm"
-                      placeholder="Opprinnelig beløp"
-                    />
-                    <FormattedAmountInput
-                      value={form.remainingAmount}
-                      onChange={(n) => setForm({ ...form, remainingAmount: n })}
-                      className="px-3 py-2 rounded-xl text-sm"
-                      placeholder="Restgjeld"
-                    />
-                    <input
-                      placeholder="Rente (%)"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={form.interestRate || ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          interestRate: e.target.value === '' ? 0 : Number(e.target.value),
-                        })
-                      }
-                      className="px-3 py-2 rounded-xl text-sm"
-                      style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    />
-                    <FormattedAmountInput
-                      value={form.monthlyPayment}
-                      onChange={(n) => setForm({ ...form, monthlyPayment: n })}
-                      className="px-3 py-2 rounded-xl text-sm"
-                      placeholder="Månedlig avdrag"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={handleAdd}
-                      className="px-4 py-2 rounded-xl text-sm font-medium text-white"
-                      style={{ background: 'var(--primary)' }}
-                    >
-                      Legg til
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowForm(false)}
-                      className="px-4 py-2 rounded-xl text-sm font-medium"
-                      style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                    >
-                      Avbryt
-                    </button>
-                  </div>
-                </div>
+                <AddDebtForm
+                  heading="Legg til gjeld"
+                  onSubmit={handleAddDebt}
+                  onCancel={() => setShowForm(false)}
+                />
               ) : (
                 <button
                   type="button"

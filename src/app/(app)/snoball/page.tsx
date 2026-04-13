@@ -4,7 +4,7 @@ import { useMemo, useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
-import { useActivePersonFinance, Debt, type DebtPayoffStrategy } from '@/lib/store'
+import { useActivePersonFinance, type DebtPayoffStrategy } from '@/lib/store'
 import { formatNOK, generateId } from '@/lib/utils'
 import { debtTypeLabels, debtIcons, debtColors } from '@/lib/debtDisplay'
 import { isDebtPauseActive } from '@/lib/debtHelpers'
@@ -17,6 +17,7 @@ import {
 } from '@/lib/snowball'
 import { sampleMonthlyForChart, simulatePayoffSchedule } from '@/lib/payoffSimulation'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
+import AddDebtForm, { type AddDebtFormPayload } from '@/components/debt/AddDebtForm'
 import DebtDetailModal from '@/components/debt/DebtDetailModal'
 import RepaymentPlanPanel from '@/components/debt/RepaymentPlanPanel'
 import {
@@ -77,15 +78,6 @@ export default function SnoballPage() {
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [helpOpen])
-
-  const [form, setForm] = useState({
-    name: '',
-    totalAmount: 0,
-    remainingAmount: 0,
-    interestRate: 0,
-    monthlyPayment: 0,
-    type: 'loan' as Debt['type'],
-  })
 
   const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null)
   const selectedDebt = selectedDebtId ? debts.find((d) => d.id === selectedDebtId) ?? null : null
@@ -181,25 +173,10 @@ export default function SnoballPage() {
       })()
     : null
 
-  const handleAdd = () => {
-    if (!form.name.trim() || form.remainingAmount <= 0) return
+  const handleAddDebt = (payload: AddDebtFormPayload) => {
     addDebt({
       id: generateId(),
-      name: form.name.trim(),
-      totalAmount: form.totalAmount,
-      remainingAmount: form.remainingAmount,
-      interestRate: form.interestRate,
-      monthlyPayment: form.monthlyPayment,
-      type: form.type,
-      includeInSnowball: true,
-    })
-    setForm({
-      name: '',
-      totalAmount: 0,
-      remainingAmount: 0,
-      interestRate: 0,
-      monthlyPayment: 0,
-      type: 'loan',
+      ...payload,
     })
     setShowForm(false)
   }
@@ -623,83 +600,11 @@ export default function SnoballPage() {
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             {showForm ? (
-              <div className="space-y-4">
-                <h3 className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
-                  Legg til lån (tas med i køen)
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <input
-                    placeholder="Navn"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="px-3 py-2 rounded-xl text-sm"
-                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                  />
-                  <select
-                    value={form.type}
-                    onChange={(e) => setForm({ ...form, type: e.target.value as Debt['type'] })}
-                    className="px-3 py-2 rounded-xl text-sm"
-                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                  >
-                    <option value="mortgage">Boliglån</option>
-                    <option value="loan">Lån</option>
-                    <option value="student_loan">Studielån</option>
-                    <option value="credit_card">Kredittkort</option>
-                    <option value="other">Annet</option>
-                  </select>
-                  <FormattedAmountInput
-                    value={form.totalAmount}
-                    onChange={(n) => setForm({ ...form, totalAmount: n })}
-                    className="px-3 py-2 rounded-xl text-sm"
-                    placeholder="Opprinnelig beløp"
-                  />
-                  <FormattedAmountInput
-                    value={form.remainingAmount}
-                    onChange={(n) => setForm({ ...form, remainingAmount: n })}
-                    className="px-3 py-2 rounded-xl text-sm"
-                    placeholder="Restgjeld"
-                  />
-                  <input
-                    placeholder="Rente (%)"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.interestRate || ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        interestRate: e.target.value === '' ? 0 : Number(e.target.value),
-                      })
-                    }
-                    className="px-3 py-2 rounded-xl text-sm"
-                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                  />
-                  <FormattedAmountInput
-                    value={form.monthlyPayment}
-                    onChange={(n) => setForm({ ...form, monthlyPayment: n })}
-                    className="px-3 py-2 rounded-xl text-sm"
-                    placeholder="Månedlig avdrag"
-                  />
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={handleAdd}
-                    className="px-4 py-2 rounded-xl text-sm font-medium text-white"
-                    style={{ background: 'var(--primary)' }}
-                  >
-                    Legg til
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="px-4 py-2 rounded-xl text-sm font-medium"
-                    style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-                  >
-                    Avbryt
-                  </button>
-                </div>
-              </div>
+              <AddDebtForm
+                heading="Legg til lån (tas med i køen)"
+                onSubmit={handleAddDebt}
+                onCancel={() => setShowForm(false)}
+              />
             ) : (
               <button
                 type="button"
