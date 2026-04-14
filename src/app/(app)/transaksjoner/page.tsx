@@ -21,7 +21,12 @@ import {
   generateId,
   parseIntegerNbNo,
 } from '@/lib/utils'
-import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Info } from 'lucide-react'
+import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Info, CheckCircle2 } from 'lucide-react'
+import {
+  inferPlannedFollowUpOnDateChange,
+  transactionRequiresPlanFollowUp,
+  todayYyyyMmDd,
+} from '@/lib/plannedTransactions'
 
 const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -121,6 +126,16 @@ function TransaksjonerPageInner() {
     list.sort((a, b) => mul * (new Date(a.date).getTime() - new Date(b.date).getTime()))
     return list
   }, [displayFilteredTx, dateSort, listSortMode, allCats])
+
+  const hasKommendeBanner = useMemo(() => {
+    const today = todayYyyyMmDd()
+    return transactions.some(
+      (t) =>
+        transactionRequiresPlanFollowUp(t) &&
+        t.date.slice(0, 10) > today &&
+        !t.reviewedAt,
+    )
+  }, [transactions])
 
   const displayCategories = useMemo(() => {
     if (filterYear === budgetYear) return budgetCategories
@@ -226,6 +241,8 @@ function TransaksjonerPageInner() {
     }
     const sub = form.subcategory.trim()
 
+    const todayStr = todayYyyyMmDd()
+
     if (bulkMode) {
       const selectedCount = bulkMonths.filter(Boolean).length
       if (selectedCount === 0) {
@@ -246,15 +263,17 @@ function TransaksjonerPageInner() {
       const txs: Transaction[] = []
       for (let m = 0; m < 12; m++) {
         if (!bulkMonths[m]) continue
+        const dStr = dateInMonth(year, m, day)
         txs.push({
           id: generateId(),
-          date: dateInMonth(year, m, day),
+          date: dStr,
           description: desc,
           amount: amountNum,
           category: form.category,
           type: txType,
           ...newTxProfilePatch(),
           ...(sub ? { subcategory: sub } : {}),
+          ...(dStr > todayStr ? { plannedFollowUp: true as const } : {}),
         })
       }
       addTransactions(txs)
@@ -278,6 +297,7 @@ function TransaksjonerPageInner() {
       type: txType,
       ...newTxProfilePatch(),
       ...(sub ? { subcategory: sub } : {}),
+      ...(form.date > todayStr ? { plannedFollowUp: true as const } : {}),
     }
     addTransaction(newTx)
     if (!isHouseholdAggregate) recalcBudgetSpent(form.category)
@@ -294,13 +314,31 @@ function TransaksjonerPageInner() {
   const handleSaveDetail = (id: string, patch: TransactionSavePatch) => {
     const old = transactions.find((t) => t.id === id)
     if (!old) return
-    updateTransaction(id, patch)
+    const extra: Partial<{ plannedFollowUp: boolean }> = {}
+    if (patch.date !== undefined) {
+      Object.assign(extra, inferPlannedFollowUpOnDateChange(old, patch.date))
+    }
+    updateTransaction(id, { ...patch, ...extra })
+    setDetailTx((prev) =>
+      prev && prev.id === id
+        ? {
+            ...prev,
+            ...patch,
+            ...extra,
+          }
+        : prev,
+    )
     if (!isHouseholdAggregate) {
       recalcBudgetSpent(old.category)
       if (patch.category !== undefined && patch.category !== old.category) {
         recalcBudgetSpent(patch.category)
       }
     }
+  }
+
+  const handleQuickPatch = (id: string, patch: Partial<Pick<Transaction, 'reviewedAt' | 'paidAt'>>) => {
+    updateTransaction(id, patch)
+    setDetailTx((prev) => (prev && prev.id === id ? { ...prev, ...patch } : prev))
   }
 
   const createCategoryProps =
@@ -344,6 +382,7 @@ function TransaksjonerPageInner() {
         expenseCategories={expenseCategories}
         incomeCategories={incomeCategories}
         onSave={handleSaveDetail}
+        onPatchTransaction={handleQuickPatch}
         onDelete={(id) => {
           const tx = transactions.find((t) => t.id === id)
           if (tx) handleDelete(tx)
@@ -352,6 +391,25 @@ function TransaksjonerPageInner() {
         createCategory={createCategoryProps}
       />
       <div className="space-y-6 px-4 py-6 md:p-8">
+        {vis === 'liste' && hasKommendeBanner ? (
+          <div
+            className="rounded-xl p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            style={{ background: 'var(--primary-pale)', border: '1px solid var(--border)' }}
+            role="status"
+          >
+            <p className="text-sm" style={{ color: 'var(--text)' }}>
+              Du har kommende planlagte transaksjoner som ikke er markert som gjennomgått. Åpne{' '}
+              <strong>Kommende</strong> for å huke av eller slette.
+            </p>
+            <Link
+              href="/transaksjoner/kommende"
+              className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium text-white shrink-0"
+              style={{ background: 'var(--primary)' }}
+            >
+              Gå til Kommende
+            </Link>
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-sm font-medium shrink-0" style={{ color: 'var(--text-muted)' }}>
             Visning
@@ -871,12 +929,22 @@ function TransaksjonerPageInner() {
                               </span>
                             </span>
                           </span>
-                          <span
-                            className="text-sm font-semibold tabular-nums shrink-0"
-                            style={{ color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                          >
-                            {tx.type === 'income' ? '+' : '-'}
-                            {formatNOK(tx.amount)}
+                          <span className="flex items-center gap-2 shrink-0">
+                            {tx.reviewedAt ? (
+                              <CheckCircle2
+                                size={18}
+                                className="shrink-0"
+                                style={{ color: 'var(--success)' }}
+                                aria-label="Gjennomgått"
+                              />
+                            ) : null}
+                            <span
+                              className="text-sm font-semibold tabular-nums"
+                              style={{ color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}
+                            >
+                              {tx.type === 'income' ? '+' : '-'}
+                              {formatNOK(tx.amount)}
+                            </span>
                           </span>
                         </button>
                         <div className="flex items-center shrink-0">

@@ -13,12 +13,13 @@ Kontakt og juridiske sider (utenfor innlogget app)
 - Leverandør: EnkelExcel. Generell kontakt e-post for personvern og henvendelser: post@enkelexcel.no (som i personvernerklæringen).
 - Personvernerklæring: /personvern
 - Vilkår: /vilkar
+- Sikkerhet (offentlig oversikt, ikke Min konto): /sikkerhet
 - Innlogging: /logg-inn · Registrering: /registrer
 
 Hovednavigasjon (venstremeny etter innlogging)
 - /dashboard — Oversikt
 - /budsjett — Budsjett (underfaner: /budsjett/dashboard — Budsjett dashboard; /budsjett/husholdning — Husholdning, kun når «Viser data for» er husholdning med Familie og minst to profiler)
-- /transaksjoner — Transaksjoner (med underfane /transaksjoner/dashboard — Transaksjonsdashboard)
+- /transaksjoner — Transaksjoner (undermeny: /transaksjoner/kommende — Kommende planlagte transaksjoner; /transaksjoner/dashboard — Transaksjonsdashboard)
 - /sparing — Sparing (under /sparing/formuebygger — Formuebyggeren PRO)
 - /gjeld — Gjeld
 - /snoball — Snøball
@@ -65,7 +66,10 @@ Budsjett (/budsjett)
 Transaksjoner (/transaksjoner)
 - Registrer enkelttransaksjoner: dato, beskrivelse, beløp, kategori, ev. underkategori.
 - Kobling til budsjettkategorier oppdaterer «brukt» i budsjettet.
-- Underfaner: liste med filtre (år, måned, kategori, søk) og «Transaksjonsdashboard» med oppdeling og lenker inn til filtrert liste.
+- Undermeny på transaksjonssidene: «Transaksjoner» (liste med filtre), «Kommende» (/transaksjoner/kommende — planlagte fremover og utestående etter planlagt dato; marker som gjennomgått eller betalt, eller slett), «Transaksjonsdashboard» med oppdeling og lenker inn til filtrert liste.
+- Fremtidig dato ved registrering eller importerte fremtidige rader kan merkes som planlagt oppfølging. Synkede planlagte trekk fra gjeld eller tjenesteabonnement følger samme flyt.
+- Varsler (klokke): når planlagt dato er passert, vises innsikt fra dagen etter med liste over poster som trenger oppfølging; åpne «Kommende» fra varselet eller menyen. Grensesnittet er tilpasset mobil (korte faner, store trykkflater).
+- I transaksjonslisten kan du se om en planlagt rad er «gjennomgått» (stempel). Kortene på listen viser fortsatt beløp til og med i dag; fremtidige beløp står i listen.
 - Fra flere steder (f.eks. budsjettdashboard) kan du komme til transaksjoner med forhåndsfilter.
 
 Sparing (/sparing)

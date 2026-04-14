@@ -13,6 +13,7 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt') return true
   if (pathname.startsWith('/personvern')) return true
   if (pathname.startsWith('/vilkar')) return true
+  if (pathname.startsWith('/sikkerhet')) return true
   if (pathname.startsWith('/logg-inn')) return true
   if (pathname.startsWith('/glemt-passord')) return true
   if (pathname.startsWith('/registrer')) return true

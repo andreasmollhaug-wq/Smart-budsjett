@@ -27,6 +27,9 @@ export default function LandingFooter() {
           <Link href="/personvern" className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
             Personvern
           </Link>
+          <Link href="/sikkerhet" className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
+            Sikkerhet
+          </Link>
           <Link href="/vilkar" className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
             Vilkår
           </Link>

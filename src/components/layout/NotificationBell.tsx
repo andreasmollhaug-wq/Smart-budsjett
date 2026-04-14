@@ -1,26 +1,57 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '@/lib/store'
 import { APP_VERSION_LABEL } from '@/lib/version'
 
+const MOBILE_MAX = '(max-width: 767px)'
+
 export default function NotificationBell() {
   const [open, setOpen] = useState(false)
+  const [panelTop, setPanelTop] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   const { notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useStore(
     useShallow((s) => {
       const list = s.notifications ?? []
       return {
-      notifications: list,
-      unreadCount: list.filter((n) => !n.read).length,
-      markNotificationRead: s.markNotificationRead,
-      markAllNotificationsRead: s.markAllNotificationsRead,
-    }
+        notifications: list,
+        unreadCount: list.filter((n) => !n.read).length,
+        markNotificationRead: s.markNotificationRead,
+        markAllNotificationsRead: s.markAllNotificationsRead,
+      }
     }),
   )
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPanelTop(null)
+      return
+    }
+
+    function updatePanelPosition() {
+      if (typeof window === 'undefined') return
+      if (!window.matchMedia(MOBILE_MAX).matches) {
+        setPanelTop(null)
+        return
+      }
+      const el = buttonRef.current
+      if (!el) return
+      setPanelTop(el.getBoundingClientRect().bottom + 8)
+    }
+
+    updatePanelPosition()
+    window.addEventListener('resize', updatePanelPosition)
+    window.addEventListener('orientationchange', updatePanelPosition)
+    return () => {
+      window.removeEventListener('resize', updatePanelPosition)
+      window.removeEventListener('orientationchange', updatePanelPosition)
+    }
+  }, [open])
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -30,11 +61,21 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handle)
   }, [])
 
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
   const badgeLabel = unreadCount > 9 ? '9+' : unreadCount > 0 ? String(unreadCount) : null
 
   return (
     <div className="relative" ref={containerRef}>
       <button
+        ref={buttonRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
@@ -57,10 +98,11 @@ export default function NotificationBell() {
         <div
           role="dialog"
           aria-label="Varsler"
-          className="absolute right-0 top-full mt-2 w-[min(100vw-2rem,22rem)] max-h-[min(70vh,28rem)] flex flex-col rounded-xl z-50 shadow-lg overflow-hidden"
+          className="fixed z-50 left-1/2 -translate-x-1/2 w-[min(100vw-2rem,22rem)] max-h-[min(70vh,28rem)] flex flex-col rounded-xl shadow-lg overflow-hidden md:absolute md:inset-auto md:right-0 md:left-auto md:top-full md:mt-2 md:translate-x-0"
           style={{
             background: 'var(--surface)',
             border: '1px solid var(--border)',
+            ...(panelTop != null ? { top: panelTop } : {}),
           }}
         >
           <div className="flex items-center justify-between px-3 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -96,9 +138,19 @@ export default function NotificationBell() {
                         <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
                           {n.title}
                         </p>
-                        <p className="text-xs mt-1 whitespace-pre-wrap" style={{ color: 'var(--text-muted)' }}>
+                        <p className="text-xs mt-1 whitespace-pre-wrap break-words" style={{ color: 'var(--text-muted)' }}>
                           {n.body}
                         </p>
+                        {n.actionHref ? (
+                          <Link
+                            href={n.actionHref}
+                            className="mt-3 inline-flex min-h-[44px] items-center justify-center px-4 py-2 rounded-xl text-sm font-medium text-white w-full sm:w-auto"
+                            style={{ background: 'var(--primary)' }}
+                            onClick={() => setOpen(false)}
+                          >
+                            {n.actionLabel ?? 'Åpne'}
+                          </Link>
+                        ) : null}
                         <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
                           {new Date(n.createdAt).toLocaleString('nb-NO', {
                             dateStyle: 'short',

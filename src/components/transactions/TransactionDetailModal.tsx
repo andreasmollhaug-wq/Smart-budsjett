@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory, Transaction } from '@/lib/store'
+import { transactionRequiresPlanFollowUp } from '@/lib/plannedTransactions'
 import { formatIntegerNbNo, parseIntegerNbNo } from '@/lib/utils'
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
@@ -27,7 +28,10 @@ function txToDraft(tx: Transaction): Draft {
 }
 
 export type TransactionSavePatch = Partial<
-  Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'subcategory' | 'type'>
+  Pick<
+    Transaction,
+    'date' | 'description' | 'amount' | 'category' | 'subcategory' | 'type' | 'plannedFollowUp'
+  >
 >
 
 type CreateCategoryProps = {
@@ -45,6 +49,8 @@ type Props = {
   incomeCategories: BudgetCategory[]
   onSave: (id: string, patch: TransactionSavePatch) => void
   onDelete: (id: string) => void
+  /** Rask oppdatering av gjennomgang/betalt uten å lukke modal. */
+  onPatchTransaction?: (id: string, patch: Partial<Pick<Transaction, 'reviewedAt' | 'paidAt'>>) => void
   readOnly?: boolean
   householdHint?: boolean
   /** Når satt og ikke readOnly: «Ny kategori» ved kategorivalg (ikke i husholdningsaggregat). */
@@ -62,6 +68,7 @@ export default function TransactionDetailModal({
   readOnly = false,
   householdHint = false,
   createCategory,
+  onPatchTransaction,
 }: Props) {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -134,6 +141,7 @@ export default function TransactionDetailModal({
   const labelStyle = { color: 'var(--text-muted)' } as const
 
   const canCreateCategory = Boolean(createCategory) && !readOnly
+  const planFollow = transaction ? transactionRequiresPlanFollowUp(transaction) : false
 
   return (
     <>
@@ -269,6 +277,52 @@ export default function TransactionDetailModal({
                 placeholder="F.eks. butikk eller detalj"
               />
             </div>
+
+            {planFollow && onPatchTransaction && !readOnly && (
+              <div
+                className="rounded-xl p-3 space-y-2"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+              >
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                  Planlagt oppfølging
+                </p>
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+                  {!transaction.reviewedAt ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onPatchTransaction(transaction.id, { reviewedAt: new Date().toISOString() })
+                      }
+                      className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium text-white w-full sm:w-auto"
+                      style={{ background: 'var(--primary)' }}
+                    >
+                      Marker som gjennomgått
+                    </button>
+                  ) : (
+                    <span
+                      className="inline-flex items-center min-h-[44px] px-3 rounded-xl text-sm"
+                      style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
+                    >
+                      Gjennomgått
+                    </span>
+                  )}
+                  {transaction.type === 'expense' && !transaction.paidAt ? (
+                    <button
+                      type="button"
+                      onClick={() => onPatchTransaction(transaction.id, { paidAt: new Date().toISOString() })}
+                      className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium w-full sm:w-auto"
+                      style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                    >
+                      Marker som betalt
+                    </button>
+                  ) : transaction.type === 'expense' && transaction.paidAt ? (
+                    <span className="text-xs self-center" style={{ color: 'var(--text-muted)' }}>
+                      Betalt registrert
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            )}
           </div>
 
           {error && (

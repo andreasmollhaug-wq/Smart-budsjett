@@ -102,6 +102,17 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
       'Trykk på klokken øverst til høyre for å lese denne og tidligere beskjeder.',
     kind: 'product',
   },
+  {
+    id: 'release-0.3.8',
+    version: '0.3.8',
+    title: 'Smart Budsjett v0.3.8 — renovasjonsprosjekt, transaksjoner og mer',
+    body:
+      'Nytt internt renovasjonsprosjekt: planlegg med maler (bl.a. kjøkken og bad), forslag til budsjettlinjer og nøkkeltall — med lagring knyttet til kontoen din.\n\n' +
+      'Transaksjoner er utvidet med egen visning for kommende trekk, tydeligere undernavigasjon og detaljvisning når du åpner en rad.\n\n' +
+      'Egen side for gjeld, oppdaterte juridiske sider (personvern, vilkår, sikkerhet) og forbedringer på landingssider. Små tekniske oppdateringer for varsler og ruting.\n\n' +
+      'Trykk på klokken øverst til høyre for å lese denne og tidligere beskjeder.',
+    kind: 'product',
+  },
 ]
 
 export function isAnnouncementApplicable(a: ProductAnnouncement): boolean {

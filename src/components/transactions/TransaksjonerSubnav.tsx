@@ -5,7 +5,8 @@ import { usePathname } from 'next/navigation'
 
 const tabs = [
   { href: '/transaksjoner', label: 'Transaksjoner', labelShort: 'Liste' },
-  { href: '/transaksjoner/dashboard', label: 'Transaksjonsdashboard', labelShort: 'Dashboard' },
+  { href: '/transaksjoner/kommende', label: 'Kommende', labelShort: 'Komm.' },
+  { href: '/transaksjoner/dashboard', label: 'Transaksjonsdashboard', labelShort: 'Dashb.' },
 ] as const
 
 export default function TransaksjonerSubnav() {
@@ -17,8 +18,7 @@ export default function TransaksjonerSubnav() {
       style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
     >
       {tabs.map(({ href, label, labelShort }) => {
-        const isActive =
-          href === '/transaksjoner' ? pathname === '/transaksjoner' : pathname === href
+        const isActive = pathname === href
         return (
           <Link
             key={href}

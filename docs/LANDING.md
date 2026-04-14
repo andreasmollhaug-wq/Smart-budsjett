@@ -31,9 +31,9 @@ Implementasjon: [`src/app/page.tsx`](../src/app/page.tsx), [`src/app/iris/page.t
 9. **Partnerskap Iris** — `#partnerskap`.
 10. **Priser** — `#priser` — se [PRIS-OG-ABONNEMENT.md](./PRIS-OG-ABONNEMENT.md).
 11. **FAQ** — `#faq`.
-12. **Trygghet** — Lenker til `/personvern` og `/vilkar`.
+12. **Trygghet** — Lenker til `/sikkerhet`, `/personvern` og `/vilkar`.
 13. **Avsluttende CTA**.
-14. **Footer** — Personvern, vilkår, «Kom i gang», «Logg inn».
+14. **Footer** — Personvern, sikkerhet, vilkår, «Kom i gang», «Logg inn».
 
 ## Seksjoner — kampanje (`/iris`)
 

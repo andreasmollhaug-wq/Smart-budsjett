@@ -44,9 +44,17 @@ export default function LegalArticle({ title, description, children }: Props) {
   )
 }
 
-export function LegalSection({ title, children }: { title: string; children: ReactNode }) {
+export function LegalSection({
+  title,
+  id,
+  children,
+}: {
+  title: string
+  id?: string
+  children: ReactNode
+}) {
   return (
-    <section>
+    <section id={id}>
       <h2 className="text-lg font-semibold text-balance sm:text-xl" style={{ color: 'var(--text)' }}>
         {title}
       </h2>

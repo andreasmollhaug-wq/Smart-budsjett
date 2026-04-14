@@ -9,6 +9,13 @@ import {
   type Transaction,
 } from '@/lib/store'
 import { monthlyEquivalentNok, yearlyEquivalentNok } from '@/lib/serviceSubscriptionHelpers'
+import {
+  isOverduePlanFollowUp,
+  isUpcomingPlannedTransaction,
+  sortTransactionsByDateAsc,
+  todayYyyyMmDd,
+  transactionRequiresPlanFollowUp,
+} from '@/lib/plannedTransactions'
 import { formatTransactionDateNbNo } from '@/lib/utils'
 
 const MAX_TRANSACTION_LINES = 300
@@ -204,6 +211,45 @@ export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceCon
     }
     if (omitted > 0) {
       lines.push(`… og ${omitted} eldre transaksjoner vises ikke.`)
+    }
+  }
+
+  lines.push('')
+  const todayAi = todayYyyyMmDd()
+  const planRelevant = (person.transactions ?? []).filter((t) => transactionRequiresPlanFollowUp(t))
+  const upcomingAi = planRelevant
+    .filter((t) => isUpcomingPlannedTransaction(t, todayAi))
+    .sort(sortTransactionsByDateAsc)
+    .slice(0, 15)
+  const overdueAi = planRelevant
+    .filter((t) => isOverduePlanFollowUp(t, todayAi))
+    .sort(sortTransactionsByDateAsc)
+    .slice(0, 15)
+  lines.push('Planlagt oppfølging (Kommende / etter forfall, begrenset utdrag):')
+  if (upcomingAi.length === 0 && overdueAi.length === 0) {
+    lines.push('Ingen planlagte poster som krever ekstra oppfølging i dette utdraget.')
+  } else {
+    if (upcomingAi.length > 0) {
+      lines.push('Kommende (dato etter i dag):')
+      for (const t of upcomingAi) {
+        const amt = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
+        const desc = (t.description ?? '').replace(/\s+/g, ' ').trim() || '(uten beskrivelse)'
+        const dateShow = formatTransactionDateNbNo(t.date) || t.date
+        const rev = t.reviewedAt ? 'gjennomgått' : 'ikke gjennomgått'
+        const paid = t.type === 'expense' ? (t.paidAt ? ', betalt' : ', ikke betalt') : ''
+        lines.push(`- ${dateShow} | ${desc} | ${amt} kr | ${typeLabel(t.type)} | ${rev}${paid}`)
+      }
+    }
+    if (overdueAi.length > 0) {
+      lines.push('Etter planlagt dato (trenger oppfølging):')
+      for (const t of overdueAi) {
+        const amt = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
+        const desc = (t.description ?? '').replace(/\s+/g, ' ').trim() || '(uten beskrivelse)'
+        const dateShow = formatTransactionDateNbNo(t.date) || t.date
+        const rev = t.reviewedAt ? 'gjennomgått' : 'ikke gjennomgått'
+        const paid = t.type === 'expense' ? (t.paidAt ? ', betalt' : ', ikke betalt') : ''
+        lines.push(`- ${dateShow} | ${desc} | ${amt} kr | ${typeLabel(t.type)} | ${rev}${paid}`)
+      }
     }
   }
 

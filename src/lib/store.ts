@@ -9,6 +9,10 @@ import type { ParentCategory } from './budgetCategoryCatalog'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
 import { computeInsightDeltas } from './insightNotifications'
 import {
+  PLANNED_OVERDUE_NOTIFICATION_ID,
+  buildPlannedOverdueNotification,
+} from './plannedTransactions'
+import {
   buildBudgetCategoryForSubscription,
   budgetedTwelveFromMonthly,
   monthlyEquivalentNok,
@@ -81,6 +85,9 @@ export interface AppNotification {
   kind: AppNotificationKind
   createdAt: string
   read: boolean
+  /** Valgfri primærhandling (f.eks. lenke til «Kommende»). */
+  actionHref?: string
+  actionLabel?: string
 }
 
 export interface Transaction {
@@ -98,6 +105,15 @@ export interface Transaction {
   linkedServiceSubscriptionId?: string
   /** App-genererte planlagte avdrag fra gjeld (synk til budsjett). */
   linkedDebtId?: string
+  /** ISO-tidspunkt når brukeren markerte transaksjonen som gjennomgått. */
+  reviewedAt?: string
+  /** ISO-tidspunkt når utgift ble markert som betalt (planlagt trekk bekreftet). */
+  paidAt?: string
+  /**
+   * Bruker har registrert som planlagt oppfølging (typisk fremtidig dato ved opprettelse).
+   * Synkede trekk bruker linkedDebtId / linkedServiceSubscriptionId i stedet.
+   */
+  plannedFollowUp?: boolean
 }
 
 export interface BudgetCategory {
@@ -326,7 +342,20 @@ interface AppState {
   removeTransaction: (id: string) => void
   updateTransaction: (
     id: string,
-    patch: Partial<Pick<Transaction, 'date' | 'description' | 'amount' | 'category' | 'subcategory' | 'type'>>,
+    patch: Partial<
+      Pick<
+        Transaction,
+        | 'date'
+        | 'description'
+        | 'amount'
+        | 'category'
+        | 'subcategory'
+        | 'type'
+        | 'reviewedAt'
+        | 'paidAt'
+        | 'plannedFollowUp'
+      >
+    >,
   ) => void
   recalcBudgetSpent: (categoryName: string) => void
 
@@ -1294,7 +1323,8 @@ export const useStore = create<AppState>()((set, get) => {
 
         syncInsightNotifications: () => {
           set((s) => {
-            const existingIds = new Set(s.notifications.map((n) => n.id))
+            const base = s.notifications.filter((n) => n.id !== PLANNED_OVERDUE_NOTIFICATION_ID)
+            const existingIds = new Set(base.map((n) => n.id))
             const { toAdd, newDeliveredIds } = computeInsightDeltas({
               financeScope: s.financeScope,
               subscriptionPlan: s.subscriptionPlan,
@@ -1306,10 +1336,54 @@ export const useStore = create<AppState>()((set, get) => {
               deliveredInsightIds: s.deliveredInsightIds ?? [],
               existingNotificationIds: existingIds,
             })
-            if (toAdd.length === 0) return s
+
+            const householdBlocked =
+              s.financeScope === 'household' &&
+              s.subscriptionPlan === 'family' &&
+              s.profiles.length >= 2
+            const person = s.people[s.activeProfileId]
+            const overdueContent =
+              !householdBlocked && person
+                ? buildPlannedOverdueNotification(person.transactions ?? [])
+                : null
+            const prevPlanned = s.notifications.find((n) => n.id === PLANNED_OVERDUE_NOTIFICATION_ID)
+
+            let merged: AppNotification[] = [...toAdd, ...base]
+            if (overdueContent) {
+              const unchanged =
+                prevPlanned != null &&
+                prevPlanned.title === overdueContent.title &&
+                prevPlanned.body === overdueContent.body
+              merged = [
+                {
+                  id: PLANNED_OVERDUE_NOTIFICATION_ID,
+                  title: overdueContent.title,
+                  body: overdueContent.body,
+                  kind: 'insight',
+                  createdAt: prevPlanned?.createdAt ?? new Date().toISOString(),
+                  read: unchanged && prevPlanned ? prevPlanned.read : false,
+                  actionHref: '/transaksjoner/kommende',
+                  actionLabel: 'Åpne Kommende',
+                },
+                ...merged,
+              ]
+            }
+
+            if (
+              toAdd.length === 0 &&
+              newDeliveredIds.length === 0 &&
+              !overdueContent &&
+              !prevPlanned
+            ) {
+              return s
+            }
+
             return {
-              notifications: [...toAdd, ...s.notifications],
-              deliveredInsightIds: [...(s.deliveredInsightIds ?? []), ...newDeliveredIds],
+              notifications: merged,
+              deliveredInsightIds:
+                newDeliveredIds.length > 0
+                  ? [...(s.deliveredInsightIds ?? []), ...newDeliveredIds]
+                  : (s.deliveredInsightIds ?? []),
             }
           })
         },
@@ -1471,7 +1545,7 @@ export const useStore = create<AppState>()((set, get) => {
           return { ok: true as const }
         },
 
-        addTransaction: (t) =>
+        addTransaction: (t) => {
           set((s) => {
             const pid = resolveTransactionOwnerProfileId(s, t.profileId)
             const person = s.people[pid]
@@ -1487,9 +1561,11 @@ export const useStore = create<AppState>()((set, get) => {
                 [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
               },
             }
-          }),
+          })
+          get().syncInsightNotifications()
+        },
 
-        addTransactions: (incoming) =>
+        addTransactions: (incoming) => {
           set((s) => {
             if (!incoming.length) return s
             const groups = new Map<string, Transaction[]>()
@@ -1514,9 +1590,11 @@ export const useStore = create<AppState>()((set, get) => {
               }
             }
             return { people: nextPeople }
-          }),
+          })
+          get().syncInsightNotifications()
+        },
 
-        removeTransaction: (id) =>
+        removeTransaction: (id) => {
           set((s) => {
             for (const pid of s.profiles.map((p) => p.id)) {
               const person = s.people[pid]
@@ -1534,9 +1612,11 @@ export const useStore = create<AppState>()((set, get) => {
               }
             }
             return s
-          }),
+          })
+          get().syncInsightNotifications()
+        },
 
-        updateTransaction: (id, patch) =>
+        updateTransaction: (id, patch) => {
           set((s) => {
             for (const pid of s.profiles.map((p) => p.id)) {
               const person = s.people[pid]
@@ -1550,8 +1630,8 @@ export const useStore = create<AppState>()((set, get) => {
                   profileId: t.profileId ?? pid,
                 }
                 if (patch.subcategory !== undefined) {
-                  const s = patch.subcategory.trim()
-                  if (s) merged = { ...merged, subcategory: s }
+                  const sub = patch.subcategory.trim()
+                  if (sub) merged = { ...merged, subcategory: sub }
                   else {
                     const { subcategory: _removed, ...rest } = merged
                     merged = rest as Transaction
@@ -1571,7 +1651,9 @@ export const useStore = create<AppState>()((set, get) => {
               }
             }
             return s
-          }),
+          })
+          get().syncInsightNotifications()
+        },
 
         recalcBudgetSpent: (categoryName) =>
           patchActive((d) => {

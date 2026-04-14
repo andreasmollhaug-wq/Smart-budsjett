@@ -151,6 +151,10 @@ export default function VilkarPage() {
           Se også{' '}
           <Link href="/personvern" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
             personvernerklæringen
+          </Link>{' '}
+          og{' '}
+          <Link href="/sikkerhet" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
+            sikkerhet (oversikt)
           </Link>
           .
         </LegalP>

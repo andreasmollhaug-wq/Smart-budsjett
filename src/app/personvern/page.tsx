@@ -145,7 +145,7 @@ export default function PersonvernPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="9. Sikkerhet">
+      <LegalSection id="sikkerhet" title="9. Sikkerhet">
         <LegalP>
           Vi iverksetter passende tekniske og organisatoriske tiltak for å beskytte personopplysninger mot uautorisert tilgang,
           tap og endring. Ingen overføring over internett er imidlertid hundre prosent sikker; du bruker Tjenesten på eget ansvar
@@ -189,6 +189,10 @@ export default function PersonvernPage() {
           Se også{' '}
           <Link href="/vilkar" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
             vilkår for bruk
+          </Link>{' '}
+          og{' '}
+          <Link href="/sikkerhet" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
+            sikkerhet (oversikt)
           </Link>
           .
         </LegalP>

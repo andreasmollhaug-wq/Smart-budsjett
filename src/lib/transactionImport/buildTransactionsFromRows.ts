@@ -1,4 +1,5 @@
 import type { Transaction } from '@/lib/store'
+import { plannedFollowUpForNewTransaction } from '@/lib/plannedTransactions'
 import { generateId } from '@/lib/utils'
 import type { ParsedTransactionRow } from '@/lib/transactionImport/parseTransactionCsv'
 
@@ -15,6 +16,7 @@ export function buildTransactionsFromImportRows(
   for (const r of rows) {
     const canonical = canonicalNameForCategoryRaw(r.categoryRaw)
     if (!canonical) continue
+    const pf = plannedFollowUpForNewTransaction(r.dateIso)
     out.push({
       id: generateId(),
       date: r.dateIso,
@@ -23,6 +25,7 @@ export function buildTransactionsFromImportRows(
       category: canonical,
       type: r.transactionType,
       profileId,
+      ...(pf ? { plannedFollowUp: true } : {}),
     })
   }
   return out

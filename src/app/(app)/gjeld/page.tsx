@@ -10,7 +10,16 @@ import AddDebtForm, { type AddDebtFormPayload } from '@/components/debt/AddDebtF
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
 import DebtDetailModal from '@/components/debt/DebtDetailModal'
 import { Plus, Trash2, PauseCircle } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
 
 export default function GjeldPage() {
   const {
@@ -271,16 +280,21 @@ export default function GjeldPage() {
             className="rounded-2xl p-6"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
-            <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>
-              Gjeldsoversikt
-            </h2>
+            <div className="mb-4">
+              <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
+                Gjeldsoversikt
+              </h2>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                Sammenligner opprinnelig lånebeløp med gjenstående restgjeld per lån.
+              </p>
+            </div>
             {debts.length === 0 ? (
               <p className="text-sm py-12 text-center" style={{ color: 'var(--text-muted)' }}>
                 Ingen data å vise i diagrammet.
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={barData} layout="vertical">
+              <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={barData} layout="vertical" margin={{ bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E0E7FF" />
                   <XAxis
                     type="number"
@@ -289,8 +303,13 @@ export default function GjeldPage() {
                   />
                   <YAxis type="category" dataKey="name" tick={{ fill: '#6B7A99', fontSize: 11 }} width={80} />
                   <Tooltip formatter={(v) => formatNOK(v == null ? 0 : Number(v))} />
-                  <Bar dataKey="total" fill="#E0E7FF" name="Totalt" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="gjenstående" fill="#3B5BDB" name="Gjenstående" radius={[0, 4, 4, 0]} />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={28}
+                    wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)' }}
+                  />
+                  <Bar dataKey="total" fill="#E0E7FF" name="Opprinnelig beløp" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="gjenstående" fill="#3B5BDB" name="Restgjeld" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

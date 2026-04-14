@@ -27,7 +27,7 @@
 | `/` | Markedsføringslanding |
 | `/iris` | Kampanjevariant (partner); `/?ref=iris` redirectes hit |
 | `/logg-inn`, `/registrer`, `/glemt-passord` | Auth (glemt passord er offentlig; `/tilbakestill-passord` krever økt etter e-postlenke) |
-| `/personvern`, `/vilkar` | Juridiske sider |
+| `/personvern`, `/vilkar`, `/sikkerhet` | Juridiske / tillitssider (personvern, vilkår, sikkerhetsoversikt) |
 | `/auth/*` | OAuth / callback |
 
 **App** — route group [`(app)`](../src/app/(app)/) med [`AppShell`](../src/components/layout/AppShell.tsx) (desktop-sidebar + mobilmeny; navigasjonsinnhold i [`SidebarContent`](../src/components/layout/SidebarContent.tsx)):
