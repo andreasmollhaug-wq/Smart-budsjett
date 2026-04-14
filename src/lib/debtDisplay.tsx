@@ -1,6 +1,6 @@
 import type { ElementType } from 'react'
 import type { Debt } from '@/lib/store'
-import { CreditCard, Home, Car, AlertCircle, GraduationCap, Wallet, RefreshCw } from 'lucide-react'
+import { CreditCard, Home, Car, CircleEllipsis, GraduationCap, Wallet, RefreshCw } from 'lucide-react'
 
 export const debtTypeLabels: Record<Debt['type'], string> = {
   mortgage: 'Boliglån',
@@ -19,7 +19,7 @@ export const debtIcons: Record<Debt['type'], ElementType> = {
   refinancing: RefreshCw,
   student_loan: GraduationCap,
   credit_card: CreditCard,
-  other: AlertCircle,
+  other: CircleEllipsis,
 }
 
 export const debtColors: Record<Debt['type'], string> = {
@@ -29,5 +29,5 @@ export const debtColors: Record<Debt['type'], string> = {
   refinancing: '#0CA678',
   student_loan: '#5C7CFA',
   credit_card: '#E03131',
-  other: '#F08C00',
+  other: '#868E96',
 }

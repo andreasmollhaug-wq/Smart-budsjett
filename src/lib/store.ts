@@ -27,14 +27,12 @@ import {
 } from './subscriptionTransactions'
 import {
   appendDebtPlannedTransactionsForBudgetYear,
-  budgetedFromMonthlyFromMonth,
   buildBudgetCategoryForDebt,
-  buildPlannedDebtTransactions,
-  clampPlannedPaymentDay,
+  buildDebtLinkedBudgetedTwelve,
+  buildSyncedDebtPlannedTransactionsForYear,
   clampSyncBudgetFromMonth1,
   debtColorForType,
   defaultSyncBudgetFromMonth1ForBudgetYear,
-  effectiveDebtMonthlyPayment,
   normalizeDebtLinkedBudgetCategoriesToFullYear,
   stripAllLinkedDebtTransactions,
   stripLinkedDebtTransactionsForYear,
@@ -1722,7 +1720,7 @@ export const useStore = create<AppState>()((set, get) => {
                 }
               })
               let merged: PersonData = { ...p, budgetCategories: newCats }
-              merged = normalizeDebtLinkedBudgetCategoriesToFullYear(merged)
+              merged = normalizeDebtLinkedBudgetCategoriesToFullYear(merged, nextYear)
               merged = appendDebtPlannedTransactionsForBudgetYear(merged, nextYear, pr.id)
               nextPeople[pr.id] = recalcPersonBudgetSpentForYear(
                 syncLinkedSavingsGoalsCurrent(merged, pr.id),
@@ -1976,13 +1974,12 @@ export const useStore = create<AppState>()((set, get) => {
               )
               const catId = generateId()
               const displayName = uniqueGjeldName(nextDebt.name, budgetCategories.map((c) => c.name))
-              const monthly = effectiveDebtMonthlyPayment(nextDebt)
+              const budgetedTwelve = buildDebtLinkedBudgetedTwelve(nextDebt, budgetYear, startM)
               const raw = buildBudgetCategoryForDebt(
                 catId,
                 displayName,
-                monthly,
                 debtColorForType(nextDebt.type),
-                startM,
+                budgetedTwelve,
               )
               const spent = sumTxForCategoryInYear(
                 person.transactions,
@@ -1999,19 +1996,8 @@ export const useStore = create<AppState>()((set, get) => {
                 syncPlannedTransactions: wantPlanned,
                 syncBudgetFromMonth1: startM,
               }
-              if (wantPlanned && monthly > 0) {
-                const day = clampPlannedPaymentDay(nextDebt.plannedPaymentDayOfMonth)
-                const extra = buildPlannedDebtTransactions({
-                  debtId: nextDebt.id,
-                  label: nextDebt.name,
-                  categoryName: displayName,
-                  profileId: pid,
-                  amountMonthly: monthly,
-                  budgetYear,
-                  startMonth1: startM,
-                  endMonth1: 12,
-                  dayOfMonth: day,
-                })
+              if (wantPlanned) {
+                const extra = buildSyncedDebtPlannedTransactionsForYear(nextDebt, displayName, pid, budgetYear)
                 transactions = [...extra, ...transactions]
               }
             }
@@ -2058,12 +2044,12 @@ export const useStore = create<AppState>()((set, get) => {
                 syncBudgetFromMonth1: undefined,
               }
             } else {
-              const monthly = effectiveDebtMonthlyPayment(merged)
               const startM = clampSyncBudgetFromMonth1(
                 merged.syncBudgetFromMonth1 ??
                   prev.syncBudgetFromMonth1 ??
                   defaultSyncBudgetFromMonth1ForBudgetYear(budgetYear),
               )
+              const budgetedTwelve = buildDebtLinkedBudgetedTwelve(merged, budgetYear, startM)
               nextDebt = {
                 ...merged,
                 syncToBudget: true,
@@ -2076,9 +2062,8 @@ export const useStore = create<AppState>()((set, get) => {
                 const raw = buildBudgetCategoryForDebt(
                   catId,
                   displayName,
-                  monthly,
                   debtColorForType(merged.type),
-                  startM,
+                  budgetedTwelve,
                 )
                 const spent = sumTxForCategoryInYear(
                   transactions,
@@ -2098,28 +2083,16 @@ export const useStore = create<AppState>()((set, get) => {
                   merged.name !== prev.name
                     ? uniqueGjeldName(merged.name, otherNames)
                     : (prevCat?.name ?? merged.name)
-                const budgeted = budgetedFromMonthlyFromMonth(monthly, startM)
                 const spent = sumTxForCategoryInYear(transactions, newName, 'expense', budgetYear, pid)
                 budgetCategories = budgetCategories.map((c) =>
-                  c.id === catId ? { ...c, name: newName, budgeted, spent } : c,
+                  c.id === catId ? { ...c, name: newName, budgeted: budgetedTwelve, spent } : c,
                 )
                 nextDebt = { ...nextDebt, linkedBudgetCategoryId: catId }
               }
 
               const cat = budgetCategories.find((c) => c.id === nextDebt.linkedBudgetCategoryId)
-              if (wantPlanned && monthly > 0 && cat) {
-                const day = clampPlannedPaymentDay(nextDebt.plannedPaymentDayOfMonth)
-                const extra = buildPlannedDebtTransactions({
-                  debtId: id,
-                  label: nextDebt.name,
-                  categoryName: cat.name,
-                  profileId: pid,
-                  amountMonthly: monthly,
-                  budgetYear,
-                  startMonth1: startM,
-                  endMonth1: 12,
-                  dayOfMonth: day,
-                })
+              if (wantPlanned && cat) {
+                const extra = buildSyncedDebtPlannedTransactionsForYear(nextDebt, cat.name, pid, budgetYear)
                 transactions = [...extra, ...transactions]
               }
             }

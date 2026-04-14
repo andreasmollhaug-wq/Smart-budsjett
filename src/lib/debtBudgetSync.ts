@@ -1,7 +1,10 @@
 import type { BudgetCategory, Debt, PersonData, Transaction } from '@/lib/store'
 import { debtColors } from '@/lib/debtDisplay'
-import { isDebtPauseActive } from '@/lib/debtHelpers'
-import { budgetedTwelveFromMonthly } from '@/lib/serviceSubscriptionHelpers'
+import {
+  debtRepaymentFirstEligibleDay,
+  isDebtBudgetMonthPaying,
+  rawDebtMonthlyPayment,
+} from '@/lib/debtHelpers'
 import { generateId } from '@/lib/utils'
 import {
   clampBillingDay,
@@ -19,10 +22,65 @@ export function uniqueGjeldName(desired: string, categoryNames: string[]): strin
   return `${trimmed} (${i})`
 }
 
-export function effectiveDebtMonthlyPayment(debt: Debt): number {
-  if (isDebtPauseActive(debt)) return 0
-  const m = debt.monthlyPayment
-  return Number.isFinite(m) && m >= 0 ? m : 0
+/** 12 måneders budsjettbeløp for synket gjeld: «synk fra måned» + pause per kalendermåned i budsjettår. */
+export function buildDebtLinkedBudgetedTwelve(debt: Debt, budgetYear: number, syncFromMonth1: number): number[] {
+  const start = clampSyncBudgetFromMonth1(syncFromMonth1)
+  const base = rawDebtMonthlyPayment(debt)
+  return Array.from({ length: 12 }, (_, i) => {
+    const month1 = i + 1
+    if (month1 < start) return 0
+    if (base <= 0) return 0
+    return isDebtBudgetMonthPaying(debt, budgetYear, month1) ? base : 0
+  })
+}
+
+function plannedDebtIsoOnOrAfterResume(
+  budgetYear: number,
+  month1: number,
+  billingDay: number,
+  resume: Date | null,
+): string {
+  const clampedDay = clampBillingDay(billingDay)
+  const scheduled = formatBudgetDateIso(budgetYear, month1, clampedDay)
+  if (resume === null) return scheduled
+  const tSched = new Date(scheduled + 'T12:00:00').getTime()
+  const tRes = resume.getTime()
+  const t = Math.max(tSched, tRes)
+  const d = new Date(t)
+  const y = d.getFullYear()
+  const mo = d.getMonth() + 1
+  const da = d.getDate()
+  return `${y}-${String(mo).padStart(2, '0')}-${String(da).padStart(2, '0')}`
+}
+
+/** Planlagte trekk for et budsjettår når gjeld er synket (én rad per måned med beløp > 0). */
+export function buildSyncedDebtPlannedTransactionsForYear(
+  debt: Debt,
+  categoryName: string,
+  profileId: string,
+  budgetYear: number,
+): Transaction[] {
+  const startM = clampSyncBudgetFromMonth1(debt.syncBudgetFromMonth1 ?? 1)
+  const budgetedTwelve = buildDebtLinkedBudgetedTwelve(debt, budgetYear, startM)
+  const resume = debtRepaymentFirstEligibleDay(debt)
+  const dayRaw = clampPlannedPaymentDay(debt.plannedPaymentDayOfMonth)
+  const desc = `${debt.name.trim() || 'Avdrag'} (planlagt)`
+  const out: Transaction[] = []
+  for (let m = 1; m <= 12; m++) {
+    const amt = budgetedTwelve[m - 1] ?? 0
+    if (amt <= 0) continue
+    out.push({
+      id: generateId(),
+      date: plannedDebtIsoOnOrAfterResume(budgetYear, m, dayRaw, resume),
+      description: desc,
+      amount: amt,
+      category: categoryName,
+      type: 'expense',
+      profileId,
+      linkedDebtId: debt.id,
+    })
+  }
+  return out
 }
 
 export function debtColorForType(type: Debt['type']): string {
@@ -55,11 +113,11 @@ export function budgetedFromMonthlyFromMonth(monthly: number, startMonth1: numbe
 export function buildBudgetCategoryForDebt(
   categoryId: string,
   displayName: string,
-  monthly: number,
   color: string,
-  startMonth1: number,
+  budgetedTwelve: number[],
 ): BudgetCategory {
-  const budgeted = budgetedFromMonthlyFromMonth(monthly, startMonth1)
+  const budgeted =
+    budgetedTwelve.length === 12 ? [...budgetedTwelve] : Array.from({ length: 12 }, (_, i) => budgetedTwelve[i] ?? 0)
   return {
     id: categoryId,
     name: displayName,
@@ -124,7 +182,7 @@ export function clampPlannedPaymentDay(day: number | undefined): number {
   return clampBillingDay(d)
 }
 
-/** Idempotent: fjern planlagte trekk for året, legg inn 12 nye måneder for alle synkede gjeld. */
+/** Idempotent: fjern planlagte trekk for året, legg inn nye for alle synkede gjeld. */
 export function appendDebtPlannedTransactionsForBudgetYear(
   person: PersonData,
   budgetYear: number,
@@ -135,33 +193,23 @@ export function appendDebtPlannedTransactionsForBudgetYear(
     if (!debt.syncPlannedTransactions || !debt.syncToBudget || !debt.linkedBudgetCategoryId) continue
     const cat = person.budgetCategories.find((c) => c.id === debt.linkedBudgetCategoryId)
     if (!cat) continue
-    const monthly = effectiveDebtMonthlyPayment(debt)
     transactions = stripLinkedDebtTransactionsForYear(transactions, debt.id, budgetYear)
-    const day = clampPlannedPaymentDay(debt.plannedPaymentDayOfMonth)
-    if (monthly <= 0) continue
-    const extra = buildPlannedDebtTransactions({
-      debtId: debt.id,
-      label: debt.name,
-      categoryName: cat.name,
-      profileId,
-      amountMonthly: monthly,
-      budgetYear,
-      startMonth1: 1,
-      endMonth1: 12,
-      dayOfMonth: day,
-    })
+    const extra = buildSyncedDebtPlannedTransactionsForYear(debt, cat.name, profileId, budgetYear)
     transactions = [...extra, ...transactions]
   }
   return { ...person, transactions }
 }
 
-/** Etter nytt budsjettår: gjeld-linjer får fullt års månedlig beløp (ikke arve delår med nuller). */
-export function normalizeDebtLinkedBudgetCategoriesToFullYear(person: PersonData): PersonData {
+/** Etter nytt budsjettår: gjeld-linjer får månedlige beløp fra pause-/synk-logikk. */
+export function normalizeDebtLinkedBudgetCategoriesToFullYear(
+  person: PersonData,
+  budgetYear: number,
+): PersonData {
   const budgetCategories = person.budgetCategories.map((c) => {
     const debt = person.debts.find((d) => d.syncToBudget && d.linkedBudgetCategoryId === c.id)
     if (!debt) return c
-    const monthly = effectiveDebtMonthlyPayment(debt)
-    const budgeted = budgetedTwelveFromMonthly(monthly)
+    const startM = clampSyncBudgetFromMonth1(debt.syncBudgetFromMonth1 ?? 1)
+    const budgeted = buildDebtLinkedBudgetedTwelve(debt, budgetYear, startM)
     return { ...c, budgeted }
   })
   return { ...person, budgetCategories }

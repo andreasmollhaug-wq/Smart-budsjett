@@ -4,12 +4,13 @@ import type { Debt } from '@/lib/store'
 import {
   appendDebtPlannedTransactionsForBudgetYear,
   budgetedFromMonthlyFromMonth,
+  buildDebtLinkedBudgetedTwelve,
   buildPlannedDebtTransactions,
   clampSyncBudgetFromMonth1,
-  effectiveDebtMonthlyPayment,
   normalizeDebtLinkedBudgetCategoriesToFullYear,
   uniqueGjeldName,
 } from '@/lib/debtBudgetSync'
+import { rawDebtMonthlyPayment } from '@/lib/debtHelpers'
 
 function baseDebt(over: Partial<Debt> = {}): Debt {
   return {
@@ -54,44 +55,84 @@ describe('budgetedFromMonthlyFromMonth', () => {
   })
 })
 
-describe('normalizeDebtLinkedBudgetCategoriesToFullYear', () => {
-  it('sets full monthly budget for gjeld linked to debt', () => {
-    const partial = budgetedFromMonthlyFromMonth(2000, 6)
-    const out = normalizeDebtLinkedBudgetCategoriesToFullYear({
-      transactions: [],
-      budgetCategories: [
-        {
-          id: 'c1',
-          name: 'Lån',
-          budgeted: partial,
-          spent: 0,
-          type: 'expense',
-          color: '#333',
-          parentCategory: 'gjeld',
-          frequency: 'monthly',
-        },
-      ],
-      ...emptyLabelLists(),
-      savingsGoals: [],
-      debts: [
-        baseDebt({
-          linkedBudgetCategoryId: 'c1',
-          syncToBudget: true,
-        }),
-      ],
-      investments: [],
-      serviceSubscriptions: [],
-    })
-    expect(out.budgetCategories[0]?.budgeted.every((b) => b === 2000)).toBe(true)
+describe('rawDebtMonthlyPayment', () => {
+  it('returns monthly from debt', () => {
+    expect(rawDebtMonthlyPayment(baseDebt({ repaymentPaused: false }))).toBe(2000)
+  })
+  it('returns monthly even when repaymentPaused with date (budsjett bruker per måned)', () => {
+    expect(rawDebtMonthlyPayment(baseDebt({ repaymentPaused: true, pauseEndDate: '2026-06-14' }))).toBe(2000)
   })
 })
 
-describe('effectiveDebtMonthlyPayment', () => {
-  it('returns monthly when not paused', () => {
-    expect(effectiveDebtMonthlyPayment(baseDebt({ repaymentPaused: false }))).toBe(2000)
+describe('buildDebtLinkedBudgetedTwelve', () => {
+  it('fills all months when no pause and sync from 1', () => {
+    const arr = buildDebtLinkedBudgetedTwelve(baseDebt(), 2026, 1)
+    expect(arr.every((b) => b === 2000)).toBe(true)
   })
-  it('returns 0 when repaymentPaused', () => {
-    expect(effectiveDebtMonthlyPayment(baseDebt({ repaymentPaused: true }))).toBe(0)
+  it('pause til 14/06: jan–mai 0, juni–des beløp når synk fra juni', () => {
+    const arr = buildDebtLinkedBudgetedTwelve(
+      baseDebt({ pauseEndDate: '2026-06-14', repaymentPaused: false }),
+      2026,
+      6,
+    )
+    expect(arr.slice(0, 5).every((b) => b === 0)).toBe(true)
+    expect(arr.slice(5).every((b) => b === 2000)).toBe(true)
+  })
+  it('pause til 14/06: jan–mai 0, juni–des når synk fra 1', () => {
+    const arr = buildDebtLinkedBudgetedTwelve(
+      baseDebt({ pauseEndDate: '2026-06-14', repaymentPaused: false }),
+      2026,
+      1,
+    )
+    expect(arr.slice(0, 5).every((b) => b === 0)).toBe(true)
+    expect(arr.slice(5).every((b) => b === 2000)).toBe(true)
+  })
+  it('hele 2025 er 0 når pause til 14/06/2026', () => {
+    const arr = buildDebtLinkedBudgetedTwelve(
+      baseDebt({ pauseEndDate: '2026-06-14', repaymentPaused: false }),
+      2025,
+      1,
+    )
+    expect(arr.every((b) => b === 0)).toBe(true)
+  })
+  it('uendelig pause uten dato: alle 0', () => {
+    const arr = buildDebtLinkedBudgetedTwelve(baseDebt({ repaymentPaused: true }), 2026, 1)
+    expect(arr.every((b) => b === 0)).toBe(true)
+  })
+})
+
+describe('normalizeDebtLinkedBudgetCategoriesToFullYear', () => {
+  it('sets monthly budget for gjeld linked to debt (full year)', () => {
+    const out = normalizeDebtLinkedBudgetCategoriesToFullYear(
+      {
+        transactions: [],
+        budgetCategories: [
+          {
+            id: 'c1',
+            name: 'Lån',
+            budgeted: budgetedFromMonthlyFromMonth(2000, 6),
+            spent: 0,
+            type: 'expense',
+            color: '#333',
+            parentCategory: 'gjeld',
+            frequency: 'monthly',
+          },
+        ],
+        ...emptyLabelLists(),
+        savingsGoals: [],
+        debts: [
+          baseDebt({
+            linkedBudgetCategoryId: 'c1',
+            syncToBudget: true,
+            syncBudgetFromMonth1: 1,
+          }),
+        ],
+        investments: [],
+        serviceSubscriptions: [],
+      },
+      2026,
+    )
+    expect(out.budgetCategories[0]?.budgeted.every((b) => b === 2000)).toBe(true)
   })
 })
 
@@ -165,5 +206,46 @@ describe('appendDebtPlannedTransactionsForBudgetYear', () => {
       'p1',
     )
     expect(person.transactions.filter((t) => t.linkedDebtId === 'd1')).toHaveLength(12)
+  })
+  it('pause til midten av juni: 7 trekk fra juni når synk fra 6, første dato 2026-06-15', () => {
+    const person = appendDebtPlannedTransactionsForBudgetYear(
+      {
+        transactions: [],
+        budgetCategories: [
+          {
+            id: 'c1',
+            name: 'Pause-lån',
+            budgeted: Array(12).fill(0),
+            spent: 0,
+            type: 'expense',
+            color: '#333',
+            parentCategory: 'gjeld',
+            frequency: 'monthly',
+          },
+        ],
+        ...emptyLabelLists(),
+        savingsGoals: [],
+        debts: [
+          baseDebt({
+            id: 'dpause',
+            linkedBudgetCategoryId: 'c1',
+            syncToBudget: true,
+            syncPlannedTransactions: true,
+            plannedPaymentDayOfMonth: 15,
+            syncBudgetFromMonth1: 6,
+            pauseEndDate: '2026-06-14',
+            repaymentPaused: false,
+          }),
+        ],
+        investments: [],
+        serviceSubscriptions: [],
+      },
+      2026,
+      'p1',
+    )
+    const txs = person.transactions.filter((t) => t.linkedDebtId === 'dpause')
+    expect(txs).toHaveLength(7)
+    expect(txs[0]?.date).toBe('2026-06-15')
+    expect(txs[0]?.amount).toBe(2000)
   })
 })

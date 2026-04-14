@@ -394,7 +394,9 @@ export default function DebtDetailModal({
               Nedbetalingspause
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Ved aktiv pause settes synket budsjett og planlagte trekk til 0 kr inntil pausen er over.
+              Synket budsjett og planlagte trekk følger måned for måned: måneder før gjenopptak (dagen etter
+              «pause til») vises som 0 kr. Måneder der avdrag kan starte igjen bruker avtalt månedlig beløp,
+              sammen med «synk fra måned».
             </p>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
