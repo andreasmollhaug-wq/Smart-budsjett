@@ -38,6 +38,19 @@ Bruk disse variablene for bakgrunn, tekst og kort — ikke introduser nye hovedf
 - **Ikoner:** [`lucide-react`](https://lucide.dev/) — ikoner i små sirkler med lav metning (`--primary-pale` eller farge + lav alfa), jf. StatCard.
 - **Hero / dashboard:** Større gradientblokker kan bruke utvidet gradient med `#7048E8` der det allerede er brukt i appen (f.eks. dashboard-kort).
 
+## Mobil og små skjermer
+
+Mange brukere er **kun på telefon**. Nye sider og komponenter skal derfor:
+
+- ha **lesbar layout** i smal bredde (ofte én kolonne, deretter `sm`/`md` for flere),
+- ha **trygg bredde** (`min-w-0` der flex ellers gir horisontal overflow),
+- bruke **store nok touchmål** for primærknapper og viktige lenker (ca. 44×44 px),
+- der innhold går til kanten av skjermen, ta hensyn til **safe area** (`env(safe-area-inset-*)` sammen med vanlig padding).
+
+**Cursor / AI:** Prosjektet har en fast regel i [`.cursor/rules/mobile-responsive-ui.mdc`](../.cursor/rules/mobile-responsive-ui.mdc) som minner om dette under utvikling.
+
+**Automatisert sjekk:** Playwright kjører som standard i **mobil viewport** (se [ARKITEKTUR.md — Tester](./ARKITEKTUR.md#tester)); det fanger regressjon i layout, men erstatter ikke manuell test på ekte telefon.
+
 ## Prinsipp
 
 - **Enkelt og ryddig** — mye luft, tydelig hierarki.

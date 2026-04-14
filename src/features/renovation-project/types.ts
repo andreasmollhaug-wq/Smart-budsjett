@@ -29,6 +29,14 @@ export interface RenovationChecklistItem {
 export interface RenovationProject {
   id: string
   name: string
+  /** Fritekst: adresse, kontakter, leverandører, ting å huske … */
+  notes?: string
+  /** yyyy-mm-dd */
+  startDate?: string
+  /** yyyy-mm-dd */
+  endDate?: string
+  /** F.eks. rom, garasje, «hjemme» */
+  location?: string
   templateKey?: RenovationTemplateKey
   createdAt: string
   status: RenovationProjectStatus
@@ -96,9 +104,19 @@ export function normalizeRenovationModuleState(raw: unknown): RenovationModulePe
             typeof (c as RenovationChecklistItem).order === 'number',
         )
       : []
+    const notes =
+      typeof pr.notes === 'string' ? pr.notes.trim() === '' ? undefined : pr.notes.trim() : undefined
+    const startDate = normalizeOptionalIsoDateString(pr.startDate)
+    const endDate = normalizeOptionalIsoDateString(pr.endDate)
+    const location =
+      typeof pr.location === 'string' && pr.location.trim() !== '' ? pr.location.trim() : undefined
     projects.push({
       id: pr.id,
       name: pr.name,
+      ...(notes !== undefined ? { notes } : {}),
+      ...(startDate ? { startDate } : {}),
+      ...(endDate ? { endDate } : {}),
+      ...(location ? { location } : {}),
       templateKey,
       createdAt,
       status,
@@ -108,4 +126,13 @@ export function normalizeRenovationModuleState(raw: unknown): RenovationModulePe
     })
   }
   return { version: RENOVATION_MODULE_STATE_VERSION, projects }
+}
+
+/** Leser lagret verdi til yyyy-mm-dd eller undefined (ukjente format droppes). */
+export function normalizeOptionalIsoDateString(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const s = v.trim()
+  if (!s) return undefined
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return undefined
+  return s
 }

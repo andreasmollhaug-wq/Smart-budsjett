@@ -8,7 +8,7 @@ import type {
   RenovationProjectStatus,
   RenovationTemplateKey,
 } from './types'
-import { createEmptyRenovationModuleState } from './types'
+import { createEmptyRenovationModuleState, normalizeOptionalIsoDateString } from './types'
 import { generateId } from '@/lib/utils'
 
 export interface RenovationProjectStoreState extends RenovationModulePersistedState {
@@ -21,7 +21,17 @@ type Store = RenovationProjectStoreState & {
   reset: () => void
 
   addProject: (project: RenovationProject) => void
-  updateProjectMeta: (projectId: string, patch: { name?: string; status?: RenovationProjectStatus }) => void
+  updateProjectMeta: (
+    projectId: string,
+    patch: {
+      name?: string
+      status?: RenovationProjectStatus
+      notes?: string
+      startDate?: string
+      endDate?: string
+      location?: string
+    },
+  ) => void
   removeProject: (projectId: string) => void
 
   addBudgetLine: (projectId: string, line: RenovationBudgetLine) => void
@@ -80,11 +90,48 @@ export const useRenovationProjectStore = create<Store>((set, get) => ({
 
   updateProjectMeta: (projectId, patch) => {
     set((s) => ({
-      projects: patchProject(s.projects, projectId, (p) => ({
-        ...p,
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.status !== undefined ? { status: patch.status } : {}),
-      })),
+      projects: patchProject(s.projects, projectId, (p) => {
+        let next: RenovationProject = { ...p }
+        if (patch.name !== undefined) next = { ...next, name: patch.name }
+        if (patch.status !== undefined) next = { ...next, status: patch.status }
+        if (patch.notes !== undefined) {
+          const t = patch.notes.trim()
+          if (t === '') {
+            const { notes: _n, ...rest } = next
+            next = rest as RenovationProject
+          } else {
+            next = { ...next, notes: t }
+          }
+        }
+        if (patch.location !== undefined) {
+          const t = patch.location.trim()
+          if (t === '') {
+            const { location: _l, ...rest } = next
+            next = rest as RenovationProject
+          } else {
+            next = { ...next, location: t }
+          }
+        }
+        if (patch.startDate !== undefined) {
+          const t = patch.startDate.trim()
+          if (t === '') {
+            const { startDate: _s, ...rest } = next
+            next = rest as RenovationProject
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+            next = { ...next, startDate: t }
+          }
+        }
+        if (patch.endDate !== undefined) {
+          const t = patch.endDate.trim()
+          if (t === '') {
+            const { endDate: _e, ...rest } = next
+            next = rest as RenovationProject
+          } else if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+            next = { ...next, endDate: t }
+          }
+        }
+        return next
+      }),
     }))
   },
 
@@ -201,12 +248,26 @@ export function buildNewProjectFromTemplate(input: {
   name: string
   templateKey: RenovationTemplateKey
   checklist: RenovationChecklistItem[]
+  location?: string
+  startDate?: string
+  endDate?: string
+  notes?: string
 }): RenovationProject {
   const id = generateId()
   const createdAt = new Date().toISOString()
+  const location =
+    input.location !== undefined && input.location.trim() !== '' ? input.location.trim() : undefined
+  const notes =
+    input.notes !== undefined && input.notes.trim() !== '' ? input.notes.trim() : undefined
+  const startDate = normalizeOptionalIsoDateString(input.startDate)
+  const endDate = normalizeOptionalIsoDateString(input.endDate)
   return {
     id,
     name: input.name.trim() || 'Uten navn',
+    ...(location ? { location } : {}),
+    ...(notes ? { notes } : {}),
+    ...(startDate ? { startDate } : {}),
+    ...(endDate ? { endDate } : {}),
     templateKey: input.templateKey,
     createdAt,
     status: 'active',

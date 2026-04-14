@@ -12,7 +12,7 @@ Denne mappen samler **Markdown-filer** som beskriver produktet, prising, landing
 | [INNHOLD.md](./INNHOLD.md) | Tone og språk (bokmål, «du») |
 | [DESIGN-KILDER.md](./DESIGN-KILDER.md) | Figma, logo, eksterne designkilder |
 | [A11Y.md](./A11Y.md) | Tilgjengelighet — kort sjekkliste |
-| [ARKITEKTUR.md](./ARKITEKTUR.md) | Next.js, Supabase, Stripe, ruter, API, migrasjoner |
+| [ARKITEKTUR.md](./ARKITEKTUR.md) | Next.js, Supabase, Stripe, ruter, API, migrasjoner, Vitest og Playwright (mobil som standard) |
 
 **Juridisk innhold** skal ligge på egne sider i appen:
 

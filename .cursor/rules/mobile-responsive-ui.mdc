@@ -1,0 +1,26 @@
+---
+description: UI skal fungere fornuftig på mobiltelefon (touch, layout, safe area)
+alwaysApply: true
+---
+
+# Mobil og små skjermer
+
+Mange brukere bruker hele løsningen på **mobil**. Når du bygger eller endrer UI (sider, komponenter, layout), skal det være **fornuftig på telefon**, ikke bare på desktop.
+
+## Sjekkliste
+
+- **Touchmål:** Viktige knapper og lenker skal ha minst ca. **44×44 px** (`min-h-[44px] min-w-[44px]` der det passer).
+- **Overflow:** Bruk `min-w-0` på flex-/grid-barn som kan presse innhold ut av skjermen; unngå horisontal scroll der det ikke er meningen (unntak: bevisst `overflow-x-auto` for tabeller).
+- **Responsiv layout:** Tenk **én kolonne først**, deretter `sm:` / `md:` for bredere skjermer. Unngå smale to-kolonner på små bredder (stack vertikalt).
+- **Safe area (notch / hjem-indikator):** Der innhold går kant i kant med skjerm, bruk `env(safe-area-inset-*)`, typisk `padding` med `max(1rem, env(safe-area-inset-left))` osv. (Root har `viewportFit: cover`.)
+- **Touch og popup:** Prefer `pointerdown` fremfor bare `mousedown` for «klikk utenfor»; info-/menyknapper trenger tilstrekkelig treffflate.
+- **Nettleser på mobil:** `touch-manipulation` på store trykkflater kan redusere tap-forsinkelse der det gir mening.
+
+## E2E (allerede i prosjektet)
+
+`npm run test:e2e` (Playwright) bruker mobil-prosjekt som standard — se [`playwright.config.ts`](../../playwright.config.ts) og [`e2e/`](../../e2e/). Utvid med flere ruter/innloggede flyter når dere trenger regressjon på konkrete skjermbilder.
+
+## Referanse i repo
+
+- Menneskelesbar utdyping: [`docs/DESIGN.md`](../../docs/DESIGN.md) (seksjon «Mobil og små skjermer»).
+- Teknisk: [`docs/ARKITEKTUR.md`](../../docs/ARKITEKTUR.md) (seksjon «Tester»).

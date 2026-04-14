@@ -75,3 +75,58 @@ export function computeProjectKpis(project: RenovationProject): ProjectKpis {
     checklistPercent,
   }
 }
+
+/** Aggregerte KPI-er for aktive prosjekter (samme filter som prosjektlisten). */
+export interface PortfolioKpis {
+  activeProjectCount: number
+  totalBudgetedNok: number
+  totalActualNok: number
+  remainingNok: number
+  varianceNok: number
+  variancePercentOfBudget: number | null
+  /** Andel av samlet budsjett som er brukt (kan overstige 100 % ved overskridelse). */
+  budgetUtilizationPercent: number | null
+  checklistDone: number
+  checklistTotal: number
+  checklistPercent: number | null
+}
+
+export function computePortfolioKpisForProjects(projects: RenovationProject[]): PortfolioKpis {
+  const active = projects.filter((p) => p.status === 'active')
+  const activeProjectCount = active.length
+
+  let totalBudgetedNok = 0
+  let totalActualNok = 0
+  let checklistDone = 0
+  let checklistTotal = 0
+
+  for (const p of active) {
+    const k = computeProjectKpis(p)
+    totalBudgetedNok += k.totalBudgetedNok
+    totalActualNok += k.totalActualNok
+    checklistDone += k.checklistDone
+    checklistTotal += k.checklistTotal
+  }
+
+  const varianceNok = totalActualNok - totalBudgetedNok
+  const remainingNok = totalBudgetedNok - totalActualNok
+  const variancePercentOfBudget =
+    totalBudgetedNok === 0 ? null : (varianceNok / totalBudgetedNok) * 100
+  const budgetUtilizationPercent =
+    totalBudgetedNok === 0 ? null : (totalActualNok / totalBudgetedNok) * 100
+  const checklistPercent =
+    checklistTotal === 0 ? null : (checklistDone / checklistTotal) * 100
+
+  return {
+    activeProjectCount,
+    totalBudgetedNok,
+    totalActualNok,
+    remainingNok,
+    varianceNok,
+    variancePercentOfBudget,
+    budgetUtilizationPercent,
+    checklistDone,
+    checklistTotal,
+    checklistPercent,
+  }
+}

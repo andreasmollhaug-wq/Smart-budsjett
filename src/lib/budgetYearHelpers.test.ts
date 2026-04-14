@@ -4,6 +4,7 @@ import {
   budgetedArrayForCategoryName,
   budgetedArrayForIncomeCategoryName,
   incomeMonthlyTotalsForCategories,
+  reorderBudgetCategoriesForParent,
   sumBudgetedIncomeForCategories,
   sumBudgetedIncomeForMonth,
 } from './budgetYearHelpers'
@@ -14,10 +15,11 @@ function cat(partial: Partial<BudgetCategory> & Pick<BudgetCategory, 'name'>): B
     budgeted,
     spent,
     parentCategory,
+    id,
     ...rest
   } = partial
   return {
-    id: '1',
+    id: id ?? '1',
     name,
     budgeted: budgeted ?? Array(12).fill(0),
     spent: spent ?? 0,
@@ -91,5 +93,45 @@ describe('incomeMonthlyTotalsForCategories', () => {
       cat({ name: 'B', budgeted: [10, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0] }),
     ]
     expect(incomeMonthlyTotalsForCategories(list)).toEqual([11, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+  })
+})
+
+describe('reorderBudgetCategoriesForParent', () => {
+  it('bytter to inntekter som ligger ved siden av hverandre', () => {
+    const a = cat({ id: 'a', name: 'A' })
+    const b = cat({ id: 'b', name: 'B' })
+    const list: BudgetCategory[] = [a, b]
+    const down = reorderBudgetCategoriesForParent(list, 'inntekter', 'a', 'down')
+    expect(down.map((c) => c.id)).toEqual(['b', 'a'])
+    const up = reorderBudgetCategoriesForParent(down, 'inntekter', 'a', 'up')
+    expect(up.map((c) => c.id)).toEqual(['a', 'b'])
+  })
+
+  it('bytter inntekter når annen hovedgruppe ligger imellom', () => {
+    const a = cat({ id: 'a', name: 'A', parentCategory: 'inntekter' })
+    const mid = cat({
+      id: 'm',
+      name: 'Husleie',
+      parentCategory: 'regninger',
+      type: 'expense',
+    })
+    const c = cat({ id: 'c', name: 'C', parentCategory: 'inntekter' })
+    const list: BudgetCategory[] = [a, mid, c]
+    const next = reorderBudgetCategoriesForParent(list, 'inntekter', 'a', 'down')
+    expect(next.map((c) => c.id)).toEqual(['c', 'm', 'a'])
+  })
+
+  it('ingen endring ved ukjent id', () => {
+    const list: BudgetCategory[] = [cat({ id: 'x', name: 'X' })]
+    const out = reorderBudgetCategoriesForParent(list, 'inntekter', 'nosuch', 'down')
+    expect(out).toBe(list)
+  })
+
+  it('ingen endring ved opp på første eller ned på siste i gruppen', () => {
+    const a = cat({ id: 'a', name: 'A' })
+    const b = cat({ id: 'b', name: 'B' })
+    const list: BudgetCategory[] = [a, b]
+    expect(reorderBudgetCategoriesForParent(list, 'inntekter', 'a', 'up')).toBe(list)
+    expect(reorderBudgetCategoriesForParent(list, 'inntekter', 'b', 'down')).toBe(list)
   })
 })

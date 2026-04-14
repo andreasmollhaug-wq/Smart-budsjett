@@ -6,6 +6,7 @@ import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind 
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
 import { applyCategoryRemap, type CategoryRemapErrorReason } from './categoryRemap'
 import type { ParentCategory } from './budgetCategoryCatalog'
+import { reorderBudgetCategoriesForParent } from './budgetYearHelpers'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
 import { computeInsightDeltas } from './insightNotifications'
 import {
@@ -362,6 +363,7 @@ interface AppState {
   addBudgetCategory: (c: BudgetCategory) => void
   updateBudgetCategory: (id: string, data: Partial<BudgetCategory>) => void
   removeBudgetCategory: (id: string) => void
+  reorderBudgetCategory: (parent: ParentCategory, id: string, direction: 'up' | 'down') => void
 
   addCustomBudgetLabel: (parent: ParentCategory, name: string) => void
   removeCustomBudgetLabel: (parent: ParentCategory, name: string) => void
@@ -1821,6 +1823,12 @@ export const useStore = create<AppState>()((set, get) => {
             budgetCategories: d.budgetCategories.map((c) => (c.id === id ? { ...c, ...data } : c)),
           })),
 
+        reorderBudgetCategory: (parent, id, direction) =>
+          patchActive((d) => ({
+            ...d,
+            budgetCategories: reorderBudgetCategoriesForParent(d.budgetCategories, parent, id, direction),
+          })),
+
         removeBudgetCategory: (id) =>
           patchActive((d) => {
             const pid = get().activeProfileId
@@ -2587,6 +2595,7 @@ export function useActivePersonFinance() {
       addBudgetCategory: s.addBudgetCategory,
       updateBudgetCategory: s.updateBudgetCategory,
       removeBudgetCategory: s.removeBudgetCategory,
+      reorderBudgetCategory: s.reorderBudgetCategory,
       addCustomBudgetLabel: s.addCustomBudgetLabel,
       removeCustomBudgetLabel: s.removeCustomBudgetLabel,
       hideStandardBudgetLabel: s.hideStandardBudgetLabel,
@@ -2656,6 +2665,7 @@ export function useActivePersonFinance() {
     addBudgetCategory: state.addBudgetCategory,
     updateBudgetCategory: state.updateBudgetCategory,
     removeBudgetCategory: state.removeBudgetCategory,
+    reorderBudgetCategory: state.reorderBudgetCategory,
     addCustomBudgetLabel: state.addCustomBudgetLabel,
     removeCustomBudgetLabel: state.removeCustomBudgetLabel,
     hideStandardBudgetLabel: state.hideStandardBudgetLabel,

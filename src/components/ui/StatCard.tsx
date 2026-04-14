@@ -31,17 +31,17 @@ export default function StatCard({
 
   useEffect(() => {
     if (!infoOpen) return
-    const close = (e: MouseEvent) => {
+    const close = (e: PointerEvent) => {
       if (infoWrapRef.current && !infoWrapRef.current.contains(e.target as Node)) {
         setInfoOpen(false)
       }
     }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
   }, [infoOpen])
 
   const cardClass =
-    'rounded-2xl p-4 sm:p-5 flex flex-col gap-3' +
+    'rounded-2xl p-4 sm:p-5 flex flex-col gap-3 touch-manipulation' +
     (onClick
       ? ' outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2'
       : '')
@@ -54,20 +54,20 @@ export default function StatCard({
             {label}
           </span>
           {info && (
-            <div className="relative shrink-0 pt-0.5" ref={infoWrapRef}>
+            <div className="relative shrink-0 flex items-start" ref={infoWrapRef}>
               <button
                 type="button"
                 onClick={() => setInfoOpen((o) => !o)}
                 aria-expanded={infoOpen}
                 aria-label={`Mer om: ${label}`}
-                className="p-0.5 rounded-md -m-0.5 transition-opacity hover:opacity-80"
+                className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-80 active:opacity-80"
                 style={{ color: 'var(--text-muted)' }}
               >
-                <Info size={15} strokeWidth={2} aria-hidden />
+                <Info size={18} strokeWidth={2} aria-hidden />
               </button>
               {infoOpen && (
                 <div
-                  className="absolute left-0 top-full z-50 mt-1.5 w-[min(calc(100vw-2rem),18rem)] rounded-xl p-3 text-left shadow-lg"
+                  className="absolute left-0 top-full z-50 mt-1.5 w-[min(calc(100vw-2rem),18rem)] max-w-[calc(100vw-2rem)] rounded-xl p-3 text-left shadow-lg"
                   style={{
                     background: 'var(--surface)',
                     border: '1px solid var(--border)',

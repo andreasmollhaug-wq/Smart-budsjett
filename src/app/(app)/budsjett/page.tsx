@@ -13,13 +13,13 @@ import {
 } from '@/lib/store'
 import { budgetedArrayForCategoryName } from '@/lib/budgetYearHelpers'
 import {
-  BUDGET_MONTH_LABELS_NB,
   budgetedMonthsFromFrequency,
   formatNOK,
   formatPercent,
   generateId,
   parseThousands,
 } from '@/lib/utils'
+import { mergeBudgetCategoryValues } from '@/lib/budgetCategoryMerge'
 import {
   getAvailableLabels,
   DEFAULT_STANDARD_LABELS,
@@ -40,6 +40,7 @@ import {
 import BudsjettSubnav from '@/components/budget/BudsjettSubnav'
 import BudsjettOpenArchiveModal from '@/components/budget/BudsjettOpenArchiveModal'
 import BudsjettNewYearModal from '@/components/budget/BudsjettNewYearModal'
+import BudgetLineReorderButtons from '@/components/budget/BudgetLineReorderButtons'
 
 const COLORS = ['#3B5BDB', '#4C6EF5', '#7048E8', '#AE3EC9', '#E03131', '#F08C00', '#0CA678', '#0B7285']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
@@ -66,55 +67,23 @@ function ensureArrayBudgeted(budgeted: unknown): number[] {
   return Array(12).fill(budgeted || 0)
 }
 
-/** Visnings-/kontrollverdi for «én gang» når `onceMonthIndex` mangler (eldre data eller manuell redigering). */
-function effectiveOnceMonthIndex(cat: BudgetCategory): number {
-  if (cat.onceMonthIndex !== undefined) {
-    return Math.min(11, Math.max(0, cat.onceMonthIndex))
+function applyBudgetAmountCellChange(
+  cat: BudgetCategory,
+  monthIndex: number,
+  n: number,
+  update: (id: string, data: Partial<BudgetCategory>) => void,
+) {
+  if (cat.frequency === 'once') {
+    update(cat.id, {
+      budgeted: budgetedMonthsFromFrequency(n, 'once', monthIndex),
+      onceMonthIndex: monthIndex,
+    })
+    return
   }
   const arr = ensureArrayBudgeted(cat.budgeted)
-  const positive = arr.map((v, i) => (v > 0 ? i : -1)).filter((i): i is number => i >= 0)
-  if (positive.length === 1) return positive[0]!
-  return 0
-}
-
-function OnceBudgetMonthSelect({
-  cat,
-  readOnly,
-  onMonthChange,
-}: {
-  cat: BudgetCategory
-  readOnly: boolean
-  onMonthChange: (cat: BudgetCategory, idx: number) => void
-}) {
-  if (cat.frequency !== 'once') return null
-  const val = effectiveOnceMonthIndex(cat)
-  if (readOnly) {
-    return (
-      <span className="text-xs block mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
-        {BUDGET_MONTH_LABELS_NB[val]}
-      </span>
-    )
-  }
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-1.5 min-w-0 max-w-full">
-      <span className="text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
-        Måned
-      </span>
-      <select
-        value={val}
-        onChange={(e) => onMonthChange(cat, Number(e.target.value))}
-        className="min-w-0 max-w-[11rem] flex-1 px-2 py-1 text-xs rounded-lg"
-        style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-        aria-label={`Måned for ${cat.name}`}
-      >
-        {BUDGET_MONTH_LABELS_NB.map((label, i) => (
-          <option key={label} value={i}>
-            {label}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
+  const newBudgeted = [...arr]
+  newBudgeted[monthIndex] = n
+  update(cat.id, { budgeted: newBudgeted })
 }
 
 export default function BudsjettPage() {
@@ -130,6 +99,7 @@ export default function BudsjettPage() {
     hiddenBudgetLabels,
     addBudgetCategory,
     removeBudgetCategory,
+    reorderBudgetCategory,
     updateBudgetCategory,
     addCustomBudgetLabel,
     isHouseholdAggregate,
@@ -278,8 +248,6 @@ export default function BudsjettPage() {
   const handlePickSuggestion = (group: ParentCategory, name: string) => {
     const trimmed = name.trim()
     if (!trimmed) return
-    const items = getCategoriesForGroup(group)
-    if (items.some((i) => i.name === trimmed)) return
     setNewForm({ name: trimmed, amount: '', freq: 'monthly', onceMonthIndex: 0 })
     setModalSearch('')
     setFocusAmountSignal((n) => n + 1)
@@ -288,14 +256,22 @@ export default function BudsjettPage() {
   const handleAddCustom = (group: ParentCategory) => {
     if (!newForm.name || !newForm.amount) return
     const name = newForm.name.trim()
-    if (shouldRegisterCustom(group, name)) addCustomBudgetLabel(group, name)
-
     const raw = parseThousands(String(newForm.amount))
     const budgeted = budgetedMonthsFromFrequency(
       raw,
       newForm.freq,
       newForm.freq === 'once' ? newForm.onceMonthIndex : undefined,
     )
+
+    const existing = getCategoriesForGroup(group).find((c) => c.name === name)
+    if (existing) {
+      const merged = mergeBudgetCategoryValues(existing, budgeted, 0)
+      updateBudgetCategory(existing.id, merged)
+      closeAddModal()
+      return
+    }
+
+    if (shouldRegisterCustom(group, name)) addCustomBudgetLabel(group, name)
 
     const cat: BudgetCategory = {
       id: generateId(),
@@ -318,25 +294,13 @@ export default function BudsjettPage() {
     updateBudgetCategory(cat.id, { budgeted: Array(12).fill(v) })
   }
 
-  const handleOnceMonthChange = useCallback(
-    (cat: BudgetCategory, newIdx: number) => {
-      if (cat.frequency !== 'once') return
-      const arr = ensureArrayBudgeted(cat.budgeted)
-      const total = arr.reduce((a, b) => a + b, 0)
-      const idx = Math.min(11, Math.max(0, newIdx))
-      updateBudgetCategory(cat.id, {
-        onceMonthIndex: idx,
-        budgeted: budgetedMonthsFromFrequency(total, 'once', idx),
-      })
-    },
-    [updateBudgetCategory],
-  )
-
   const monthColumnIndices = view === 'month' ? [selectedMonth] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
   const modalGroupLabel = addModalGroup ? GROUPS.find((g) => g.id === addModalGroup)?.label ?? '' : ''
   const modalAvailable = addModalGroup
-    ? getAvailableLabels(addModalGroup, labelLists, getCategoriesForGroup(addModalGroup).map((i) => i.name))
+    ? getAvailableLabels(addModalGroup, labelLists, getCategoriesForGroup(addModalGroup).map((i) => i.name), {
+        omitExistingLines: false,
+      })
     : []
 
   return (
@@ -783,7 +747,7 @@ export default function BudsjettPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map((cat) => {
+                        {items.map((cat, idx) => {
                           const budgetedArr = ensureArrayBudgeted(cat.budgeted)
                           const lineOpen = householdLineBreakdownOpen === cat.id
                           const showHouseholdLineBreakdown = isHouseholdAggregate
@@ -791,53 +755,54 @@ export default function BudsjettPage() {
                             <Fragment key={cat.id}>
                               <tr className="align-middle" style={{ borderTop: '1px solid var(--border)' }}>
                                 <td className="py-2 px-2 align-middle max-w-[14rem] md:max-w-[18rem]">
-                                  <div className="flex flex-col gap-0.5 min-w-0">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <div
-                                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                                        style={{ background: cat.color }}
-                                      />
-                                      <span
-                                        className="text-sm truncate flex-1 min-w-0"
-                                        style={{ color: 'var(--text)' }}
-                                        title={cat.name}
-                                      >
-                                        {cat.name}
-                                      </span>
-                                      {showHouseholdLineBreakdown && (
-                                        <button
-                                          type="button"
-                                          className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity"
-                                          style={{ color: 'var(--text-muted)' }}
-                                          onClick={() =>
-                                            setHouseholdLineBreakdownOpen((o) =>
-                                              o === cat.id ? null : cat.id,
-                                            )
-                                          }
-                                          aria-expanded={lineOpen}
-                                          aria-label={`Vis eller skjul bidrag per person for ${cat.name} (${group.label})`}
-                                        >
-                                          {lineOpen ? (
-                                            <Minus size={14} strokeWidth={2} />
-                                          ) : (
-                                            <Plus size={14} strokeWidth={2} />
-                                          )}
-                                        </button>
-                                      )}
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <div
+                                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                      style={{ background: cat.color }}
+                                    />
+                                    <span
+                                      className="text-sm truncate flex-1 min-w-0"
+                                      style={{ color: 'var(--text)' }}
+                                      title={cat.name}
+                                    >
+                                      {cat.name}
+                                    </span>
+                                    {showHouseholdLineBreakdown && (
                                       <button
                                         type="button"
-                                        onClick={() => removeBudgetCategory(cat.id)}
-                                        className="p-1 opacity-60 hover:opacity-100 flex-shrink-0"
-                                        aria-label={`Slett ${cat.name}`}
+                                        className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity"
+                                        style={{ color: 'var(--text-muted)' }}
+                                        onClick={() =>
+                                          setHouseholdLineBreakdownOpen((o) =>
+                                            o === cat.id ? null : cat.id,
+                                          )
+                                        }
+                                        aria-expanded={lineOpen}
+                                        aria-label={`Vis eller skjul bidrag per person for ${cat.name} (${group.label})`}
                                       >
-                                        <Trash2 size={14} style={{ color: 'var(--danger)' }} />
+                                        {lineOpen ? (
+                                          <Minus size={14} strokeWidth={2} />
+                                        ) : (
+                                          <Plus size={14} strokeWidth={2} />
+                                        )}
                                       </button>
-                                    </div>
-                                    <OnceBudgetMonthSelect
-                                      cat={cat}
-                                      readOnly={readOnly}
-                                      onMonthChange={handleOnceMonthChange}
+                                    )}
+                                    <BudgetLineReorderButtons
+                                      disabled={readOnly}
+                                      canMoveUp={idx > 0}
+                                      canMoveDown={idx < items.length - 1}
+                                      categoryLabel={cat.name}
+                                      onMoveUp={() => reorderBudgetCategory(group.id, cat.id, 'up')}
+                                      onMoveDown={() => reorderBudgetCategory(group.id, cat.id, 'down')}
                                     />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeBudgetCategory(cat.id)}
+                                      className="p-1 opacity-60 hover:opacity-100 flex-shrink-0"
+                                      aria-label={`Slett ${cat.name}`}
+                                    >
+                                      <Trash2 size={14} style={{ color: 'var(--danger)' }} />
+                                    </button>
                                   </div>
                                 </td>
                                 {monthColumnIndices.map((mi) => (
@@ -848,11 +813,9 @@ export default function BudsjettPage() {
                                   >
                                     <BudgetAmountCell
                                       value={budgetedArr[mi] ?? 0}
-                                      onChange={(n) => {
-                                        const newBudgeted = [...budgetedArr]
-                                        newBudgeted[mi] = n
-                                        updateBudgetCategory(cat.id, { budgeted: newBudgeted })
-                                      }}
+                                      onChange={(n) =>
+                                        applyBudgetAmountCellChange(cat, mi, n, updateBudgetCategory)
+                                      }
                                     />
                                   </td>
                                 ))}
@@ -948,7 +911,7 @@ export default function BudsjettPage() {
                   <div className="block md:hidden mt-4 space-y-3 overflow-x-auto">
                     {view === 'year' ? (
                       <div className="min-w-[640px] space-y-3">
-                        {items.map((cat) => {
+                        {items.map((cat, idx) => {
                           const budgetedArr = ensureArrayBudgeted(cat.budgeted)
                           const lineOpen = householdLineBreakdownOpen === cat.id
                           const showHouseholdLineBreakdown = isHouseholdAggregate
@@ -986,6 +949,14 @@ export default function BudsjettPage() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
+                                  <BudgetLineReorderButtons
+                                    disabled={readOnly}
+                                    canMoveUp={idx > 0}
+                                    canMoveDown={idx < items.length - 1}
+                                    categoryLabel={cat.name}
+                                    onMoveUp={() => reorderBudgetCategory(group.id, cat.id, 'up')}
+                                    onMoveDown={() => reorderBudgetCategory(group.id, cat.id, 'down')}
+                                  />
                                   <button
                                     type="button"
                                     onClick={() => fillAllMonthsFromSelected(cat)}
@@ -1005,11 +976,6 @@ export default function BudsjettPage() {
                                   </button>
                                 </div>
                               </div>
-                              <OnceBudgetMonthSelect
-                                cat={cat}
-                                readOnly={readOnly}
-                                onMonthChange={handleOnceMonthChange}
-                              />
                               <div className="grid grid-cols-12 gap-1 text-[10px]">
                                 {MONTHS.map((m) => (
                                   <div key={m} className="text-center" style={{ color: 'var(--text-muted)' }}>
@@ -1022,11 +988,9 @@ export default function BudsjettPage() {
                                   <BudgetAmountCell
                                     key={i}
                                     value={val}
-                                    onChange={(n) => {
-                                      const nb = [...budgetedArr]
-                                      nb[i] = n
-                                      updateBudgetCategory(cat.id, { budgeted: nb })
-                                    }}
+                                    onChange={(n) =>
+                                      applyBudgetAmountCellChange(cat, i, n, updateBudgetCategory)
+                                    }
                                     className="!max-w-full !ml-0 w-full text-[11px]"
                                   />
                                 ))}
@@ -1066,7 +1030,7 @@ export default function BudsjettPage() {
                         })}
                       </div>
                     ) : (
-                      items.map((cat) => {
+                      items.map((cat, idx) => {
                         const budgetedArr = ensureArrayBudgeted(cat.budgeted)
                         const lineOpen = householdLineBreakdownOpen === cat.id
                         const showHouseholdLineBreakdown = isHouseholdAggregate
@@ -1104,6 +1068,14 @@ export default function BudsjettPage() {
                                 )}
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
+                                <BudgetLineReorderButtons
+                                  disabled={readOnly}
+                                  canMoveUp={idx > 0}
+                                  canMoveDown={idx < items.length - 1}
+                                  categoryLabel={cat.name}
+                                  onMoveUp={() => reorderBudgetCategory(group.id, cat.id, 'up')}
+                                  onMoveDown={() => reorderBudgetCategory(group.id, cat.id, 'down')}
+                                />
                                 <button
                                   type="button"
                                   onClick={() => fillAllMonthsFromSelected(cat)}
@@ -1123,21 +1095,19 @@ export default function BudsjettPage() {
                                 </button>
                               </div>
                             </div>
-                            <OnceBudgetMonthSelect
-                              cat={cat}
-                              readOnly={readOnly}
-                              onMonthChange={handleOnceMonthChange}
-                            />
                             <div className="grid grid-cols-2 gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                               <div>{MONTHS[selectedMonth]}:</div>
                               <div style={{ textAlign: 'right' }}>
                                 <BudgetAmountCell
                                   value={budgetedArr[selectedMonth] || 0}
-                                  onChange={(n) => {
-                                    const newBudgeted = [...budgetedArr]
-                                    newBudgeted[selectedMonth] = n
-                                    updateBudgetCategory(cat.id, { budgeted: newBudgeted })
-                                  }}
+                                  onChange={(n) =>
+                                    applyBudgetAmountCellChange(
+                                      cat,
+                                      selectedMonth,
+                                      n,
+                                      updateBudgetCategory,
+                                    )
+                                  }
                                 />
                               </div>
                               <div>Totalt år:</div>

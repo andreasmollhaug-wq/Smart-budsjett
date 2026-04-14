@@ -117,13 +117,15 @@ function uniqueSorted(arr: string[]): string[] {
 
 /**
  * Tilgjengelige navn for dropdown: standard minus skjulte, pluss egne.
- * Filtrer bort navn som allerede finnes som budsjettlinje (existingNames).
+ * Når `omitExistingLines` er true (standard), filtreres navn som allerede finnes som budsjettlinje bort.
  */
 export function getAvailableLabels(
   parent: ParentCategory,
   lists: LabelLists,
   existingCategoryNames: string[],
+  options?: { omitExistingLines?: boolean },
 ): string[] {
+  const omitExisting = options?.omitExistingLines !== false
   const standard = DEFAULT_STANDARD_LABELS[parent]
   const hidden = new Set(lists.hiddenBudgetLabels[parent] ?? [])
   const custom = lists.customBudgetLabels[parent] ?? []
@@ -131,6 +133,7 @@ export function getAvailableLabels(
 
   const fromStandard = standard.filter((s) => !hidden.has(s))
   const combined = uniqueSorted([...fromStandard, ...custom])
+  if (!omitExisting) return combined
   return combined.filter((name) => !existing.has(name))
 }
 

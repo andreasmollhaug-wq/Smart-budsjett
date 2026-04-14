@@ -59,6 +59,7 @@ Oversikt (/dashboard)
 Budsjett (/budsjett)
 - Planlegg inntekter og utgifter per måned for valgt budsjettår.
 - Grupper: Inntekter; Regninger; Utgifter; Gjeld; Sparing — hver med egne budsjettlinjer du kan legge til.
+- Innenfor hver gruppe kan du endre rekkefølgen på linjene med små opp/ned-knapper ved linjen (når budsjettet er redigerbart).
 - Månedsvisning eller årsvisning; «brukt» mot plan kobles til transaksjoner i samme kategori der det er relevant.
 - Underfaner: «Budsjett», «Budsjett dashboard» (plan vs. faktisk, «Last ned CSV»), og «Husholdning» (kun i husholdningsvisning) med fordeling per person: budsjettert inntekt og faktiske beløp per profil.
 - Bytt budsjettår, start nytt år, åpne arkiverte år (visning av gamle år kan være skrivebeskyttet; aktivt år redigeres normalt).

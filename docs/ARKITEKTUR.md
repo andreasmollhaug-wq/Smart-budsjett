@@ -89,6 +89,12 @@ flowchart TB
   apiRoutes --> openai[OpenAI]
 ```
 
+## Tester
+
+- **Enhet / integrasjon:** `npm run test` ([Vitest](https://vitest.dev/), bl.a. `*.test.ts`).
+- **E2E (Playwright):** `npm run test:e2e` — tester ligger i [`e2e/`](../e2e/). Standardoppsett i [`playwright.config.ts`](../playwright.config.ts) bruker **mobil viewport** (`Mobile Chrome` / Pixel 5); noen spesifikasjoner setter eksplisitt `390×844` for å sjekke bl.a. at det ikke oppstår uønsket horisontell scrolling på landing og innlogging.
+- **Utvid senere (valgfritt):** Flere innloggede flyter (f.eks. dashboard, prosjekt) i samme mobil-prosjekt, eller et ekstra `projects`-opptak for desktop — når det gir verdi for regressjon.
+
 ## Bygg og kjøring
 
 - Utvikling: `npm run dev` (Turbopack) — alternativt `npm run dev:webpack`.

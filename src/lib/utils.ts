@@ -20,7 +20,7 @@ export function formatIntegerNbNo(amount: number): string {
  * Returnerer NaN hvis tomt, ikke-positivt, eller ugyldig.
  */
 export function parseIntegerNbNo(s: string): number {
-  const cleaned = s.replace(/\s/g, '').replace(/\u00a0/g, '')
+  const cleaned = s.replace(/\s/g, '').replace(/\u00a0/g, '').replace(/\u202f/g, '')
   if (!cleaned) return NaN
   const digits = cleaned.replace(/[^0-9]/g, '')
   if (!digits) return NaN
@@ -137,6 +137,29 @@ export function formatThousands(value: number | string): string {
   const num = String(value).replace(/\D/g, '')
   if (!num) return ''
   return Number(num).toLocaleString('nb-NO')
+}
+
+/** Antall sifre før gitt posisjon (for å bevare markør ved tusenskille-formatering). */
+export function countDigitsBeforePosition(s: string, position: number): number {
+  let n = 0
+  const end = Math.min(Math.max(0, position), s.length)
+  for (let i = 0; i < end; i++) {
+    if (/\d/.test(s[i]!)) n++
+  }
+  return n
+}
+
+/** Posisjon i formatert streng rett etter `digitCount` sifre (0 = start). */
+export function caretIndexAfterDigitCount(formatted: string, digitCount: number): number {
+  if (digitCount <= 0) return 0
+  let seen = 0
+  for (let i = 0; i < formatted.length; i++) {
+    if (/\d/.test(formatted[i]!)) {
+      seen++
+      if (seen === digitCount) return i + 1
+    }
+  }
+  return formatted.length
 }
 
 export function parseThousands(formatted: string): number {

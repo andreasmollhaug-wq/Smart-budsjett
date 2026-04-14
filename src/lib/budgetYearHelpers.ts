@@ -85,6 +85,28 @@ export function cloneBudgetCategories(cats: BudgetCategory[]): BudgetCategory[] 
   }))
 }
 
+/**
+ * Bytter plass på to påfølgende budsjettlinjer innenfor samme `parentCategory`
+ * i den rekkefølgen de opptrer i `cats` (andre hovedgrupper kan ligge imellom).
+ * Returnerer uendret `cats` ved ugyldig flytt eller ukjent id.
+ */
+export function reorderBudgetCategoriesForParent(
+  cats: BudgetCategory[],
+  parent: ParentCategory,
+  id: string,
+  dir: 'up' | 'down',
+): BudgetCategory[] {
+  const inGroup = cats.filter((c) => c.parentCategory === parent)
+  const idx = inGroup.findIndex((c) => c.id === id)
+  if (idx < 0) return cats
+  const newIdx = dir === 'up' ? idx - 1 : idx + 1
+  if (newIdx < 0 || newIdx >= inGroup.length) return cats
+  const reordered = [...inGroup]
+  ;[reordered[idx], reordered[newIdx]] = [reordered[newIdx]!, reordered[idx]!]
+  let gi = 0
+  return cats.map((c) => (c.parentCategory === parent ? reordered[gi++]! : c))
+}
+
 export function sumTxForCategoryInYear(
   transactions: Transaction[],
   categoryName: string,

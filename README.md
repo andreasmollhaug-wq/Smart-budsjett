@@ -38,3 +38,12 @@ Produkt, landing, pris, design og arkitektur er beskrevet i **[`docs/`](./docs/)
 | [docs/A11Y.md](./docs/A11Y.md) | Tilgjengelighet |
 | [docs/DESIGN-KILDER.md](./docs/DESIGN-KILDER.md) | Designkilder |
 | [docs/DEMO.md](./docs/DEMO.md) | Demo-idéer (valgfritt) |
+
+**Cursor (AI):** Regler for assistenten ligger i [`.cursor/rules/`](./.cursor/rules/) — bl.a. mobilvennlig UI (`mobile-responsive-ui.mdc`).
+
+**Juridisk innhold** skal ligge på egne sider i appen:
+
+- `/personvern` — [`src/app/personvern/page.tsx`](./src/app/personvern/page.tsx)
+- `/vilkar` — [`src/app/vilkar/page.tsx`](./src/app/vilkar/page.tsx)
+
+Oppdater disse med fulltekst når den er klar; `docs` oppsummerer ikke sensitive juridiske detaljer.
