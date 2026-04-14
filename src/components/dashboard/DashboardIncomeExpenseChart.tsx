@@ -1,9 +1,19 @@
 'use client'
 
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  AreaChart,
+  Area,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts'
 import { formatNOK } from '@/lib/utils'
 
-export type DashboardIncomeExpensePoint = { month: string; inntekt: number; utgift: number }
+export type DashboardIncomeExpensePoint = { month: string; inntekt: number; utgift: number; netto: number }
 
 export default function DashboardIncomeExpenseChart({ data }: { data: DashboardIncomeExpensePoint[] }) {
   if (data.length === 0) {
@@ -14,11 +24,15 @@ export default function DashboardIncomeExpenseChart({ data }: { data: DashboardI
     )
   }
 
-  const maxVal = Math.max(1, ...data.flatMap((d) => [d.inntekt, d.utgift]))
+  const maxIncomeExpense = Math.max(1, ...data.flatMap((d) => [d.inntekt, d.utgift]))
+  const minNet = Math.min(0, ...data.map((d) => d.netto))
+  const maxNet = Math.max(0, ...data.map((d) => d.netto))
+  const yMax = Math.max(maxIncomeExpense * 1.05, maxNet * 1.05)
+  const yMin = Math.min(0, minNet * 1.05)
 
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <AreaChart data={data}>
+      <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="income" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#3B5BDB" stopOpacity={0.15} />
@@ -32,13 +46,26 @@ export default function DashboardIncomeExpenseChart({ data }: { data: DashboardI
         <CartesianGrid strokeDasharray="3 3" stroke="#E0E7FF" />
         <XAxis dataKey="month" tick={{ fill: '#6B7A99', fontSize: 12 }} />
         <YAxis
-          domain={[0, maxVal * 1.05]}
-          tickFormatter={(v) => `${v / 1000}k`}
+          domain={[yMin, yMax]}
+          tickFormatter={(v) => `${Math.round(v / 1000)}k`}
           tick={{ fill: '#6B7A99', fontSize: 12 }}
         />
-        <Tooltip formatter={(v) => formatNOK(v == null ? 0 : Number(v))} />
+        <Tooltip
+          formatter={(v, name) => [formatNOK(v == null ? 0 : Number(v)), String(name)]}
+          labelFormatter={(label) => `Måned: ${label}`}
+        />
+        <ReferenceLine y={0} stroke="#ADB5BD" strokeDasharray="4 4" />
         <Area type="monotone" dataKey="inntekt" stroke="#3B5BDB" strokeWidth={2} fill="url(#income)" name="Inntekt" />
         <Area type="monotone" dataKey="utgift" stroke="#E03131" strokeWidth={2} fill="url(#expense)" name="Utgifter" />
+        <Line
+          type="monotone"
+          dataKey="netto"
+          stroke="#0CA678"
+          strokeWidth={2.5}
+          dot={{ r: 3, fill: '#0CA678', strokeWidth: 0 }}
+          name="Netto (inntekt − utgift)"
+          isAnimationActive={false}
+        />
       </AreaChart>
     </ResponsiveContainer>
   )

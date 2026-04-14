@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import Header from '@/components/layout/Header'
 import BudgetDashboardMonthlyChart from '@/components/budget/BudgetDashboardMonthlyChart'
+import BudgetDashboardResultatYearTable from '@/components/budget/BudgetDashboardResultatYearTable'
 import BudgetVsActualTables from '@/components/budget/BudgetVsActualTables'
 import BudsjettSubnav from '@/components/budget/BudsjettSubnav'
+import BudgetDashboardNetSummaryModal from '@/components/budget/BudgetDashboardNetSummaryModal'
+import BudgetDashboardVarianceCategoriesModal from '@/components/budget/BudgetDashboardVarianceCategoriesModal'
+import BudgetVsActualCategoryDetailModal from '@/components/budget/BudgetVsActualCategoryDetailModal'
 import TopExpenseCategoriesTable from '@/components/budget/TopExpenseCategoriesTable'
 import StatCard from '@/components/ui/StatCard'
 import {
@@ -12,6 +16,7 @@ import {
   buildMonthlyBudgetActualSeries,
   groupBudgetVsActualByParent,
   sumTransactionsByCategoryForMonthRange,
+  type BudgetVsActualRow,
 } from '@/lib/bankReportData'
 import { downloadBudgetVsCsv } from '@/lib/budgetDashboardCsv'
 import { transactionsHrefForCategory } from '@/lib/budgetDashboardLinks'
@@ -22,7 +27,8 @@ import {
   periodSubtitle,
   type PeriodMode,
 } from '@/lib/budgetPeriod'
-import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance } from '@/lib/store'
+import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
+import { useShallow } from 'zustand/react/shallow'
 import { formatNOK } from '@/lib/utils'
 import { AlertTriangle, Download, Scale, TrendingDown, Wallet } from 'lucide-react'
 
@@ -37,9 +43,17 @@ export default function BudsjettDashboardPage() {
     isHouseholdAggregate,
   } = useActivePersonFinance()
 
+  const people = useStore(useShallow((s) => s.people))
+
   const [year, setYear] = useState(budgetYear)
   const [monthIndex, setMonthIndex] = useState(() => new Date().getMonth())
   const [periodMode, setPeriodMode] = useState<PeriodMode>('month')
+  const [kpiModal, setKpiModal] = useState<
+    null | 'actualNet' | 'budgetNet' | 'varianceNet' | 'badCategories'
+  >(null)
+  const [categoryDetailRow, setCategoryDetailRow] = useState<BudgetVsActualRow | null>(null)
+  /** Når true: skjul kategorier med 0 kr både i budsjett og faktisk for valgt periode (tabeller). */
+  const [onlyCategoriesWithFigures, setOnlyCategoriesWithFigures] = useState(true)
 
   useEffect(() => {
     setYear(budgetYear)
@@ -76,7 +90,15 @@ export default function BudsjettDashboardPage() {
     [displayCategories, monthTotals, start, end],
   )
 
-  const budgetVsByParent = useMemo(() => groupBudgetVsActualByParent(budgetVsRows), [budgetVsRows])
+  const budgetVsRowsForTables = useMemo(() => {
+    if (!onlyCategoriesWithFigures) return budgetVsRows
+    return budgetVsRows.filter((r) => r.budgeted !== 0 || r.actual !== 0)
+  }, [budgetVsRows, onlyCategoriesWithFigures])
+
+  const budgetVsByParentForTables = useMemo(
+    () => groupBudgetVsActualByParent(budgetVsRowsForTables),
+    [budgetVsRowsForTables],
+  )
 
   const dashboardKpis = useMemo(() => {
     let budgetedIncome = 0
@@ -200,6 +222,36 @@ export default function BudsjettDashboardPage() {
                 </select>
               </label>
             )}
+            <div className="flex flex-col gap-1.5 w-full sm:w-auto sm:max-w-md min-w-0">
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Tabellvisning
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={onlyCategoriesWithFigures}
+                title="Gjelder kategorier uten budsjett og uten transaksjoner i valgt periode."
+                onClick={() => setOnlyCategoriesWithFigures(!onlyCategoriesWithFigures)}
+                className="inline-flex items-center gap-3 text-left w-full min-h-[44px] rounded-xl px-1 -mx-1 touch-manipulation"
+              >
+                <span
+                  className="relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors"
+                  style={{
+                    background: onlyCategoriesWithFigures ? 'var(--primary)' : 'var(--border)',
+                  }}
+                >
+                  <span
+                    className="inline-block h-5 w-5 rounded-full bg-white shadow mt-1 transition-transform"
+                    style={{
+                      transform: onlyCategoriesWithFigures ? 'translateX(1.5rem)' : 'translateX(0.25rem)',
+                    }}
+                  />
+                </span>
+                <span className="text-sm font-medium flex-1 min-w-0" style={{ color: 'var(--text)' }}>
+                  Kun kategorier med tall
+                </span>
+              </button>
+            </div>
             <div className="flex-1 min-w-0 sm:flex sm:justify-end sm:items-end">
               <button
                 type="button"
@@ -222,7 +274,8 @@ export default function BudsjettDashboardPage() {
             icon={Wallet}
             trend={dashboardKpis.actualNet >= 0 ? 'up' : 'down'}
             color={dashboardKpis.actualNet >= 0 ? '#0CA678' : '#E03131'}
-            info="Inntekter minus utgifter (faktisk) for valgt periode, summert over alle budsjettlinjer."
+            onClick={() => setKpiModal('actualNet')}
+            aria-label="Se detaljer for faktisk netto"
           />
           <StatCard
             label="Budsjettert netto"
@@ -231,7 +284,8 @@ export default function BudsjettDashboardPage() {
             icon={Scale}
             trend={dashboardKpis.budgetNet >= 0 ? 'up' : 'down'}
             color={dashboardKpis.budgetNet >= 0 ? '#3B5BDB' : '#E03131'}
-            info="Inntekter minus utgifter (budsjettert) for samme periode."
+            onClick={() => setKpiModal('budgetNet')}
+            aria-label="Se detaljer for budsjettert netto"
           />
           <StatCard
             label="Netto avvik"
@@ -240,7 +294,8 @@ export default function BudsjettDashboardPage() {
             icon={TrendingDown}
             trend={dashboardKpis.varianceNet >= 0 ? 'up' : 'down'}
             color={dashboardKpis.varianceNet >= 0 ? '#0CA678' : '#E03131'}
-            info="Faktisk netto minus budsjettert netto. Positivt betyr bedre enn budsjett."
+            onClick={() => setKpiModal('varianceNet')}
+            aria-label="Se forklaring av netto avvik"
           />
           <StatCard
             label="Kategorier med avvik"
@@ -249,19 +304,32 @@ export default function BudsjettDashboardPage() {
             icon={AlertTriangle}
             trend={dashboardKpis.badCount === 0 ? 'up' : 'down'}
             color={dashboardKpis.badCount === 0 ? '#0CA678' : '#E03131'}
-            info="Antall linjer der utgift er over budsjett eller inntekt under budsjett."
+            onClick={() => setKpiModal('badCategories')}
+            aria-label="Se liste over kategorier med avvik"
           />
         </div>
 
-        <div className="rounded-2xl p-4 sm:p-6 space-y-3 min-w-0" style={cardStyle}>
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
-            Netto per måned ({year})
-          </h2>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Viser hele kalenderåret for valgt år — uavhengig av om tabellene under er filtrert til én måned eller YTD.
-            Linjene er budsjettert netto (inntekt − kostnader) og faktisk netto per måned.
-          </p>
-          <BudgetDashboardMonthlyChart series={monthlySeries} year={year} />
+        <div className="rounded-2xl p-4 sm:p-6 space-y-4 min-w-0" style={cardStyle}>
+          <div>
+            <h2 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
+              Resultat måned for måned ({year})
+            </h2>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+              Tilsvarende resultatregnskapet på budsjett- og transaksjonssidene: for hver måned ser du budsjettert netto,
+              faktisk netto og avvik. Tabellen gjelder hele kalenderåret — uavhengig av periodevalget over (som styrer
+              detaljtabellene lenger ned).
+            </p>
+          </div>
+          <BudgetDashboardResultatYearTable series={monthlySeries} year={year} />
+          <div>
+            <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text)' }}>
+              Trend
+            </h3>
+            <p className="text-sm mb-3" style={{ color: 'var(--text-muted)' }}>
+              Budsjett netto, faktisk netto og netto avvik (stiplet linje) per måned.
+            </p>
+            <BudgetDashboardMonthlyChart series={monthlySeries} year={year} />
+          </div>
         </div>
 
         {displayCategories.length === 0 && (
@@ -287,9 +355,13 @@ export default function BudsjettDashboardPage() {
             </h2>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               {helpIngress} Avvik = faktisk minus budsjettert — for utgifter er positivt avvik ofte «over budsjett».
-              Klikk et kategorinavn for å åpne transaksjoner med filter.
+              Klikk et kategorinavn for detaljer og transaksjoner i perioden — eller gå videre til full transaksjonsliste fra
+              modalen.
             </p>
-            <BudgetVsActualTables budgetVsByParent={budgetVsByParent} linkHrefForCategory={linkHrefForCategory} />
+            <BudgetVsActualTables
+              budgetVsByParent={budgetVsByParentForTables}
+              onCategorySelect={(r) => setCategoryDetailRow(r)}
+            />
           </section>
 
           <section
@@ -303,11 +375,55 @@ export default function BudsjettDashboardPage() {
               Rangert etter faktisk forbruk i perioden. Budsjett vises som referanse.
             </p>
             <div className="min-h-0 lg:overflow-y-auto lg:pr-1 -mr-1">
-              <TopExpenseCategoriesTable rows={budgetVsRows} linkHrefForCategory={linkHrefForCategory} />
+              <TopExpenseCategoriesTable
+                rows={budgetVsRowsForTables}
+                onCategorySelect={(r) => setCategoryDetailRow(r)}
+              />
             </div>
           </section>
         </div>
       </div>
+
+      <BudgetDashboardNetSummaryModal
+        open={kpiModal === 'actualNet' || kpiModal === 'budgetNet' || kpiModal === 'varianceNet'}
+        onClose={() => setKpiModal(null)}
+        variant={
+          kpiModal === 'budgetNet' ? 'budget' : kpiModal === 'varianceNet' ? 'variance' : 'actual'
+        }
+        periodLabel={kpiSub}
+        year={year}
+        monthStartInclusive={start}
+        monthEndInclusive={end}
+        kpis={dashboardKpis}
+        transactions={transactions ?? []}
+        profiles={profiles}
+        isHouseholdAggregate={isHouseholdAggregate}
+      />
+      <BudgetDashboardVarianceCategoriesModal
+        open={kpiModal === 'badCategories'}
+        onClose={() => setKpiModal(null)}
+        periodLabel={kpiSub}
+        rows={budgetVsRows}
+        linkHrefForCategory={linkHrefForCategory}
+      />
+      <BudgetVsActualCategoryDetailModal
+        open={categoryDetailRow !== null}
+        onClose={() => setCategoryDetailRow(null)}
+        row={categoryDetailRow}
+        periodLabel={kpiSub}
+        year={year}
+        budgetYear={budgetYear}
+        monthStartInclusive={start}
+        monthEndInclusive={end}
+        transactions={transactions ?? []}
+        people={people}
+        archivedBudgetsByYear={archivedBudgetsByYear}
+        profiles={profiles}
+        isHouseholdAggregate={isHouseholdAggregate}
+        transactionsHref={
+          categoryDetailRow ? linkHrefForCategory(categoryDetailRow.name) : ''
+        }
+      />
     </div>
   )
 }

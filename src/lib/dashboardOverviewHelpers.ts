@@ -1,4 +1,5 @@
 import type { BudgetVsActualRow } from '@/lib/bankReportData'
+import { MONTH_LABELS_SHORT_NB } from '@/lib/bankReportData'
 import type { Transaction } from '@/lib/store'
 
 export type BudgetVsSummary = {
@@ -67,6 +68,38 @@ export function transactionInMonthRange(
   const mm = Number.parseInt(d.slice(5, 7), 10) - 1
   if (!Number.isFinite(mm) || mm < 0 || mm > 11) return false
   return mm >= monthStartInclusive && mm <= monthEndInclusive
+}
+
+/** Sparegrad: (inntekt − utgift) / inntekt. Null når inntekt ≤ 0 eller ugyldig. */
+export function computeSavingsRatePercent(income: number, expense: number): number | null {
+  if (!Number.isFinite(income) || !Number.isFinite(expense) || income <= 0) return null
+  return ((income - expense) / income) * 100
+}
+
+export type SavingsRateMonthPoint = {
+  monthLabel: string
+  monthIndex: number
+  /** null når ingen positiv inntekt den måneden */
+  ratePct: number | null
+}
+
+/** Én punkt per måned i [monthStartInclusive, monthEndInclusive] for gitt år — sparegrad måned for måned. */
+export function buildSavingsRateTrendForPeriod(
+  transactions: Transaction[],
+  year: number,
+  monthStartInclusive: number,
+  monthEndInclusive: number,
+): SavingsRateMonthPoint[] {
+  const out: SavingsRateMonthPoint[] = []
+  for (let m = monthStartInclusive; m <= monthEndInclusive; m++) {
+    const { income, expense } = sumIncomeExpenseInMonthRange(transactions, year, m, m)
+    out.push({
+      monthLabel: MONTH_LABELS_SHORT_NB[m] ?? String(m + 1),
+      monthIndex: m,
+      ratePct: computeSavingsRatePercent(income, expense),
+    })
+  }
+  return out
 }
 
 export function sumIncomeExpenseInMonthRange(

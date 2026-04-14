@@ -1,37 +1,44 @@
 import { describe, expect, it } from 'vitest'
-import type { BudgetVsActualRow } from '@/lib/bankReportData'
-import { summarizeBudgetVsRows } from '@/lib/dashboardOverviewHelpers'
+import { buildSavingsRateTrendForPeriod, computeSavingsRatePercent } from './dashboardOverviewHelpers'
+import type { Transaction } from './store'
 
-describe('summarizeBudgetVsRows', () => {
-  it('summerer inntekt, utgift og netto', () => {
-    const rows: BudgetVsActualRow[] = [
+describe('computeSavingsRatePercent', () => {
+  it('returnerer prosent når inntekt > 0', () => {
+    expect(computeSavingsRatePercent(100_000, 80_000)).toBeCloseTo(20, 5)
+  })
+
+  it('returnerer null når inntekt er 0', () => {
+    expect(computeSavingsRatePercent(0, 100)).toBeNull()
+  })
+
+  it('returnerer null når inntekt er negativ', () => {
+    expect(computeSavingsRatePercent(-1, 0)).toBeNull()
+  })
+})
+
+describe('buildSavingsRateTrendForPeriod', () => {
+  it('gir én rad per måned i området', () => {
+    const transactions: Transaction[] = [
       {
-        categoryId: '1',
-        name: 'Lønn',
-        parentCategory: 'inntekter',
+        id: '1',
+        date: '2026-02-01',
+        amount: 50_000,
+        category: 'Lønn',
         type: 'income',
-        budgeted: 40_000,
-        actual: 42_000,
-        variance: 2000,
+        description: '',
       },
       {
-        categoryId: '2',
-        name: 'Mat',
-        parentCategory: 'utgifter',
+        id: '2',
+        date: '2026-02-15',
+        amount: 40_000,
+        category: 'Div',
         type: 'expense',
-        budgeted: 8000,
-        actual: 9000,
-        variance: 1000,
+        description: '',
       },
     ]
-    const s = summarizeBudgetVsRows(rows)
-    expect(s.budgetedIncome).toBe(40_000)
-    expect(s.actualIncome).toBe(42_000)
-    expect(s.budgetedExpense).toBe(8000)
-    expect(s.actualExpense).toBe(9000)
-    expect(s.actualNet).toBe(42_000 - 9000)
-    expect(s.budgetNet).toBe(40_000 - 8000)
-    expect(s.worstExpenseOvers).toHaveLength(1)
-    expect(s.worstExpenseOvers[0]?.name).toBe('Mat')
+    const t = buildSavingsRateTrendForPeriod(transactions, 2026, 1, 1)
+    expect(t).toHaveLength(1)
+    expect(t[0]!.monthIndex).toBe(1)
+    expect(t[0]!.ratePct).toBeCloseTo(20, 5)
   })
 })

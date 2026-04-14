@@ -20,11 +20,16 @@ export default function BudgetDashboardMonthlyChart({
   series: MonthlyBudgetActualPoint[]
   year: number
 }) {
-  const data = series.map((p) => ({
-    ...p,
-    netBudgeted: p.budgetedIncome - p.budgetedExpense,
-    netActual: p.actualIncome - p.actualExpense,
-  }))
+  const data = series.map((p) => {
+    const netBudgeted = p.budgetedIncome - p.budgetedExpense
+    const netActual = p.actualIncome - p.actualExpense
+    return {
+      ...p,
+      netBudgeted,
+      netActual,
+      varianceNet: netActual - netBudgeted,
+    }
+  })
 
   return (
     <div className="w-full min-w-0" style={{ minHeight: 260 }}>
@@ -62,6 +67,16 @@ export default function BudgetDashboardMonthlyChart({
             name="Faktisk netto"
             stroke="#0CA678"
             strokeWidth={2}
+            dot={{ r: 2 }}
+            activeDot={{ r: 4 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="varianceNet"
+            name="Netto avvik"
+            stroke="#FD7E14"
+            strokeWidth={2}
+            strokeDasharray="4 3"
             dot={{ r: 2 }}
             activeDot={{ r: 4 }}
           />

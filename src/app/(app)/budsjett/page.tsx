@@ -676,7 +676,7 @@ export default function BudsjettPage() {
                 aria-expanded={isExpanded}
                 aria-label={`${group.label}, ${formatNOK(groupSum)}, ${isExpanded ? 'utvidet' : 'skjult'}`}
                 onClick={() => setExpanded({ ...expanded, [group.id]: !isExpanded })}
-                className="w-full flex items-center justify-between gap-3 text-left"
+                className="w-full flex items-center justify-between gap-3 text-left pointer-events-auto"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <span className="text-xl shrink-0">{group.icon}</span>

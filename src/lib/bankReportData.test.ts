@@ -7,6 +7,8 @@ import {
   sumBudgetedByMonthForType,
   sumBudgetedFixedMonthlyExpensesForMonth,
   sumBudgetedIncomeForMonth,
+  sumIncomeExpenseNetByProfileForMonthRange,
+  sumActualByProfileForCategoryInMonthRange,
 } from './bankReportData'
 import type { BudgetCategory, Transaction } from './store'
 
@@ -107,6 +109,135 @@ describe('sumActualsByMonthForType og sumBudgetedByMonthForType', () => {
     ]
     const bud = sumBudgetedByMonthForType(budgetCategories, 'expense')
     expect(bud[1]).toBe(5000)
+  })
+})
+
+describe('sumIncomeExpenseNetByProfileForMonthRange', () => {
+  it('summerer per profil i valgt månedintervall', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 'a',
+        date: '2026-03-10',
+        description: 'Lønn',
+        amount: 50000,
+        category: 'Lønn',
+        type: 'income',
+        profileId: 'p1',
+      },
+      {
+        id: 'b',
+        date: '2026-03-12',
+        description: 'Mat',
+        amount: 2000,
+        category: 'Mat',
+        type: 'expense',
+        profileId: 'p1',
+      },
+      {
+        id: 'c',
+        date: '2026-03-15',
+        description: 'Bonus',
+        amount: 10000,
+        category: 'Annet',
+        type: 'income',
+        profileId: 'p2',
+      },
+      {
+        id: 'd',
+        date: '2026-04-01',
+        description: 'Senere',
+        amount: 1000,
+        category: 'Mat',
+        type: 'expense',
+        profileId: 'p1',
+      },
+    ]
+    const rows = sumIncomeExpenseNetByProfileForMonthRange(transactions, 2026, 2, 2)
+    expect(rows).toHaveLength(2)
+    const p1 = rows.find((r) => r.profileId === 'p1')
+    const p2 = rows.find((r) => r.profileId === 'p2')
+    expect(p1).toEqual({ profileId: 'p1', income: 50000, expense: 2000, net: 48000 })
+    expect(p2).toEqual({ profileId: 'p2', income: 10000, expense: 0, net: 10000 })
+  })
+
+  it('bøttelegger manglende profileId som tom streng', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 'x',
+        date: '2026-01-05',
+        description: 'X',
+        amount: 100,
+        category: 'C',
+        type: 'income',
+      },
+    ]
+    const rows = sumIncomeExpenseNetByProfileForMonthRange(transactions, 2026, 0, 0)
+    expect(rows).toEqual([{ profileId: '', income: 100, expense: 0, net: 100 }])
+  })
+})
+
+describe('sumActualByProfileForCategoryInMonthRange', () => {
+  it('summerer faktisk per profil for én kategori og type i perioden', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 'a',
+        date: '2026-04-10',
+        description: 'Lønn',
+        amount: 40000,
+        category: 'Lønn',
+        type: 'income',
+        profileId: 'p1',
+      },
+      {
+        id: 'b',
+        date: '2026-04-12',
+        description: 'Lønn ekstra',
+        amount: 5000,
+        category: 'Lønn',
+        type: 'income',
+        profileId: 'p2',
+      },
+      {
+        id: 'c',
+        date: '2026-04-15',
+        description: 'Annen inntekt',
+        amount: 1000,
+        category: 'Annen',
+        type: 'income',
+        profileId: 'p1',
+      },
+      {
+        id: 'd',
+        date: '2026-05-01',
+        description: 'Feil måned',
+        amount: 99999,
+        category: 'Lønn',
+        type: 'income',
+        profileId: 'p1',
+      },
+    ]
+    const rows = sumActualByProfileForCategoryInMonthRange(transactions, 2026, 3, 3, 'Lønn', 'income')
+    expect(rows).toHaveLength(2)
+    expect(rows.find((r) => r.profileId === 'p1')).toEqual({ profileId: 'p1', actual: 40000 })
+    expect(rows.find((r) => r.profileId === 'p2')).toEqual({ profileId: 'p2', actual: 5000 })
+  })
+
+  it('skiller ikke utgift fra inntekt i samme kategori-navn', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 'e',
+        date: '2026-02-01',
+        amount: 100,
+        category: 'X',
+        type: 'expense',
+        description: 'x',
+        profileId: 'a',
+      },
+    ]
+    const inc = sumActualByProfileForCategoryInMonthRange(transactions, 2026, 1, 1, 'X', 'income')
+    const exp = sumActualByProfileForCategoryInMonthRange(transactions, 2026, 1, 1, 'X', 'expense')
+    expect(inc).toEqual([])
+    expect(exp).toEqual([{ profileId: 'a', actual: 100 }])
   })
 })
 

@@ -52,8 +52,9 @@ Demodata
 Oversikt (/dashboard)
 - Undertittel: personlig oversikt, eller «Samlet husholdning — alle profiler» i husholdningsmodus.
 - Øverst under overskriften: periodeverktøy (velg år, og periode: «Hittil i år» som standard, eller én måned, eller hele året). For «Hittil i år» kan du også velge siste måned i intervallet (f.eks. januar–april). Dette styrer hvilke transaksjons- og budsjett-tall som vises i de delene av siden som følger filteret (se under).
-- Følger valgt år/periode: KPI-kortene «Inntekt» og «Utgifter» (faktiske beløp i perioden), «Topp 10 utgifter» (summert per kategori i perioden). På brede skjermer er hovedinnholdet i to kolonner (venstrejustert, ikke midtstilt): venstre kolonne har «Mot budsjett» (plan vs. faktisk), under det «Faste trekk (budsjett)» (budsjett for valgt sluttmåned i perioden), og under det eventuelt «Dette bør du sjekke»; høyre kolonne har «Siste aktivitet». På smal skjerm stables samme rekkefølge vertikalt. Modaler som åpnes fra inntekt/utgift-KPI viser hele budsjettåret for budsjett, med tydelig markering av hvilke måneder som er utenfor valgt periode.
-- Følger ikke perioden (uavhengig av datovelgeren): «Total gjeld» (samlet restgjeld per nå), «Investeringer» (markedsverdi per nå), og sparemål-panelet «Sparemål» / «Spart totalt» (bygger på sparemål og tilknyttede beløp — ikke filtrert på valgt måned/år på oversikten). Seks-månedersgrafen «Inntekt vs. utgifter (6 mnd)» følger alltid aktivt budsjettår i appen (trend), ikke nødvendigvis det året du har valgt i filteret; hjelpetekst på siden forklarer når du filtrerer på et annet år enn aktivt budsjettår.
+- Følger valgt år/periode: KPI-kortene «Inntekt», «Utgifter», «Total gjeld», «Investeringer»; «Topp 10 utgifter» (summert per kategori i perioden); «Fest og variabelt forbruk» (faktiske utgifter: fest = månedlige budsjettkategorier eller kobling til tjenesteabonnement/gjeldstrekk; variabelt = resten). Under det: eget kompakt kort «Sparegrad» (ikke full bredde) med total sparegrad for valgt periode og linjegraf for samme nøkkeltall måned for måned innenfor perioden. Nederst på siden (etter «Mot budsjett» / «Siste aktivitet»): to KPI-lignende kort «Abo-kostnad» og «Antall abonnement» for tjenesteabonnementer (samme periode som filter; årlige fordeles på 12 måneder per aktive måneder) med lenke til /abonnementer. I husholdningsvisning: kompakt tabell «Fordeling i husholdningen» med lenke til /budsjett/husholdning.
+- På brede skjermer er hovedinnholdet i to kolonner (venstrejustert): venstre kolonne har «Mot budsjett» (plan vs. faktisk) med valgfri boks «Samme periode i [forrige år]» når det finnes transaksjonsdata for sammenligning, under det «Faste trekk (budsjett)», og under det eventuelt «Dette bør du sjekke»; høyre kolonne har «Siste aktivitet». På smal skjerm stables vertikalt. Modaler fra inntekt/utgift-KPI viser hele budsjettåret for budsjett, med markering av måneder utenfor valgt periode.
+- Følger ikke perioden (uavhengig av datovelgeren): «Total gjeld» (samlet restgjeld per nå), «Investeringer» (markedsverdi per nå), og sparemål-kortene lenger ned (bygger på sparemål og tilknyttede beløp — ikke filtrert på valgt måned/år på oversikten). Seks-månedersgrafen «Inntekt vs. utgifter (6 mnd)» inkluderer grønn linje for netto (inntekt − utgift) per måned og følger aktivt budsjettår (trend), ikke nødvendigvis filteråret; hjelpetekst på siden forklarer dette.
 - Lenker til transaksjoner kan forhåndsfiltere på samme år/periode som på oversikten.
 
 Budsjett (/budsjett)
@@ -67,9 +68,9 @@ Budsjett (/budsjett)
 Transaksjoner (/transaksjoner)
 - Registrer enkelttransaksjoner: dato, beskrivelse, beløp, kategori, ev. underkategori.
 - Kobling til budsjettkategorier oppdaterer «brukt» i budsjettet.
-- Undermeny på transaksjonssidene: «Transaksjoner» (liste med filtre), «Kommende» (/transaksjoner/kommende — planlagte fremover og utestående etter planlagt dato; marker som gjennomgått eller betalt, eller slett), «Transaksjonsdashboard» med oppdeling og lenker inn til filtrert liste.
+- Undermeny på transaksjonssidene: «Transaksjoner» (liste med filtre), «Kommende» (/transaksjoner/kommende — etter forfall, inneværende måned og senere; marker som gjennomgått eller betalt, eller slett), «Transaksjonsdashboard» med oppdeling og lenker inn til filtrert liste.
 - Fremtidig dato ved registrering eller importerte fremtidige rader kan merkes som planlagt oppfølging. Synkede planlagte trekk fra gjeld eller tjenesteabonnement følger samme flyt.
-- Varsler (klokke): når planlagt dato er passert, vises innsikt fra dagen etter med liste over poster som trenger oppfølging; åpne «Kommende» fra varselet eller menyen. Grensesnittet er tilpasset mobil (korte faner, store trykkflater).
+- Varsler (klokke): innsikt når forfalte planlagte poster finnes og/eller uferdig plan i inneværende måned (ikke gjennomgått); åpne «Kommende» fra varselet eller menyen. Grensesnittet er tilpasset mobil (korte faner, store trykkflater).
 - I transaksjonslisten kan du se om en planlagt rad er «gjennomgått» (stempel). Kortene på listen viser fortsatt beløp til og med i dag; fremtidige beløp står i listen.
 - Fra flere steder (f.eks. budsjettdashboard) kan du komme til transaksjoner med forhåndsfilter.
 
@@ -107,7 +108,7 @@ Tjenesteabonnementer (/abonnementer)
 - Valgfritt: «Legg inn i budsjettet» synkroniserer planbeløp til en linje under Regninger (du slipper å taste samme beløp to ganger).
 - Faktisk «brukt» i budsjettet følger fortsatt transaksjoner når du fører trekk i samme kategori.
 - I Familie vises abonnementer samlet i husholdning med profilnavn; redigering gjøres når én profil er valgt. Når flere profiler har valgt samme tjeneste fra forhåndslisten, kan appen vise et nøytralt forslag om delt eller familieabonnement hos leverandøren.
-- Registrerte abonnementer inngår i tallkonteksten til EnkelExcel AI når du spør om slike kostnader. I husholdningsvisning er abonnementer i AI-konteksten merket med profil der det er relevant.
+- Registrerte abonnementer inngår i tallkonteksten til EnkelExcel AI når du spør om slike kostnader. I husholdningsvisning får AI en tabell med sum per profil (hvem som abonnerer på hva) pluss total for husholdningen, i tillegg til detaljlisten med profilmerking.
 
 Rapporter
 - /rapporter — menyvalg «Rapport til bank», «Månedsinnsikt» og «Sparemålrapport».
@@ -117,9 +118,10 @@ Rapporter
 
 EnkelExcel AI (/enkelexcel-ai)
 - Chat med «EnkelExcel AI» om budsjett, sparing, gjeld og hvordan appen brukes (sammen med bruksveiledningen du leser nå og brukerens tall i samme forespørsel).
-- Hvilket tallgrunnlag som sendes til AI følger profilvelgeren til venstre: én profil eller samlet husholdning (Familie med minst to profiler). Chattsiden viser tydelig hvilket grunnlag som gjelder. I husholdningsmodus er transaksjoner og enkeltposter i konteksten merket med profil der det er relevant; konteksten kan også inkludere sparemål, gjeld og investeringer fra appen.
+- Hvilket tallgrunnlag som sendes til AI følger profilvelgeren til venstre: én profil eller samlet husholdning (Familie med minst to profiler). Chattsiden viser tydelig hvilket grunnlag som gjelder.
+- Innhold i tallteksten (typisk rekkefølge): innledning med budsjettår og visningsmodus; deretter tjenesteabonnementer (i husholdning: tabell per profil + detaljliste med [profil], plassert før transaksjoner slik at summene ikke forsvinner ved avkorting); transaksjoner (nyeste først, begrenset antall linjer) med profilkolonne i husholdning; kort utdrag av planlagte poster som krever oppfølging (Kommende); budsjettkategorier (brukt/plan for året); sparemål; gjeld; investeringer — med [profil] der det er relevant i husholdning. Ved svært mye data kan teksten avkortes (øvre tegnbegrensning); ikke gjett utover det som står.
 - Svar skal være ren tekst uten Markdown (ingen **, kodeblokker, osv.) — som beskrevet i systeminstruksen.
-- Meldingskvote: standard inkludert antall meldinger per kalendermåned (serverstyrt; typisk 100 med mindre drift har satt annet). Når inkluderte meldinger er brukt opp, kan du ha «ekstra meldinger» (bonus credits) hvis kjøpt.
+- Meldingskvote: standard inkludert antall meldinger per kalendermåned (serverstyrt; miljøvariabel AI_MONTHLY_MESSAGE_LIMIT, standard 100). Når inkluderte meldinger er brukt opp, kan du ha «ekstra meldinger» (bonus credits) hvis kjøpt.
 - Kjøp av ekstra AI-meldinger: fra chattsiden går betaling via Stripe (egen checkout); etter vellykket betaling returneres du til chatten med ?ai_credits=success.
 - Samtale lagres lokalt i nettleseren per bruker (persistens på enheten), ikke som full sikkerhetskopi i skyen — ta kontakt ved behov for personsikkerhet.
 - Forslag til spørsmål i UI matcher typiske bruksmønstre (oppsummering, sparing, gjeld, tips).
@@ -161,7 +163,7 @@ Formuebyggeren PRO (/sparing/formuebygger)
 - Langsiktig simulering av formue og kjøpekraft; egne felt og tabeller; kan eksportere PDF der det er knapp for det i grensesnittet.
 
 Viktig for svar i chat
-- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering, abonnement → Betalinger).
+- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement og Stripe → Betalinger /konto/betalinger).
 - Når brukeren spør «hvordan gjør jeg …», gi steg som finnes i appen her — ikke finn opp nye knapper.
 - Skille mellom generell økonomiteori og det Smart Budsjett faktisk gjør.
 - Ved tvil om hva som er implementert: si at brukeren kan sjekke siden i appen eller kontakte post@enkelexcel.no.`

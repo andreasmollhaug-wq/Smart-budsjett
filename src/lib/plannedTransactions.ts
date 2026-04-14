@@ -58,6 +58,59 @@ export function sortTransactionsByDateAsc(a: Transaction, b: Transaction): numbe
   return (a.description ?? '').localeCompare(b.description ?? '')
 }
 
+/** Første og siste kalenderdag i samme måned som `today` (YYYY-MM-DD). */
+export function getCalendarMonthRange(today: string): { start: string; end: string } {
+  const y = parseInt(today.slice(0, 4), 10)
+  const m0 = parseInt(today.slice(5, 7), 10) - 1
+  const start = `${today.slice(0, 7)}-01`
+  const lastDay = new Date(y, m0 + 1, 0).getDate()
+  const end = `${y}-${String(m0 + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+  return { start, end }
+}
+
+export function isDateInCalendarMonth(dateStr: string, start: string, end: string): boolean {
+  const d = dateStr.slice(0, 10)
+  return d.length >= 10 && d >= start && d <= end
+}
+
+/**
+ * Planlagt oppfølging i inneværende måned (inkl. i dag), ikke fullført.
+ * Overdue (dato før i dag) håndteres av `isOverduePlanFollowUp`.
+ */
+export function isPlannedKommendeThisMonth(t: Transaction, today = todayYyyyMmDd()): boolean {
+  if (!transactionRequiresPlanFollowUp(t)) return false
+  if (isPlanFollowUpComplete(t)) return false
+  const d = t.date?.slice(0, 10) ?? ''
+  if (d.length < 10) return false
+  const { start, end } = getCalendarMonthRange(today)
+  if (!isDateInCalendarMonth(d, start, end)) return false
+  return d >= today
+}
+
+/**
+ * Planlagt oppfølging med dato etter inneværende måneds siste dag, ikke fullført.
+ */
+export function isPlannedKommendeLater(t: Transaction, today = todayYyyyMmDd()): boolean {
+  if (!transactionRequiresPlanFollowUp(t)) return false
+  if (isPlanFollowUpComplete(t)) return false
+  const d = t.date?.slice(0, 10) ?? ''
+  if (d.length < 10) return false
+  const { end } = getCalendarMonthRange(today)
+  return d > end
+}
+
+/** Banner på transaksjonslisten: forfalte, eller månedens plan uten gjennomgang. */
+export function shouldShowKommendeAttentionBanner(
+  transactions: Transaction[],
+  today = todayYyyyMmDd(),
+): boolean {
+  return transactions.some(
+    (t) =>
+      isOverduePlanFollowUp(t, today) ||
+      (isPlannedKommendeThisMonth(t, today) && !t.reviewedAt),
+  )
+}
+
 /**
  * Ved lagring fra skjema: sett planlagt oppfølging for fremtidige datoer uten synk-lenke.
  */
@@ -83,32 +136,70 @@ export function inferPlannedFollowUpOnDateChange(
 
 export const PLANNED_OVERDUE_NOTIFICATION_ID = 'insight:planned-tx-overdue:active'
 
-export function buildPlannedOverdueNotification(
-  transactions: Transaction[],
-  today = todayYyyyMmDd(),
-): { title: string; body: string } | null {
-  const candidates = transactions
-    .filter((t) => isOverduePlanFollowUp(t, today))
-    .sort(sortTransactionsByDateAsc)
-
-  if (candidates.length === 0) return null
-
-  const lines: string[] = [
-    'Følgende planlagte transaksjoner har passert dato og trenger at du huker av (gjennomgang/betaling) eller sletter dem under «Kommende».',
-    '',
-  ]
-  const maxLines = 5
-  for (let i = 0; i < Math.min(maxLines, candidates.length); i++) {
-    const t = candidates[i]!
+function appendNotificationBullets(lines: string[], items: Transaction[], max: number): number {
+  const n = Math.min(max, items.length)
+  for (let i = 0; i < n; i++) {
+    const t = items[i]!
     const dateShow = formatTransactionDateNbNo(t.date) ?? t.date
     const desc = (t.description ?? '').trim() || 'Uten beskrivelse'
     const amt =
       typeof t.amount === 'number' && Number.isFinite(t.amount) ? formatNOK(t.amount) : '—'
     lines.push(`• ${dateShow}: ${desc} (${amt})`)
   }
-  if (candidates.length > maxLines) {
-    lines.push(`… og ${candidates.length - maxLines} til.`)
+  return n
+}
+
+const MAX_OVERDUE_NOTIFICATION_LINES = 5
+const MAX_THIS_MONTH_NOTIFICATION_LINES = 5
+const MAX_TOTAL_NOTIFICATION_BULLETS = 10
+
+/**
+ * Innsikt når forfalte planlagte poster finnes og/eller uferdig plan i inneværende måned (ikke gjennomgått).
+ */
+export function buildPlannedOverdueNotification(
+  transactions: Transaction[],
+  today = todayYyyyMmDd(),
+): { title: string; body: string } | null {
+  const overdue = transactions
+    .filter((t) => isOverduePlanFollowUp(t, today))
+    .sort(sortTransactionsByDateAsc)
+
+  const thisMonthNotReviewed = transactions
+    .filter((t) => isPlannedKommendeThisMonth(t, today) && !t.reviewedAt)
+    .sort(sortTransactionsByDateAsc)
+
+  if (overdue.length === 0 && thisMonthNotReviewed.length === 0) return null
+
+  const lines: string[] = []
+  let bulletsUsed = 0
+
+  if (overdue.length > 0) {
+    lines.push(
+      'Følgende planlagte transaksjoner har passert dato og trenger at du huker av (gjennomgang/betaling) eller sletter dem under «Kommende».',
+    )
+    lines.push('')
+    const cap = Math.min(MAX_OVERDUE_NOTIFICATION_LINES, MAX_TOTAL_NOTIFICATION_BULLETS - bulletsUsed)
+    const shown = appendNotificationBullets(lines, overdue, cap)
+    bulletsUsed += shown
+    if (overdue.length > shown) {
+      lines.push(`… og ${overdue.length - shown} til.`)
+    }
   }
+
+  if (thisMonthNotReviewed.length > 0) {
+    if (lines.length > 0) lines.push('')
+    lines.push('Planlagt denne måneden (ikke markert som gjennomgått):')
+    lines.push('')
+    const cap = Math.min(
+      MAX_THIS_MONTH_NOTIFICATION_LINES,
+      Math.max(0, MAX_TOTAL_NOTIFICATION_BULLETS - bulletsUsed),
+    )
+    const shown = appendNotificationBullets(lines, thisMonthNotReviewed, cap)
+    if (thisMonthNotReviewed.length > shown) {
+      lines.push(`… og ${thisMonthNotReviewed.length - shown} til.`)
+    }
+  }
+
   lines.push('')
   lines.push('Åpne Kommende under Transaksjoner for å fullføre.')
 

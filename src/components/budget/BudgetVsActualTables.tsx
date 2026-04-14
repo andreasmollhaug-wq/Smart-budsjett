@@ -22,11 +22,14 @@ function varianceColor(r: BudgetVsActualRow): string {
 export default function BudgetVsActualTables({
   budgetVsByParent,
   linkHrefForCategory,
+  onCategorySelect,
   variant = 'default',
 }: {
   budgetVsByParent: Record<ParentCategory, BudgetVsActualRow[]>
   /** Når satt, blir kategorinavn lenket til transaksjoner med forhåndsfilter. */
   linkHrefForCategory?: (categoryName: string) => string
+  /** Når satt, åpnes modal e.l. i stedet for direktenavigasjon (tar presedens over lenke). */
+  onCategorySelect?: (row: BudgetVsActualRow) => void
   /** actual-only: kun kategori + faktisk (transaksjonsoversikt uten budsjett). */
   variant?: 'default' | 'actual-only'
 }) {
@@ -79,7 +82,16 @@ export default function BudgetVsActualTables({
                   {rows.map((r) => (
                     <tr key={r.categoryId}>
                       <td className={tdClass} style={{ borderColor: 'var(--border)' }}>
-                        {linkHrefForCategory ? (
+                        {onCategorySelect ? (
+                          <button
+                            type="button"
+                            onClick={() => onCategorySelect(r)}
+                            className="font-medium text-left underline underline-offset-2 decoration-[var(--primary)] hover:opacity-90 touch-manipulation min-h-[44px] sm:min-h-0 py-1 -my-1"
+                            style={{ color: 'var(--primary)' }}
+                          >
+                            {r.name}
+                          </button>
+                        ) : linkHrefForCategory ? (
                           <Link
                             href={linkHrefForCategory(r.name)}
                             className="font-medium underline underline-offset-2 decoration-[var(--primary)] hover:opacity-90"

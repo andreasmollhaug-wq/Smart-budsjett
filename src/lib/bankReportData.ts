@@ -77,6 +77,99 @@ export function sumTransactionsByCategoryForMonthRange(
   return map
 }
 
+/** Summer inntekt, utgift og netto per profil for samme månedintervall som `sumTransactionsByCategoryForMonthRange`. */
+export interface IncomeExpenseNetByProfile {
+  profileId: string
+  income: number
+  expense: number
+  net: number
+}
+
+export function sumIncomeExpenseNetByProfileForMonthRange(
+  transactions: Transaction[],
+  year: number,
+  monthStartInclusive: number,
+  monthEndInclusive: number,
+): IncomeExpenseNetByProfile[] {
+  const byProfile = new Map<string, { income: number; expense: number }>()
+
+  for (const t of transactions) {
+    if (!t.date || t.date.length < 7) continue
+    const ym = t.date.slice(0, 7)
+    const parts = ym.split('-')
+    if (parts.length < 2) continue
+    const yy = Number(parts[0])
+    const mm = Number(parts[1])
+    if (!Number.isFinite(yy) || !Number.isFinite(mm) || yy !== year) continue
+    if (mm < 1 || mm > 12) continue
+    const monthIndex = mm - 1
+    if (monthIndex < monthStartInclusive || monthIndex > monthEndInclusive) continue
+
+    const pid = t.profileId ?? ''
+    const cur = byProfile.get(pid) ?? { income: 0, expense: 0 }
+    if (t.type === 'income') {
+      cur.income += t.amount
+    } else {
+      cur.expense += t.amount
+    }
+    byProfile.set(pid, cur)
+  }
+
+  const rows: IncomeExpenseNetByProfile[] = []
+  for (const [profileId, v] of byProfile) {
+    rows.push({
+      profileId,
+      income: v.income,
+      expense: v.expense,
+      net: v.income - v.expense,
+    })
+  }
+  rows.sort((a, b) => a.profileId.localeCompare(b.profileId))
+  return rows
+}
+
+/** Faktisk beløp per profil for én kategori og type i samme månedintervall som `sumTransactionsByCategoryForMonthRange`. */
+export interface ActualByProfileForCategory {
+  profileId: string
+  actual: number
+}
+
+export function sumActualByProfileForCategoryInMonthRange(
+  transactions: Transaction[],
+  year: number,
+  monthStartInclusive: number,
+  monthEndInclusive: number,
+  categoryName: string,
+  type: 'income' | 'expense',
+): ActualByProfileForCategory[] {
+  const byProfile = new Map<string, number>()
+
+  for (const t of transactions) {
+    if (t.category !== categoryName || t.type !== type) continue
+    if (!t.date || t.date.length < 7) continue
+    const ym = t.date.slice(0, 7)
+    const parts = ym.split('-')
+    if (parts.length < 2) continue
+    const yy = Number(parts[0])
+    const mm = Number(parts[1])
+    if (!Number.isFinite(yy) || !Number.isFinite(mm) || yy !== year) continue
+    if (mm < 1 || mm > 12) continue
+    const monthIndex = mm - 1
+    if (monthIndex < monthStartInclusive || monthIndex > monthEndInclusive) continue
+
+    const pid = t.profileId ?? ''
+    const amt = Number.isFinite(t.amount) ? t.amount : 0
+    byProfile.set(pid, (byProfile.get(pid) ?? 0) + amt)
+  }
+
+  const rows: ActualByProfileForCategory[] = []
+  for (const [profileId, actual] of byProfile) {
+    rows.push({ profileId, actual })
+  }
+  rows.sort((a, b) => a.profileId.localeCompare(b.profileId))
+  return rows
+}
+
 /**
  * For hver budsjettkategori: faktisk beløp per kalendermåned (indeks 0–11) i ett år.
  * Transaksjon knyttes til linje kun når `type` matcher kategoriens type.
@@ -260,21 +353,24 @@ export function sumActualsByMonthForType(
   })
 }
 
-/** Siste inntil 6 måneder i budsjettåret (slutter på referansemåned): faktisk inntekt og utgift per måned. Brukes på dashboard-graf. */
+/** Siste inntil 6 måneder i budsjettåret (slutter på referansemåned): faktisk inntekt, utgift og netto per måned. Brukes på dashboard-graf. */
 export function buildDashboardSixMonthIncomeExpense(
   transactions: Transaction[],
   budgetYear: number,
-): { month: string; inntekt: number; utgift: number }[] {
+): { month: string; inntekt: number; utgift: number; netto: number }[] {
   const refMonth = referenceMonthIndexForBudgetYear(budgetYear)
   const startMonth = Math.max(0, refMonth - 5)
   const income = sumActualsByMonthForType(transactions, budgetYear, 'income')
   const expense = sumActualsByMonthForType(transactions, budgetYear, 'expense')
-  const out: { month: string; inntekt: number; utgift: number }[] = []
+  const out: { month: string; inntekt: number; utgift: number; netto: number }[] = []
   for (let m = startMonth; m <= refMonth; m++) {
+    const inn = income[m] ?? 0
+    const ut = expense[m] ?? 0
     out.push({
       month: MONTH_LABELS_SHORT_NB[m] ?? String(m + 1),
-      inntekt: income[m] ?? 0,
-      utgift: expense[m] ?? 0,
+      inntekt: inn,
+      utgift: ut,
+      netto: inn - ut,
     })
   }
   return out

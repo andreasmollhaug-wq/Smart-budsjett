@@ -1,3 +1,4 @@
+import { sumActualByProfileForCategoryInMonthRange } from '@/lib/bankReportData'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type {
   ArchivedBudgetsByYear,
@@ -242,4 +243,58 @@ export function buildHouseholdPeriodData(
     summary,
     hasNoBudgetData: !hasAnyCategories,
   }
+}
+
+/** Budsjett, faktisk og avvik per profil for én kategorilinje (matcher summert rad i husholdningsvisning). */
+export interface CategoryRowBudgetActualByProfile {
+  profileId: string
+  budgeted: number
+  actual: number
+  variance: number
+}
+
+export function buildCategoryBudgetActualVarianceByProfile(
+  people: Record<string, PersonData>,
+  archivedBudgetsByYear: ArchivedBudgetsByYear,
+  profiles: PersonProfile[],
+  budgetYear: number,
+  year: number,
+  monthStart: number,
+  monthEnd: number,
+  categoryName: string,
+  categoryType: 'income' | 'expense',
+  transactions: Transaction[],
+): CategoryRowBudgetActualByProfile[] {
+  const actualRows = sumActualByProfileForCategoryInMonthRange(
+    transactions,
+    year,
+    monthStart,
+    monthEnd,
+    categoryName,
+    categoryType,
+  )
+  const actualByPid = new Map(actualRows.map((r) => [r.profileId, r.actual]))
+
+  const out: CategoryRowBudgetActualByProfile[] = []
+  for (const prof of profiles) {
+    const cats = getBudgetCategoriesForProfileYear(people, archivedBudgetsByYear, prof.id, year, budgetYear)
+    const cat = cats.find((c) => c.name === categoryName && c.type === categoryType)
+    const arr = ensureBudgetedArray(cat?.budgeted)
+    const budgeted = sumBudgetedForMonthRange(arr, monthStart, monthEnd)
+    const actual = actualByPid.get(prof.id) ?? 0
+    const variance = actual - budgeted
+    out.push({ profileId: prof.id, budgeted, actual, variance })
+  }
+
+  const orphanActual = actualByPid.get('') ?? 0
+  if (orphanActual !== 0) {
+    out.push({
+      profileId: '',
+      budgeted: 0,
+      actual: orphanActual,
+      variance: orphanActual,
+    })
+  }
+
+  return out
 }

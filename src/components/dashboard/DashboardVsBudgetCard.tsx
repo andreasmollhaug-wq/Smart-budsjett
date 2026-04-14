@@ -7,6 +7,14 @@ import { transactionsHrefForCategory } from '@/lib/budgetDashboardLinks'
 import { formatNOK } from '@/lib/utils'
 import { ChevronRight } from 'lucide-react'
 
+export type DashboardYoYCompare = {
+  prevYear: number
+  prevIncome: number
+  prevExpense: number
+  /** True når det finnes minst én krone inntekt eller utgift i forrige års periode */
+  hasPrevData: boolean
+}
+
 type Props = {
   periodLabel: string
   filterYear: number
@@ -14,6 +22,8 @@ type Props = {
   monthIndex: number
   summary: BudgetVsSummary
   coverage: { withTx: number; total: number }
+  /** Valgfri sammenligning med samme månedintervall i fjor */
+  yoy?: DashboardYoYCompare | null
 }
 
 export default function DashboardVsBudgetCard({
@@ -23,6 +33,7 @@ export default function DashboardVsBudgetCard({
   monthIndex,
   summary,
   coverage,
+  yoy,
 }: Props) {
   const lowCoverage =
     coverage.total > 0 && (coverage.withTx / coverage.total < 0.5 || coverage.total - coverage.withTx >= 2)
@@ -38,6 +49,47 @@ export default function DashboardVsBudgetCard({
       <p className="mb-4 text-xs leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
         Plan vs. faktisk · {periodLabel}
       </p>
+
+      {yoy && (
+        <div
+          className="mb-4 rounded-xl p-3 sm:p-4"
+          style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+        >
+          <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text)' }}>
+            Samme periode i {yoy.prevYear}
+          </p>
+          {!yoy.hasPrevData ? (
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Ingen transaksjoner i denne perioden for {yoy.prevYear}. Når du får data for begge år, vises
+              sammenligningen her.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3 text-xs">
+              <div>
+                <p style={{ color: 'var(--text-muted)' }}>Inntekt (faktisk)</p>
+                <p className="font-semibold tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>
+                  {formatNOK(yoy.prevIncome)}
+                </p>
+              </div>
+              <div>
+                <p style={{ color: 'var(--text-muted)' }}>Utgifter (faktisk)</p>
+                <p className="font-semibold tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>
+                  {formatNOK(yoy.prevExpense)}
+                </p>
+              </div>
+              <div>
+                <p style={{ color: 'var(--text-muted)' }}>Netto</p>
+                <p
+                  className="font-semibold tabular-nums mt-0.5"
+                  style={{ color: yoy.prevIncome - yoy.prevExpense >= 0 ? 'var(--success)' : 'var(--danger)' }}
+                >
+                  {formatNOK(yoy.prevIncome - yoy.prevExpense)}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {coverage.total > 0 && (
         <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>

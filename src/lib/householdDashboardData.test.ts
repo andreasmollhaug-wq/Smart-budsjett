@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildHouseholdPeriodData, getBudgetCategoriesForProfileYear } from './householdDashboardData'
-import type { BudgetCategory, PersonData, Transaction } from './store'
+import {
+  buildCategoryBudgetActualVarianceByProfile,
+  buildHouseholdPeriodData,
+  getBudgetCategoriesForProfileYear,
+} from './householdDashboardData'
+import type { BudgetCategory, PersonData, PersonProfile, Transaction } from './store'
 
 function cat(overrides: Partial<BudgetCategory> & Pick<BudgetCategory, 'id' | 'name' | 'parentCategory' | 'type'>): BudgetCategory {
   return {
@@ -180,5 +184,98 @@ describe('buildHouseholdPeriodData', () => {
     const { summary } = buildHouseholdPeriodData(people, {}, profiles, 2026, 2026, 0, 0, [])
     // jan: 15000 inntekt, utgifter 2000+500+1000 sparing = 3500
     expect(summary.householdBudgetedNet).toBe(15000 - 3500)
+  })
+})
+
+describe('buildCategoryBudgetActualVarianceByProfile', () => {
+  const p1 = 'p1'
+  const p2 = 'p2'
+
+  const people: Record<string, PersonData> = {
+    [p1]: {
+      transactions: [],
+      budgetCategories: [
+        cat({
+          id: 'i1',
+          name: 'Lønn',
+          type: 'income',
+          parentCategory: 'inntekter',
+          budgeted: [40000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        }),
+      ],
+      customBudgetLabels: { inntekter: [], regninger: [], utgifter: [], gjeld: [], sparing: [] },
+      hiddenBudgetLabels: { inntekter: [], regninger: [], utgifter: [], gjeld: [], sparing: [] },
+      savingsGoals: [],
+      debts: [],
+      investments: [],
+      serviceSubscriptions: [],
+    },
+    [p2]: {
+      transactions: [],
+      budgetCategories: [
+        cat({
+          id: 'i2',
+          name: 'Lønn',
+          type: 'income',
+          parentCategory: 'inntekter',
+          budgeted: [10000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        }),
+      ],
+      customBudgetLabels: { inntekter: [], regninger: [], utgifter: [], gjeld: [], sparing: [] },
+      hiddenBudgetLabels: { inntekter: [], regninger: [], utgifter: [], gjeld: [], sparing: [] },
+      savingsGoals: [],
+      debts: [],
+      investments: [],
+      serviceSubscriptions: [],
+    },
+  }
+
+  const profiles: PersonProfile[] = [
+    { id: p1, name: 'A' },
+    { id: p2, name: 'B' },
+  ]
+
+  it('gir budsjett, faktisk og avvik per profil for valgt måned', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 't1',
+        date: '2026-01-15',
+        description: 'Lønn',
+        amount: 42000,
+        category: 'Lønn',
+        type: 'income',
+        profileId: p1,
+      },
+      {
+        id: 't2',
+        date: '2026-01-20',
+        description: 'Lønn',
+        amount: 8000,
+        category: 'Lønn',
+        type: 'income',
+        profileId: p2,
+      },
+    ]
+    const rows = buildCategoryBudgetActualVarianceByProfile(
+      people,
+      {},
+      profiles,
+      2026,
+      2026,
+      0,
+      0,
+      'Lønn',
+      'income',
+      transactions,
+    )
+    expect(rows).toHaveLength(2)
+    const ra = rows.find((r) => r.profileId === p1)!
+    const rb = rows.find((r) => r.profileId === p2)!
+    expect(ra.budgeted).toBe(40000)
+    expect(ra.actual).toBe(42000)
+    expect(ra.variance).toBe(2000)
+    expect(rb.budgeted).toBe(10000)
+    expect(rb.actual).toBe(8000)
+    expect(rb.variance).toBe(-2000)
   })
 })

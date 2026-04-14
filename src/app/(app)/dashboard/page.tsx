@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { useAppUser } from '@/components/app/AppUserContext'
-import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance } from '@/lib/store'
+import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
 import {
   buildBudgetVsActualForPeriod,
   buildDashboardSixMonthIncomeExpense,
@@ -14,11 +14,19 @@ import {
 } from '@/lib/bankReportData'
 import {
   buildDashboardCheckHints,
+  buildSavingsRateTrendForPeriod,
+  computeSavingsRatePercent,
   countMonthsWithAnyTransaction,
   summarizeBudgetVsRows,
   sumIncomeExpenseInMonthRange,
   transactionInMonthRange,
 } from '@/lib/dashboardOverviewHelpers'
+import { summarizeFixedVariableExpenseActuals } from '@/lib/dashboardFixedVariableActuals'
+import { buildHouseholdPeriodData } from '@/lib/householdDashboardData'
+import {
+  buildServiceSubscriptionMonthlyCostForPeriod,
+  rollupServiceSubscriptionsCostForPeriod,
+} from '@/lib/serviceSubscriptionPeriodRollup'
 import { getTotalEffectiveSaved } from '@/lib/savingsDerived'
 import { formatNOK } from '@/lib/utils'
 import StatCard from '@/components/ui/StatCard'
@@ -33,6 +41,10 @@ import DashboardVsBudgetCard from '@/components/dashboard/DashboardVsBudgetCard'
 import DashboardChecksCard from '@/components/dashboard/DashboardChecksCard'
 import DashboardRecentActivityCard from '@/components/dashboard/DashboardRecentActivityCard'
 import DashboardFixedOutgoingCard from '@/components/dashboard/DashboardFixedOutgoingCard'
+import DashboardFixedVariableCard from '@/components/dashboard/DashboardFixedVariableCard'
+import DashboardServiceSubscriptionsPeriodCard from '@/components/dashboard/DashboardServiceSubscriptionsPeriodCard'
+import DashboardHouseholdSnapshotCard from '@/components/dashboard/DashboardHouseholdSnapshotCard'
+import DashboardSavingsRateCard from '@/components/dashboard/DashboardSavingsRateCard'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import { periodRange, periodSubtitle } from '@/lib/budgetPeriod'
 import { transactionOnOrBeforeToday } from '@/lib/transactionPeriodFilter'
@@ -88,6 +100,8 @@ export default function DashboardPage() {
     archivedBudgetsByYear,
     serviceSubscriptions,
   } = useActivePersonFinance()
+
+  const people = useStore((s) => s.people)
 
   const [investmentsModalOpen, setInvestmentsModalOpen] = useState(false)
   const [savingsModalOpen, setSavingsModalOpen] = useState(false)
@@ -235,6 +249,69 @@ export default function DashboardPage() {
     return { count: active.length, monthlySumNok }
   }, [serviceSubscriptions])
 
+  const subscriptionPeriodRollup = useMemo(
+    () => rollupServiceSubscriptionsCostForPeriod(serviceSubscriptions, filterYear, start, end),
+    [serviceSubscriptions, filterYear, start, end],
+  )
+
+  const subscriptionMonthly = useMemo(
+    () => buildServiceSubscriptionMonthlyCostForPeriod(serviceSubscriptions, filterYear, start, end),
+    [serviceSubscriptions, filterYear, start, end],
+  )
+
+  const fixedVariableActuals = useMemo(
+    () =>
+      summarizeFixedVariableExpenseActuals(
+        transactions ?? [],
+        filterYear,
+        start,
+        end,
+        displayCategories,
+      ),
+    [transactions, filterYear, start, end, displayCategories],
+  )
+
+  const yoyCompare = useMemo(() => {
+    const prevYear = filterYear - 1
+    const prev = sumIncomeExpenseInMonthRange(transactions ?? [], prevYear, start, end)
+    const hasPrevData = prev.income > 0 || prev.expense > 0
+    return { prevYear, prevIncome: prev.income, prevExpense: prev.expense, hasPrevData }
+  }, [transactions, filterYear, start, end])
+
+  const savingsRatePct = useMemo(
+    () => computeSavingsRatePercent(periodIncomeExpense.income, periodIncomeExpense.expense),
+    [periodIncomeExpense.income, periodIncomeExpense.expense],
+  )
+
+  const savingsRateTrend = useMemo(
+    () => buildSavingsRateTrendForPeriod(transactions ?? [], filterYear, start, end),
+    [transactions, filterYear, start, end],
+  )
+
+  const householdPeriod = useMemo(() => {
+    if (!isHouseholdAggregate) return null
+    return buildHouseholdPeriodData(
+      people,
+      archivedBudgetsByYear,
+      profiles,
+      budgetYear,
+      filterYear,
+      start,
+      end,
+      transactions ?? [],
+    )
+  }, [
+    isHouseholdAggregate,
+    people,
+    archivedBudgetsByYear,
+    profiles,
+    budgetYear,
+    filterYear,
+    start,
+    end,
+    transactions,
+  ])
+
   const transaksjonerHref = transaksjonerPeriodHref(filterYear, periodMode, monthIndex)
 
   return (
@@ -264,7 +341,7 @@ export default function DashboardPage() {
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <StatCard
             label="Inntekt"
             value={formatNOK(periodIncomeExpense.income)}
@@ -305,7 +382,8 @@ export default function DashboardPage() {
               Inntekt vs. utgifter (6 mnd)
             </h2>
             <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-              Basert på transaksjoner i budsjettår {budgetYear} (siste inntil seks måneder fram til inneværende måned).
+              Grønn linje viser netto (inntekt minus utgift) per måned. Basert på transaksjoner i budsjettår {budgetYear}{' '}
+              (siste inntil seks måneder fram til inneværende måned).
               {filterYear !== budgetYear ? (
                 <>
                   {' '}
@@ -447,7 +525,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        <div className="w-full">
+        <div className="w-full space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-start">
             <div className="min-w-0 space-y-6">
               {displayCategories.length > 0 ? (
@@ -458,6 +536,12 @@ export default function DashboardPage() {
                   monthIndex={monthIndex}
                   summary={vsSummary}
                   coverage={coverage}
+                  yoy={{
+                    prevYear: yoyCompare.prevYear,
+                    prevIncome: yoyCompare.prevIncome,
+                    prevExpense: yoyCompare.prevExpense,
+                    hasPrevData: yoyCompare.hasPrevData,
+                  }}
                 />
               ) : (
                 <div
@@ -467,17 +551,6 @@ export default function DashboardPage() {
                   Ingen budsjettdata for {filterYear}. Velg aktivt budsjettår eller et år med arkiv.
                 </div>
               )}
-
-              {displayCategories.length > 0 && (
-                <DashboardFixedOutgoingCard
-                  budgetCategories={displayCategories}
-                  endMonthIndex={end}
-                  onOpenDetails={() => setFixedExpensesModalOpen(true)}
-                  serviceSubscriptionLine={serviceSubscriptionLine}
-                />
-              )}
-
-              {checkHints.length > 0 ? <DashboardChecksCard items={checkHints} /> : null}
             </div>
 
             <div className="min-w-0">
@@ -490,6 +563,59 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+
+          {displayCategories.length > 0 ? (
+            <div className="grid min-w-0 w-full grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-6 xl:gap-8 2xl:gap-10 lg:items-stretch">
+              <DashboardFixedOutgoingCard
+                budgetCategories={displayCategories}
+                endMonthIndex={end}
+                onOpenDetails={() => setFixedExpensesModalOpen(true)}
+                serviceSubscriptionLine={serviceSubscriptionLine}
+              />
+              <DashboardSavingsRateCard
+                periodLabel={periodLabel}
+                aggregateRatePct={savingsRatePct}
+                trend={savingsRateTrend}
+              />
+              <DashboardServiceSubscriptionsPeriodCard
+                periodLabel={periodLabel}
+                totalNok={subscriptionPeriodRollup.totalNok}
+                uniqueCount={subscriptionPeriodRollup.uniqueIdsInPeriod}
+                monthly={subscriptionMonthly}
+              />
+            </div>
+          ) : (
+            <div className="grid min-w-0 w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 xl:gap-10 lg:items-stretch">
+              <DashboardSavingsRateCard
+                periodLabel={periodLabel}
+                aggregateRatePct={savingsRatePct}
+                trend={savingsRateTrend}
+              />
+              <DashboardServiceSubscriptionsPeriodCard
+                periodLabel={periodLabel}
+                totalNok={subscriptionPeriodRollup.totalNok}
+                uniqueCount={subscriptionPeriodRollup.uniqueIdsInPeriod}
+                monthly={subscriptionMonthly}
+              />
+            </div>
+          )}
+
+          {checkHints.length > 0 ? (
+            <div className="min-w-0">
+              <DashboardChecksCard items={checkHints} />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-6 sm:flex-row sm:flex-wrap sm:items-start sm:gap-8">
+          <DashboardFixedVariableCard
+            fixed={fixedVariableActuals.fixed}
+            variable={fixedVariableActuals.variable}
+            periodLabel={periodLabel}
+          />
+          {householdPeriod && isHouseholdAggregate ? (
+            <DashboardHouseholdSnapshotCard members={householdPeriod.members} periodLabel={periodLabel} />
+          ) : null}
         </div>
       </div>
 

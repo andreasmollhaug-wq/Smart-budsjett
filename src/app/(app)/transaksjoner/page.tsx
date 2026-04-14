@@ -24,6 +24,7 @@ import {
 import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Info, CheckCircle2 } from 'lucide-react'
 import {
   inferPlannedFollowUpOnDateChange,
+  shouldShowKommendeAttentionBanner,
   transactionRequiresPlanFollowUp,
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
@@ -127,15 +128,10 @@ function TransaksjonerPageInner() {
     return list
   }, [displayFilteredTx, dateSort, listSortMode, allCats])
 
-  const hasKommendeBanner = useMemo(() => {
-    const today = todayYyyyMmDd()
-    return transactions.some(
-      (t) =>
-        transactionRequiresPlanFollowUp(t) &&
-        t.date.slice(0, 10) > today &&
-        !t.reviewedAt,
-    )
-  }, [transactions])
+  const hasKommendeBanner = useMemo(
+    () => shouldShowKommendeAttentionBanner(transactions),
+    [transactions],
+  )
 
   const displayCategories = useMemo(() => {
     if (filterYear === budgetYear) return budgetCategories
@@ -398,8 +394,8 @@ function TransaksjonerPageInner() {
             role="status"
           >
             <p className="text-sm" style={{ color: 'var(--text)' }}>
-              Du har kommende planlagte transaksjoner som ikke er markert som gjennomgått. Åpne{' '}
-              <strong>Kommende</strong> for å huke av eller slette.
+              Noen planlagte transaksjoner trenger oppfølging (forfalt eller planlagt i inneværende måned uten
+              gjennomgang). Åpne <strong>Kommende</strong> for å huke av eller slette.
             </p>
             <Link
               href="/transaksjoner/kommende"

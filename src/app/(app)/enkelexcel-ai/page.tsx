@@ -357,8 +357,10 @@ export default function EnkelExcelAiPage() {
 
         <div className="w-full max-w-2xl mb-3">
           <p className="text-xs leading-relaxed break-words" style={{ color: 'var(--text-muted)' }}>
-            Assistenten får med transaksjoner og budsjettkategorier fra appen din i hver melding, slik at svarene kan
-            tilpasses dine tall.
+            Assistenten får med et strukturert utdrag fra appen din i hver melding (bl.a. tjenesteabonnementer,
+            transaksjoner, kort om planlagt oppfølging, budsjettkategorier, sparemål, gjeld og investeringer — avhengig av
+            hva som er registrert og av om du ser én profil eller samlet husholdning). Svært store datasett kan avkortes
+            teknisk.
           </p>
         </div>
 

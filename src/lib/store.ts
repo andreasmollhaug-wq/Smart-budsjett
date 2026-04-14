@@ -634,6 +634,8 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     base.peopleBeforeDemo = null
   }
 
+  delete (base as unknown as Record<string, unknown>).earlyStepsChecklist
+
   return base
 }
 

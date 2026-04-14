@@ -10,9 +10,11 @@ const tdClass = 'py-2 px-3 border-b'
 export default function TopExpenseCategoriesTable({
   rows,
   linkHrefForCategory,
+  onCategorySelect,
 }: {
   rows: BudgetVsActualRow[]
   linkHrefForCategory?: (categoryName: string) => string
+  onCategorySelect?: (row: BudgetVsActualRow) => void
 }) {
   const sorted = [...rows]
     .filter((r) => r.type === 'expense')
@@ -67,7 +69,16 @@ export default function TopExpenseCategoriesTable({
               </td>
               <td className={tdClass} style={{ borderColor: 'var(--border)' }}>
                 <span className="font-medium" style={{ color: 'var(--text)' }}>
-                  {linkHrefForCategory ? (
+                  {onCategorySelect ? (
+                    <button
+                      type="button"
+                      onClick={() => onCategorySelect(r)}
+                      className="underline text-left underline-offset-2 decoration-[var(--primary)] hover:opacity-90 touch-manipulation min-h-[44px] sm:min-h-0 py-1 -my-1"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      {r.name}
+                    </button>
+                  ) : linkHrefForCategory ? (
                     <Link
                       href={linkHrefForCategory(r.name)}
                       className="underline underline-offset-2 decoration-[var(--primary)] hover:opacity-90"

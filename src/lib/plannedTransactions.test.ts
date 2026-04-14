@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { Transaction } from '@/lib/store'
 import {
+  buildPlannedOverdueNotification,
+  getCalendarMonthRange,
   inferPlannedFollowUpOnDateChange,
   isOverduePlanFollowUp,
+  isPlannedKommendeLater,
+  isPlannedKommendeThisMonth,
   isUpcomingPlannedTransaction,
+  shouldShowKommendeAttentionBanner,
   transactionRequiresPlanFollowUp,
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
@@ -91,5 +96,110 @@ describe('plannedTransactions', () => {
       linkedDebtId: 'd1',
     })
     expect(inferPlannedFollowUpOnDateChange(prev, '2027-01-01')).toEqual({})
+  })
+
+  it('getCalendarMonthRange returns first and last day of month', () => {
+    expect(getCalendarMonthRange('2026-04-14')).toEqual({ start: '2026-04-01', end: '2026-04-30' })
+    expect(getCalendarMonthRange('2026-02-10')).toEqual({ start: '2026-02-01', end: '2026-02-28' })
+  })
+
+  it('isPlannedKommendeThisMonth includes today and same month, excludes next month', () => {
+    const t0 = '2026-04-14'
+    expect(
+      isPlannedKommendeThisMonth(
+        tx({ id: '1', date: '2026-04-14', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      isPlannedKommendeThisMonth(
+        tx({ id: '2', date: '2026-04-30', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      isPlannedKommendeThisMonth(
+        tx({ id: '3', date: '2026-05-01', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(false)
+  })
+
+  it('isPlannedKommendeLater is true after calendar month end', () => {
+    const t0 = '2026-04-14'
+    expect(
+      isPlannedKommendeLater(
+        tx({ id: '1', date: '2026-05-01', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      isPlannedKommendeLater(
+        tx({ id: '2', date: '2026-04-30', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(false)
+  })
+
+  it('overdue is disjoint from this month and later', () => {
+    const t0 = '2026-04-14'
+    const overdueTx = tx({ id: '1', date: '2026-04-01', type: 'expense', plannedFollowUp: true })
+    expect(isOverduePlanFollowUp(overdueTx, t0)).toBe(true)
+    expect(isPlannedKommendeThisMonth(overdueTx, t0)).toBe(false)
+    expect(isPlannedKommendeLater(overdueTx, t0)).toBe(false)
+  })
+
+  it('shouldShowKommendeAttentionBanner for overdue or unreviewed this month', () => {
+    const t0 = '2026-04-14'
+    expect(
+      shouldShowKommendeAttentionBanner(
+        [tx({ id: '1', date: '2026-04-01', type: 'expense', plannedFollowUp: true })],
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      shouldShowKommendeAttentionBanner(
+        [
+          tx({
+            id: '2',
+            date: '2026-04-20',
+            type: 'expense',
+            plannedFollowUp: true,
+          }),
+        ],
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      shouldShowKommendeAttentionBanner(
+        [
+          tx({
+            id: '3',
+            date: '2026-04-20',
+            type: 'expense',
+            plannedFollowUp: true,
+            reviewedAt: new Date().toISOString(),
+          }),
+        ],
+        t0,
+      ),
+    ).toBe(false)
+  })
+
+  it('buildPlannedOverdueNotification includes this month when no overdue', () => {
+    const t0 = '2026-04-14'
+    const out = buildPlannedOverdueNotification(
+      [
+        tx({
+          id: '1',
+          date: '2026-04-20',
+          type: 'expense',
+          plannedFollowUp: true,
+        }),
+      ],
+      t0,
+    )
+    expect(out).not.toBeNull()
+    expect(out!.body).toContain('Planlagt denne måneden')
   })
 })
