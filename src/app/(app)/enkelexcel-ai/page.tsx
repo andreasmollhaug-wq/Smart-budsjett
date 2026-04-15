@@ -225,9 +225,15 @@ export default function EnkelExcelAiPage() {
     setCheckoutLoading(true)
     try {
       const res = await fetch('/api/stripe/ai-credits-checkout', { method: 'POST' })
-      const data = (await res.json().catch(() => null)) as { url?: string; error?: string } | null
+      const data = (await res.json().catch(() => null)) as {
+        url?: string
+        error?: string
+        stripeRequestId?: string
+      } | null
       if (!res.ok) {
-        throw new Error(data?.error ?? 'Kunne ikke starte betaling.')
+        const msg = data?.error ?? 'Kunne ikke starte betaling.'
+        const ref = data?.stripeRequestId
+        throw new Error(ref ? `${msg} Teknisk referanse (Stripe): ${ref}` : msg)
       }
       if (data?.url) {
         window.location.href = data.url

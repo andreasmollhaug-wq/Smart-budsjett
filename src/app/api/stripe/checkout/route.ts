@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe/server'
 import type { BillingPlan } from '@/lib/stripe/plan'
 import { subscriptionTrialPeriodDaysForAuthUser } from '@/lib/stripe/extendedTrial'
+import { logStripeError, stripeRequestIdFromError } from '@/lib/stripe/stripeErrorDetails'
 import { subscriptionTrialPeriodDays } from '@/lib/stripe/trialPeriodDays'
 
 export const dynamic = 'force-dynamic'
@@ -85,7 +86,14 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (e) {
-    console.error('[stripe] checkout.sessions.create', e)
-    return NextResponse.json({ error: 'Stripe-feil ved opprettelse av betaling.' }, { status: 500 })
+    logStripeError('[stripe] checkout.sessions.create', e)
+    const requestId = stripeRequestIdFromError(e)
+    return NextResponse.json(
+      {
+        error: 'Stripe-feil ved opprettelse av betaling.',
+        ...(requestId ? { stripeRequestId: requestId } : {}),
+      },
+      { status: 500 },
+    )
   }
 }

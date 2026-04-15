@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getBonusPackCredits } from '@/lib/aiUsage'
+import { logStripeError, stripeRequestIdFromError } from '@/lib/stripe/stripeErrorDetails'
 import { getStripe } from '@/lib/stripe/server'
 
 export const dynamic = 'force-dynamic'
@@ -68,7 +69,14 @@ export async function POST() {
 
     return NextResponse.json({ url: session.url })
   } catch (e) {
-    console.error('[stripe] ai-credits checkout.sessions.create', e)
-    return NextResponse.json({ error: 'Stripe-feil ved opprettelse av betaling.' }, { status: 500 })
+    logStripeError('[stripe] ai-credits checkout.sessions.create', e)
+    const requestId = stripeRequestIdFromError(e)
+    return NextResponse.json(
+      {
+        error: 'Stripe-feil ved opprettelse av betaling.',
+        ...(requestId ? { stripeRequestId: requestId } : {}),
+      },
+      { status: 500 },
+    )
   }
 }

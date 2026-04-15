@@ -97,6 +97,7 @@ function BetalingerContent() {
   const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
   const [checkoutLoading, setCheckoutLoading] = useState<'solo' | 'family' | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const [checkoutStripeRequestId, setCheckoutStripeRequestId] = useState<string | null>(null)
   const [canOpenBillingPortal, setCanOpenBillingPortal] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
@@ -190,6 +191,7 @@ function BetalingerContent() {
   const subscribeWithPlan = async (plan: 'solo' | 'family') => {
     setDowngradeError(false)
     setCheckoutError(null)
+    setCheckoutStripeRequestId(null)
     if (plan === 'solo') {
       const r = setSubscriptionPlan('solo')
       if (!r.ok) {
@@ -204,6 +206,7 @@ function BetalingerContent() {
 
   const startStripeCheckout = async (plan: 'solo' | 'family') => {
     setCheckoutError(null)
+    setCheckoutStripeRequestId(null)
     setCheckoutLoading(plan)
     try {
       const res = await fetch('/api/stripe/checkout', {
@@ -211,9 +214,10 @@ function BetalingerContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan }),
       })
-      const data = (await res.json()) as { url?: string; error?: string }
+      const data = (await res.json()) as { url?: string; error?: string; stripeRequestId?: string }
       if (!res.ok) {
         setCheckoutError(data.error ?? 'Kunne ikke starte betaling.')
+        setCheckoutStripeRequestId(data.stripeRequestId ?? null)
         return
       }
       if (data.url) {
@@ -318,7 +322,12 @@ function BetalingerContent() {
           className="rounded-xl p-4 mb-6 text-sm"
           style={{ background: 'color-mix(in srgb, #E03131 12%, transparent)', border: '1px solid #E03131', color: 'var(--text)' }}
         >
-          {checkoutError}
+          <p className="m-0">{checkoutError}</p>
+          {checkoutStripeRequestId && (
+            <p className="m-0 mt-2 text-xs opacity-90 font-mono break-all">
+              Teknisk referanse (Stripe): {checkoutStripeRequestId}
+            </p>
+          )}
         </div>
       )}
 
