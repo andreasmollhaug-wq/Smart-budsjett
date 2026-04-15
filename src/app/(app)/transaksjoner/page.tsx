@@ -25,7 +25,6 @@ import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Info, CheckCircle2 } from 'l
 import {
   inferPlannedFollowUpOnDateChange,
   shouldShowKommendeAttentionBanner,
-  transactionRequiresPlanFollowUp,
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
 

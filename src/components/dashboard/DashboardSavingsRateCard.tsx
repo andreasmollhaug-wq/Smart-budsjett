@@ -53,7 +53,7 @@ export default function DashboardSavingsRateCard({ periodLabel, aggregateRatePct
   const span = Math.max(yMax - yMin, 1e-6)
   const pad = Math.max(1, span * 0.08)
   let low = yMin - pad
-  let high = yMax + pad
+  const high = yMax + pad
   if (numericRates.length > 0 && numericRates.every((r) => r >= 0)) {
     low = Math.max(0, low)
   }
