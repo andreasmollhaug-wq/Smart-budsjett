@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import RecoveryHashRedirect from '@/components/auth/RecoveryHashRedirect'
 import LandingHeader from '@/components/marketing/LandingHeader'
 import LandingMain from '@/components/marketing/LandingMain'
 import LandingFooter from '@/components/marketing/LandingFooter'
@@ -32,6 +33,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+      <RecoveryHashRedirect />
       <LandingHeader />
       <LandingMain variant="default" />
       <LandingFooter />

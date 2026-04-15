@@ -38,8 +38,9 @@ export default function GlemtPassordPage() {
     try {
       const supabase = createClient()
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const afterRecovery = '/tilbakestill-passord?recovery=1'
       const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
-        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent('/tilbakestill-passord')}`,
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(afterRecovery)}`,
       })
       if (error) {
         setFeedback({ variant: 'error', text: error.message })

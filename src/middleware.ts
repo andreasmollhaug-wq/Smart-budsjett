@@ -16,6 +16,8 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith('/sikkerhet')) return true
   if (pathname.startsWith('/logg-inn')) return true
   if (pathname.startsWith('/glemt-passord')) return true
+  /** E-postlenke kan bære PKCE-kode eller tokens i hash før cookies finnes på klienten. */
+  if (pathname.startsWith('/tilbakestill-passord')) return true
   if (pathname.startsWith('/registrer')) return true
   if (pathname.startsWith('/auth')) return true
   /** Stripe webhook har ikke bruker-sesjon; må ikke redirectes til innlogging. */

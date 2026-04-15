@@ -60,6 +60,8 @@
 | [`fx`](../src/app/api/fx/route.ts), [`quote`](../src/app/api/quote/route.ts), [`quote/search`](../src/app/api/quote/search/route.ts) | Valuta og kurs (investering) |
 | [`cron/investment-quotes`](../src/app/api/cron/investment-quotes/route.ts) | Planlagt kursoppdatering (beskyttes med `CRON_SECRET`) |
 
+**EnkelExcel AI — produkthjelp for modellen:** Kurert bruksveiledning (`AI_APP_HELP_TEXT`) ligger i [`src/lib/aiAppHelp.ts`](../src/lib/aiAppHelp.ts) og skal holdes i tråd med appen når menyer, ruter eller viktige flyter endres; systeminstruks (`SYSTEM_PROMPT_BASE`) i [`src/app/api/enkelexcel-ai/route.ts`](../src/app/api/enkelexcel-ai/route.ts) justeres ved behov i samme sleng.
+
 ## Supabase — databaselag (migrasjoner)
 
 Migrasjoner ligger i [`supabase/migrations/`](../supabase/migrations/):
@@ -71,6 +73,9 @@ Migrasjoner ligger i [`supabase/migrations/`](../supabase/migrations/):
 | `003_feature_roadmap.sql` | Feature-ønsker og stemming (`/konto/roadmap`) |
 | `004_ai_monthly_usage.sql` | Månedlig AI-meldingskvote (kalendermåned Europe/Oslo) |
 | `005_ai_bonus_credits.sql` | Ekstra AI-meldinger fra Stripe-kjøp (bonus-pool) |
+| `006_monthly_insight_usage.sql` | Månedsinnsikt (AI): én generering per kalendermåned per bruker; tabell + `try_insert_monthly_insight_generation` (Europe/Oslo) |
+| `007_subscription_gate.sql` | Skrivetilgang til appdata krever aktiv Stripe-status eller `legacy_grandfathered`; `user_has_app_write_access()` og oppdaterte RLS-policyer |
+| `008_user_renovation_project_state.sql` | Oppussing/prosjektmodul: JSONB-tilstand per bruker (`user_renovation_project_state`), koblet til skrivekrav fra 007 |
 
 **Miljø:** Se [`.env.example`](../.env.example) for `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, Stripe-nøkler og AI-relaterte variabler.
 

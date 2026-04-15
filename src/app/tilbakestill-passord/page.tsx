@@ -1,20 +1,26 @@
 'use client'
 
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import AuthLoadingCard from '@/components/auth/AuthLoadingCard'
 import type { FormFeedback } from '@/lib/formFeedback'
 
 /**
- * Etter e-postlenke for glemt passord emitter Supabase PASSWORD_RECOVERY; da vises skjemaet.
- * Uten den hendelsen ventes RECOVERY_REDIRECT_MS før vi antar vanlig innlogget økt og redirecter til Konto.
+ * Etter e-postlenke for glemt passord emitter Supabase ofte PASSWORD_RECOVERY; da vises skjemaet.
+ * Etter server-side /auth/callback (PKCE) kommer ikke alltid den hendelsen — da brukes ?recovery=1.
+ * Uten recovery-sesjon ventes RECOVERY_REDIRECT_MS før vi antar vanlig innlogget økt og redirecter til Konto.
  */
 const RECOVERY_REDIRECT_MS = 8000
+const NO_SESSION_GIVEUP_MS = 12000
+const RECOVERY_POLL_MS = 150
 
-export default function TilbakestillPassordPage() {
+function TilbakestillPassordContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const recoveryIntent = searchParams.get('recovery') === '1'
+
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,21 +35,29 @@ export default function TilbakestillPassordPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
+      if (cancelled) return
       if (event === 'PASSWORD_RECOVERY') {
         recoverySeen.current = true
-        if (!cancelled) setPhase('recovery')
+        setPhase('recovery')
       }
     })
 
-    void supabase.auth.getSession().then(({ data: { session } }) => {
+    const poll = window.setInterval(() => {
       if (cancelled) return
-      if (!session) {
-        router.replace('/logg-inn?error=session')
-        return
-      }
-    })
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (cancelled) return
+        if (recoveryIntent && session) {
+          recoverySeen.current = true
+          setPhase('recovery')
+        }
+      })
+    }, RECOVERY_POLL_MS)
 
-    const redirectTimer = window.setTimeout(() => {
+    const pollStop = window.setTimeout(() => {
+      window.clearInterval(poll)
+    }, NO_SESSION_GIVEUP_MS)
+
+    const redirectNonRecoveryTimer = window.setTimeout(() => {
       if (cancelled || recoverySeen.current) return
       void supabase.auth.getSession().then(({ data: { session } }) => {
         if (cancelled || recoverySeen.current) return
@@ -53,12 +67,25 @@ export default function TilbakestillPassordPage() {
       })
     }, RECOVERY_REDIRECT_MS)
 
+    const giveUpTimer = window.setTimeout(() => {
+      if (cancelled || recoverySeen.current) return
+      void supabase.auth.getSession().then(({ data: { session } }) => {
+        if (cancelled || recoverySeen.current) return
+        if (!session) {
+          router.replace('/logg-inn?error=session')
+        }
+      })
+    }, NO_SESSION_GIVEUP_MS)
+
     return () => {
       cancelled = true
       subscription.unsubscribe()
-      window.clearTimeout(redirectTimer)
+      window.clearInterval(poll)
+      window.clearTimeout(pollStop)
+      window.clearTimeout(redirectNonRecoveryTimer)
+      window.clearTimeout(giveUpTimer)
     }
-  }, [router])
+  }, [router, recoveryIntent])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -162,5 +189,13 @@ export default function TilbakestillPassordPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function TilbakestillPassordPage() {
+  return (
+    <Suspense fallback={<AuthLoadingCard label="Kobler til økt…" />}>
+      <TilbakestillPassordContent />
+    </Suspense>
   )
 }

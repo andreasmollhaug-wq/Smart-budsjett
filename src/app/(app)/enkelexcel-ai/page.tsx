@@ -15,6 +15,8 @@ import { Lightbulb, Trash2 } from 'lucide-react'
 /** Første forslag bygges i komponenten med inneværende måned fra enhetens klokke. */
 const SUGGESTED_QUESTIONS_REST = [
   'Hva koster tjenesteabonnementene mine omtrent per måned til sammen?',
+  'Hvordan kan jeg dele en felles utgift mellom to profiler?',
+  'Gi meg konkrete tips ut fra tallene mine nå — hva bør jeg se på først?',
   'Hvordan bør jeg prioritere nedbetaling av gjeld?',
   'Hvor skiller faktiske utgifter seg mest fra budsjettet mitt nå?',
 ] as const

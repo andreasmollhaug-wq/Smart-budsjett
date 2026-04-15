@@ -338,6 +338,9 @@ export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceCon
     lines.push(
       'Bruk av data: tallene under er aggregert på tvers av alle profiler. Transaksjoner og enkeltposter som er merket med profil, tilhører den profilen.',
     )
+    lines.push(
+      'Ved spørsmål om fordeling mellom personer: bruk profilmerket innhold i teksten under der det finnes; ikke anta fordeling utover det som står.',
+    )
   } else {
     lines.push('Bruk av data: tallene under gjelder kun den valgte profilen (samme som visningsmodus over).')
   }
