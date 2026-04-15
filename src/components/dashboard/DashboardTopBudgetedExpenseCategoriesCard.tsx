@@ -76,89 +76,94 @@ export default function DashboardTopBudgetedExpenseCategoriesCard({
           Ingen budsjetterte beløp i topp 10-filteret, men du har utgifter i perioden. Bruk «Se alle» under for full liste.
         </p>
       ) : (
-        <div className="mt-4 min-w-0 overflow-x-auto touch-manipulation overscroll-x-auto">
-          <div
-            className="overflow-hidden rounded-lg border"
-            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-          >
-            <table className="w-full min-w-[480px] border-collapse text-sm">
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th className="py-2.5 pl-3 pr-2 text-left font-medium" style={{ color: 'var(--text-muted)' }}>
-                    Kategori
-                  </th>
-                  <th className="py-2.5 px-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                    Budsjett
-                  </th>
-                  <th className="py-2.5 px-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                    Faktisk
-                  </th>
-                  <th className="py-2.5 px-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                    Avvik
-                  </th>
-                  <th className="py-2.5 pr-3 pl-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                    Avvik %
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {topBudgeted.map((row, index) => {
-                  const rank = index + 1
-                  const pct = variancePctVsBudget(row.budgeted, row.variance)
-                  const open = () => onSelectCategory(row.name, row.actual)
-                  return (
-                    <tr
-                      key={row.categoryId}
-                      role="button"
-                      tabIndex={0}
-                      onClick={open}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          open()
-                        }
-                      }}
-                      className="min-h-[44px] cursor-pointer touch-manipulation outline-none transition-colors hover:bg-black/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--text-muted)]"
-                      style={{ borderBottom: '1px solid var(--border)' }}
-                      aria-label={`Åpne detaljer for ${rank}. ${row.name}`}
-                    >
-                      <td className="min-w-0 max-w-[min(45vw,12rem)] py-2.5 pr-2 pl-3 align-middle sm:max-w-none">
-                        <span className="block break-words font-medium leading-snug" style={{ color: 'var(--text)' }}>
-                          <span
-                            className="mr-1.5 inline-block min-w-[1.25rem] tabular-nums text-xs font-semibold sm:text-sm"
-                            style={{ color: 'var(--text-muted)' }}
-                          >
-                            {rank}.
+        <>
+          <p className="mt-4 text-[11px] leading-snug sm:hidden" style={{ color: 'var(--text-muted)' }}>
+            Sveip sideveis for alle kolonner.
+          </p>
+          <div className="mt-2 min-w-0 overflow-x-auto overscroll-x-contain touch-pan-x max-sm:-mx-4 max-sm:px-4 sm:mx-0 sm:mt-4">
+            <div
+              className="overflow-hidden rounded-lg border"
+              style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+            >
+              <table className="w-full min-w-[480px] border-collapse text-sm">
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                    <th className="py-2.5 pl-3 pr-2 text-left font-medium" style={{ color: 'var(--text-muted)' }}>
+                      Kategori
+                    </th>
+                    <th className="py-2.5 px-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                      Budsjett
+                    </th>
+                    <th className="py-2.5 px-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                      Faktisk
+                    </th>
+                    <th className="py-2.5 px-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                      Avvik
+                    </th>
+                    <th className="py-2.5 pr-3 pl-1 text-right font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                      Avvik %
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topBudgeted.map((row, index) => {
+                    const rank = index + 1
+                    const pct = variancePctVsBudget(row.budgeted, row.variance)
+                    const open = () => onSelectCategory(row.name, row.actual)
+                    return (
+                      <tr
+                        key={row.categoryId}
+                        role="button"
+                        tabIndex={0}
+                        onClick={open}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            open()
+                          }
+                        }}
+                        className="min-h-[44px] cursor-pointer touch-manipulation outline-none transition-colors hover:bg-black/[0.045] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--text-muted)]"
+                        style={{ borderBottom: '1px solid var(--border)' }}
+                        aria-label={`Åpne detaljer for ${rank}. ${row.name}`}
+                      >
+                        <td className="min-w-0 max-w-[min(45vw,12rem)] py-2.5 pr-2 pl-3 align-middle sm:max-w-none">
+                          <span className="block break-words font-medium leading-snug" style={{ color: 'var(--text)' }}>
+                            <span
+                              className="mr-1.5 inline-block min-w-[1.25rem] tabular-nums text-xs font-semibold sm:text-sm"
+                              style={{ color: 'var(--text-muted)' }}
+                            >
+                              {rank}.
+                            </span>
+                            {row.name}
                           </span>
-                          {row.name}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-1 text-right align-middle tabular-nums" style={{ color: 'var(--text)' }}>
-                        {formatNOK(row.budgeted)}
-                      </td>
-                      <td className="py-2.5 px-1 text-right align-middle tabular-nums" style={{ color: 'var(--text)' }}>
-                        {formatNOK(row.actual)}
-                      </td>
-                      <td
-                        className="py-2.5 px-1 text-right align-middle tabular-nums font-medium"
-                        style={{ color: expenseVarianceColor(row.variance) }}
-                      >
-                        {row.variance >= 0 ? '+' : ''}
-                        {formatNOK(row.variance)}
-                      </td>
-                      <td
-                        className="py-2.5 pr-3 pl-1 text-right align-middle tabular-nums text-xs font-medium"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {pct ?? '–'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="py-2.5 px-1 text-right align-middle tabular-nums" style={{ color: 'var(--text)' }}>
+                          {formatNOK(row.budgeted)}
+                        </td>
+                        <td className="py-2.5 px-1 text-right align-middle tabular-nums" style={{ color: 'var(--text)' }}>
+                          {formatNOK(row.actual)}
+                        </td>
+                        <td
+                          className="py-2.5 px-1 text-right align-middle tabular-nums font-medium"
+                          style={{ color: expenseVarianceColor(row.variance) }}
+                        >
+                          {row.variance >= 0 ? '+' : ''}
+                          {formatNOK(row.variance)}
+                        </td>
+                        <td
+                          className="py-2.5 pr-3 pl-1 text-right align-middle tabular-nums text-xs font-medium"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {pct ?? '–'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
       {topBudgeted.length > 0 ? (
         <p className="mt-3 text-[11px] leading-snug sm:text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -205,13 +210,16 @@ export default function DashboardTopBudgetedExpenseCategoriesCard({
               id={allPanelId}
               role="region"
               aria-labelledby={toggleId}
-              className="mt-2 max-h-[min(50vh,24rem)] min-w-0 overflow-x-auto overflow-y-auto overscroll-contain px-3 pb-2 pt-1 touch-manipulation"
+              className="mt-2 max-h-[min(50vh,24rem)] min-w-0 overflow-y-auto overscroll-contain px-3 pb-2 pt-1 touch-manipulation"
             >
               <p className="mb-3 text-[11px] leading-snug sm:text-xs" style={{ color: 'var(--text-muted)' }}>
                 Alle utgiftskategorier i perioden der det er budsjettert beløp eller registrert faktisk utgift — for
                 gjennomgang.
               </p>
-              <div className="overflow-x-auto overscroll-x-auto touch-manipulation">
+              <p className="mb-2 text-[11px] leading-snug sm:hidden" style={{ color: 'var(--text-muted)' }}>
+                Sveip sideveis for alle kolonner.
+              </p>
+              <div className="min-w-0 overflow-x-auto overscroll-x-contain touch-pan-x max-sm:-mx-3 max-sm:px-3 sm:mx-0">
                 <div
                   className="overflow-hidden rounded-lg border"
                   style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
