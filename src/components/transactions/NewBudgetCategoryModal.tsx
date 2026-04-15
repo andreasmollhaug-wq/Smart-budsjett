@@ -24,6 +24,9 @@ type Props = {
   budgetCategories: BudgetCategory[]
   addCustomBudgetLabel: (parent: ParentCategory, name: string) => void
   addBudgetCategory: (c: BudgetCategory) => void
+  /** Når satt ved åpning: forhåndsvelg type / utgift-hovedgruppe (f.eks. fra transaksjonsskjema). */
+  initialKind?: 'income' | 'expense'
+  initialExpenseParent?: ParentCategory
 }
 
 export default function NewBudgetCategoryModal({
@@ -34,18 +37,33 @@ export default function NewBudgetCategoryModal({
   budgetCategories,
   addCustomBudgetLabel,
   addBudgetCategory,
+  initialKind,
+  initialExpenseParent,
 }: Props) {
   const [name, setName] = useState('')
   const [kind, setKind] = useState<'income' | 'expense'>('expense')
   const [expenseParent, setExpenseParent] = useState<ParentCategory>('utgifter')
 
   useEffect(() => {
-    if (open) {
-      setName('')
-      setKind('expense')
+    if (!open) return
+    setName('')
+    if (initialKind === 'income') {
+      setKind('income')
       setExpenseParent('utgifter')
+      return
     }
-  }, [open])
+    if (initialKind === 'expense') {
+      setKind('expense')
+      const parent =
+        initialExpenseParent && EXPENSE_PARENTS.some((e) => e.id === initialExpenseParent)
+          ? initialExpenseParent
+          : 'utgifter'
+      setExpenseParent(parent)
+      return
+    }
+    setKind('expense')
+    setExpenseParent('utgifter')
+  }, [open, initialKind, initialExpenseParent])
 
   useEffect(() => {
     if (!open) return

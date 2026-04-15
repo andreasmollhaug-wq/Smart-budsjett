@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { budgetedMonthsFromFrequency, dateInMonth, daysInMonth, formatIsoDateDdMmYyyy } from './utils'
+import {
+  budgetedMonthsFromFrequency,
+  dateInMonth,
+  daysInMonth,
+  formatIntegerNbNo,
+  formatIntegerNbNoWhileTyping,
+  formatIsoDateDdMmYyyy,
+} from './utils'
 
 describe('daysInMonth', () => {
   it('februar skilleår', () => {
@@ -16,6 +23,27 @@ describe('daysInMonth', () => {
 describe('formatIsoDateDdMmYyyy', () => {
   it('konverterer yyyy-mm-dd til dd.mm.yyyy', () => {
     expect(formatIsoDateDdMmYyyy('2026-04-06')).toBe('06.04.2026')
+  })
+})
+
+describe('formatIntegerNbNoWhileTyping', () => {
+  it('returnerer tom streng uten siffer', () => {
+    expect(formatIntegerNbNoWhileTyping('')).toBe('')
+    expect(formatIntegerNbNoWhileTyping('abc')).toBe('')
+  })
+
+  it('ignorerer mellomrom og tusenskille ved liming', () => {
+    expect(formatIntegerNbNoWhileTyping('12 345')).toBe(formatIntegerNbNo(12345))
+    expect(formatIntegerNbNoWhileTyping('1\u00a0234')).toBe(formatIntegerNbNo(1234))
+  })
+
+  it('formaterer store tall med nb-NO-gruppering', () => {
+    expect(formatIntegerNbNoWhileTyping('1234567')).toBe(formatIntegerNbNo(1234567))
+  })
+
+  it('returnerer tom streng for kun nuller', () => {
+    expect(formatIntegerNbNoWhileTyping('0')).toBe('')
+    expect(formatIntegerNbNoWhileTyping('000')).toBe('')
   })
 })
 

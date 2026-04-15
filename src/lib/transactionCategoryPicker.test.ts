@@ -30,4 +30,25 @@ describe('mergeBudgetCategoriesForTransactionPicker', () => {
     expect(lønn).toHaveLength(1)
     expect(lønn[0]!.id).toBe('x')
   })
+
+  it('tar ikke med budsjettlinje når navnet er skjult for hovedgruppen', () => {
+    const lists = emptyLabelLists()
+    lists.hiddenBudgetLabels.utgifter = ['Mat & dagligvarer']
+    const merged = mergeBudgetCategoriesForTransactionPicker(
+      [
+        {
+          id: 'mat-id',
+          name: 'Mat & dagligvarer',
+          budgeted: Array(12).fill(1000),
+          spent: 0,
+          type: 'expense',
+          color: '#0CA678',
+          parentCategory: 'utgifter',
+          frequency: 'monthly',
+        },
+      ],
+      lists,
+    )
+    expect(merged.some((c) => c.name === 'Mat & dagligvarer')).toBe(false)
+  })
 })

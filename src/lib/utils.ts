@@ -29,6 +29,18 @@ export function parseIntegerNbNo(s: string): number {
   return n
 }
 
+/**
+ * Viser beløp med tusenskille mens brukeren skriver (kun siffer tas med).
+ * Tom når ingen siffer eller kun nuller; ellers formatIntegerNbNo av heltallet.
+ */
+export function formatIntegerNbNoWhileTyping(raw: string): string {
+  const digits = raw.replace(/[^0-9]/g, '')
+  if (!digits) return ''
+  const n = parseInt(digits, 10)
+  if (!Number.isFinite(n) || n === 0) return ''
+  return formatIntegerNbNo(n)
+}
+
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
 }

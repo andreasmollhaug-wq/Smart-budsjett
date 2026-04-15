@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory, Transaction } from '@/lib/store'
+import { REPORT_GROUP_LABELS } from '@/lib/bankReportData'
 import { transactionRequiresPlanFollowUp } from '@/lib/plannedTransactions'
-import { formatIntegerNbNo, parseIntegerNbNo } from '@/lib/utils'
+import { formatIntegerNbNo, formatIntegerNbNoWhileTyping, parseIntegerNbNo } from '@/lib/utils'
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
 import { X, Trash2 } from 'lucide-react'
@@ -94,7 +95,9 @@ export default function TransactionDetailModal({
 
   if (!open || !transaction || !draft) return null
 
-  const selectedCat = allCats.find((c) => c.name === draft.category)
+  const selectedCat =
+    allCats.find((c) => c.name === draft.category && c.type === transaction.type) ??
+    allCats.find((c) => c.name === draft.category)
   const txType = selectedCat?.type ?? transaction.type
 
   const handleSave = () => {
@@ -220,7 +223,9 @@ export default function TransactionDetailModal({
                 autoComplete="off"
                 disabled={readOnly}
                 value={draft.amount}
-                onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
+                onChange={(e) =>
+                  setDraft({ ...draft, amount: formatIntegerNbNoWhileTyping(e.target.value) })
+                }
                 onBlur={() => {
                   if (readOnly) return
                   setDraft((prev) => {
@@ -261,6 +266,7 @@ export default function TransactionDetailModal({
               </div>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
                 Type: {txType === 'income' ? 'Inntekt' : 'Utgift'}
+                {selectedCat ? ` · ${REPORT_GROUP_LABELS[selectedCat.parentCategory]}` : null}
               </p>
             </div>
             <div>

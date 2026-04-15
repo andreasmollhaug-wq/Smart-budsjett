@@ -15,8 +15,8 @@ function uniqueSortedStrings(arr: string[]): string[] {
 }
 
 /**
- * Full liste til kategorivalg på transaksjoner: eksisterende budsjettlinjer pluss
- * standardkatalog (minus skjulte) og egendefinerte etiketter som ikke allerede har rad.
+ * Full liste til kategorivalg på transaksjoner: eksisterende budsjettlinjer (minus skjulte)
+ * pluss standardkatalog (minus skjulte) og egendefinerte etiketter som ikke allerede har rad.
  */
 export function mergeBudgetCategoriesForTransactionPicker(
   budgetCategories: BudgetCategory[],
@@ -26,6 +26,8 @@ export function mergeBudgetCategoriesForTransactionPicker(
   for (const c of budgetCategories) {
     const n = c.name.trim()
     if (!n) continue
+    const hidden = new Set(lists.hiddenBudgetLabels[c.parentCategory] ?? [])
+    if (hidden.has(n)) continue
     if (!byName.has(n)) byName.set(n, c)
   }
 

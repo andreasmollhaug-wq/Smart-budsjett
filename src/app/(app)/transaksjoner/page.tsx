@@ -7,6 +7,7 @@ import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionDetailModal, { type TransactionSavePatch } from '@/components/transactions/TransactionDetailModal'
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
+import SameDayBatchTransactionForm from '@/components/transactions/SameDayBatchTransactionForm'
 import { useTransaksjonPageQuery } from '@/components/transactions/useTransaksjonPageQuery'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
 import { buildCategoryActualsYearMatrix, REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
@@ -16,6 +17,7 @@ import type { Transaction } from '@/lib/store'
 import {
   dateInMonth,
   formatIntegerNbNo,
+  formatIntegerNbNoWhileTyping,
   formatIsoDateDdMmYyyy,
   formatNOK,
   generateId,
@@ -27,8 +29,15 @@ import {
   shouldShowKommendeAttentionBanner,
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
+import { createEmptyBatchRow, validateAndBuildSameDayTransactions, type SameDayBatchRowInput } from '@/lib/transactionBatch'
 
 const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+
+const DEFAULT_SAME_DAY_BATCH_ROW_COUNT = 10
+
+function createDefaultBatchRows(): SameDayBatchRowInput[] {
+  return Array.from({ length: DEFAULT_SAME_DAY_BATCH_ROW_COUNT }, () => createEmptyBatchRow())
+}
 
 function TransaksjonerPageInner() {
   const {
@@ -87,14 +96,29 @@ function TransaksjonerPageInner() {
     category: '',
     subcategory: '',
   })
+  const [formParent, setFormParent] = useState<ParentCategory | 'all'>('all')
   const [bulkMode, setBulkMode] = useState(false)
   const [bulkMonths, setBulkMonths] = useState(() => Array.from({ length: 12 }, () => true))
   const [formError, setFormError] = useState<string | null>(null)
   const [formTargetProfileId, setFormTargetProfileId] = useState(activeProfileId)
 
+  const [entryMode, setEntryMode] = useState<'single' | 'sameDayBatch'>('single')
+  const [batchDate, setBatchDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [batchRows, setBatchRows] = useState<SameDayBatchRowInput[]>(() => createDefaultBatchRows())
+
   const showHouseholdProfilePicker = isHouseholdAggregate && profiles.length >= 2
 
-  const selectedCat = allCats.find((c) => c.name === form.category)
+  const categoriesForAddForm = useMemo(() => {
+    if (formParent === 'all') return categoryOptions
+    return categoryOptions.filter((c) => c.parentCategory === formParent)
+  }, [categoryOptions, formParent])
+
+  const selectedCat = useMemo(() => {
+    if (!form.category) return undefined
+    if (formParent === 'all') return allCats.find((c) => c.name === form.category)
+    return categoriesForAddForm.find((c) => c.name === form.category)
+  }, [form.category, formParent, allCats, categoriesForAddForm])
+
   const txType = selectedCat?.type || 'expense'
 
   const profileLabel = (pid: string | undefined) => {
@@ -196,7 +220,24 @@ function TransaksjonerPageInner() {
 
   useEffect(() => {
     setFormError(null)
-  }, [form.description, form.category, form.amount, form.date, bulkMode, bulkMonths])
+  }, [
+    form.description,
+    form.category,
+    form.amount,
+    form.date,
+    bulkMode,
+    bulkMonths,
+    formParent,
+    entryMode,
+    batchDate,
+    batchRows,
+  ])
+
+  useEffect(() => {
+    if (formParent === 'all') return
+    const ok = categoriesForAddForm.some((c) => c.name === form.category)
+    if (form.category && !ok) setForm((f) => ({ ...f, category: '' }))
+  }, [formParent, categoriesForAddForm, form.category])
 
   useEffect(() => {
     setFormTargetProfileId(activeProfileId)
@@ -210,14 +251,42 @@ function TransaksjonerPageInner() {
       category: '',
       subcategory: '',
     })
+    setFormParent('all')
     setBulkMode(false)
     setBulkMonths(Array.from({ length: 12 }, () => true))
     setFormError(null)
     setFormTargetProfileId(activeProfileId)
+    setEntryMode('single')
+    setBatchDate(new Date().toISOString().split('T')[0])
+    setBatchRows(createDefaultBatchRows())
   }
 
   const newTxProfilePatch = (): Pick<Transaction, 'profileId'> | Record<string, never> =>
     showHouseholdProfilePicker ? { profileId: formTargetProfileId } : {}
+
+  const handleBatchSubmit = () => {
+    const result = validateAndBuildSameDayTransactions(batchRows, {
+      date: batchDate,
+      categoryOptions,
+      todayStr: todayYyyyMmDd(),
+      profilePatch: newTxProfilePatch(),
+    })
+    if (!result.ok) {
+      setFormError(result.message)
+      return
+    }
+    addTransactions(result.transactions)
+    if (!isHouseholdAggregate) {
+      const seen = new Set<string>()
+      for (const t of result.transactions) {
+        if (seen.has(t.category)) continue
+        seen.add(t.category)
+        recalcBudgetSpent(t.category)
+      }
+    }
+    resetTransactionForm()
+    setShowForm(false)
+  }
 
   const handleAdd = () => {
     const desc = form.description.trim()
@@ -227,6 +296,10 @@ function TransaksjonerPageInner() {
     }
     if (!form.category) {
       setFormError('Velg kategori.')
+      return
+    }
+    if (!selectedCat) {
+      setFormError('Ugyldig kategori.')
       return
     }
     const amountNum = parseIntegerNbNo(form.amount)
@@ -368,6 +441,12 @@ function TransaksjonerPageInner() {
           budgetCategories={createCategoryProps.budgetCategories}
           addCustomBudgetLabel={createCategoryProps.addCustomBudgetLabel}
           addBudgetCategory={createCategoryProps.addBudgetCategory}
+          initialKind={
+            formParent === 'inntekter' ? 'income' : formParent !== 'all' ? 'expense' : undefined
+          }
+          initialExpenseParent={
+            formParent !== 'all' && formParent !== 'inntekter' ? formParent : undefined
+          }
         />
       )}
       <TransactionDetailModal
@@ -617,7 +696,66 @@ function TransaksjonerPageInner() {
           <>
             {showForm ? (
               <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <h2 className="font-semibold mb-4" style={{ color: 'var(--text)' }}>Ny transaksjon</h2>
+                <h2 className="font-semibold mb-3" style={{ color: 'var(--text)' }}>Ny transaksjon</h2>
+                <div
+                  className="flex flex-wrap gap-2 mb-4"
+                  role="tablist"
+                  aria-label="Registreringsmodus"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={entryMode === 'single'}
+                    onClick={() => setEntryMode('single')}
+                    className="px-4 py-2 rounded-xl text-sm font-medium min-h-[44px] min-w-0"
+                    style={{
+                      background: entryMode === 'single' ? 'var(--primary-pale)' : 'var(--bg)',
+                      color: entryMode === 'single' ? 'var(--primary)' : 'var(--text-muted)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    Én transaksjon
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={entryMode === 'sameDayBatch'}
+                    onClick={() => {
+                      setEntryMode('sameDayBatch')
+                      setBulkMode(false)
+                      setBatchDate(form.date)
+                    }}
+                    className="px-4 py-2 rounded-xl text-sm font-medium min-h-[44px] min-w-0"
+                    style={{
+                      background: entryMode === 'sameDayBatch' ? 'var(--primary-pale)' : 'var(--bg)',
+                      color: entryMode === 'sameDayBatch' ? 'var(--primary)' : 'var(--text-muted)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    Flere på samme dag
+                  </button>
+                </div>
+
+                {entryMode === 'sameDayBatch' ? (
+                  <SameDayBatchTransactionForm
+                    batchDate={batchDate}
+                    onBatchDateChange={setBatchDate}
+                    rows={batchRows}
+                    onRowsChange={setBatchRows}
+                    categoryOptions={categoryOptions}
+                    formError={formError}
+                    onSubmit={handleBatchSubmit}
+                    onCancel={() => {
+                      resetTransactionForm()
+                      setShowForm(false)
+                    }}
+                    showHouseholdProfilePicker={showHouseholdProfilePicker}
+                    profiles={profiles}
+                    formTargetProfileId={formTargetProfileId}
+                    onProfileChange={setFormTargetProfileId}
+                  />
+                ) : (
+                  <>
                 {showHouseholdProfilePicker && (
                   <div className="mb-4 max-w-md">
                     <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
@@ -677,7 +815,9 @@ function TransaksjonerPageInner() {
                     inputMode="numeric"
                     autoComplete="off"
                     value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, amount: formatIntegerNbNoWhileTyping(e.target.value) })
+                    }
                     onBlur={() => {
                       const n = parseIntegerNbNo(form.amount)
                       if (Number.isFinite(n)) setForm((f) => ({ ...f, amount: formatIntegerNbNo(n) }))
@@ -694,6 +834,7 @@ function TransaksjonerPageInner() {
                       const checked = e.target.checked
                       setBulkMode(checked)
                       if (checked) {
+                        setEntryMode('single')
                         setBulkMonths(Array.from({ length: 12 }, () => true))
                       }
                       setFormError(null)
@@ -755,25 +896,61 @@ function TransaksjonerPageInner() {
                     </div>
                   </div>
                 )}
-                <div className="flex flex-col sm:flex-row gap-2 mt-4 sm:items-stretch">
-                  <div className="flex-1 min-w-0">
-                    <BudgetCategoryPicker
-                      value={form.category}
-                      onChange={(name) => setForm({ ...form, category: name })}
-                      categories={categoryOptions}
-                      variant="pick"
-                      sortAlphabetically={false}
-                    />
+                <div className="flex flex-col gap-3 mt-4">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                    <div className="w-full sm:max-w-[min(100%,14rem)] min-w-0 shrink-0">
+                      <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                        Hovedgruppe
+                      </label>
+                      <select
+                        value={formParent}
+                        onChange={(e) =>
+                          setFormParent(e.target.value === 'all' ? 'all' : (e.target.value as ParentCategory))
+                        }
+                        className="w-full px-3 py-2 rounded-xl text-sm min-h-[44px]"
+                        style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                        aria-label="Velg hovedgruppe for ny transaksjon"
+                      >
+                        <option value="all">Alle hovedgrupper</option>
+                        {REPORT_GROUP_ORDER.map((p) => (
+                          <option key={p} value={p}>
+                            {REPORT_GROUP_LABELS[p]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col sm:flex-row gap-2 sm:items-stretch">
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                          Kategori
+                        </label>
+                        <BudgetCategoryPicker
+                          value={form.category}
+                          onChange={(name) => setForm({ ...form, category: name })}
+                          categories={categoriesForAddForm}
+                          variant="pick"
+                          sortAlphabetically={false}
+                        />
+                      </div>
+                      {createCategoryProps && (
+                        <div className="flex items-end shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setNewCatOpen(true)}
+                            className="w-full sm:w-auto px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap min-h-[44px]"
+                            style={{ background: 'var(--bg)', color: 'var(--primary)', border: '1px solid var(--border)' }}
+                          >
+                            Ny kategori
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {createCategoryProps && (
-                    <button
-                      type="button"
-                      onClick={() => setNewCatOpen(true)}
-                      className="px-3 py-2 rounded-xl text-sm font-medium shrink-0 whitespace-nowrap"
-                      style={{ background: 'var(--bg)', color: 'var(--primary)', border: '1px solid var(--border)' }}
-                    >
-                      Ny kategori
-                    </button>
+                  {selectedCat && (
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Registreres som: {txType === 'income' ? 'Inntekt' : 'Utgift'} ·{' '}
+                      {REPORT_GROUP_LABELS[selectedCat.parentCategory]}
+                    </p>
                   )}
                 </div>
                 <div className="mt-4">
@@ -813,6 +990,8 @@ function TransaksjonerPageInner() {
                   <p className="text-xs mt-2 max-w-md" style={{ color: 'var(--text-muted)' }} role="status">
                     {formError}
                   </p>
+                )}
+                  </>
                 )}
               </div>
             ) : (
@@ -879,6 +1058,11 @@ function TransaksjonerPageInner() {
                 ) : (
                   sortedDisplayTx.map((tx) => {
                     const pname = profileLabel(tx.profileId)
+                    const catMeta = allCats.find((c) => c.name === tx.category && c.type === tx.type)
+                    const parentLabel =
+                      catMeta?.parentCategory != null
+                        ? REPORT_GROUP_LABELS[catMeta.parentCategory]
+                        : null
                     return (
                       <div
                         key={tx.id}
@@ -894,7 +1078,7 @@ function TransaksjonerPageInner() {
                             <span
                               className="w-2.5 h-2.5 rounded-full shrink-0"
                               style={{
-                                background: allCats.find((c) => c.name === tx.category)?.color || 'var(--text-muted)',
+                                background: catMeta?.color || 'var(--text-muted)',
                               }}
                             />
                             <span className="min-w-0 flex-1">
@@ -905,6 +1089,18 @@ function TransaksjonerPageInner() {
                                 className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
                                 style={{ color: 'var(--text-muted)' }}
                               >
+                                {parentLabel ? (
+                                  <span
+                                    className="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold leading-none max-w-[min(100%,9rem)] truncate"
+                                    style={{
+                                      background: 'var(--primary-pale)',
+                                      border: '1px solid var(--border)',
+                                      color: 'var(--text)',
+                                    }}
+                                  >
+                                    {parentLabel}
+                                  </span>
+                                ) : null}
                                 <span className="min-w-0 truncate">
                                   {[tx.category, tx.subcategory?.trim()].filter(Boolean).join(' · ')} •{' '}
                                   {formatIsoDateDdMmYyyy(tx.date)}
