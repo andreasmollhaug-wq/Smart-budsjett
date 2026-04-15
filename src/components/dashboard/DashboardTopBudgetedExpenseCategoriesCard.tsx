@@ -210,7 +210,7 @@ export default function DashboardTopBudgetedExpenseCategoriesCard({
               id={allPanelId}
               role="region"
               aria-labelledby={toggleId}
-              className="mt-2 max-h-[min(50vh,24rem)] min-w-0 overflow-y-auto overscroll-contain px-3 pb-2 pt-1 touch-manipulation"
+              className="mt-2 max-h-[min(50vh,24rem)] min-w-0 overflow-y-auto overscroll-contain px-3 pb-2 pt-1 touch-pan-y"
             >
               <p className="mb-3 text-[11px] leading-snug sm:text-xs" style={{ color: 'var(--text-muted)' }}>
                 Alle utgiftskategorier i perioden der det er budsjettert beløp eller registrert faktisk utgift — for
@@ -219,7 +219,7 @@ export default function DashboardTopBudgetedExpenseCategoriesCard({
               <p className="mb-2 text-[11px] leading-snug sm:hidden" style={{ color: 'var(--text-muted)' }}>
                 Sveip sideveis for alle kolonner.
               </p>
-              <div className="min-w-0 overflow-x-auto overscroll-x-contain touch-pan-x max-sm:-mx-3 max-sm:px-3 sm:mx-0">
+              <div className="min-w-0 overflow-x-auto overscroll-x-contain [touch-action:pan-x_pan-y] max-sm:-mx-3 max-sm:px-3 sm:mx-0">
                 <div
                   className="overflow-hidden rounded-lg border"
                   style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
