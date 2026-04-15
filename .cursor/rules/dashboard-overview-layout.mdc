@@ -18,6 +18,7 @@ alwaysApply: false
   - **Høyre** (`min-w-0`): «Siste aktivitet» ([`DashboardRecentActivityCard`](src/components/dashboard/DashboardRecentActivityCard.tsx))
 - **Andre rad — full bredde** (`w-full`, ikke inne i venstre kolonne): Når det finnes budsjettdata, tre kolonner (`lg:grid-cols-3`) med lik strekk: «Faste trekk (budsjett)», «Sparegrad», «Tjenesteabonnementer» — slik at raden bruker hele innholdsbredden uten tomrom til høyre for tre smale kort. Uten budsjettdata: to kolonner (sparegrad + abo).
 - **Tredje rad:** «Dette bør du sjekke» ([`DashboardChecksCard`](src/components/dashboard/DashboardChecksCard.tsx)) kun når det finnes hint — under faste-trekk-raden.
-- **Mobil:** én kolonne; rekkefølge: mot budsjett → siste aktivitet → faste trekk / sparegrad / abo (evt. to kort) → ev. sjekk.
+- **Under fast/variabel forbruk og husholdningsfordeling:** full bredde — «Resultat mot budsjett» ([`DashboardNetBudgetPeriodSection`](src/components/dashboard/DashboardNetBudgetPeriodSection.tsx)): nettoavvik-KPI, graf (budsjettert vs faktisk netto per måned) og P&amp;L-tabell — kun når det finnes budsjettdata for valgt år.
+- **Mobil:** én kolonne; rekkefølge: mot budsjett → siste aktivitet → faste trekk / sparegrad / abo (evt. to kort) → ev. sjekk → fast/variabel (+ ev. husholdning) → resultat mot budsjett.
 
 Ved større omskrivninger av siden: les [`src/app/(app)/dashboard/page.tsx`](src/app/(app)/dashboard/page.tsx) og behold denne strukturen med mindre brukeren ber om noe annet.

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
   buildMonthlyBudgetActualSeries,
+  buildMonthlyNetSeriesForPeriod,
   listBudgetedFixedMonthlyExpensesForMonth,
   referenceMonthIndexForBudgetYear,
   sumActualsByMonthForType,
@@ -77,6 +78,116 @@ describe('buildMonthlyBudgetActualSeries', () => {
     expect(series[1].actualIncome).toBe(42000)
     expect(series[1].actualExpense).toBe(4800)
     expect(series[1].label).toBe('Feb')
+  })
+})
+
+describe('buildMonthlyNetSeriesForPeriod', () => {
+  it('returnerer tom liste når start er etter slutt', () => {
+    expect(buildMonthlyNetSeriesForPeriod([], 2026, [], 3, 1)).toEqual([])
+  })
+
+  it('én måned: netto matcher budsjett vs faktisk', () => {
+    const budgetCategories: BudgetCategory[] = [
+      cat({
+        id: '1',
+        name: 'Lønn',
+        type: 'income',
+        parentCategory: 'inntekter',
+        budgeted: [0, 40000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      }),
+      cat({
+        id: '2',
+        name: 'Mat',
+        type: 'expense',
+        parentCategory: 'utgifter',
+        budgeted: [0, 5000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      }),
+    ]
+    const transactions: Transaction[] = [
+      {
+        id: 't1',
+        date: '2026-02-15',
+        description: 'Lønn',
+        amount: 42000,
+        category: 'Lønn',
+        type: 'income',
+      },
+      {
+        id: 't2',
+        date: '2026-02-20',
+        description: 'Rema',
+        amount: 4800,
+        category: 'Mat',
+        type: 'expense',
+      },
+    ]
+    const pts = buildMonthlyNetSeriesForPeriod(transactions, 2026, budgetCategories, 1, 1)
+    expect(pts).toHaveLength(1)
+    expect(pts[0]!.budgetNet).toBe(35000)
+    expect(pts[0]!.actualNet).toBe(37200)
+    expect(pts[0]!.label).toBe('Feb')
+  })
+
+  it('flere måneder: ett punkt per måned i intervall', () => {
+    const budgetCategories: BudgetCategory[] = [
+      cat({
+        id: '1',
+        name: 'Lønn',
+        type: 'income',
+        parentCategory: 'inntekter',
+        budgeted: [10000, 10000, 10000, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      }),
+      cat({
+        id: '2',
+        name: 'Mat',
+        type: 'expense',
+        parentCategory: 'utgifter',
+        budgeted: [2000, 2000, 2000, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      }),
+    ]
+    const transactions: Transaction[] = [
+      {
+        id: 'a',
+        date: '2026-01-05',
+        description: 'L',
+        amount: 10000,
+        category: 'Lønn',
+        type: 'income',
+      },
+      {
+        id: 'b',
+        date: '2026-01-06',
+        description: 'M',
+        amount: 2000,
+        category: 'Mat',
+        type: 'expense',
+      },
+      {
+        id: 'c',
+        date: '2026-03-10',
+        description: 'L',
+        amount: 10000,
+        category: 'Lønn',
+        type: 'income',
+      },
+      {
+        id: 'd',
+        date: '2026-03-12',
+        description: 'M',
+        amount: 2500,
+        category: 'Mat',
+        type: 'expense',
+      },
+    ]
+    const pts = buildMonthlyNetSeriesForPeriod(transactions, 2026, budgetCategories, 0, 2)
+    expect(pts).toHaveLength(3)
+    expect(pts[0]!.monthIndex).toBe(0)
+    expect(pts[0]!.budgetNet).toBe(8000)
+    expect(pts[0]!.actualNet).toBe(8000)
+    expect(pts[1]!.budgetNet).toBe(8000)
+    expect(pts[1]!.actualNet).toBe(0)
+    expect(pts[2]!.budgetNet).toBe(8000)
+    expect(pts[2]!.actualNet).toBe(7500)
   })
 })
 

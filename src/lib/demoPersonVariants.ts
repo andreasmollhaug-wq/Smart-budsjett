@@ -10,6 +10,11 @@ import type {
   Transaction,
 } from './store'
 import type { SubscriptionPlan } from './store'
+import {
+  buildDemoSubscriptionPlannedTransactionsForYear,
+  demoExpenseIndexIsSubscription,
+  type DemoSubscriptionAmounts,
+} from './demoServiceSubscriptions'
 
 /** Maks indeks for forhåndsdefinert demoprofil (0 = dagens solo/første medlem). */
 export const MAX_DEMO_VARIANT_INDEX = 4
@@ -173,6 +178,7 @@ function buildDemoTransactionsForVariantBody(
       })
     }
     for (let ei = 0; ei < expenseNames.length; ei++) {
+      if (demoExpenseIndexIsSubscription(ei)) continue
       const name = expenseNames[ei]!
       const amt = monthlyExpenses[ei] ?? 0
       const day = Math.min(3 + ei, 28)
@@ -187,6 +193,12 @@ function buildDemoTransactionsForVariantBody(
       })
     }
   }
+  const subAmounts: DemoSubscriptionAmounts = {
+    mobil: monthlyExpenses[3] ?? 0,
+    streaming: monthlyExpenses[5] ?? 0,
+    trening: monthlyExpenses[6] ?? 0,
+  }
+  txs.push(...buildDemoSubscriptionPlannedTransactionsForYear(year, profileId, subAmounts))
   txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   return txs
 }
@@ -514,6 +526,21 @@ const VARIANT_BY_INDEX: Record<1 | 2 | 3 | 4, DemoVariantBody> = {
   2: VARIANT_2,
   3: VARIANT_3,
   4: VARIANT_4,
+}
+
+/** Månedlige beløp for demo-tjenesteabonnement (matcher `monthlyExpenses` indeks 3, 5, 6). */
+export function getDemoSubscriptionMonthlyAmountsForVariant(variantIndex: number): DemoSubscriptionAmounts {
+  const v = Math.min(Math.max(0, Math.floor(variantIndex)), 4)
+  if (v === 0) {
+    return { mobil: 400, streaming: 350, trening: 400 }
+  }
+  const body = VARIANT_BY_INDEX[v as 1 | 2 | 3 | 4]
+  const m = body.monthlyExpenses
+  return {
+    mobil: m[3] ?? 0,
+    streaming: m[5] ?? 0,
+    trening: m[6] ?? 0,
+  }
 }
 
 /** Grunnlag (uten transaksjoner) for demovariant 1–4 — ikke bruk for variant 0. */

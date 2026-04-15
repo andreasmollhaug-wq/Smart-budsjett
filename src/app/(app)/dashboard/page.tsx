@@ -9,6 +9,7 @@ import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } 
 import {
   buildBudgetVsActualForPeriod,
   buildDashboardSixMonthIncomeExpense,
+  buildMonthlyNetSeriesForPeriod,
   referenceMonthIndexForBudgetYear,
   sumTransactionsByCategoryForMonthRange,
 } from '@/lib/bankReportData'
@@ -44,6 +45,8 @@ import DashboardFixedOutgoingCard from '@/components/dashboard/DashboardFixedOut
 import DashboardFixedVariableCard from '@/components/dashboard/DashboardFixedVariableCard'
 import DashboardServiceSubscriptionsPeriodCard from '@/components/dashboard/DashboardServiceSubscriptionsPeriodCard'
 import DashboardHouseholdSnapshotCard from '@/components/dashboard/DashboardHouseholdSnapshotCard'
+import DashboardNetBudgetPeriodSection from '@/components/dashboard/DashboardNetBudgetPeriodSection'
+import DashboardTopBudgetedExpenseCategoriesCard from '@/components/dashboard/DashboardTopBudgetedExpenseCategoriesCard'
 import DashboardSavingsRateCard from '@/components/dashboard/DashboardSavingsRateCard'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import { periodRange, periodSubtitle } from '@/lib/budgetPeriod'
@@ -311,6 +314,20 @@ export default function DashboardPage() {
     end,
     transactions,
   ])
+
+  const netBudgetChartSeries = useMemo(
+    () =>
+      displayCategories.length > 0
+        ? buildMonthlyNetSeriesForPeriod(
+            transactions ?? [],
+            filterYear,
+            displayCategories,
+            start,
+            end,
+          )
+        : [],
+    [transactions, filterYear, displayCategories, start, end],
+  )
 
   const transaksjonerHref = transaksjonerPeriodHref(filterYear, periodMode, monthIndex)
 
@@ -617,6 +634,26 @@ export default function DashboardPage() {
             <DashboardHouseholdSnapshotCard members={householdPeriod.members} periodLabel={periodLabel} />
           ) : null}
         </div>
+
+        {displayCategories.length > 0 ? (
+          <div className="grid min-w-0 w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-6">
+            <DashboardNetBudgetPeriodSection
+              periodLabel={periodLabel}
+              summary={vsSummary}
+              chartSeries={netBudgetChartSeries}
+              budgetVsRows={budgetVsRows}
+              periodMode={periodMode}
+              filterYear={filterYear}
+              monthIndex={monthIndex}
+              onSelectExpenseCategory={(name, actual) => setCategoryModal({ category: name, total: actual })}
+            />
+            <DashboardTopBudgetedExpenseCategoriesCard
+              periodLabel={periodLabel}
+              rows={budgetVsRows}
+              onSelectCategory={(name, actual) => setCategoryModal({ category: name, total: actual })}
+            />
+          </div>
+        ) : null}
       </div>
 
       <DashboardInvestmentsModal
@@ -635,6 +672,10 @@ export default function DashboardPage() {
           budgetCategories={displayCategories}
           profiles={profiles}
           isHouseholdAggregate={isHouseholdAggregate}
+          periodHighlightLabel={periodLabel}
+          focusMonthRange={{ start, end }}
+          periodMode={periodMode}
+          monthIndex={monthIndex}
         />
       )}
       <DashboardIncomeExpenseMonthlyModal

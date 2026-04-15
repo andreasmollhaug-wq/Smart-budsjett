@@ -337,6 +337,57 @@ export function buildMonthlyBudgetActualSeries(
   return out
 }
 
+/** Ett punkt per måned: budsjettert og faktisk netto (inntekt − utgift) i valgt månedintervall. */
+export interface MonthlyNetPoint {
+  monthIndex: number
+  label: string
+  budgetNet: number
+  actualNet: number
+}
+
+/**
+ * Netto per kalendermåned innenfor [monthStartInclusive, monthEndInclusive] (0–11),
+ * samme definisjon som `buildMonthlyBudgetActualSeries` per måned.
+ */
+export function buildMonthlyNetSeriesForPeriod(
+  transactions: Transaction[],
+  year: number,
+  budgetCategories: BudgetCategory[],
+  monthStartInclusive: number,
+  monthEndInclusive: number,
+): MonthlyNetPoint[] {
+  const a = Math.min(11, Math.max(0, Math.floor(monthStartInclusive)))
+  const b = Math.min(11, Math.max(0, Math.floor(monthEndInclusive)))
+  if (a > b) return []
+  const start = a
+  const end = b
+  const out: MonthlyNetPoint[] = []
+  for (let monthIndex = start; monthIndex <= end; monthIndex++) {
+    const totals = sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+    const rows = buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
+    let budgetedIncome = 0
+    let budgetedExpense = 0
+    let actualIncome = 0
+    let actualExpense = 0
+    for (const r of rows) {
+      if (r.type === 'income') {
+        budgetedIncome += r.budgeted
+        actualIncome += r.actual
+      } else {
+        budgetedExpense += r.budgeted
+        actualExpense += r.actual
+      }
+    }
+    out.push({
+      monthIndex,
+      label: MONTH_LABELS_SHORT[monthIndex] ?? String(monthIndex + 1),
+      budgetNet: budgetedIncome - budgetedExpense,
+      actualNet: actualIncome - actualExpense,
+    })
+  }
+  return out
+}
+
 /** Faktisk sum per måned (0–11) for inntekt eller utgift i ett budsjettår. */
 export function sumActualsByMonthForType(
   transactions: Transaction[],

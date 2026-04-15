@@ -50,8 +50,14 @@ import {
   type FormuebyggerPersistedState,
 } from '@/lib/formuebyggerPro/persistedState'
 import {
+  buildDemoServiceSubscriptions,
+  buildDemoSubscriptionPlannedTransactionsForYear,
+  demoExpenseIndexIsSubscription,
+} from './demoServiceSubscriptions'
+import {
   buildDemoTransactionsForNonZeroVariant,
   createDemoBasePersonDataForNonZeroVariant,
+  getDemoSubscriptionMonthlyAmountsForVariant,
   getDemoVariantIndexForProfile,
 } from './demoPersonVariants'
 
@@ -891,6 +897,7 @@ function buildDemoTransactionsForYear(year: number, profileId: string): Transact
       })
     }
     for (let ei = 0; ei < DEMO_MONTHLY_EXPENSES.length; ei++) {
+      if (demoExpenseIndexIsSubscription(ei)) continue
       const [name, amt] = DEMO_MONTHLY_EXPENSES[ei]!
       const day = Math.min(3 + ei, 28)
       txs.push({
@@ -904,6 +911,8 @@ function buildDemoTransactionsForYear(year: number, profileId: string): Transact
       })
     }
   }
+  const subAmounts = getDemoSubscriptionMonthlyAmountsForVariant(0)
+  txs.push(...buildDemoSubscriptionPlannedTransactionsForYear(year, profileId, subAmounts))
   txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   return txs
 }
@@ -923,7 +932,12 @@ export function createDemoPersonDataForProfile(
     v === 0
       ? buildDemoTransactionsForYear(budgetYear, profileId)
       : buildDemoTransactionsForNonZeroVariant(budgetYear, profileId, v as 1 | 2 | 3 | 4)
-  let person: PersonData = { ...base, transactions }
+  const subAmounts = getDemoSubscriptionMonthlyAmountsForVariant(v)
+  let person: PersonData = {
+    ...base,
+    transactions,
+    serviceSubscriptions: buildDemoServiceSubscriptions(subAmounts),
+  }
   person = recalcPersonBudgetSpentForYear(person, profileId, budgetYear)
   person = syncLinkedSavingsGoalsCurrent(person, profileId)
   return person
