@@ -120,15 +120,17 @@ export default function DebtDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget && e.button === 0) onClose()
+      }}
       role="presentation"
     >
       <div
-        className="w-full max-w-lg min-w-0 rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-x-hidden overflow-y-auto"
+        className="w-full max-w-lg min-w-0 rounded-2xl p-6 pt-6 shadow-xl max-h-[90vh] overflow-x-hidden overflow-y-auto pb-[max(1.5rem,calc(1rem+env(safe-area-inset-bottom)))]"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="debt-detail-title"
@@ -153,7 +155,7 @@ export default function DebtDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg shrink-0"
+            className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg touch-manipulation"
             style={{ color: 'var(--text-muted)' }}
             aria-label="Lukk"
           >
@@ -426,13 +428,16 @@ export default function DebtDetailModal({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 mt-6 pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+        <div
+          className="mt-6 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:flex-wrap"
+          style={{ borderColor: 'var(--border)' }}
+        >
           {!readOnly && (
             <>
               <button
                 type="button"
                 onClick={handleSave}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-white"
+                className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center touch-manipulation px-4 py-2 rounded-xl text-sm font-medium text-white"
                 style={{ background: 'var(--primary)' }}
               >
                 Lagre
@@ -440,7 +445,7 @@ export default function DebtDetailModal({
               <button
                 type="button"
                 onClick={handleDelete}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
+                className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 touch-manipulation px-4 py-2 rounded-xl text-sm font-medium"
                 style={{ background: 'var(--bg)', color: 'var(--danger)', border: '1px solid var(--border)' }}
               >
                 <Trash2 size={16} />
@@ -451,7 +456,7 @@ export default function DebtDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-medium"
+            className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center touch-manipulation px-4 py-2 rounded-xl text-sm font-medium"
             style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
           >
             {readOnly ? 'Lukk' : 'Avbryt'}

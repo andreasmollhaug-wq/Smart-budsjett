@@ -16,6 +16,30 @@ export function formatIntegerNbNo(amount: number): string {
 }
 
 /**
+ * Kort beløpsvisning til diagram-etiketter (unngår lange «kr»-strenger).
+ * Eksempel: 1,2 M · 890 k · 12 500
+ */
+export function formatNOKChartLabel(amount: number): string {
+  if (!Number.isFinite(amount)) return ''
+  const n = Math.round(amount)
+  if (n === 0) return ''
+  const abs = Math.abs(n)
+  const sign = n < 0 ? '−' : ''
+  if (abs >= 1_000_000) {
+    const m = abs / 1_000_000
+    const s =
+      m >= 10
+        ? m.toLocaleString('nb-NO', { maximumFractionDigits: 0, minimumFractionDigits: 0 })
+        : m.toLocaleString('nb-NO', { maximumFractionDigits: 1, minimumFractionDigits: 1 })
+    return `${sign}${s} M`
+  }
+  if (abs >= 10_000) {
+    return `${sign}${Math.round(abs / 1000)} k`
+  }
+  return `${sign}${formatIntegerNbNo(abs)}`
+}
+
+/**
  * Tolker streng fra beløpsfelt (tusenskille, mellomrom).
  * Returnerer NaN hvis tomt, ikke-positivt, eller ugyldig.
  */

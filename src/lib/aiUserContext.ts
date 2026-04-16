@@ -426,6 +426,12 @@ export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceCon
     }
   }
 
+  if (isHouseholdAggregate) {
+    lines.push(
+      'Gjeld — side i appen (navigasjon): Med Familie og flere profiler finnes Gjeld → «Husholdning» (/gjeld/husholdning). Siden følger «Viser data for»: ved valg av Husholdning vises alle profiler; ved valg av én profil vises kun den profilens gjeld på samme rute. Innehold: KPI, diagrammer med forkortede tall på søyler (k/M), modal ved klikk. Samme underliggende gjeld som i listen over.',
+    )
+  }
+
   lines.push('')
   lines.push('Investeringer (registrert i appen):')
   const invs = person.investments ?? []

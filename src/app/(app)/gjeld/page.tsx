@@ -9,6 +9,7 @@ import { effectiveIncludeInSnowball } from '@/lib/snowball'
 import AddDebtForm, { type AddDebtFormPayload } from '@/components/debt/AddDebtForm'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
 import DebtDetailModal from '@/components/debt/DebtDetailModal'
+import GjeldSubnav from '@/components/debt/GjeldSubnav'
 import { Plus, Trash2, PauseCircle } from 'lucide-react'
 import {
   BarChart,
@@ -20,6 +21,44 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import type { TooltipPayload } from 'recharts'
+
+function truncateChartName(name: string, maxLen = 18): string {
+  const t = name.trim()
+  if (t.length <= maxLen) return t
+  return `${t.slice(0, Math.max(0, maxLen - 1))}…`
+}
+
+type BarRow = {
+  name: string
+  fullName: string
+  gjenstående: number
+  total: number
+}
+
+function DebtBarTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload }) {
+  if (!active || !payload?.length) return null
+  const row = payload[0]?.payload as BarRow | undefined
+  const title = row?.fullName ?? row?.name ?? ''
+  return (
+    <div
+      className="rounded-lg border px-3 py-2 text-xs shadow-sm max-w-[min(100vw-2rem,20rem)]"
+      style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+    >
+      <p className="font-medium mb-1.5 truncate" style={{ color: 'var(--text)' }} title={title}>
+        {title}
+      </p>
+      {payload.map((p) => (
+        <p key={String(p.dataKey)} className="flex justify-between gap-4" style={{ color: 'var(--text-muted)' }}>
+          <span>{p.name}</span>
+          <span className="tabular-nums" style={{ color: 'var(--text)' }}>
+            {formatNOK(p.value == null ? 0 : Number(p.value))}
+          </span>
+        </p>
+      ))}
+    </div>
+  )
+}
 
 export default function GjeldPage() {
   const {
@@ -41,8 +80,9 @@ export default function GjeldPage() {
   const highestRate = debts.reduce((max, d) => (d.interestRate > max ? d.interestRate : max), 0)
   const totalAnnualInterest = debts.reduce((a, d) => a + annualInterestCost(d), 0)
 
-  const barData = debts.map((d) => ({
-    name: d.name,
+  const barData: BarRow[] = debts.map((d) => ({
+    name: truncateChartName(d.name),
+    fullName: d.name,
     gjenstående: d.remainingAmount,
     total: d.totalAmount,
   }))
@@ -60,10 +100,13 @@ export default function GjeldPage() {
   return (
     <div className="flex-1 min-h-0 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header title="Gjeld" subtitle="Oversikt over all gjeld og nedbetalingsplan" />
-      <div className="p-8 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <GjeldSubnav />
+      <div
+        className="flex-1 min-w-0 w-full space-y-4 sm:space-y-6 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:pt-6 lg:px-8 lg:py-8"
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div
-            className="rounded-2xl p-5"
+            className="rounded-2xl p-4 sm:p-5 min-w-0"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -74,7 +117,7 @@ export default function GjeldPage() {
             </p>
           </div>
           <div
-            className="rounded-2xl p-5"
+            className="rounded-2xl p-4 sm:p-5 min-w-0"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -85,7 +128,7 @@ export default function GjeldPage() {
             </p>
           </div>
           <div
-            className="rounded-2xl p-5"
+            className="rounded-2xl p-4 sm:p-5 min-w-0"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -96,7 +139,7 @@ export default function GjeldPage() {
             </p>
           </div>
           <div
-            className="rounded-2xl p-5"
+            className="rounded-2xl p-4 sm:p-5 min-w-0"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -111,9 +154,9 @@ export default function GjeldPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 min-w-0">
           <div
-            className="rounded-2xl p-6 space-y-4"
+            className="rounded-2xl p-4 sm:p-6 space-y-4 min-w-0"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
@@ -122,7 +165,7 @@ export default function GjeldPage() {
 
             {debts.length === 0 && (
               <div
-                className="rounded-xl p-8 text-center"
+                className="rounded-xl p-6 sm:p-8 text-center"
                 style={{ background: 'var(--bg)', border: '1px dashed var(--border)' }}
               >
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -154,10 +197,10 @@ export default function GjeldPage() {
                       openDetail(debt.id)
                     }
                   }}
-                  className="p-4 rounded-xl space-y-3 text-left w-full cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)]"
+                  className="p-4 rounded-xl space-y-3 text-left w-full min-w-0 cursor-pointer outline-none touch-manipulation focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--primary)]"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 min-w-0">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
                         className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -189,7 +232,7 @@ export default function GjeldPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
+                    <div className="text-right shrink-0 min-w-0">
                       <p className="font-semibold text-sm" style={{ color: 'var(--danger)' }}>
                         {formatNOK(debt.remainingAmount)}
                       </p>
@@ -200,46 +243,50 @@ export default function GjeldPage() {
                   </div>
                   {!readOnly && (
                     <div
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 min-h-[44px] touch-manipulation"
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
-                      <label className="flex items-center gap-2 cursor-pointer text-xs">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs flex-1 min-w-0 py-1">
                         <input
                           type="checkbox"
                           checked={effectiveIncludeInSnowball(debt)}
                           onChange={(e) => updateDebt(debt.id, { includeInSnowball: e.target.checked })}
-                          className="rounded"
+                          className="rounded shrink-0"
                         />
                         <span style={{ color: 'var(--text-muted)' }}>Ta med i snøball</span>
                       </label>
                     </div>
                   )}
                   <div>
-                    <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                      <span>Nedbetalt: {Math.round(paidOff)}%</span>
-                      <span>Totalt: {formatNOK(debt.totalAmount)}</span>
+                    <div className="flex justify-between text-xs mb-1 gap-2 min-w-0" style={{ color: 'var(--text-muted)' }}>
+                      <span className="shrink-0">Nedbetalt: {Math.round(paidOff)}%</span>
+                      <span className="truncate text-right">Totalt: {formatNOK(debt.totalAmount)}</span>
                     </div>
                     <div className="h-1.5 rounded-full" style={{ background: 'var(--primary-pale)' }}>
                       <div className="h-full rounded-full" style={{ width: `${paidOff}%`, background: color }} />
                     </div>
                   </div>
                   {!readOnly && (
-                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex items-center gap-2 min-w-0"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    >
                       <FormattedAmountInput
                         value={debt.remainingAmount}
                         onChange={(n) => updateDebt(debt.id, { remainingAmount: n })}
-                        className="flex-1 px-2 py-1.5 rounded-lg text-xs"
+                        className="flex-1 min-w-0 min-h-[44px] px-3 py-2 rounded-lg text-sm"
                         placeholder="Oppdater restgjeld"
                         aria-label={`Restgjeld for ${debt.name}`}
                       />
                       <button
                         type="button"
                         onClick={() => removeDebt(debt.id)}
-                        className="p-1.5 rounded-lg"
+                        className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl touch-manipulation"
                         aria-label={`Slett ${debt.name}`}
                       >
-                        <Trash2 size={13} style={{ color: 'var(--text-muted)' }} />
+                        <Trash2 size={16} style={{ color: 'var(--text-muted)' }} />
                       </button>
                     </div>
                   )}
@@ -266,7 +313,7 @@ export default function GjeldPage() {
                 <button
                   type="button"
                   onClick={() => setShowForm(true)}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium text-white transition-colors w-full sm:w-auto"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-medium text-white transition-colors w-full sm:w-auto touch-manipulation"
                   style={{ background: 'var(--primary)' }}
                 >
                   <Plus size={16} aria-hidden />
@@ -277,7 +324,7 @@ export default function GjeldPage() {
           </div>
 
           <div
-            className="rounded-2xl p-6"
+            className="rounded-2xl p-4 sm:p-6 min-w-0"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <div className="mb-4">
@@ -293,25 +340,36 @@ export default function GjeldPage() {
                 Ingen data å vise i diagrammet.
               </p>
             ) : (
-              <ResponsiveContainer width="100%" height={340}>
-                <BarChart data={barData} layout="vertical" margin={{ bottom: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E0E7FF" />
-                  <XAxis
-                    type="number"
-                    tickFormatter={(v) => `${v / 1000}k`}
-                    tick={{ fill: '#6B7A99', fontSize: 11 }}
-                  />
-                  <YAxis type="category" dataKey="name" tick={{ fill: '#6B7A99', fontSize: 11 }} width={80} />
-                  <Tooltip formatter={(v) => formatNOK(v == null ? 0 : Number(v))} />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={28}
-                    wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)' }}
-                  />
-                  <Bar dataKey="total" fill="#E0E7FF" name="Opprinnelig beløp" radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="gjenstående" fill="#3B5BDB" name="Restgjeld" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-[280px] w-full min-w-0 sm:h-[340px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={barData}
+                    layout="vertical"
+                    margin={{ top: 4, right: 8, bottom: 8, left: 4 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--primary-pale)" />
+                    <XAxis
+                      type="number"
+                      tickFormatter={(v) => `${v / 1000}k`}
+                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                    />
+                    <YAxis
+                      type="category"
+                      dataKey="name"
+                      tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+                      width={104}
+                    />
+                    <Tooltip content={<DebtBarTooltip />} />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={28}
+                      wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)' }}
+                    />
+                    <Bar dataKey="total" fill="var(--primary-pale)" name="Opprinnelig beløp" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="gjenstående" fill="var(--primary)" name="Restgjeld" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
         </div>

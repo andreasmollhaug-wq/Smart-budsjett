@@ -24,7 +24,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /budsjett — Budsjett (underfaner: /budsjett/dashboard — Budsjett dashboard; /budsjett/husholdning — Husholdning, kun når «Viser data for» er husholdning med Familie og minst to profiler)
 - /transaksjoner — Transaksjoner (undermeny: /transaksjoner/kommende — Kommende planlagte transaksjoner; /transaksjoner/dashboard — Transaksjonsdashboard)
 - /sparing — Sparing (under /sparing/formuebygger — Formuebyggeren PRO)
-- /gjeld — Gjeld
+- /gjeld — Gjeld: under «Oversikt» (/gjeld) registreres og administreres lån. Når appen er satt til Familie-abonnement og det finnes minst to profiler, vises også underfanen «Husholdning» (/gjeld/husholdning) med samlet husholdnings-KPI, per-person-kort, diagrammer og modal (se egen seksjon «Gjeld»). Uten to profiler eller med Solo vises ingen gjeld-underfane — bare hovedsiden.
 - /snoball — Snøball
 - /investering — Investering
 - /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
@@ -88,6 +88,11 @@ Gjeld (/gjeld)
 - Registrer lån med navn, total/rest, rente, månedlig betaling og type (bl.a. Boliglån, Lån, Studielån, Kredittkort, Annet).
 - Standard: boliglån er ofte ikke med i snøball automatisk; andre typer kan være det — overstyr med «Ta med i snøball» (også i detalj).
 - Detaljer: pause, endre felter, snøball-innstilling. Oversikt viser bl.a. total gjeld, månedlige avdrag, høyeste rente, estimat årlig rentekostnad.
+- Underfaner vises bare når **Familie-abonnement** og **minst to profiler** er på plass. Da har du «Oversikt» (/gjeld) og «Husholdning» (/gjeld/husholdning). Med Solo eller bare én profil kommer **ingen** horisontal underfane — kun gjeldssiden som i dag.
+- Direkte besøk på /gjeld/husholdning uten rett til siden (ikke Familie eller færre enn to profiler) **videresendes** til /gjeld.
+- **Gjeld → Husholdning** (/gjeld/husholdning): Tallene **følger «Viser data for»** øverst i menyen. Når **Husholdning** er valgt: samlet KPI for hele husholdningen, **per-person-kort**, diagrammer som sammenligner alle, stablet diagram per person og type. Når **én profil** er valgt: samme side viser **kun den profilens** gjeld, kort og diagrammer (ett medlem). KPI-tekstene og undertittel på siden tilpasses modus. Søylene har **tall over seg** i forkortet form (**k** = tusen, **M** = millioner). Klikk på **person** eller **søyle** åpner **modal** med alle lån for den profilen (lesing); redigering skjer på Gjeld → Oversikt når riktig profil er valgt, som forklart i modalen.
+- Tallene på husholdningssiden er **samme registrerte gjeld** som under hver profil — appen **beregner ikke** egen «hvem bør betale hvor mye»-fordeling; det er ren oversikt og sammenligning.
+- Lenker fra husholdningssiden: til full gjeldsoversikt og til Snøball der det er knapper for det.
 
 Snøball (/snoball)
 - Strategi: Snøball (minste restgjeld først) eller Avalanche (høyeste rente først).
@@ -128,6 +133,7 @@ EnkelExcel AI (/enkelexcel-ai)
 - Hvilket tallgrunnlag som sendes til AI følger profilvelgeren til venstre: én profil eller samlet husholdning (Familie med minst to profiler). Chattsiden viser tydelig hvilket grunnlag som gjelder.
 - I husholdningsmodus er mange beløp i tallteksten summert på tvers av profiler (aggregat). Enkeltlinjer som transaksjoner, abonnementer og en del andre poster kan være merket med profil (f.eks. [navn]). Når brukeren spør om hvem eller fordeling, bruk slike profilmerker og eventuell tabell per profil — ikke anta mer enn teksten viser.
 - Innhold i tallteksten (typisk rekkefølge): innledning med budsjettår og visningsmodus; deretter tjenesteabonnementer (i husholdning: tabell per profil + detaljliste med [profil], plassert før transaksjoner slik at summene ikke forsvinner ved avkorting); transaksjoner (nyeste først, begrenset antall linjer) med profilkolonne i husholdning; kort utdrag av planlagte poster som krever oppfølging (Kommende); budsjettkategorier (brukt/plan for året); sparemål; gjeld; investeringer — med [profil] der det er relevant i husholdning. Ved svært mye data kan teksten avkortes (øvre tegnbegrensning); ikke gjett utover det som står.
+- Spørsmål om **hvor i appen** man ser gjeld **fordelt på person**, **diagram** eller **detaljvisning per medlem**: med Familie og minst to profiler finnes **Gjeld → Husholdning** (/gjeld/husholdning) med grafer, tall over søyler (forkortet k/M) og modal ved klikk på person eller søyle — dette er **ikke** en egen datakilde utover registrert gjeld per profil; tallteksten til AI er liste/tabellbasert, siden er visuell.
 - Svar skal være ren tekst uten Markdown (ingen **, kodeblokker, osv.) — som beskrevet i systeminstruksen.
 - Meldingskvote: standard inkludert antall meldinger per kalendermåned (serverstyrt; miljøvariabel AI_MONTHLY_MESSAGE_LIMIT, standard 100). Når inkluderte meldinger er brukt opp, kan du ha «ekstra meldinger» (bonus credits) hvis kjøpt.
 - Kjøp av ekstra AI-meldinger: fra chattsiden går betaling via Stripe (egen checkout); etter vellykket betaling returneres du til chatten med ?ai_credits=success.
@@ -179,8 +185,8 @@ Formuebyggeren PRO (/sparing/formuebygger)
 - Langsiktig simulering av formue og kjøpekraft; egne felt og tabeller; kan eksportere PDF der det er knapp for det i grensesnittet.
 
 Viktig for svar i chat
-- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement og Stripe → Betalinger /konto/betalinger).
+- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement og Stripe → Betalinger /konto/betalinger; gjeld per person / diagram / modal på husholdningssiden → Gjeld-seksjonen over, rute /gjeld/husholdning med forutsetning Familie + minst to profiler).
 - Når brukeren spør «hvordan gjør jeg …», gi steg som finnes i appen her — ikke finn opp nye knapper.
 - Skille mellom generell økonomiteori og det Smart Budsjett faktisk gjør.
-- Ved spørsmål om husholdning og fordeling: bruk profilmerket data og aggregater som beskrevet under EnkelExcel AI og Profiler — ikke anta tall som ikke står i tallteksten.
+- Ved spørsmål om husholdning og fordeling: bruk profilmerket data og aggregater som beskrevet under EnkelExcel AI og Profiler — ikke anta tall som ikke står i tallteksten. Gjeld-husholdningssiden viser **ikke** en egen «rettferdig fordeling» av hvem som bør betale — bare registrerte lån og avdrag per profil.
 - Ved tvil om hva som er implementert: si at brukeren kan sjekke siden i appen eller kontakte post@enkelexcel.no.`

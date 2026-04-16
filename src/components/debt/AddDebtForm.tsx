@@ -342,11 +342,11 @@ export default function AddDebtForm({ heading, submitLabel = 'Legg til', onSubmi
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
           onClick={handleSubmit}
-          className="px-4 py-2 rounded-xl text-sm font-medium text-white"
+          className="min-h-[44px] w-full sm:w-auto touch-manipulation inline-flex items-center justify-center px-4 rounded-xl text-sm font-medium text-white"
           style={{ background: 'var(--primary)' }}
         >
           {submitLabel}
@@ -354,7 +354,7 @@ export default function AddDebtForm({ heading, submitLabel = 'Legg til', onSubmi
         <button
           type="button"
           onClick={handleCancel}
-          className="px-4 py-2 rounded-xl text-sm font-medium"
+          className="min-h-[44px] w-full sm:w-auto touch-manipulation inline-flex items-center justify-center px-4 rounded-xl text-sm font-medium"
           style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
         >
           Avbryt
