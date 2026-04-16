@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useState, useMemo, useEffect } from 'react'
+import { Suspense, useState, useMemo, useEffect, useId } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import TransactionActualsYearGrid from '@/components/transactions/TransactionActualsYearGrid'
@@ -30,6 +30,8 @@ import {
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
 import { createEmptyBatchRow, validateAndBuildSameDayTransactions, type SameDayBatchRowInput } from '@/lib/transactionBatch'
+import { uniqueDescriptionsForDatalist } from '@/lib/transactionDescriptionSuggestions'
+import { useIsMinMdScreen } from '@/lib/useIsNarrowScreen'
 
 const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -81,6 +83,17 @@ function TransaksjonerPageInner() {
   } = useTransaksjonerFilters()
 
   const { vis, setVis, setYearInUrl } = useTransaksjonPageQuery()
+
+  const descriptionSearchDatalistEligible = useIsMinMdScreen()
+  const descriptionSearchDatalistId = useId()
+  const descriptionSearchDatalistOptions = useMemo(
+    () =>
+      descriptionSearchDatalistEligible
+        ? uniqueDescriptionsForDatalist(transactions, { max: 400 })
+        : [],
+    [transactions, descriptionSearchDatalistEligible],
+  )
+  const showDescriptionSearchDatalist = descriptionSearchDatalistEligible && vis === 'liste'
 
   const [showForm, setShowForm] = useState(false)
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
@@ -609,6 +622,13 @@ function TransaksjonerPageInner() {
               categories={categoryOptions}
             />
           </div>
+          {showDescriptionSearchDatalist && (
+            <datalist id={descriptionSearchDatalistId}>
+              {descriptionSearchDatalistOptions.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+          )}
           <input
             type="search"
             placeholder={vis === 'oversikt' ? 'Søk i kategorinavn' : 'Søk i beskrivelse'}
@@ -617,6 +637,8 @@ function TransaksjonerPageInner() {
             className="min-w-[12rem] flex-1 px-3 py-2 text-sm rounded-xl max-w-xs"
             style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
             aria-label={vis === 'oversikt' ? 'Søk i kategorinavn' : 'Søk i beskrivelse'}
+            list={showDescriptionSearchDatalist ? descriptionSearchDatalistId : undefined}
+            autoComplete="off"
           />
           {filtersActive && (
             <button

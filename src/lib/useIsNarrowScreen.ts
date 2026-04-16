@@ -33,3 +33,24 @@ export function useIsNarrowScreen(): boolean {
 
   return narrow
 }
+
+/** Matcher Tailwind `md:` (min 768px). Starter som `false` til etter mount slik at små skjermer ikke kort får desktop-tilstand. */
+const MIN_MD_MEDIA_QUERY = '(min-width: 768px)'
+
+/**
+ * Klient-hook: `true` når viewport er minst `md` (768px).
+ * Bruk f.eks. for HTML datalist som er tung/rotete på mobilnettlesere — da er `false` på små skjermer og ved første render.
+ */
+export function useIsMinMdScreen(): boolean {
+  const [wide, setWide] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia(MIN_MD_MEDIA_QUERY)
+    const sync = () => setWide(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  return wide
+}

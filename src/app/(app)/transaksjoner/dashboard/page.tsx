@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useId, useMemo, useState } from 'react'
 import Header from '@/components/layout/Header'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionActualsBreakdown from '@/components/transactions/TransactionActualsBreakdown'
@@ -11,6 +11,8 @@ import { REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
 import { isIsoDateString, todayIsoLocal } from '@/lib/transactionPeriodFilter'
+import { uniqueDescriptionsForDatalist } from '@/lib/transactionDescriptionSuggestions'
+import { useIsMinMdScreen } from '@/lib/useIsNarrowScreen'
 import { formatNOK } from '@/lib/utils'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 
@@ -53,6 +55,16 @@ function TransaksjonerDashboardInner() {
     isHouseholdAggregate,
     transactions,
   } = useTransaksjonerFilters()
+
+  const descriptionSearchDatalistEligible = useIsMinMdScreen()
+  const descriptionSearchDatalistId = useId()
+  const descriptionSearchDatalistOptions = useMemo(
+    () =>
+      descriptionSearchDatalistEligible
+        ? uniqueDescriptionsForDatalist(transactions, { max: 400 })
+        : [],
+    [transactions, descriptionSearchDatalistEligible],
+  )
 
   const [categoryDetail, setCategoryDetail] = useState<{
     name: string
@@ -184,6 +196,13 @@ function TransaksjonerDashboardInner() {
               categories={categoryOptions}
             />
           </div>
+          {descriptionSearchDatalistEligible && (
+            <datalist id={descriptionSearchDatalistId}>
+              {descriptionSearchDatalistOptions.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+          )}
           <input
             type="search"
             placeholder="Søk i beskrivelse"
@@ -192,6 +211,8 @@ function TransaksjonerDashboardInner() {
             className="min-w-[12rem] flex-1 px-3 py-2 text-sm rounded-xl max-w-xs"
             style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
             aria-label="Søk i beskrivelse"
+            list={descriptionSearchDatalistEligible ? descriptionSearchDatalistId : undefined}
+            autoComplete="off"
           />
           {filtersActive && (
             <button
