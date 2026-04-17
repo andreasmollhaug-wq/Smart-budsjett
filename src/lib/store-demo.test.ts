@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
-  DEMO_SUB_CATEGORY_NAMES,
-  DEMO_SUB_ID_MOBIL,
-  DEMO_SUB_ID_STREAMING,
-  DEMO_SUB_ID_TRENING,
-  DEMO_SUB_LINKED_CATEGORY,
-} from './demoServiceSubscriptions'
-import {
   createDemoPersonDataForProfile,
   DEFAULT_PROFILE_ID,
   getDemoVariantIndexForProfile,

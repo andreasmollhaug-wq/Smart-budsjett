@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store'
 import { defaultSyncBudgetFromMonth1ForBudgetYear } from '@/lib/debtBudgetSync'
 import { BUDGET_MONTH_LABELS_NB } from '@/lib/utils'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
+import DayOfMonthInput from '@/components/ui/DayOfMonthInput'
 
 export type AddDebtFormPayload = Omit<Debt, 'id' | 'sourceProfileId'>
 
@@ -287,20 +288,10 @@ export default function AddDebtForm({ heading, submitLabel = 'Legg til', onSubmi
               <label className={labelClass} style={labelStyle}>
                 Dag i måneden (1–31)
               </label>
-              <input
-                type="number"
-                min={1}
-                max={31}
+              <DayOfMonthInput
                 value={form.plannedPaymentDayOfMonth}
-                onChange={(e) => {
-                  const n = Number(e.target.value)
-                  setForm({
-                    ...form,
-                    plannedPaymentDayOfMonth: Number.isFinite(n) ? Math.min(31, Math.max(1, Math.floor(n))) : 1,
-                  })
-                }}
+                onCommit={(n) => setForm({ ...form, plannedPaymentDayOfMonth: n })}
                 className={inputClass}
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
               />
             </div>
           )}

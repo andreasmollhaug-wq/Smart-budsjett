@@ -7,6 +7,7 @@ import { BUDGET_MONTH_LABELS_NB } from '@/lib/utils'
 import { effectiveIncludeInSnowball } from '@/lib/snowball'
 import { debtTypeLabels, debtColors, debtIcons } from '@/lib/debtDisplay'
 import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
+import DayOfMonthInput from '@/components/ui/DayOfMonthInput'
 import { X, Trash2 } from 'lucide-react'
 
 type Draft = {
@@ -295,23 +296,11 @@ export default function DebtDetailModal({
                 <label className={labelClass} style={labelStyle}>
                   Dag i måneden (1–31)
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  disabled={readOnly}
+                <DayOfMonthInput
                   value={draft.plannedPaymentDayOfMonth}
-                  onChange={(e) => {
-                    const n = Number(e.target.value)
-                    setDraft({
-                      ...draft,
-                      plannedPaymentDayOfMonth: Number.isFinite(n)
-                        ? Math.min(31, Math.max(1, Math.floor(n)))
-                        : 1,
-                    })
-                  }}
+                  disabled={readOnly}
+                  onCommit={(n) => setDraft({ ...draft, plannedPaymentDayOfMonth: n })}
                   className={inputClass}
-                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                 />
               </div>
             )}
