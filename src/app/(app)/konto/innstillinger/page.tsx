@@ -2,10 +2,14 @@
 
 import Link from 'next/link'
 import { User, Bell, Sparkles, FlaskConical } from 'lucide-react'
-import { useStore } from '@/lib/store'
+import { useStore, type BudgetCategory } from '@/lib/store'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import BudgetSetupChecklistCard from '@/components/konto/BudgetSetupChecklistCard'
+
+/** Stabile tomme referanser — `?? []` / `?? {}` i Zustand-selectorer gir ny referanse hver gang og utløser React 18 getSnapshot-loop. */
+const EMPTY_BUDGET_CATEGORIES: BudgetCategory[] = []
 
 function editableNameFromMetadata(meta: Record<string, unknown> | undefined): string {
   const fromFull = meta?.full_name
@@ -229,6 +233,11 @@ function StartveiledningCard() {
 }
 
 export default function KontoInnstillingerPage() {
+  const budgetYear = useStore((s) => s.budgetYear)
+  const budgetCategories = useStore((s) => {
+    const cats = s.people[s.activeProfileId]?.budgetCategories
+    return cats ?? EMPTY_BUDGET_CATEGORIES
+  })
   return (
     <>
       <div
@@ -245,6 +254,8 @@ export default function KontoInnstillingerPage() {
       <DemoDataCard />
 
       <StartveiledningCard />
+
+      <BudgetSetupChecklistCard budgetCategories={budgetCategories} budgetYear={budgetYear} />
 
       <div
         className="rounded-2xl p-6"

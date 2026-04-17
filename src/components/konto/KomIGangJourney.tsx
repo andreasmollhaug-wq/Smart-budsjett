@@ -215,6 +215,38 @@ export default function KomIGangJourney() {
           Startveiledningen du så ved oppstart dekker bare det korteste oppsettet; her går vi dypere.
         </p>
 
+        <div
+          className="mt-5 rounded-2xl p-4 sm:p-5 animate-[komIgangHero_0.55s_ease-out_both]"
+          style={{ background: 'var(--bg)', border: '1px solid var(--border)', animationDelay: '180ms' }}
+        >
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            Sjekkliste for en god start
+          </h2>
+          <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            For å gjøre det lettere å komme i mål har vi en sjekkliste som haker av automatisk og sier hva som mangler
+            (for eksempel flere regninger eller utgiftsposter). Det gir et mer komplett budsjett, bedre sammenligning mot
+            faktiske transaksjoner og mer nyttige rapporter.
+          </p>
+          <ul className="mt-3 space-y-1.5 text-sm leading-relaxed list-disc pl-5" style={{ color: 'var(--text-muted)' }}>
+            <li>Du ser tydelig hva som gjenstår før budsjettet er «godt nok».</li>
+            <li>Systemet foreslår terskler, men du kan markere «ferdig» hvis det holder for deg.</li>
+            <li>Små steg nå gjør resten av appen mer treffsikker.</li>
+          </ul>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link
+              href="/konto/innstillinger"
+              className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-95 min-h-[44px]"
+              style={{ background: 'var(--primary)' }}
+            >
+              Åpne sjekklisten
+              <ArrowRight size={14} className="opacity-90" aria-hidden />
+            </Link>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Du finner den under Min konto → Innstillinger.
+            </span>
+          </div>
+        </div>
+
         <nav
           className="mt-5 flex flex-wrap gap-2 animate-[komIgangHero_0.55s_ease-out_both]"
           style={{ animationDelay: '210ms' }}

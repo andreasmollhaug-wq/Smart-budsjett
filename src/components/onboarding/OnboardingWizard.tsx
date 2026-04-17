@@ -283,6 +283,14 @@ export default function OnboardingWizard() {
               <Link href="/budsjett" className="underline font-medium" style={{ color: 'var(--primary)' }}>budsjettet</Link>.
             </p>
             <p className="text-sm mt-4 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Vil du sikre at budsjettet blir «komplett nok» fra start? På{' '}
+              <Link href="/konto/innstillinger" className="underline font-medium" style={{ color: 'var(--primary)' }}>
+                Min konto → Innstillinger
+              </Link>{' '}
+              finner du en sjekkliste som haker av automatisk og sier hva som mangler (f.eks. flere utgiftsposter). Du kan
+              også markere «ferdig» hvis det holder for deg.
+            </p>
+            <p className="text-sm mt-4 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Vil du ha en lengre gjennomgang med anbefalt rekkefølge og tips?{' '}
               <Link
                 href="/konto/kom-i-gang"

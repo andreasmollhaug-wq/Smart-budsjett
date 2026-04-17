@@ -276,6 +276,8 @@ export interface PersonData {
   budgetCategories: BudgetCategory[]
   customBudgetLabels: Record<ParentCategory, string[]>
   hiddenBudgetLabels: Record<ParentCategory, string[]>
+  /** Bruker-overstyring for «budsjett-oppsett»-sjekkliste: år → gruppe → ferdig. */
+  budgetSetupOverridesByYear?: Record<string, Partial<Record<ParentCategory, boolean>>>
   savingsGoals: SavingsGoal[]
   debts: Debt[]
   investments: Investment[]
@@ -426,6 +428,8 @@ interface AppState {
 
   /** Kun når `archivedBudgetsByYear` er tom (ny bruker / ingen arkiv). */
   setBudgetYear: (year: number) => void
+  setBudgetSetupOverride: (year: number, group: ParentCategory, done: boolean) => void
+  clearBudgetSetupOverrides: (year: number) => void
   completeOnboarding: () => void
   skipOnboarding: () => void
   openOnboardingAgain: () => void
@@ -823,6 +827,7 @@ export function createInitialPersonData(): PersonData {
     transactions: [],
     budgetCategories: defaultCategories,
     ...emptyLabelLists(),
+    budgetSetupOverridesByYear: {},
     savingsGoals: defaultGoals,
     debts: defaultDebts,
     investments: defaultInvestments,
@@ -837,6 +842,7 @@ export function createEmptyPersonData(): PersonData {
     transactions: [],
     budgetCategories: [],
     ...emptyLabelLists(),
+    budgetSetupOverridesByYear: {},
     savingsGoals: [],
     debts: [],
     investments: [],
@@ -1811,6 +1817,32 @@ export const useStore = create<AppState>()((set, get) => {
               nextPeople[pr.id] = recalcPersonBudgetSpentForYear(next, pr.id, y)
             }
             return { budgetYear: y, people: nextPeople }
+          })
+        },
+
+        setBudgetSetupOverride: (year, group, done) => {
+          const y = String(Math.floor(year))
+          patchActive((d) => {
+            const prev = d.budgetSetupOverridesByYear ?? {}
+            const prevForYear = prev[y] ?? {}
+            const nextForYear: Partial<Record<ParentCategory, boolean>> = { ...prevForYear, [group]: done }
+            return {
+              ...d,
+              budgetSetupOverridesByYear: {
+                ...prev,
+                [y]: nextForYear,
+              },
+            }
+          })
+        },
+
+        clearBudgetSetupOverrides: (year) => {
+          const y = String(Math.floor(year))
+          patchActive((d) => {
+            const prev = d.budgetSetupOverridesByYear ?? {}
+            if (!prev[y]) return d
+            const { [y]: _, ...rest } = prev
+            return { ...d, budgetSetupOverridesByYear: rest }
           })
         },
 
