@@ -27,6 +27,34 @@ export function clampYearlyChargeMonth1(m: number | undefined): number | undefin
 }
 
 /**
+ * Normaliserer månedsvindu for månedlig abonnement (1–12). Ved manglende grenser: hele året.
+ * Ved start > slutt byttes grensene.
+ */
+export function clampSubscriptionBudgetMonthWindow(
+  start1: number | undefined,
+  end1: number | undefined,
+): { budgetStartMonth1: number; budgetEndMonth1: number } {
+  const rawS = start1 != null && Number.isFinite(start1) ? Math.floor(Number(start1)) : 1
+  const rawE = end1 != null && Number.isFinite(end1) ? Math.floor(Number(end1)) : 12
+  let a = Math.min(12, Math.max(1, rawS))
+  let b = Math.min(12, Math.max(1, rawE))
+  if (a > b) [a, b] = [b, a]
+  return { budgetStartMonth1: a, budgetEndMonth1: b }
+}
+
+/** Måned 0 = jan. Kun relevant for `billing === 'monthly'` (år uendret). */
+export function isMonthInSubscriptionBudgetWindow(
+  sub: ServiceSubscription,
+  monthIndex0: number,
+): boolean {
+  if (sub.billing !== 'monthly') return true
+  const month1 = monthIndex0 + 1
+  const start = sub.budgetStartMonth1 ?? 1
+  const end = sub.budgetEndMonth1 ?? 12
+  return month1 >= start && month1 <= end
+}
+
+/**
  * Kostnad i valgt måned for oversikt/graf (uavhengig av synk til budsjett).
  * Samme fordelingsregler som budsjett, men uten krav om syncToBudget.
  */
@@ -37,7 +65,10 @@ export function subscriptionRollupContributionForMonth(
 ): number {
   if (!isSubscriptionContributingInBudgetMonth(sub, year, monthIndex0)) return 0
   const a = Math.max(0, Number.isFinite(sub.amountNok) ? sub.amountNok : 0)
-  if (sub.billing === 'monthly') return a
+  if (sub.billing === 'monthly') {
+    if (!isMonthInSubscriptionBudgetWindow(sub, monthIndex0)) return 0
+    return a
+  }
   const chargeM = clampYearlyChargeMonth1(sub.yearlyChargeMonth1)
   if (chargeM == null) return a / 12
   return monthIndex0 + 1 === chargeM ? a : 0

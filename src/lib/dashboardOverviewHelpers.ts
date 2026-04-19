@@ -1,6 +1,6 @@
 import type { BudgetVsActualRow } from '@/lib/bankReportData'
 import { MONTH_LABELS_SHORT_NB } from '@/lib/bankReportData'
-import type { Transaction } from '@/lib/store'
+import type { BudgetCategory, Transaction } from '@/lib/store'
 
 export type BudgetVsSummary = {
   budgetedIncome: number
@@ -182,4 +182,65 @@ export function buildDashboardCheckHints(params: {
   }
 
   return out.slice(0, 3)
+}
+
+export type ArsvisningInsightItem = { id: string; text: string; href?: string }
+
+const MAX_ARSVISNING_INSIGHTS = 8
+
+/** Hint for årssiden: transaksjoner uten matchende budsjettlinje, og budsjett uten aktivitet i året. */
+export function buildArsvisningDataInsights(params: {
+  transactions: Transaction[]
+  year: number
+  displayCategories: BudgetCategory[]
+  actualYearMatrix: Map<string, number[]>
+}): ArsvisningInsightItem[] {
+  const { transactions, year, displayCategories, actualYearMatrix } = params
+  const budgetKeys = new Set(displayCategories.map((c) => `${c.name}::${c.type}`))
+
+  const orphanTotals = new Map<string, { name: string; type: 'income' | 'expense'; total: number }>()
+  for (const t of transactions) {
+    if (!t.date || t.date.length < 7 || !t.date.startsWith(`${year}-`)) continue
+    const mm = Number.parseInt(t.date.slice(5, 7), 10)
+    if (!Number.isFinite(mm) || mm < 1 || mm > 12) continue
+    const key = `${t.category}::${t.type}`
+    if (budgetKeys.has(key)) continue
+    const amt = Number.isFinite(t.amount) ? t.amount : 0
+    if (amt === 0) continue
+    const cur = orphanTotals.get(key)
+    if (cur) cur.total += amt
+    else orphanTotals.set(key, { name: t.category, type: t.type, total: amt })
+  }
+
+  const orphanRows = [...orphanTotals.values()].sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
+  const orphans: ArsvisningInsightItem[] = orphanRows.map((v) => {
+    const label = v.type === 'income' ? 'inntekt' : 'utgift'
+    return {
+      id: `orphan-${v.name}-${v.type}`,
+      text: `«${v.name}» (${label}) har transaksjoner i ${year}, men ingen tilsvarende budsjettlinje.`,
+      href: `/transaksjoner?year=${year}&month=all&category=${encodeURIComponent(v.name)}`,
+    }
+  })
+
+  const noActivity: ArsvisningInsightItem[] = []
+  for (const c of displayCategories) {
+    const arr = c.budgeted
+    let budgetSum = 0
+    if (Array.isArray(arr) && arr.length === 12) {
+      for (let i = 0; i < 12; i++) budgetSum += arr[i] ?? 0
+    }
+    if (budgetSum <= 0) continue
+    const row = actualYearMatrix.get(c.name)
+    let actualSum = 0
+    if (row) for (let i = 0; i < 12; i++) actualSum += row[i] ?? 0
+    if (actualSum !== 0) continue
+    noActivity.push({
+      id: `nobudgetact-${c.id}`,
+      text: `«${c.name}» er budsjettert i ${year}, men det er ikke registrert transaksjoner på linjen.`,
+      href: `/transaksjoner?year=${year}&month=all&category=${encodeURIComponent(c.name)}`,
+    })
+  }
+
+  const combined = [...orphans, ...noActivity]
+  return combined.slice(0, MAX_ARSVISNING_INSIGHTS)
 }

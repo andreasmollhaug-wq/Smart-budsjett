@@ -48,13 +48,13 @@ export default function StatCard({
 
   const inner = (
     <>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-1 min-w-0 flex-1">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="text-sm font-medium leading-snug" style={{ color: 'var(--text-muted)' }}>
             {label}
           </span>
           {info && (
-            <div className="relative shrink-0 flex items-start" ref={infoWrapRef}>
+            <div className="relative flex shrink-0 items-center" ref={infoWrapRef}>
               <button
                 type="button"
                 onClick={() => setInfoOpen((o) => !o)}

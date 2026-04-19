@@ -20,6 +20,7 @@ import {
 } from './serviceSubscriptionHelpers'
 import {
   applySubscriptionBudgetRebuildsForCategoryIds,
+  clampSubscriptionBudgetMonthWindow,
   clampYearlyChargeMonth1,
 } from './subscriptionBudgetRebuild'
 import {
@@ -237,6 +238,9 @@ export interface ServiceSubscription {
   budgetLinkMode?: 'dedicated' | 'shared'
   /** Når `billing === 'yearly'`: måned 1–12 for årlig trekk (mangler = jevn fordeling som før). */
   yearlyChargeMonth1?: number
+  /** Kun `billing === 'monthly'` + synk til budsjett: hvilke måneder (1–12) som får planbeløp. Mangler = hele året. */
+  budgetStartMonth1?: number
+  budgetEndMonth1?: number
   note?: string
   presetKey?: string
   /** Avsluttet fra og med denne måneden (år + måned 1–12). */
@@ -2295,6 +2299,10 @@ export const useStore = create<AppState>()((set, get) => {
           const syncToBudget = !!(input.syncToBudget && active)
           const billing = input.billing === 'yearly' ? 'yearly' : 'monthly'
           const yearlyChargeMonth1 = billing === 'yearly' ? clampYearlyChargeMonth1(input.yearlyChargeMonth1) : undefined
+          const budgetMonthWindow =
+            billing === 'monthly' && syncToBudget
+              ? clampSubscriptionBudgetMonthWindow(input.budgetStartMonth1, input.budgetEndMonth1)
+              : { budgetStartMonth1: undefined as number | undefined, budgetEndMonth1: undefined as number | undefined }
 
           const baseSub: ServiceSubscription = {
             id,
@@ -2305,6 +2313,8 @@ export const useStore = create<AppState>()((set, get) => {
             syncToBudget: false,
             linkedBudgetCategoryId: null,
             yearlyChargeMonth1,
+            budgetStartMonth1: budgetMonthWindow.budgetStartMonth1,
+            budgetEndMonth1: budgetMonthWindow.budgetEndMonth1,
             note: input.note?.trim() || undefined,
             presetKey: input.presetKey,
           }
@@ -2583,6 +2593,18 @@ export const useStore = create<AppState>()((set, get) => {
               nextSub = { ...nextSub, linkedBudgetCategoryId: catId, syncToBudget: true }
               affectedCatIds.add(catId)
             }
+          }
+
+          if (nextSub.billing === 'monthly' && nextSub.syncToBudget) {
+            nextSub = {
+              ...nextSub,
+              ...clampSubscriptionBudgetMonthWindow(
+                patch.budgetStartMonth1 !== undefined ? patch.budgetStartMonth1 : prev.budgetStartMonth1,
+                patch.budgetEndMonth1 !== undefined ? patch.budgetEndMonth1 : prev.budgetEndMonth1,
+              ),
+            }
+          } else {
+            nextSub = { ...nextSub, budgetStartMonth1: undefined, budgetEndMonth1: undefined }
           }
 
           const nextList = [...list]

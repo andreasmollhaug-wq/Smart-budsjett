@@ -8,6 +8,7 @@ import { useMemo } from 'react'
 const baseTabs = [
   { href: '/budsjett', label: 'Budsjett', labelShort: 'Budsjett' },
   { href: '/budsjett/dashboard', label: 'Budsjett dashboard', labelShort: 'Dashboard' },
+  { href: '/budsjett/arsvisning', label: 'Årsoversikt', labelShort: 'År' },
 ] as const
 
 const householdTab = {

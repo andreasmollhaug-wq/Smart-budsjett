@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createEmptyPersonData, type BudgetCategory, type ServiceSubscription } from '@/lib/store'
 import {
   applySubscriptionBudgetRebuildsForYear,
+  isMonthInSubscriptionBudgetWindow,
   isSubscriptionContributingInBudgetMonth,
   rebuildRegningerCategoryBudgetFromSubscriptions,
   subscriptionBudgetContributionForMonth,
@@ -36,6 +37,28 @@ describe('isSubscriptionContributingInBudgetMonth', () => {
     expect(isSubscriptionContributingInBudgetMonth(sub, 2026, 0)).toBe(true)
     expect(isSubscriptionContributingInBudgetMonth(sub, 2026, 4)).toBe(true)
     expect(isSubscriptionContributingInBudgetMonth(sub, 2026, 5)).toBe(false)
+  })
+})
+
+describe('isMonthInSubscriptionBudgetWindow', () => {
+  it('månedlig: respekterer budgetStartMonth1/budgetEndMonth1', () => {
+    const sub = {
+      id: '1',
+      label: 'X',
+      amountNok: 100,
+      billing: 'monthly' as const,
+      active: true,
+      syncToBudget: true,
+      linkedBudgetCategoryId: 'c1',
+      budgetStartMonth1: 3,
+      budgetEndMonth1: 5,
+    } satisfies ServiceSubscription
+    expect(isMonthInSubscriptionBudgetWindow(sub, 0)).toBe(false)
+    expect(isMonthInSubscriptionBudgetWindow(sub, 1)).toBe(false)
+    expect(isMonthInSubscriptionBudgetWindow(sub, 2)).toBe(true)
+    expect(isMonthInSubscriptionBudgetWindow(sub, 3)).toBe(true)
+    expect(isMonthInSubscriptionBudgetWindow(sub, 4)).toBe(true)
+    expect(isMonthInSubscriptionBudgetWindow(sub, 5)).toBe(false)
   })
 })
 
@@ -95,6 +118,34 @@ describe('rebuildRegningerCategoryBudgetFromSubscriptions', () => {
     expect(b[1]).toBe(0)
     expect(b[2]).toBe(1200)
     expect(b[3]).toBe(0)
+  })
+
+  it('månedlig med månedsvindu 3–5: kun disse månedene får beløp', () => {
+    const cat = regCat('c1', 'Test')
+    const person = {
+      ...createEmptyPersonData(),
+      budgetCategories: [cat],
+      serviceSubscriptions: [
+        {
+          id: 'a',
+          label: 'Delvis år',
+          amountNok: 100,
+          billing: 'monthly' as const,
+          active: true,
+          syncToBudget: true,
+          linkedBudgetCategoryId: 'c1',
+          budgetStartMonth1: 3,
+          budgetEndMonth1: 5,
+        },
+      ],
+    }
+    const b = rebuildRegningerCategoryBudgetFromSubscriptions(person, 2026, 'c1')
+    expect(b[0]).toBe(0)
+    expect(b[1]).toBe(0)
+    expect(b[2]).toBe(100)
+    expect(b[3]).toBe(100)
+    expect(b[4]).toBe(100)
+    expect(b[5]).toBe(0)
   })
 })
 

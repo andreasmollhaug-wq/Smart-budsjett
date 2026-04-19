@@ -124,7 +124,10 @@ export default function AbonnementerPage() {
   const [newBilling, setNewBilling] = useState<'monthly' | 'yearly'>('monthly')
   const [newSync, setNewSync] = useState(true)
   const [newPlannedTx, setNewPlannedTx] = useState(true)
-  const [txStartMonth, setTxStartMonth] = useState(() => now.getMonth() + 1)
+  /** Månedsvindu for budsjett (kun månedlig); planlagte trekk kopierer herfra som standard. */
+  const [budgetStartMonth, setBudgetStartMonth] = useState(1)
+  const [budgetEndMonth, setBudgetEndMonth] = useState(12)
+  const [txStartMonth, setTxStartMonth] = useState(1)
   const [txEndMonth, setTxEndMonth] = useState(12)
   const [txDay, setTxDay] = useState(defaultDay)
   const [presetKey, setPresetKey] = useState('')
@@ -186,6 +189,15 @@ export default function AbonnementerPage() {
 
   const [newRegningerLineModalOpen, setNewRegningerLineModalOpen] = useState(false)
   const prevNewYearlyChargeRef = useRef<number | ''>('')
+  const prevNewPlannedTxRef = useRef(false)
+
+  useEffect(() => {
+    if (newPlannedTx && !prevNewPlannedTxRef.current && newSync && newBilling === 'monthly') {
+      setTxStartMonth(budgetStartMonth)
+      setTxEndMonth(budgetEndMonth)
+    }
+    prevNewPlannedTxRef.current = newPlannedTx
+  }, [newPlannedTx, newSync, newBilling, budgetStartMonth, budgetEndMonth])
 
   useEffect(() => {
     if (!newPlannedTx || newBilling !== 'yearly' || newYearlyChargeMonth === '') return
@@ -261,6 +273,9 @@ export default function AbonnementerPage() {
 
   const handleAdd = () => {
     const label = newLabel.trim() || 'Abonnement'
+    if (newSync && newBilling === 'monthly' && budgetStartMonth > budgetEndMonth) {
+      return
+    }
     if (newSync && newPlannedTx && txStartMonth > txEndMonth) {
       return
     }
@@ -291,6 +306,8 @@ export default function AbonnementerPage() {
       existingBudgetCategoryId:
         newSync && !newBudgetDedicated ? newSharedCategoryId.trim() : undefined,
       yearlyChargeMonth1: newBilling === 'yearly' ? ycm : undefined,
+      budgetStartMonth1: newSync && newBilling === 'monthly' ? budgetStartMonth : undefined,
+      budgetEndMonth1: newSync && newBilling === 'monthly' ? budgetEndMonth : undefined,
       presetKey: presetKey || undefined,
       plannedTransactions,
     })
@@ -303,10 +320,11 @@ export default function AbonnementerPage() {
       setNewBudgetDedicated(true)
       setNewSharedCategoryId('')
       setNewYearlyChargeMonth('')
-      const n = new Date()
-      setTxStartMonth(n.getMonth() + 1)
+      setBudgetStartMonth(1)
+      setBudgetEndMonth(12)
+      setTxStartMonth(1)
       setTxEndMonth(12)
-      setTxDay(clampBillingDay(n.getDate()))
+      setTxDay(clampBillingDay(new Date().getDate()))
       setPresetKey('')
     } else if (res.reason === 'invalid_budget_category') {
       window.alert('Fant ikke valgt budsjettlinje under Regninger. Oppdater siden og prøv igjen.')
@@ -778,6 +796,54 @@ export default function AbonnementerPage() {
                       </div>
                     )}
                   </div>
+                  {newBilling === 'monthly' && (
+                    <div className="space-y-2 min-w-0">
+                      <p className="text-xs font-medium m-0" style={{ color: 'var(--text-muted)' }}>
+                        Budsjett: hvilke måneder (budsjettår {budgetYear})
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label className="block text-sm min-w-0">
+                          <span style={{ color: 'var(--text-muted)' }}>Fra måned</span>
+                          <select
+                            value={budgetStartMonth}
+                            onChange={(e) => setBudgetStartMonth(parseInt(e.target.value, 10))}
+                            className="mt-1 w-full rounded-xl px-3 py-2 text-sm min-h-[44px] touch-manipulation"
+                            style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                          >
+                            {MONTH_OPTIONS.map((o) => (
+                              <option key={o.v} value={o.v}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-sm min-w-0">
+                          <span style={{ color: 'var(--text-muted)' }}>Til måned</span>
+                          <select
+                            value={budgetEndMonth}
+                            onChange={(e) => setBudgetEndMonth(parseInt(e.target.value, 10))}
+                            className="mt-1 w-full rounded-xl px-3 py-2 text-sm min-h-[44px] touch-manipulation"
+                            style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                          >
+                            {MONTH_OPTIONS.map((o) => (
+                              <option key={o.v} value={o.v}>
+                                {o.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                      <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                        Planbeløpet i budsjettet gjelder bare valgte måneder. «Planlagte utgifter» bruker samme periode som
+                        standard når du huker av nedenfor.
+                      </p>
+                      {budgetStartMonth > budgetEndMonth && (
+                        <p className="text-xs m-0" style={{ color: 'var(--danger)' }}>
+                          Startmåned kan ikke være etter sluttmåned.
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <label className="flex items-start gap-2 text-sm cursor-pointer touch-manipulation">
                     <input
                       type="checkbox"
@@ -796,8 +862,17 @@ export default function AbonnementerPage() {
                           </>
                         ) : (
                           <>
-                            Én linje per måned i valgt periode (budsjettår {budgetYear}). Dette er planlagte trekk, ikke
-                            bankimport. Brukt-beløp og budsjett kan overlappe — se hjelpeteksten om abonnement.
+                            {newBilling === 'monthly' ? (
+                              <>
+                                Én linje per måned i valgt periode (budsjettår {budgetYear}). Som standard brukes samme
+                                måneder som under «Budsjett» ovenfor — du kan endre her. Planlagte trekk, ikke bankimport.
+                              </>
+                            ) : (
+                              <>
+                                Én linje per måned i valgt periode (budsjettår {budgetYear}). Dette er planlagte trekk,
+                                ikke bankimport. Brukt-beløp og budsjett kan overlappe — se hjelpeteksten om abonnement.
+                              </>
+                            )}
                           </>
                         )}
                       </span>
@@ -805,7 +880,7 @@ export default function AbonnementerPage() {
                   </label>
                   {newPlannedTx &&
                     (newBilling === 'yearly' && newYearlyChargeMonth !== '' ? (
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <label className="block text-xs">
                           <span style={{ color: 'var(--text-muted)' }}>
                             Planlagt trekk (samme som forfallsmåned)
@@ -831,7 +906,7 @@ export default function AbonnementerPage() {
                         </label>
                       </div>
                     ) : (
-                      <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <label className="block text-xs">
                           <span style={{ color: 'var(--text-muted)' }}>Fra måned</span>
                           <select
@@ -888,7 +963,11 @@ export default function AbonnementerPage() {
               type="button"
               className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 min-h-[44px] min-w-[44px] text-sm font-medium text-white disabled:opacity-50 touch-manipulation"
               style={{ background: 'var(--primary)' }}
-              disabled={newAmount <= 0 || (newSync && newPlannedTx && txStartMonth > txEndMonth)}
+              disabled={
+                newAmount <= 0 ||
+                (newSync && newBilling === 'monthly' && budgetStartMonth > budgetEndMonth) ||
+                (newSync && newPlannedTx && txStartMonth > txEndMonth)
+              }
               onClick={handleAdd}
             >
               <Plus size={18} />
@@ -1031,11 +1110,11 @@ function EditSubscriptionDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="fixed left-1/2 top-1/2 z-[200] m-0 max-h-[min(90dvh,40rem)] w-[min(100vw-1.5rem,28rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border-0 p-0 backdrop:bg-black/40"
+      className="fixed left-1/2 top-1/2 z-[200] m-0 w-[min(100vw-1.5rem,28rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border-0 p-0 backdrop:bg-black/40"
       style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
       onClose={onClose}
     >
-      <div className="p-5 sm:p-6 max-h-[min(90dvh,40rem)] overflow-y-auto overscroll-contain">
+      <div className="max-h-[min(90dvh,40rem)] overflow-y-auto overscroll-contain p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <h2 className="text-lg font-bold m-0 pr-2" style={{ color: 'var(--text)' }}>
             Rediger abonnement
@@ -1141,8 +1220,19 @@ function EditRow({
   )
   const [yearlyChargeMonth, setYearlyChargeMonth] = useState<number | ''>(initial.yearlyChargeMonth1 ?? '')
   const [plannedTx, setPlannedTx] = useState(() => plannedTxEditDefaults(initial, transactions, budgetYear))
+  const [budgetStartMonth, setBudgetStartMonth] = useState(
+    () =>
+      initial.budgetStartMonth1 ??
+      plannedTxEditDefaults(initial, transactions, budgetYear).startMonth,
+  )
+  const [budgetEndMonth, setBudgetEndMonth] = useState(
+    () =>
+      initial.budgetEndMonth1 ??
+      plannedTxEditDefaults(initial, transactions, budgetYear).endMonth,
+  )
   const [newRegningerLineModalOpen, setNewRegningerLineModalOpen] = useState(false)
   const prevEditYearlyChargeRef = useRef<number | ''>('')
+  const prevEditPlannedEnabledRef = useRef(false)
 
   const legacyEditSharedCategory = useMemo(
     () =>
@@ -1202,11 +1292,24 @@ function EditRow({
     prevEditYearlyChargeRef.current = yearlyChargeMonth
   }, [billing, yearlyChargeMonth, plannedTx.enabled])
 
+  useEffect(() => {
+    if (
+      plannedTx.enabled &&
+      !prevEditPlannedEnabledRef.current &&
+      sync &&
+      billing === 'monthly'
+    ) {
+      setPlannedTx((p) => ({ ...p, startMonth: budgetStartMonth, endMonth: budgetEndMonth }))
+    }
+    prevEditPlannedEnabledRef.current = plannedTx.enabled
+  }, [plannedTx.enabled, sync, billing, budgetStartMonth, budgetEndMonth])
+
   const invalidPlannedRange = sync && plannedTx.enabled && plannedTx.startMonth > plannedTx.endMonth
+  const invalidBudgetMonth = sync && billing === 'monthly' && budgetStartMonth > budgetEndMonth
   const invalidShared = sync && !linkDedicated && !sharedCatId.trim()
 
   const handleSave = () => {
-    if (invalidPlannedRange || invalidShared) return
+    if (invalidPlannedRange || invalidShared || invalidBudgetMonth) return
     let plannedPart: UpdateServiceSubscriptionPatch['plannedTransactions']
     if (!sync) {
       plannedPart = null
@@ -1228,6 +1331,8 @@ function EditRow({
       syncToBudget: sync,
       plannedTransactions: plannedPart,
       yearlyChargeMonth1: billing === 'yearly' ? (yearlyChargeMonth === '' ? undefined : yearlyChargeMonth) : undefined,
+      budgetStartMonth1: sync && billing === 'monthly' ? budgetStartMonth : undefined,
+      budgetEndMonth1: sync && billing === 'monthly' ? budgetEndMonth : undefined,
     }
     if (sync) {
       patch.budgetLinkMode = linkDedicated ? 'dedicated' : 'shared'
@@ -1375,6 +1480,54 @@ function EditRow({
               </div>
             )}
           </div>
+          {billing === 'monthly' && (
+            <div className="space-y-2 min-w-0">
+              <p className="text-xs font-medium m-0" style={{ color: 'var(--text-muted)' }}>
+                Budsjett: hvilke måneder (budsjettår {budgetYear})
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block text-sm min-w-0">
+                  <span style={{ color: 'var(--text-muted)' }}>Fra måned</span>
+                  <select
+                    value={budgetStartMonth}
+                    onChange={(e) => setBudgetStartMonth(parseInt(e.target.value, 10))}
+                    className="mt-1 w-full rounded-xl px-3 py-2 text-sm min-h-[44px] touch-manipulation"
+                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  >
+                    {MONTH_OPTIONS.map((o) => (
+                      <option key={o.v} value={o.v}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm min-w-0">
+                  <span style={{ color: 'var(--text-muted)' }}>Til måned</span>
+                  <select
+                    value={budgetEndMonth}
+                    onChange={(e) => setBudgetEndMonth(parseInt(e.target.value, 10))}
+                    className="mt-1 w-full rounded-xl px-3 py-2 text-sm min-h-[44px] touch-manipulation"
+                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  >
+                    {MONTH_OPTIONS.map((o) => (
+                      <option key={o.v} value={o.v}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <p className="text-xs m-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Planbeløpet i budsjettet gjelder bare valgte måneder. «Planlagte utgifter» bruker samme periode som standard
+                når du huker av nedenfor.
+              </p>
+              {budgetStartMonth > budgetEndMonth && (
+                <p className="text-xs m-0" style={{ color: 'var(--danger)' }}>
+                  Startmåned kan ikke være etter sluttmåned.
+                </p>
+              )}
+            </div>
+          )}
           <label className="flex items-start gap-2 text-sm cursor-pointer touch-manipulation">
             <input
               type="checkbox"
@@ -1390,10 +1543,15 @@ function EditRow({
                     Ett planlagt trekk i forfallsmåneden med hele årsbeløpet (budsjettår {budgetYear}). Planlagte trekk,
                     ikke bankimport. Brukt-beløp og budsjett kan overlappe — se hjelpeteksten om abonnement.
                   </>
+                ) : billing === 'monthly' ? (
+                  <>
+                    Én linje per måned i valgt periode (budsjettår {budgetYear}). Som standard brukes samme måneder som
+                    under «Budsjett» ovenfor — du kan endre her. Planlagte trekk, ikke bankimport.
+                  </>
                 ) : (
                   <>
-                    Én linje per måned i valgt periode (budsjettår {budgetYear}). Planlagte trekk, ikke bankimport.
-                    Brukt-beløp og budsjett kan overlappe — se hjelpeteksten om abonnement.
+                    Én linje per måned i valgt periode (budsjettår {budgetYear}). Planlagte trekk, ikke bankimport. Brukt-beløp
+                    og budsjett kan overlappe — se hjelpeteksten om abonnement.
                   </>
                 )}
               </span>
@@ -1401,7 +1559,7 @@ function EditRow({
           </label>
           {plannedTx.enabled &&
             (billing === 'yearly' && yearlyChargeMonth !== '' ? (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="block text-xs">
                   <span style={{ color: 'var(--text-muted)' }}>
                     Planlagt trekk (samme som forfallsmåned)
@@ -1432,8 +1590,8 @@ function EditRow({
                 </label>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="block text-xs">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <label className="block text-xs min-w-0">
                   <span style={{ color: 'var(--text-muted)' }}>Fra måned</span>
                   <select
                     value={plannedTx.startMonth}
@@ -1450,7 +1608,7 @@ function EditRow({
                     ))}
                   </select>
                 </label>
-                <label className="block text-xs">
+                <label className="block text-xs min-w-0">
                   <span style={{ color: 'var(--text-muted)' }}>Til måned</span>
                   <select
                     value={plannedTx.endMonth}
@@ -1467,7 +1625,7 @@ function EditRow({
                     ))}
                   </select>
                 </label>
-                <label className="block text-xs">
+                <label className="block text-xs min-w-0">
                   <span style={{ color: 'var(--text-muted)' }}>Dag i måneden (1–31)</span>
                   <input
                     type="number"
@@ -1517,7 +1675,7 @@ function EditRow({
           type="button"
           className="rounded-xl px-4 py-2.5 min-h-[44px] text-sm font-medium text-white disabled:opacity-50 touch-manipulation inline-flex items-center justify-center"
           style={{ background: 'var(--primary)' }}
-          disabled={invalidPlannedRange || invalidShared}
+          disabled={invalidPlannedRange || invalidShared || invalidBudgetMonth}
           onClick={handleSave}
         >
           Lagre

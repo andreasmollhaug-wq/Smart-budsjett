@@ -198,6 +198,17 @@ export function buildCategoryActualsYearMatrix(
   return matrix
 }
 
+/**
+ * Budsjettert beløp per kalendermåned (0–11) per kategori — speiler strukturen til buildCategoryActualsYearMatrix.
+ */
+export function buildCategoryBudgetYearMatrix(categories: BudgetCategory[]): Map<string, number[]> {
+  const matrix = new Map<string, number[]>()
+  for (const c of categories) {
+    matrix.set(c.name, ensureBudgetedArray(c.budgeted))
+  }
+  return matrix
+}
+
 function sumBudgetedForMonthRange(arr: number[], monthStart: number, monthEnd: number): number {
   let s = 0
   for (let i = monthStart; i <= monthEnd; i++) {
@@ -267,6 +278,25 @@ export function groupBudgetVsActualByParent(
   }
   for (const r of rows) {
     out[r.parentCategory].push(r)
+  }
+  return out
+}
+
+export function groupBudgetCategoriesByParent(
+  categories: BudgetCategory[],
+): Record<ParentCategory, BudgetCategory[]> {
+  const out: Record<ParentCategory, BudgetCategory[]> = {
+    inntekter: [],
+    regninger: [],
+    utgifter: [],
+    gjeld: [],
+    sparing: [],
+  }
+  for (const c of categories) {
+    out[c.parentCategory].push(c)
+  }
+  for (const g of REPORT_GROUP_ORDER) {
+    out[g].sort((a, b) => a.name.localeCompare(b.name, 'nb'))
   }
   return out
 }

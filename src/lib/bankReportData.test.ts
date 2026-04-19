@@ -1,7 +1,9 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
+  buildCategoryBudgetYearMatrix,
   buildMonthlyBudgetActualSeries,
   buildMonthlyNetSeriesForPeriod,
+  groupBudgetCategoriesByParent,
   listBudgetedFixedMonthlyExpensesForMonth,
   referenceMonthIndexForBudgetYear,
   sumActualsByMonthForType,
@@ -349,6 +351,32 @@ describe('sumActualByProfileForCategoryInMonthRange', () => {
     const exp = sumActualByProfileForCategoryInMonthRange(transactions, 2026, 1, 1, 'X', 'expense')
     expect(inc).toEqual([])
     expect(exp).toEqual([{ profileId: 'a', actual: 100 }])
+  })
+})
+
+describe('buildCategoryBudgetYearMatrix', () => {
+  it('returnerer 12 månedlige budsjettbeløp per kategori', () => {
+    const b = [...Array(12)].map((_, i) => (i === 0 ? 500 : 0))
+    const m = buildCategoryBudgetYearMatrix([
+      cat({
+        id: 'a',
+        name: 'Test',
+        parentCategory: 'utgifter',
+        type: 'expense',
+        budgeted: b,
+      }),
+    ])
+    expect(m.get('Test')).toEqual(b)
+  })
+})
+
+describe('groupBudgetCategoriesByParent', () => {
+  it('grupperer og sorterer navn', () => {
+    const g = groupBudgetCategoriesByParent([
+      cat({ id: '2', name: 'B', parentCategory: 'utgifter', type: 'expense' }),
+      cat({ id: '1', name: 'A', parentCategory: 'utgifter', type: 'expense' }),
+    ])
+    expect(g.utgifter.map((c) => c.name)).toEqual(['A', 'B'])
   })
 })
 
