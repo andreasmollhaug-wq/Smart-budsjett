@@ -50,7 +50,16 @@ export default function SubscriptionModuleInfoModal({ open, onClose }: Props) {
           </p>
           <p>
             Du kan <strong className="font-medium" style={{ color: 'var(--text)' }}>synkronisere med budsjettet</strong>:
-            da opprettes en linje under Regninger med samme planbeløp, så du slipper å legge inn det samme to ganger.
+            som standard opprettes en egen linje under Regninger med planbeløpet. Du kan i stedet{' '}
+            <strong className="font-medium" style={{ color: 'var(--text)' }}>koble til en eksisterende</strong> Regninger-linje
+            (for eksempel «Streaming») — flere abonnement summeres da på samme budsjettpost. Linjer som styres fra her kan
+            ikke redigeres manuelt i budsjettet.
+          </p>
+          <p>
+            Ved <strong className="font-medium" style={{ color: 'var(--text)' }}>årlig</strong> betaling kan du velge{' '}
+            <strong className="font-medium" style={{ color: 'var(--text)' }}>forfallsmåned</strong> (typisk forsikring): da
+            legges hele beløpet i budsjett og som ett planlagt trekk i den måneden. Uten valgt måned fordeles beløpet jevnt
+            som før.
           </p>
           <p>
             <strong className="font-medium" style={{ color: 'var(--text)' }}>Faktisk forbruk</strong> i budsjettet

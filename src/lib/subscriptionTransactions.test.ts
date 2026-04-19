@@ -63,6 +63,42 @@ describe('buildPlannedSubscriptionTransactions', () => {
     expect(txs[0]!.amount).toBe(300)
     expect(txs[0]!.type).toBe('expense')
   })
+
+  it('årlig med forfall: ett trekk med fullt beløp i valgt måned', () => {
+    const txs = buildPlannedSubscriptionTransactions({
+      subscriptionId: 'sub-y',
+      label: 'Forsikring',
+      categoryName: 'Forsikring',
+      profileId: 'p1',
+      amountNok: 6000,
+      billing: 'yearly',
+      budgetYear: 2026,
+      startMonth1: 1,
+      endMonth1: 12,
+      dayOfMonth: 15,
+      yearlyChargeMonth1: 9,
+    })
+    expect(txs).toHaveLength(1)
+    expect(txs[0]!.date).toBe('2026-09-15')
+    expect(txs[0]!.amount).toBe(6000)
+  })
+
+  it('årlig med forfall: tomt trekk når forfallsmåned er utenfor fra–til', () => {
+    const txs = buildPlannedSubscriptionTransactions({
+      subscriptionId: 'sub-y',
+      label: 'X',
+      categoryName: 'X',
+      profileId: 'p1',
+      amountNok: 6000,
+      billing: 'yearly',
+      budgetYear: 2026,
+      startMonth1: 1,
+      endMonth1: 6,
+      dayOfMonth: 1,
+      yearlyChargeMonth1: 9,
+    })
+    expect(txs).toHaveLength(0)
+  })
 })
 
 describe('zeroBudgetedFromCancellationMonth', () => {

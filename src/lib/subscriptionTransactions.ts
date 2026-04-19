@@ -1,4 +1,5 @@
 import type { PersonData, Transaction } from '@/lib/store'
+import { applySubscriptionBudgetRebuildsForYear, clampYearlyChargeMonth1 } from '@/lib/subscriptionBudgetRebuild'
 import { dateInMonth, generateId } from '@/lib/utils'
 import { monthlyEquivalentNok } from '@/lib/serviceSubscriptionHelpers'
 
@@ -52,15 +53,36 @@ export type PlannedSubTxParams = {
   startMonth1: number
   endMonth1: number
   dayOfMonth: number
+  /** Når satt (1–12): ett årlig trekk i den måneden med hele beløpet. */
+  yearlyChargeMonth1?: number
 }
 
-/** Én planlagt utgift per måned i intervallet (expense, Regninger-kategori). */
+/** Én planlagt utgift per måned i intervallet (expense, Regninger-kategori), eller ett årlig trekk. */
 export function buildPlannedSubscriptionTransactions(p: PlannedSubTxParams): Transaction[] {
+  const day = clampBillingDay(p.dayOfMonth)
+  const desc = `${p.label.trim() || 'Abonnement'} (planlagt)`
+  const chargeM = clampYearlyChargeMonth1(p.yearlyChargeMonth1)
+
+  if (p.billing === 'yearly' && chargeM != null) {
+    if (p.amountNok <= 0) return []
+    if (chargeM < p.startMonth1 || chargeM > p.endMonth1) return []
+    return [
+      {
+        id: generateId(),
+        date: formatBudgetDateIso(p.budgetYear, chargeM, day),
+        description: desc,
+        amount: p.amountNok,
+        category: p.categoryName,
+        type: 'expense' as const,
+        profileId: p.profileId,
+        linkedServiceSubscriptionId: p.subscriptionId,
+      },
+    ]
+  }
+
   const monthly = monthlyEquivalentNok({ amountNok: p.amountNok, billing: p.billing })
   if (monthly <= 0) return []
   const months = inclusiveMonthRangeInYear(p.startMonth1, p.endMonth1)
-  const day = clampBillingDay(p.dayOfMonth)
-  const desc = `${p.label.trim() || 'Abonnement'} (planlagt)`
   return months.map((row) => ({
     id: generateId(),
     date: formatBudgetDateIso(p.budgetYear, row.month1, day),
@@ -114,26 +136,12 @@ export function transactionMatchesCancellationRemoval(
 }
 
 /**
- * Null ut planlagt budsjett for avsluttede abonnement der avslutningsår matcher aktivt budsjettår.
+ * Oppdaterer planlagte budsjettbeløp for alle Regninger-linjer med synkede abonnement (inkl. delte kategorier).
  * Idempotent: trygg å kalle ved årsskifte / gjenlasting.
  */
 export function applySubscriptionCancellationsToBudgetForYear(
   person: PersonData,
   year: number,
 ): PersonData {
-  let budgetCategories = person.budgetCategories
-  for (const sub of person.serviceSubscriptions ?? []) {
-    if (!sub.cancelledFrom || !sub.linkedBudgetCategoryId) continue
-    if (sub.cancelledFrom.year !== year) continue
-    const catId = sub.linkedBudgetCategoryId
-    const m = sub.cancelledFrom.month
-    budgetCategories = budgetCategories.map((c) => {
-      if (c.id !== catId) return c
-      return {
-        ...c,
-        budgeted: zeroBudgetedFromCancellationMonth(c.budgeted, m),
-      }
-    })
-  }
-  return { ...person, budgetCategories }
+  return applySubscriptionBudgetRebuildsForYear(person, year)
 }

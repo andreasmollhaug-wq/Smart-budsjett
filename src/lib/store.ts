@@ -15,15 +15,17 @@ import {
 } from './plannedTransactions'
 import {
   buildBudgetCategoryForSubscription,
-  budgetedTwelveFromMonthly,
   monthlyEquivalentNok,
   uniqueRegningerName,
 } from './serviceSubscriptionHelpers'
 import {
+  applySubscriptionBudgetRebuildsForCategoryIds,
+  clampYearlyChargeMonth1,
+} from './subscriptionBudgetRebuild'
+import {
   applySubscriptionCancellationsToBudgetForYear,
   buildPlannedSubscriptionTransactions,
   transactionMatchesCancellationRemoval,
-  zeroBudgetedFromCancellationMonth,
 } from './subscriptionTransactions'
 import {
   appendDebtPlannedTransactionsForBudgetYear,
@@ -132,6 +134,8 @@ export interface BudgetCategory {
   frequency: BudgetCategoryFrequency
   /** Kun for `frequency === 'once'`: måned (0 = jan … 11 = des) der beløpet plasseres. */
   onceMonthIndex?: number
+  /** Abonnement-synk: `aggregated` = flere abo på samme linje; `single` = én auto-linje. */
+  subscriptionBudgetManaged?: 'off' | 'single' | 'aggregated'
 }
 
 export interface SavingsDeposit {
@@ -229,6 +233,10 @@ export interface ServiceSubscription {
   /** Når sann: oppretthold én budsjettlinje under Regninger (planbeløp). */
   syncToBudget: boolean
   linkedBudgetCategoryId?: string | null
+  /** Egen linje per abo (standard) eller felles eksisterende Regninger-linje. */
+  budgetLinkMode?: 'dedicated' | 'shared'
+  /** Når `billing === 'yearly'`: måned 1–12 for årlig trekk (mangler = jevn fordeling som før). */
+  yearlyChargeMonth1?: number
   note?: string
   presetKey?: string
   /** Avsluttet fra og med denne måneden (år + måned 1–12). */
@@ -253,6 +261,8 @@ export type AddServiceSubscriptionInput = Omit<
   'id' | 'sourceProfileId' | 'cancelledFrom' | 'monthlyEquivalentNokSnapshot'
 > & {
   plannedTransactions?: ServiceSubscriptionPlannedTxInput | null
+  /** Ved `budgetLinkMode: 'shared'`: ID til eksisterende Regninger-linje. */
+  existingBudgetCategoryId?: string
 }
 
 /** Ved oppdatering: `null` fjerner alle planlagte trekk for abonnementet. */
@@ -260,6 +270,8 @@ export type UpdateServiceSubscriptionPatch = Partial<
   Omit<ServiceSubscription, 'id' | 'sourceProfileId'>
 > & {
   plannedTransactions?: ServiceSubscriptionPlannedTxInput | null
+  /** Ved bytte til delt linje: ID til eksisterende Regninger-kategori. */
+  existingBudgetCategoryId?: string | null
 }
 
 export interface PersonProfile {
@@ -404,11 +416,13 @@ interface AppState {
 
   addServiceSubscription: (
     input: AddServiceSubscriptionInput,
-  ) => { ok: true; id: string } | { ok: false; reason: 'household_readonly' }
+  ) =>
+    | { ok: true; id: string }
+    | { ok: false; reason: 'household_readonly' | 'invalid_budget_category' }
   updateServiceSubscription: (
     id: string,
     patch: UpdateServiceSubscriptionPatch,
-  ) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
+  ) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' | 'invalid_budget_category' }
   removeServiceSubscription: (id: string) => { ok: true } | { ok: false; reason: 'household_readonly' | 'not_found' }
   markServiceSubscriptionCancelled: (
     id: string,
@@ -1883,7 +1897,9 @@ export const useStore = create<AppState>()((set, get) => {
               g.linkedBudgetCategoryId === id ? { ...g, linkedBudgetCategoryId: undefined, baselineAmount: undefined } : g,
             )
             const nextSubs = (d.serviceSubscriptions ?? []).map((s) =>
-              s.linkedBudgetCategoryId === id ? { ...s, linkedBudgetCategoryId: null, syncToBudget: false } : s,
+              s.linkedBudgetCategoryId === id
+                ? { ...s, linkedBudgetCategoryId: null, syncToBudget: false, budgetLinkMode: undefined }
+                : s,
             )
             let nextDebts = d.debts
             let nextTx = d.transactions
@@ -2277,37 +2293,71 @@ export const useStore = create<AppState>()((set, get) => {
           const label = (input.label ?? '').trim() || 'Abonnement'
           const active = input.active !== false
           const syncToBudget = !!(input.syncToBudget && active)
+          const billing = input.billing === 'yearly' ? 'yearly' : 'monthly'
+          const yearlyChargeMonth1 = billing === 'yearly' ? clampYearlyChargeMonth1(input.yearlyChargeMonth1) : undefined
+
           const baseSub: ServiceSubscription = {
             id,
             label,
             amountNok: Math.max(0, Number.isFinite(input.amountNok) ? input.amountNok : 0),
-            billing: input.billing === 'yearly' ? 'yearly' : 'monthly',
+            billing,
             active,
             syncToBudget: false,
             linkedBudgetCategoryId: null,
+            yearlyChargeMonth1,
             note: input.note?.trim() || undefined,
             presetKey: input.presetKey,
           }
+
+          const wantShared =
+            syncToBudget &&
+            input.budgetLinkMode === 'shared' &&
+            typeof input.existingBudgetCategoryId === 'string' &&
+            input.existingBudgetCategoryId.trim().length > 0
+
           let sub: ServiceSubscription = { ...baseSub, syncToBudget }
           let budgetCategories = [...person.budgetCategories]
           let displayName: string | undefined
+          const rebuildIds: string[] = []
+
           if (syncToBudget) {
-            const catId = generateId()
-            displayName = uniqueRegningerName(label, budgetCategories.map((c) => c.name))
-            const monthly = monthlyEquivalentNok(baseSub)
-            const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly)
-            const spent = sumTxForCategoryInYear(
-              person.transactions,
-              displayName,
-              'expense',
-              s.budgetYear,
-              pid,
-            )
-            budgetCategories = [...budgetCategories, { ...raw, spent }]
-            sub = {
-              ...baseSub,
-              syncToBudget: true,
-              linkedBudgetCategoryId: catId,
+            if (wantShared) {
+              const exId = input.existingBudgetCategoryId!.trim()
+              const existing = budgetCategories.find((c) => c.id === exId)
+              if (!existing || existing.parentCategory !== 'regninger') {
+                return { ok: false as const, reason: 'invalid_budget_category' }
+              }
+              budgetCategories = budgetCategories.map((c) =>
+                c.id === exId ? { ...c, subscriptionBudgetManaged: 'aggregated' as const } : c,
+              )
+              sub = {
+                ...baseSub,
+                syncToBudget: true,
+                linkedBudgetCategoryId: exId,
+                budgetLinkMode: 'shared',
+              }
+              displayName = existing.name
+              rebuildIds.push(exId)
+            } else {
+              const catId = generateId()
+              displayName = uniqueRegningerName(label, budgetCategories.map((c) => c.name))
+              const monthly = monthlyEquivalentNok(baseSub)
+              const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly, 'single')
+              const spent = sumTxForCategoryInYear(
+                person.transactions,
+                displayName,
+                'expense',
+                s.budgetYear,
+                pid,
+              )
+              budgetCategories = [...budgetCategories, { ...raw, spent }]
+              sub = {
+                ...baseSub,
+                syncToBudget: true,
+                linkedBudgetCategoryId: catId,
+                budgetLinkMode: 'dedicated',
+              }
+              rebuildIds.push(catId)
             }
           }
 
@@ -2331,6 +2381,7 @@ export const useStore = create<AppState>()((set, get) => {
               startMonth1: planned.startMonth1,
               endMonth1: planned.endMonth1,
               dayOfMonth: planned.dayOfMonth,
+              yearlyChargeMonth1: baseSub.billing === 'yearly' ? yearlyChargeMonth1 : undefined,
             })
           }
 
@@ -2345,6 +2396,9 @@ export const useStore = create<AppState>()((set, get) => {
               transactions: [...extraTx, ...nextPersonRaw.transactions],
             }
           }
+          if (rebuildIds.length > 0) {
+            nextPersonRaw = applySubscriptionBudgetRebuildsForCategoryIds(nextPersonRaw, s.budgetYear, rebuildIds)
+          }
           const nextPerson = recalcPersonBudgetSpentForYear(
             syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
             pid,
@@ -2357,7 +2411,8 @@ export const useStore = create<AppState>()((set, get) => {
         },
 
         updateServiceSubscription: (id, patchIn) => {
-          const { plannedTransactions: plannedPatch, ...patch } = patchIn
+          const { plannedTransactions: plannedPatch, existingBudgetCategoryId: patchExistingCatId, ...patch } =
+            patchIn
           const s = get()
           if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
           const pid = s.activeProfileId
@@ -2367,6 +2422,7 @@ export const useStore = create<AppState>()((set, get) => {
           const idx = list.findIndex((x) => x.id === id)
           if (idx < 0) return { ok: false as const, reason: 'not_found' }
           const prev = list[idx]!
+          const effectiveBilling = patch.billing ?? prev.billing
           const merged: ServiceSubscription = {
             ...prev,
             ...patch,
@@ -2376,7 +2432,7 @@ export const useStore = create<AppState>()((set, get) => {
               patch.amountNok !== undefined
                 ? Math.max(0, Number.isFinite(patch.amountNok) ? patch.amountNok : 0)
                 : prev.amountNok,
-            billing: patch.billing ?? prev.billing,
+            billing: effectiveBilling,
             active: patch.active !== undefined ? patch.active : prev.active,
             syncToBudget: patch.syncToBudget !== undefined ? patch.syncToBudget : prev.syncToBudget,
             note: patch.note !== undefined ? patch.note?.trim() || undefined : prev.note,
@@ -2386,6 +2442,13 @@ export const useStore = create<AppState>()((set, get) => {
               patch.monthlyEquivalentNokSnapshot !== undefined
                 ? patch.monthlyEquivalentNokSnapshot
                 : prev.monthlyEquivalentNokSnapshot,
+            budgetLinkMode: patch.budgetLinkMode !== undefined ? patch.budgetLinkMode : prev.budgetLinkMode,
+            yearlyChargeMonth1:
+              effectiveBilling === 'yearly'
+                ? patch.yearlyChargeMonth1 !== undefined
+                  ? clampYearlyChargeMonth1(patch.yearlyChargeMonth1)
+                  : prev.yearlyChargeMonth1
+                : undefined,
           }
           /** Behold Regninger-linje ved avsluttet abonnement (nullstilte måneder). */
           const wantBudgetLine = !!(
@@ -2394,19 +2457,71 @@ export const useStore = create<AppState>()((set, get) => {
           )
           let budgetCategories = [...person.budgetCategories]
           let nextSub: ServiceSubscription = { ...merged, syncToBudget: wantBudgetLine }
+          const affectedCatIds = new Set<string>()
+          if (prev.linkedBudgetCategoryId) affectedCatIds.add(prev.linkedBudgetCategoryId)
 
           if (!wantBudgetLine && prev.linkedBudgetCategoryId) {
-            budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
-            nextSub = { ...nextSub, linkedBudgetCategoryId: null, syncToBudget: false }
+            const catId = prev.linkedBudgetCategoryId
+            const others = list.filter((x) => x.id !== id && x.linkedBudgetCategoryId === catId).length
+            const isShared = prev.budgetLinkMode === 'shared'
+            if (others === 0 && !isShared) {
+              budgetCategories = budgetCategories.filter((c) => c.id !== catId)
+            }
+            nextSub = {
+              ...nextSub,
+              linkedBudgetCategoryId: null,
+              syncToBudget: false,
+              budgetLinkMode: undefined,
+            }
           } else if (wantBudgetLine) {
-            const monthly = monthlyEquivalentNok(nextSub)
-            if (!prev.linkedBudgetCategoryId) {
+            const linkMode =
+              patch.budgetLinkMode !== undefined
+                ? patch.budgetLinkMode
+                : prev.budgetLinkMode ?? 'dedicated'
+            const wantsShared =
+              linkMode === 'shared' &&
+              ((typeof patchExistingCatId === 'string' && patchExistingCatId.trim().length > 0) ||
+                prev.budgetLinkMode === 'shared')
+
+            if (wantsShared) {
+              const exId =
+                typeof patchExistingCatId === 'string' && patchExistingCatId.trim().length > 0
+                  ? patchExistingCatId.trim()
+                  : prev.linkedBudgetCategoryId
+              if (!exId) {
+                return { ok: false as const, reason: 'invalid_budget_category' }
+              }
+              const existing = budgetCategories.find((c) => c.id === exId)
+              if (!existing || existing.parentCategory !== 'regninger') {
+                return { ok: false as const, reason: 'invalid_budget_category' }
+              }
+              if (prev.linkedBudgetCategoryId && prev.linkedBudgetCategoryId !== exId) {
+                const oldId = prev.linkedBudgetCategoryId
+                const othersOld = list.filter((x) => x.id !== id && x.linkedBudgetCategoryId === oldId).length
+                if (othersOld === 0 && prev.budgetLinkMode !== 'shared') {
+                  budgetCategories = budgetCategories.filter((c) => c.id !== oldId)
+                } else {
+                  affectedCatIds.add(oldId)
+                }
+              }
+              budgetCategories = budgetCategories.map((c) =>
+                c.id === exId ? { ...c, subscriptionBudgetManaged: 'aggregated' as const } : c,
+              )
+              nextSub = {
+                ...nextSub,
+                syncToBudget: true,
+                linkedBudgetCategoryId: exId,
+                budgetLinkMode: 'shared',
+              }
+              affectedCatIds.add(exId)
+            } else if (!prev.linkedBudgetCategoryId) {
               const catId = generateId()
               const displayName = uniqueRegningerName(
                 nextSub.label,
                 budgetCategories.map((c) => c.name),
               )
-              const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly)
+              const monthly = monthlyEquivalentNok(nextSub)
+              const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly, 'single')
               const spent = sumTxForCategoryInYear(
                 person.transactions,
                 displayName,
@@ -2415,30 +2530,58 @@ export const useStore = create<AppState>()((set, get) => {
                 pid,
               )
               budgetCategories = [...budgetCategories, { ...raw, spent }]
-              nextSub = { ...nextSub, linkedBudgetCategoryId: catId, syncToBudget: true }
+              nextSub = {
+                ...nextSub,
+                linkedBudgetCategoryId: catId,
+                syncToBudget: true,
+                budgetLinkMode: 'dedicated',
+              }
+              affectedCatIds.add(catId)
+            } else if (prev.budgetLinkMode === 'shared' && linkMode === 'dedicated') {
+              const oldId = prev.linkedBudgetCategoryId!
+              affectedCatIds.add(oldId)
+              const catId = generateId()
+              const displayName = uniqueRegningerName(
+                nextSub.label,
+                budgetCategories.map((c) => c.name),
+              )
+              const monthly = monthlyEquivalentNok(nextSub)
+              const raw = buildBudgetCategoryForSubscription(catId, displayName, monthly, 'single')
+              const spent = sumTxForCategoryInYear(
+                person.transactions,
+                displayName,
+                'expense',
+                s.budgetYear,
+                pid,
+              )
+              budgetCategories = [...budgetCategories, { ...raw, spent }]
+              nextSub = {
+                ...nextSub,
+                linkedBudgetCategoryId: catId,
+                syncToBudget: true,
+                budgetLinkMode: 'dedicated',
+              }
+              affectedCatIds.add(catId)
             } else {
-              const catId = prev.linkedBudgetCategoryId
-              budgetCategories = budgetCategories.map((c) => {
-                if (c.id !== catId) return c
-                const otherNames = budgetCategories.filter((x) => x.id !== catId).map((x) => x.name)
-                const newName =
-                  patch.label !== undefined
-                    ? uniqueRegningerName(nextSub.label, otherNames)
-                    : c.name
-                let budgeted = budgetedTwelveFromMonthly(monthly)
-                if (nextSub.cancelledFrom && nextSub.cancelledFrom.year === s.budgetYear) {
-                  budgeted = zeroBudgetedFromCancellationMonth(budgeted, nextSub.cancelledFrom.month)
-                }
-                const spent = sumTxForCategoryInYear(
-                  person.transactions,
-                  newName,
-                  'expense',
-                  s.budgetYear,
-                  pid,
-                )
-                return { ...c, name: newName, budgeted, spent }
-              })
+              const catId = prev.linkedBudgetCategoryId!
+              const mode = nextSub.budgetLinkMode ?? prev.budgetLinkMode ?? 'dedicated'
+              if (mode === 'dedicated' && patch.label !== undefined) {
+                budgetCategories = budgetCategories.map((c) => {
+                  if (c.id !== catId) return c
+                  const otherNames = budgetCategories.filter((x) => x.id !== catId).map((x) => x.name)
+                  const newName = uniqueRegningerName(nextSub.label, otherNames)
+                  const spent = sumTxForCategoryInYear(
+                    person.transactions,
+                    newName,
+                    'expense',
+                    s.budgetYear,
+                    pid,
+                  )
+                  return { ...c, name: newName, spent }
+                })
+              }
               nextSub = { ...nextSub, linkedBudgetCategoryId: catId, syncToBudget: true }
+              affectedCatIds.add(catId)
             }
           }
 
@@ -2456,6 +2599,10 @@ export const useStore = create<AppState>()((set, get) => {
             ) {
               const displayName = budgetCategories.find((c) => c.id === nextSub.linkedBudgetCategoryId)?.name
               if (displayName) {
+                const ycm =
+                  nextSub.billing === 'yearly'
+                    ? clampYearlyChargeMonth1(nextSub.yearlyChargeMonth1)
+                    : undefined
                 const extraTx = buildPlannedSubscriptionTransactions({
                   subscriptionId: id,
                   label: nextSub.label,
@@ -2467,17 +2614,25 @@ export const useStore = create<AppState>()((set, get) => {
                   startMonth1: plannedPatch.startMonth1,
                   endMonth1: plannedPatch.endMonth1,
                   dayOfMonth: plannedPatch.dayOfMonth,
+                  yearlyChargeMonth1: ycm,
                 })
                 nextTransactions = [...extraTx, ...nextTransactions]
               }
             }
           }
 
-          const nextPersonRaw = {
+          let nextPersonRaw: PersonData = {
             ...person,
             budgetCategories,
             serviceSubscriptions: nextList,
             transactions: plannedPatch !== undefined ? nextTransactions : person.transactions,
+          }
+          if (affectedCatIds.size > 0) {
+            nextPersonRaw = applySubscriptionBudgetRebuildsForCategoryIds(
+              nextPersonRaw,
+              s.budgetYear,
+              affectedCatIds,
+            )
           }
           const nextPerson = recalcPersonBudgetSpentForYear(
             syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),
@@ -2501,16 +2656,24 @@ export const useStore = create<AppState>()((set, get) => {
           if (idx < 0) return { ok: false as const, reason: 'not_found' }
           const prev = list[idx]!
           let budgetCategories = person.budgetCategories
-          if (prev.linkedBudgetCategoryId) {
-            budgetCategories = budgetCategories.filter((c) => c.id !== prev.linkedBudgetCategoryId)
+          const catId = prev.linkedBudgetCategoryId
+          if (catId) {
+            const others = list.filter((x) => x.id !== id && x.linkedBudgetCategoryId === catId).length
+            const isShared = prev.budgetLinkMode === 'shared'
+            if (others === 0 && !isShared) {
+              budgetCategories = budgetCategories.filter((c) => c.id !== catId)
+            }
           }
           const txs = person.transactions.filter((t) => t.linkedServiceSubscriptionId !== id)
           const nextList = list.filter((x) => x.id !== id)
-          const nextPersonRaw = {
+          let nextPersonRaw: PersonData = {
             ...person,
             budgetCategories,
             serviceSubscriptions: nextList,
             transactions: txs,
+          }
+          if (catId && budgetCategories.some((c) => c.id === catId)) {
+            nextPersonRaw = applySubscriptionBudgetRebuildsForCategoryIds(nextPersonRaw, s.budgetYear, [catId])
           }
           const nextPerson = recalcPersonBudgetSpentForYear(
             syncLinkedSavingsGoalsCurrent(nextPersonRaw, pid),

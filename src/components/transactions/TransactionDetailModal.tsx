@@ -374,7 +374,7 @@ export default function TransactionDetailModal({
         <NewBudgetCategoryModal
           open={newCatOpen}
           onClose={() => setNewCatOpen(false)}
-          onCreated={(name) => setDraft((d) => (d ? { ...d, category: name } : d))}
+          onCreated={({ name }) => setDraft((d) => (d ? { ...d, category: name } : d))}
           customBudgetLabels={createCategory.customBudgetLabels}
           budgetCategories={createCategory.budgetCategories}
           addCustomBudgetLabel={createCategory.addCustomBudgetLabel}

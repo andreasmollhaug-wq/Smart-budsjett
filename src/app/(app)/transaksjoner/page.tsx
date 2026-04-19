@@ -449,7 +449,7 @@ function TransaksjonerPageInner() {
         <NewBudgetCategoryModal
           open={newCatOpen}
           onClose={() => setNewCatOpen(false)}
-          onCreated={(name) => setForm((f) => ({ ...f, category: name }))}
+          onCreated={({ name }) => setForm((f) => ({ ...f, category: name }))}
           customBudgetLabels={createCategoryProps.customBudgetLabels}
           budgetCategories={createCategoryProps.budgetCategories}
           addCustomBudgetLabel={createCategoryProps.addCustomBudgetLabel}

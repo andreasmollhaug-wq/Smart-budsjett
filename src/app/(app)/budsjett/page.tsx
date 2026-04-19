@@ -103,6 +103,7 @@ export default function BudsjettPage() {
     updateBudgetCategory,
     addCustomBudgetLabel,
     isHouseholdAggregate,
+    serviceSubscriptions,
   } = useActivePersonFinance()
 
   const people = useStore((s) => s.people)
@@ -751,6 +752,14 @@ export default function BudsjettPage() {
                           const budgetedArr = ensureArrayBudgeted(cat.budgeted)
                           const lineOpen = householdLineBreakdownOpen === cat.id
                           const showHouseholdLineBreakdown = isHouseholdAggregate
+                          const linkedServiceSubs =
+                            group.id === 'regninger'
+                              ? serviceSubscriptions.filter(
+                                  (s) => s.syncToBudget && s.linkedBudgetCategoryId === cat.id,
+                                )
+                              : []
+                          const subBudgetLocked = linkedServiceSubs.length > 0
+                          const amountReadOnly = readOnly || subBudgetLocked
                           return (
                             <Fragment key={cat.id}>
                               <tr className="align-middle" style={{ borderTop: '1px solid var(--border)' }}>
@@ -813,6 +822,7 @@ export default function BudsjettPage() {
                                   >
                                     <BudgetAmountCell
                                       value={budgetedArr[mi] ?? 0}
+                                      readOnly={amountReadOnly}
                                       onChange={(n) =>
                                         applyBudgetAmountCellChange(cat, mi, n, updateBudgetCategory)
                                       }
@@ -828,8 +838,9 @@ export default function BudsjettPage() {
                                 <td className="align-middle py-1 px-1 text-center">
                                   <button
                                     type="button"
+                                    disabled={readOnly || subBudgetLocked}
                                     onClick={() => fillAllMonthsFromSelected(cat)}
-                                    className="inline-flex items-center justify-center p-1.5 rounded-lg opacity-80 hover:opacity-100"
+                                    className="inline-flex items-center justify-center p-1.5 rounded-lg opacity-80 hover:opacity-100 disabled:opacity-30 disabled:pointer-events-none"
                                     style={{ background: 'var(--bg)', color: 'var(--primary)' }}
                                     title={`Kopier beløpet fra ${MONTHS_FULL[selectedMonth]} til alle tolv måneder`}
                                     aria-label="Samme beløp alle måneder"
@@ -838,6 +849,22 @@ export default function BudsjettPage() {
                                   </button>
                                 </td>
                               </tr>
+                              {linkedServiceSubs.length > 0 && group.id === 'regninger' && (
+                                <tr style={{ background: 'var(--bg)' }}>
+                                  <td
+                                    colSpan={monthColumnIndices.length + 3}
+                                    className="py-2 px-2 pl-8 text-xs leading-relaxed"
+                                    style={{ color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}
+                                  >
+                                    <span style={{ color: 'var(--text)' }}>Abonnementer: </span>
+                                    {linkedServiceSubs.map((s) => s.label).join(', ')} — planbeløp styres fra{' '}
+                                    <span className="font-medium" style={{ color: 'var(--primary)' }}>
+                                      Abonnementer
+                                    </span>
+                                    .
+                                  </td>
+                                </tr>
+                              )}
                               {lineOpen &&
                                 showHouseholdLineBreakdown &&
                                 getHouseholdLineBreakdown(group.id, cat.name).map((row) => (
@@ -915,6 +942,14 @@ export default function BudsjettPage() {
                           const budgetedArr = ensureArrayBudgeted(cat.budgeted)
                           const lineOpen = householdLineBreakdownOpen === cat.id
                           const showHouseholdLineBreakdown = isHouseholdAggregate
+                          const linkedServiceSubs =
+                            group.id === 'regninger'
+                              ? serviceSubscriptions.filter(
+                                  (s) => s.syncToBudget && s.linkedBudgetCategoryId === cat.id,
+                                )
+                              : []
+                          const subBudgetLocked = linkedServiceSubs.length > 0
+                          const amountReadOnly = readOnly || subBudgetLocked
                           return (
                             <div key={cat.id} className="p-3 rounded-lg" style={{ background: 'var(--bg)' }}>
                               <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
@@ -959,8 +994,9 @@ export default function BudsjettPage() {
                                   />
                                   <button
                                     type="button"
+                                    disabled={readOnly || subBudgetLocked}
                                     onClick={() => fillAllMonthsFromSelected(cat)}
-                                    className="p-1.5 rounded-lg"
+                                    className="p-1.5 rounded-lg disabled:opacity-30 disabled:pointer-events-none"
                                     style={{ background: 'var(--surface)', color: 'var(--primary)' }}
                                     title={`Kopier beløp fra ${MONTHS_FULL[selectedMonth]} til alle måneder`}
                                     aria-label="Samme beløp alle måneder"
@@ -988,6 +1024,7 @@ export default function BudsjettPage() {
                                   <BudgetAmountCell
                                     key={i}
                                     value={val}
+                                    readOnly={amountReadOnly}
                                     onChange={(n) =>
                                       applyBudgetAmountCellChange(cat, i, n, updateBudgetCategory)
                                     }
@@ -995,6 +1032,12 @@ export default function BudsjettPage() {
                                   />
                                 ))}
                               </div>
+                              {linkedServiceSubs.length > 0 && group.id === 'regninger' && (
+                                <p className="text-[11px] mt-2 mb-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                                  <span style={{ color: 'var(--text)' }}>Abonnementer: </span>
+                                  {linkedServiceSubs.map((s) => s.label).join(', ')} — planbeløp styres fra Abonnementer.
+                                </p>
+                              )}
                               {lineOpen && showHouseholdLineBreakdown && (
                                 <div
                                   className="mt-3 pt-3 space-y-2 pointer-events-auto"
@@ -1034,6 +1077,14 @@ export default function BudsjettPage() {
                         const budgetedArr = ensureArrayBudgeted(cat.budgeted)
                         const lineOpen = householdLineBreakdownOpen === cat.id
                         const showHouseholdLineBreakdown = isHouseholdAggregate
+                        const linkedServiceSubs =
+                          group.id === 'regninger'
+                            ? serviceSubscriptions.filter(
+                                (s) => s.syncToBudget && s.linkedBudgetCategoryId === cat.id,
+                              )
+                            : []
+                        const subBudgetLocked = linkedServiceSubs.length > 0
+                        const amountReadOnly = readOnly || subBudgetLocked
                         return (
                           <div key={cat.id} className="p-3 rounded-lg" style={{ background: 'var(--bg)' }}>
                             <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
@@ -1078,8 +1129,9 @@ export default function BudsjettPage() {
                                 />
                                 <button
                                   type="button"
+                                  disabled={readOnly || subBudgetLocked}
                                   onClick={() => fillAllMonthsFromSelected(cat)}
-                                  className="p-1.5 rounded-lg"
+                                  className="p-1.5 rounded-lg disabled:opacity-30 disabled:pointer-events-none"
                                   style={{ background: 'var(--surface)', color: 'var(--primary)' }}
                                   title={`Kopier beløp fra ${MONTHS_FULL[selectedMonth]} til alle måneder`}
                                   aria-label="Samme beløp alle måneder"
@@ -1100,6 +1152,7 @@ export default function BudsjettPage() {
                               <div style={{ textAlign: 'right' }}>
                                 <BudgetAmountCell
                                   value={budgetedArr[selectedMonth] || 0}
+                                  readOnly={amountReadOnly}
                                   onChange={(n) =>
                                     applyBudgetAmountCellChange(
                                       cat,
@@ -1115,6 +1168,12 @@ export default function BudsjettPage() {
                                 {formatNOK(budgetedArr.reduce((a, b) => a + b, 0))}
                               </div>
                             </div>
+                            {linkedServiceSubs.length > 0 && group.id === 'regninger' && (
+                              <p className="text-[11px] mt-2 mb-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                                <span style={{ color: 'var(--text)' }}>Abonnementer: </span>
+                                {linkedServiceSubs.map((s) => s.label).join(', ')} — planbeløp styres fra Abonnementer.
+                              </p>
+                            )}
                             {lineOpen && showHouseholdLineBreakdown && (
                               <div
                                 className="mt-3 pt-3 space-y-2 pointer-events-auto"

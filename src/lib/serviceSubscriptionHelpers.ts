@@ -109,6 +109,7 @@ export function buildBudgetCategoryForSubscription(
   categoryId: string,
   displayName: string,
   monthly: number,
+  subscriptionBudgetManaged: 'single' | 'aggregated' = 'single',
 ): {
   id: string
   name: string
@@ -118,6 +119,7 @@ export function buildBudgetCategoryForSubscription(
   color: string
   parentCategory: 'regninger'
   frequency: 'monthly'
+  subscriptionBudgetManaged?: 'single' | 'aggregated'
 } {
   const budgeted = budgetedTwelveFromMonthly(monthly)
   return {
@@ -129,5 +131,6 @@ export function buildBudgetCategoryForSubscription(
     color: '#868E96',
     parentCategory: 'regninger',
     frequency: 'monthly',
+    subscriptionBudgetManaged,
   }
 }

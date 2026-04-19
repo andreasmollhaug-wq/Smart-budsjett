@@ -19,7 +19,7 @@ const EXPENSE_PARENTS: { id: ParentCategory; label: string }[] = [
 type Props = {
   open: boolean
   onClose: () => void
-  onCreated: (categoryName: string) => void
+  onCreated: (payload: { name: string; id: string }) => void
   customBudgetLabels: Record<ParentCategory, string[]>
   budgetCategories: BudgetCategory[]
   addCustomBudgetLabel: (parent: ParentCategory, name: string) => void
@@ -86,7 +86,7 @@ export default function NewBudgetCategoryModal({
     }
     const cat = buildZeroBudgetCategory(trimmed, parent, type, budgetCategories.length)
     addBudgetCategory(cat)
-    onCreated(trimmed)
+    onCreated({ name: trimmed, id: cat.id })
     onClose()
   }
 
@@ -96,7 +96,7 @@ export default function NewBudgetCategoryModal({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[400] flex items-center justify-center p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
       role="presentation"

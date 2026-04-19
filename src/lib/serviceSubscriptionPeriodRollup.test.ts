@@ -55,6 +55,20 @@ describe('rollupServiceSubscriptionsCostForPeriod', () => {
     expect(r.uniqueIdsInPeriod).toBe(1)
   })
 
+  it('årlig med forfall: kun forfallsmåneden får fullt beløp i perioden', () => {
+    const s = sub({
+      id: 'a',
+      amountNok: 1200,
+      billing: 'yearly',
+      active: true,
+      yearlyChargeMonth1: 4,
+    })
+    const apr = rollupServiceSubscriptionsCostForPeriod([s], 2026, 3, 3)
+    expect(apr.totalNok).toBe(1200)
+    const mar = rollupServiceSubscriptionsCostForPeriod([s], 2026, 2, 2)
+    expect(mar.totalNok).toBe(0)
+  })
+
   it('to unike abo i samme måned', () => {
     const a = sub({ id: '1', amountNok: 100, billing: 'monthly', active: true })
     const b = sub({ id: '2', amountNok: 50, billing: 'monthly', active: true })

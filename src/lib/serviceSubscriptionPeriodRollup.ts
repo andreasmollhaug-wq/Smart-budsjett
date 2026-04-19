@@ -1,10 +1,14 @@
 import { MONTH_LABELS_SHORT_NB } from '@/lib/bankReportData'
+import {
+  isSubscriptionContributingInBudgetMonth,
+  subscriptionRollupContributionForMonth,
+} from '@/lib/subscriptionBudgetRebuild'
 import type { ServiceSubscription } from '@/lib/store'
 
 export type ServiceSubscriptionMonthPoint = {
   monthLabel: string
   monthIndex: number
-  /** Sum månedlig ekvivalent for aktive abo denne måneden */
+  /** Sum kostnad denne måneden (samme regler som budsjett / årsforfall) */
   costNok: number
 }
 
@@ -14,18 +18,7 @@ export function isServiceSubscriptionActiveInMonth(
   year: number,
   monthIndex0: number,
 ): boolean {
-  if (!sub.active) return false
-  const month1 = monthIndex0 + 1
-  const cf = sub.cancelledFrom
-  if (cf) {
-    if (year > cf.year) return false
-    if (year === cf.year && month1 >= cf.month) return false
-  }
-  return true
-}
-
-function monthlyEquivalentNok(sub: ServiceSubscription): number {
-  return sub.billing === 'yearly' ? sub.amountNok / 12 : sub.amountNok
+  return isSubscriptionContributingInBudgetMonth(sub, year, monthIndex0)
 }
 
 /**
@@ -45,7 +38,7 @@ export function rollupServiceSubscriptionsCostForPeriod(
     for (const sub of subs) {
       if (!isServiceSubscriptionActiveInMonth(sub, filterYear, m)) continue
       activeIds.add(sub.id)
-      totalNok += monthlyEquivalentNok(sub)
+      totalNok += subscriptionRollupContributionForMonth(sub, filterYear, m)
     }
   }
 
@@ -64,7 +57,7 @@ export function buildServiceSubscriptionMonthlyCostForPeriod(
     let costNok = 0
     for (const sub of subs) {
       if (!isServiceSubscriptionActiveInMonth(sub, filterYear, m)) continue
-      costNok += monthlyEquivalentNok(sub)
+      costNok += subscriptionRollupContributionForMonth(sub, filterYear, m)
     }
     out.push({
       monthLabel: MONTH_LABELS_SHORT_NB[m] ?? String(m + 1),

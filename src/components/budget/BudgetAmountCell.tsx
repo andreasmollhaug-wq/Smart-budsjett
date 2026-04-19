@@ -6,9 +6,11 @@ type Props = {
   value: number
   onChange: (n: number) => void
   className?: string
+  /** Når sann: vis beløp uten redigering (f.eks. linje styrt fra Abonnementer). */
+  readOnly?: boolean
 }
 
-export default function BudgetAmountCell({ value, onChange, className = '' }: Props) {
+export default function BudgetAmountCell({ value, onChange, className = '', readOnly = false }: Props) {
   const [editing, setEditing] = useState(false)
   const [display, setDisplay] = useState(value > 0 ? formatThousands(value) : '')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -30,6 +32,17 @@ export default function BudgetAmountCell({ value, onChange, className = '' }: Pr
     const formatted = raw ? Number(raw).toLocaleString('nb-NO') : ''
     setDisplay(formatted)
     onChange(raw ? Number(raw) : 0)
+  }
+
+  if (readOnly) {
+    return (
+      <span
+        className={`block w-full max-w-[6.5rem] ml-auto text-right text-xs tabular-nums min-h-8 px-1 py-0.5 rounded font-sans ${className}`}
+        style={{ color: value > 0 ? 'var(--text)' : 'var(--text-muted)' }}
+      >
+        {value > 0 ? formatNOK(value) : '—'}
+      </span>
+    )
   }
 
   if (!editing) {
