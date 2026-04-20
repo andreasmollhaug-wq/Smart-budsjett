@@ -29,6 +29,7 @@ import {
   Calendar,
   ChevronLeft,
   Clock,
+  Pencil,
   PiggyBank,
   Plus,
   Target,
@@ -131,6 +132,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
   type CellModal = { sourceId: string; monthKey: string }
   const [cellModal, setCellModal] = useState<CellModal | null>(null)
+  const [renamingSourceId, setRenamingSourceId] = useState<string | null>(null)
   const [modalAddCustomStr, setModalAddCustomStr] = useState('')
 
   useEffect(() => {
@@ -472,7 +474,9 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     Brutto per måned
                   </h2>
                   <p className="text-xs mt-1 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
-                    Lenken under kildenavnet åpner innbetalt, brutto/netto og valgfri skatt — velg måned i vinduet.
+                    Trykk på <strong style={{ color: 'var(--text)' }}>kildenavnet</strong> (til venstre i den blå boksen) for
+                    innbetalt, brutto/netto og valgfri skatt — velg måned i vinduet. Beløpet til høyre er brutto for måneden
+                    perioden peker på (samme som månedscellen). Bruk blyanten for å endre navn.
                   </p>
                 </div>
                 <button
@@ -502,7 +506,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     <thead>
                       <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                         <th
-                          className="text-left py-2 pr-3 font-medium sticky left-0 z-10 min-w-[10.5rem] sm:min-w-[11rem] w-[10.5rem] sm:w-[11rem]"
+                          className="text-left py-2 pr-3 font-medium sticky left-0 z-10 min-w-[12.5rem] sm:min-w-[14rem] w-[12.5rem] sm:w-[14rem]"
                           style={{ background: 'var(--surface)' }}
                         >
                           Kilde
@@ -523,47 +527,94 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                       {plan.sources.map((src, si) => (
                         <tr key={src.id} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
                           <td
-                            className="py-1.5 pr-2 sticky left-0 z-10 align-top min-w-0 w-[10.5rem] sm:w-[11rem] max-w-[11rem]"
+                            className="py-1.5 pr-2 sticky left-0 z-10 align-middle min-w-0 w-[12.5rem] sm:w-[14rem] max-w-[14rem]"
                             style={{ background: 'var(--surface)' }}
                           >
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              <input
-                                type="text"
-                                disabled={readOnly}
-                                value={src.name}
-                                onChange={(e) =>
-                                  persistPlan({
-                                    ...plan,
-                                    sources: plan.sources.map((s) =>
-                                      s.id === src.id ? { ...s, name: e.target.value } : s,
-                                    ),
-                                  })
-                                }
-                                placeholder={`Kilde ${si + 1}`}
-                                className="w-full min-w-0 px-3 py-2.5 rounded-xl text-sm font-semibold touch-manipulation border min-h-[48px]"
-                                style={{
-                                  borderColor: 'var(--primary)',
-                                  background: 'var(--primary-pale)',
-                                  color: 'var(--text)',
-                                }}
-                                aria-label={`Kildenavn ${si + 1}`}
-                              />
-                              {!readOnly && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setCellModal({
-                                      sourceId: src.id,
-                                      monthKey: defaultSourceModalMonthKey || monthKeys[0]!,
-                                    })
-                                  }
-                                  className="text-left text-[10px] sm:text-xs font-medium underline underline-offset-2 min-h-[44px] py-2 touch-manipulation w-full min-w-0 break-words"
-                                  style={{ color: 'var(--primary)' }}
+                            {(() => {
+                              const refMk = derived.referenceMonthKey
+                              const refGross = src.amountsByMonthKey[refMk] ?? 0
+                              const amountLabel = refGross ? formatThousands(String(refGross)) : '—'
+                              const displayName = src.name.trim() || `Kilde ${si + 1}`
+                              const openSourceModal = () => {
+                                setRenamingSourceId(null)
+                                setCellModal({
+                                  sourceId: src.id,
+                                  monthKey: defaultSourceModalMonthKey || monthKeys[0]!,
+                                })
+                              }
+                              const isRenaming = renamingSourceId === src.id
+                              return (
+                                <div
+                                  className="flex items-center gap-1 min-w-0 rounded-xl border min-h-[48px] px-2 sm:px-3 py-1.5 touch-manipulation"
+                                  style={{
+                                    borderColor: 'var(--primary)',
+                                    background: 'var(--primary-pale)',
+                                  }}
                                 >
-                                  Innbetalt og månedsdetaljer
-                                </button>
-                              )}
-                            </div>
+                                  {isRenaming && !readOnly ? (
+                                    <input
+                                      type="text"
+                                      autoFocus
+                                      value={src.name}
+                                      onChange={(e) =>
+                                        persistPlan({
+                                          ...plan,
+                                          sources: plan.sources.map((s) =>
+                                            s.id === src.id ? { ...s, name: e.target.value } : s,
+                                          ),
+                                        })
+                                      }
+                                      onBlur={() => setRenamingSourceId(null)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Escape') {
+                                          e.currentTarget.blur()
+                                          setRenamingSourceId(null)
+                                        }
+                                      }}
+                                      placeholder={`Kilde ${si + 1}`}
+                                      className="flex-1 min-w-0 border-0 bg-transparent text-sm font-semibold outline-none focus:ring-0 py-1"
+                                      style={{ color: 'var(--text)' }}
+                                      aria-label={`Rediger kildenavn ${si + 1}`}
+                                    />
+                                  ) : readOnly ? (
+                                    <span className="flex-1 min-w-0 text-sm font-semibold truncate py-2 px-1" style={{ color: 'var(--text)' }}>
+                                      {displayName}
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={openSourceModal}
+                                        className="flex-1 min-w-0 text-left text-sm font-semibold min-h-[44px] py-2 px-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                                        style={{ color: 'var(--text)' }}
+                                      >
+                                        <span className="break-words line-clamp-2 sm:line-clamp-1">{displayName}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.preventDefault()
+                                          e.stopPropagation()
+                                          setRenamingSourceId(src.id)
+                                        }}
+                                        className="inline-flex shrink-0 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                                        style={{ color: 'var(--primary)' }}
+                                        aria-label={`Endre navn: ${displayName}`}
+                                      >
+                                        <Pencil size={18} aria-hidden />
+                                      </button>
+                                    </>
+                                  )}
+                                  <span
+                                    className="shrink-0 text-[10px] sm:text-xs font-medium tabular-nums text-right pointer-events-none pl-0.5 max-w-[5.25rem] sm:max-w-none truncate"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    title={`Brutto ${monthKeyHeadingNb(refMk)} (redigeres i månedstabellen)`}
+                                  >
+                                    {amountLabel}
+                                  </span>
+                                </div>
+                              )
+                            })()}
                           </td>
                           {monthKeys.map((mk) => {
                             const v = src.amountsByMonthKey[mk] ?? 0
@@ -781,7 +832,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                   />
                   <span className="text-xs leading-snug break-words">
-                    Utenom månedlige tilføringer via lenken under kildenavnet i tabellen. Samme målgrunnlag som målet.
+                    Utenom månedlige tilføringer via kildenavnet i tabellen (åpner vindu). Samme målgrunnlag som målet.
                   </span>
                 </label>
               </div>
