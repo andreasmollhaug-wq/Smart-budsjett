@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Calendar,
   ChevronLeft,
+  ChevronRight,
   Clock,
   PiggyBank,
   Plus,
@@ -167,6 +168,14 @@ export default function SmartSparePlanDetail({ planId }: Props) {
     if (!plan) return []
     return listMonthKeysInRange(plan.startDate, plan.endDate)
   }, [plan])
+
+  /** Standard måned i kildemodal: siste planmåned t.o.m. filtrets referansemåned. */
+  const defaultSourceModalMonthKey = useMemo(() => {
+    if (monthKeys.length === 0) return ''
+    const refMk = derived?.referenceMonthKey ?? monthKeys[monthKeys.length - 1]!
+    const eligible = monthKeys.filter((k) => k <= refMk)
+    return eligible.length ? eligible[eligible.length - 1]! : monthKeys[0]!
+  }, [monthKeys, derived?.referenceMonthKey])
 
   const barRows = useMemo(() => (plan && monthKeys.length ? buildStackedBarRows(plan, monthKeys) : []), [plan, monthKeys])
 
@@ -459,9 +468,15 @@ export default function SmartSparePlanDetail({ planId }: Props) {
               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
             >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
-                  Brutto per måned
-                </h2>
+                <div className="min-w-0">
+                  <h2 className="font-semibold" style={{ color: 'var(--text)' }}>
+                    Brutto per måned
+                  </h2>
+                  <p className="text-xs mt-1 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+                    Trykk på <strong style={{ color: 'var(--text)' }}>kildeknappen</strong> med kildenavnet (f.eks. Snap) for
+                    innbetalt, brutto/netto og valgfri skatt — velg måned i vinduet.
+                  </p>
+                </div>
                 <button
                   type="button"
                   disabled={readOnly}
@@ -488,7 +503,10 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   <table className="w-full text-[10px] sm:text-xs border-collapse min-w-[42rem]">
                     <thead>
                       <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
-                        <th className="text-left py-2 pr-3 font-medium sticky left-0 z-10 min-w-[7rem] sm:min-w-[8rem]" style={{ background: 'var(--surface)' }}>
+                        <th
+                          className="text-left py-2 pr-3 font-medium sticky left-0 z-10 min-w-[10.5rem] sm:min-w-[11rem] w-[10.5rem] sm:w-[11rem]"
+                          style={{ background: 'var(--surface)' }}
+                        >
                           Kilde
                         </th>
                         {monthKeys.map((mk) => (
@@ -506,60 +524,83 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     <tbody>
                       {plan.sources.map((src, si) => (
                         <tr key={src.id} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
-                          <td className="py-1.5 pr-2 sticky left-0 z-10 align-middle" style={{ background: 'var(--surface)' }}>
-                            <input
-                              type="text"
-                              disabled={readOnly}
-                              value={src.name}
-                              onChange={(e) =>
-                                persistPlan({
-                                  ...plan,
-                                  sources: plan.sources.map((s) =>
-                                    s.id === src.id ? { ...s, name: e.target.value } : s,
-                                  ),
-                                })
-                              }
-                              className="w-full min-w-0 px-2 py-2 rounded-lg text-xs sm:text-sm"
-                              style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                              aria-label={`Kildenavn ${si + 1}`}
-                            />
+                          <td
+                            className="py-1.5 pr-2 sticky left-0 z-10 align-top min-w-0 w-[10.5rem] sm:w-[11rem] max-w-[11rem]"
+                            style={{ background: 'var(--surface)' }}
+                          >
+                            <div className="flex flex-col gap-2 min-w-0">
+                              <label className="text-[10px] sm:text-xs leading-tight break-words" style={{ color: 'var(--text-muted)' }}>
+                                Navn
+                                <input
+                                  type="text"
+                                  disabled={readOnly}
+                                  value={src.name}
+                                  onChange={(e) =>
+                                    persistPlan({
+                                      ...plan,
+                                      sources: plan.sources.map((s) =>
+                                        s.id === src.id ? { ...s, name: e.target.value } : s,
+                                      ),
+                                    })
+                                  }
+                                  className="mt-0.5 w-full min-w-0 px-2 py-2 rounded-lg text-xs sm:text-sm"
+                                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                                  aria-label={`Kildenavn ${si + 1}`}
+                                />
+                              </label>
+                              {!readOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setCellModal({
+                                      sourceId: src.id,
+                                      monthKey: defaultSourceModalMonthKey || monthKeys[0]!,
+                                    })
+                                  }
+                                  className="min-h-[48px] w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left touch-manipulation border text-sm"
+                                  style={{
+                                    borderColor: 'var(--primary)',
+                                    background: 'var(--primary-pale)',
+                                    color: 'var(--primary)',
+                                  }}
+                                >
+                                  <span className="min-w-0 flex flex-col gap-0.5">
+                                    <span className="font-semibold break-words leading-snug">
+                                      {src.name.trim() || `Kilde ${si + 1}`}
+                                    </span>
+                                    <span className="text-[10px] sm:text-xs font-normal leading-snug break-words opacity-90">
+                                      Innbetalt og månedsdetaljer
+                                    </span>
+                                  </span>
+                                  <ChevronRight size={20} className="shrink-0" aria-hidden />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           {monthKeys.map((mk) => {
                             const v = src.amountsByMonthKey[mk] ?? 0
                             return (
-                              <td key={mk} className="py-1 px-0.5 align-top">
-                                <div className="flex flex-col gap-1 min-w-[4.5rem]">
-                                  <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    disabled={readOnly}
-                                    value={v ? formatThousands(String(v)) : ''}
-                                    onChange={(e) => {
-                                      const n = parseThousands(e.target.value)
-                                      persistPlan({
-                                        ...plan,
-                                        sources: plan.sources.map((s) =>
-                                          s.id === src.id
-                                            ? { ...s, amountsByMonthKey: { ...s.amountsByMonthKey, [mk]: n } }
-                                            : s,
-                                        ),
-                                      })
-                                    }}
-                                    className="w-full min-w-0 px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm"
-                                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                                    aria-label={`Beløp ${src.name} ${monthKeyHeadingNb(mk)}`}
-                                  />
-                                  {!readOnly && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setCellModal({ sourceId: src.id, monthKey: mk })}
-                                      className="min-h-[40px] sm:min-h-[36px] px-1 py-1.5 rounded-lg text-[10px] sm:text-xs font-medium touch-manipulation leading-tight"
-                                      style={{ border: '1px solid var(--border)', color: 'var(--primary)', background: 'var(--bg)' }}
-                                    >
-                                      Innbetalt…
-                                    </button>
-                                  )}
-                                </div>
+                              <td key={mk} className="py-1 px-0.5 align-middle">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  disabled={readOnly}
+                                  value={v ? formatThousands(String(v)) : ''}
+                                  onChange={(e) => {
+                                    const n = parseThousands(e.target.value)
+                                    persistPlan({
+                                      ...plan,
+                                      sources: plan.sources.map((s) =>
+                                        s.id === src.id
+                                          ? { ...s, amountsByMonthKey: { ...s.amountsByMonthKey, [mk]: n } }
+                                          : s,
+                                      ),
+                                    })
+                                  }}
+                                  className="w-full min-w-[4.25rem] sm:min-w-[4.5rem] px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm"
+                                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                                  aria-label={`Beløp ${src.name} ${monthKeyHeadingNb(mk)}`}
+                                />
                               </td>
                             )
                           })}
@@ -752,7 +793,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                   />
                   <span className="text-xs leading-snug break-words">
-                    Utenom månedlige tilføringer fra «Innbetalt…» på cellene. Samme målgrunnlag som målet.
+                    Utenom månedlige tilføringer via kildeknappen i tabellen. Samme målgrunnlag som målet.
                   </span>
                 </label>
               </div>
@@ -822,7 +863,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                       className="text-lg font-semibold pr-2 min-w-0 break-words"
                       style={{ color: 'var(--text)' }}
                     >
-                      {cellModalSource.name || 'Kilde'} · {monthKeyHeadingNb(cellModal.monthKey)}
+                      {cellModalSource.name.trim() || 'Kilde'}
                     </h2>
                     <button
                       type="button"
@@ -835,8 +876,24 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     </button>
                   </div>
                   <div className="overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-4 flex-1 min-h-0">
+                    <label className="flex flex-col gap-1.5 text-sm min-w-0 font-medium" style={{ color: 'var(--text)' }}>
+                      Måned
+                      <select
+                        value={cellModal.monthKey}
+                        onChange={(e) => setCellModal({ ...cellModal, monthKey: e.target.value })}
+                        className="min-h-[48px] w-full px-3 py-2.5 rounded-xl text-base sm:text-sm touch-manipulation"
+                        style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                      >
+                        {monthKeys.map((mk) => (
+                          <option key={mk} value={mk}>
+                            {monthKeyHeadingNb(mk)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                     <p className="text-sm min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
-                      Brutto er det du har lagt inn i cellen. Netto følger skattesats (plan eller egen for kilden).
+                      Brutto er det du har lagt inn i cellen for valgt måned. Netto følger skattesats (plan eller egen for
+                      kilden).
                     </p>
                     <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                       <div>
