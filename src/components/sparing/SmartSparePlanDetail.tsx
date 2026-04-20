@@ -28,7 +28,6 @@ import {
   AlertTriangle,
   Calendar,
   ChevronLeft,
-  ChevronRight,
   Clock,
   PiggyBank,
   Plus,
@@ -473,8 +472,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     Brutto per måned
                   </h2>
                   <p className="text-xs mt-1 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
-                    Trykk på <strong style={{ color: 'var(--text)' }}>kildeknappen</strong> med kildenavnet (f.eks. Snap) for
-                    innbetalt, brutto/netto og valgfri skatt — velg måned i vinduet.
+                    Lenken under kildenavnet åpner innbetalt, brutto/netto og valgfri skatt — velg måned i vinduet.
                   </p>
                 </div>
                 <button
@@ -528,26 +526,28 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                             className="py-1.5 pr-2 sticky left-0 z-10 align-top min-w-0 w-[10.5rem] sm:w-[11rem] max-w-[11rem]"
                             style={{ background: 'var(--surface)' }}
                           >
-                            <div className="flex flex-col gap-2 min-w-0">
-                              <label className="text-[10px] sm:text-xs leading-tight break-words" style={{ color: 'var(--text-muted)' }}>
-                                Navn
-                                <input
-                                  type="text"
-                                  disabled={readOnly}
-                                  value={src.name}
-                                  onChange={(e) =>
-                                    persistPlan({
-                                      ...plan,
-                                      sources: plan.sources.map((s) =>
-                                        s.id === src.id ? { ...s, name: e.target.value } : s,
-                                      ),
-                                    })
-                                  }
-                                  className="mt-0.5 w-full min-w-0 px-2 py-2 rounded-lg text-xs sm:text-sm"
-                                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                                  aria-label={`Kildenavn ${si + 1}`}
-                                />
-                              </label>
+                            <div className="flex flex-col gap-0.5 min-w-0">
+                              <input
+                                type="text"
+                                disabled={readOnly}
+                                value={src.name}
+                                onChange={(e) =>
+                                  persistPlan({
+                                    ...plan,
+                                    sources: plan.sources.map((s) =>
+                                      s.id === src.id ? { ...s, name: e.target.value } : s,
+                                    ),
+                                  })
+                                }
+                                placeholder={`Kilde ${si + 1}`}
+                                className="w-full min-w-0 px-3 py-2.5 rounded-xl text-sm font-semibold touch-manipulation border min-h-[48px]"
+                                style={{
+                                  borderColor: 'var(--primary)',
+                                  background: 'var(--primary-pale)',
+                                  color: 'var(--text)',
+                                }}
+                                aria-label={`Kildenavn ${si + 1}`}
+                              />
                               {!readOnly && (
                                 <button
                                   type="button"
@@ -557,22 +557,10 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                       monthKey: defaultSourceModalMonthKey || monthKeys[0]!,
                                     })
                                   }
-                                  className="min-h-[48px] w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left touch-manipulation border text-sm"
-                                  style={{
-                                    borderColor: 'var(--primary)',
-                                    background: 'var(--primary-pale)',
-                                    color: 'var(--primary)',
-                                  }}
+                                  className="text-left text-[10px] sm:text-xs font-medium underline underline-offset-2 min-h-[44px] py-2 touch-manipulation w-full min-w-0 break-words"
+                                  style={{ color: 'var(--primary)' }}
                                 >
-                                  <span className="min-w-0 flex flex-col gap-0.5">
-                                    <span className="font-semibold break-words leading-snug">
-                                      {src.name.trim() || `Kilde ${si + 1}`}
-                                    </span>
-                                    <span className="text-[10px] sm:text-xs font-normal leading-snug break-words opacity-90">
-                                      Innbetalt og månedsdetaljer
-                                    </span>
-                                  </span>
-                                  <ChevronRight size={20} className="shrink-0" aria-hidden />
+                                  Innbetalt og månedsdetaljer
                                 </button>
                               )}
                             </div>
@@ -793,7 +781,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                   />
                   <span className="text-xs leading-snug break-words">
-                    Utenom månedlige tilføringer via kildeknappen i tabellen. Samme målgrunnlag som målet.
+                    Utenom månedlige tilføringer via lenken under kildenavnet i tabellen. Samme målgrunnlag som målet.
                   </span>
                 </label>
               </div>
