@@ -29,6 +29,11 @@ const nextConfig: NextConfig = {
         destination: '/enkelexcel-ai',
         permanent: true,
       },
+      {
+        source: '/sparing/innspurt',
+        destination: '/sparing/smartspare',
+        permanent: true,
+      },
     ]
   },
 }

@@ -25,7 +25,10 @@ export default function Header({ title, subtitle, titleAddon }: HeaderProps) {
           </h1>
           {titleAddon != null ? <span className="shrink-0 flex items-center">{titleAddon}</span> : null}
         </div>
-        <p className="mt-0.5 text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
+        <p
+          className="mt-0.5 min-w-0 max-w-full text-xs sm:text-sm leading-snug break-words"
+          style={{ color: 'var(--text-muted)' }}
+        >
           {subtitle ?? now}
         </p>
       </div>

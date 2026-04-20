@@ -41,7 +41,7 @@ export default function StatCard({
   }, [infoOpen])
 
   const cardClass =
-    'rounded-2xl p-4 sm:p-5 flex flex-col gap-3 touch-manipulation' +
+    'min-w-0 rounded-2xl p-4 sm:p-5 flex flex-col gap-3 touch-manipulation' +
     (onClick
       ? ' outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2'
       : '')
@@ -88,7 +88,7 @@ export default function StatCard({
         </div>
       </div>
       <div className="min-w-0">
-        <p className="text-lg font-bold tabular-nums sm:text-2xl" style={{ color: 'var(--text)' }}>
+        <p className="text-lg font-bold tabular-nums sm:text-2xl break-words" style={{ color: 'var(--text)' }}>
           {value}
         </p>
         <div className="mt-1 flex flex-wrap items-start gap-x-1 gap-y-0.5">

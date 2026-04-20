@@ -12,6 +12,7 @@ import {
 import { Plus, Trash2, Target, Calendar, TrendingUp, ChevronRight } from 'lucide-react'
 import { PolarAngleAxis, RadialBar, RadialBarChart, ResponsiveContainer } from 'recharts'
 import SparingGoalDetailModal from '@/components/sparing/SparingGoalDetailModal'
+import SparingSubnav from '@/components/sparing/SparingSubnav'
 
 const COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#0B7285']
 
@@ -179,6 +180,7 @@ export default function SparingPage() {
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header title="Sparing" subtitle="Følg opp sparemålene dine" />
+      <SparingSubnav />
       <div className="p-8 space-y-6">
         <Link
           href="/sparing/formuebygger"

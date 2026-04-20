@@ -63,6 +63,11 @@ import {
   getDemoSubscriptionMonthlyAmountsForVariant,
   getDemoVariantIndexForProfile,
 } from './demoPersonVariants'
+import {
+  ensureIncomeSprintPlanId,
+  reconcileIncomeSprintPlan,
+  type IncomeSprintPlan,
+} from './incomeSprint'
 
 export type { BudgetYearCopySource } from './budgetActualsToBudgeted'
 export type SwitchActiveBudgetYearResult =
@@ -302,6 +307,8 @@ export interface PersonData {
   snowballExtraMonthly?: number
   /** Rekkefølge for fokuslån; husholdningsaggregat setter ikke feltet */
   debtPayoffStrategy?: DebtPayoffStrategy
+  /** smartSpare-planer: inntekt per måned mot mål (per profil). */
+  incomeSprintPlans?: IncomeSprintPlan[]
 }
 
 export type OnboardingStatus = 'pending' | 'completed' | 'skipped'
@@ -400,6 +407,9 @@ interface AppState {
   addSavingsGoal: (g: SavingsGoal) => void
   updateSavingsGoal: (id: string, data: Partial<SavingsGoal>) => void
   removeSavingsGoal: (id: string) => void
+  setIncomeSprintPlans: (plans: IncomeSprintPlan[]) => void
+  upsertIncomeSprintPlan: (plan: IncomeSprintPlan) => void
+  removeIncomeSprintPlan: (id: string) => void
 
   addDebt: (d: Debt) => void
   updateDebt: (id: string, data: Partial<Debt>) => void
@@ -621,7 +631,7 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     if (!base.people[pr.id]) {
       base.people[pr.id] = createEmptyPersonData()
     }
-    const person = base.people[pr.id]
+    let person = normalizePersonIncomeSprintPlans(base.people[pr.id]!)
     if (!person.customBudgetLabels) person.customBudgetLabels = emptyLabelLists().customBudgetLabels
     if (!person.hiddenBudgetLabels) person.hiddenBudgetLabels = emptyLabelLists().hiddenBudgetLabels
     if (!Array.isArray(person.serviceSubscriptions)) person.serviceSubscriptions = []
@@ -852,6 +862,7 @@ export function createInitialPersonData(): PersonData {
     serviceSubscriptions: [],
     snowballExtraMonthly: 0,
     debtPayoffStrategy: 'snowball',
+    incomeSprintPlans: [],
   }
 }
 
@@ -867,7 +878,21 @@ export function createEmptyPersonData(): PersonData {
     serviceSubscriptions: [],
     snowballExtraMonthly: 0,
     debtPayoffStrategy: 'snowball',
+    incomeSprintPlans: [],
   }
+}
+
+/** Migrerer `incomeSprintPlan` → `incomeSprintPlans` og sikrer id per plan. */
+function normalizePersonIncomeSprintPlans(person: PersonData): PersonData {
+  const anyP = person as PersonData & { incomeSprintPlan?: IncomeSprintPlan | null }
+  const legacy = anyP.incomeSprintPlan
+  let plans = Array.isArray(anyP.incomeSprintPlans) ? [...anyP.incomeSprintPlans] : []
+  if (legacy != null && plans.length === 0) {
+    plans = [reconcileIncomeSprintPlan(ensureIncomeSprintPlanId(legacy as IncomeSprintPlan))]
+  }
+  plans = plans.map((p) => reconcileIncomeSprintPlan(ensureIncomeSprintPlanId(p)))
+  const { incomeSprintPlan: _drop, ...rest } = anyP
+  return { ...rest, incomeSprintPlans: plans }
 }
 
 /** Månedlige demoutgifter — kategorinavn må matche `defaultCategories` i `createInitialPersonData`. */
@@ -1180,6 +1205,7 @@ function migrateFromLegacy(p: LegacyPersistedState): Pick<AppState, 'subscriptio
       : [],
     snowballExtraMonthly: typeof p.snowballExtraMonthly === 'number' ? p.snowballExtraMonthly : 0,
     debtPayoffStrategy: p.debtPayoffStrategy === 'avalanche' ? 'avalanche' : 'snowball',
+    incomeSprintPlans: [],
   }
 
   return {
@@ -2017,6 +2043,64 @@ export const useStore = create<AppState>()((set, get) => {
         removeSavingsGoal: (id) =>
           patchActive((d) => ({ ...d, savingsGoals: d.savingsGoals.filter((g) => g.id !== id) })),
 
+        setIncomeSprintPlans: (plans) => {
+          set((s) => {
+            const householdReadonly =
+              s.financeScope === 'household' && s.subscriptionPlan === 'family' && s.profiles.length >= 2
+            if (householdReadonly) return s
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const normalized = plans.map((p) => reconcileIncomeSprintPlan(ensureIncomeSprintPlanId(p)))
+            return {
+              people: {
+                ...s.people,
+                [pid]: { ...person, incomeSprintPlans: normalized },
+              },
+            }
+          })
+        },
+
+        upsertIncomeSprintPlan: (plan) => {
+          set((s) => {
+            const householdReadonly =
+              s.financeScope === 'household' && s.subscriptionPlan === 'family' && s.profiles.length >= 2
+            if (householdReadonly) return s
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const next = reconcileIncomeSprintPlan(ensureIncomeSprintPlanId(plan))
+            const prev = person.incomeSprintPlans ?? []
+            const idx = prev.findIndex((p) => p.id === next.id)
+            const merged =
+              idx >= 0 ? [...prev.slice(0, idx), next, ...prev.slice(idx + 1)] : [...prev, next]
+            return {
+              people: {
+                ...s.people,
+                [pid]: { ...person, incomeSprintPlans: merged },
+              },
+            }
+          })
+        },
+
+        removeIncomeSprintPlan: (id) => {
+          set((s) => {
+            const householdReadonly =
+              s.financeScope === 'household' && s.subscriptionPlan === 'family' && s.profiles.length >= 2
+            if (householdReadonly) return s
+            const pid = s.activeProfileId
+            const person = s.people[pid]
+            if (!person) return s
+            const merged = (person.incomeSprintPlans ?? []).filter((p) => p.id !== id)
+            return {
+              people: {
+                ...s.people,
+                [pid]: { ...person, incomeSprintPlans: merged },
+              },
+            }
+          })
+        },
+
         addDebt: (debtIn) => {
           set((s) => {
             const pid = s.activeProfileId
@@ -2810,6 +2894,9 @@ export function useActivePersonFinance() {
       addSavingsGoal: s.addSavingsGoal,
       updateSavingsGoal: s.updateSavingsGoal,
       removeSavingsGoal: s.removeSavingsGoal,
+      setIncomeSprintPlans: s.setIncomeSprintPlans,
+      upsertIncomeSprintPlan: s.upsertIncomeSprintPlan,
+      removeIncomeSprintPlan: s.removeIncomeSprintPlan,
       addDebt: s.addDebt,
       updateDebt: s.updateDebt,
       removeDebt: s.removeDebt,
@@ -2847,6 +2934,8 @@ export function useActivePersonFinance() {
     return state.people[state.activeProfileId] ?? createEmptyPersonData()
   }, [householdMode, state.people, state.activeProfileId, state.profiles, state.budgetYear])
 
+  const incomeSprintPlans = state.people[state.activeProfileId]?.incomeSprintPlans ?? []
+
   return {
     transactions: person.transactions,
     budgetCategories: person.budgetCategories,
@@ -2858,6 +2947,7 @@ export function useActivePersonFinance() {
     serviceSubscriptions: person.serviceSubscriptions ?? [],
     snowballExtraMonthly: person.snowballExtraMonthly ?? 0,
     debtPayoffStrategy: person.debtPayoffStrategy ?? 'snowball',
+    incomeSprintPlans,
     activeProfileId: state.activeProfileId,
     profiles: state.profiles,
     subscriptionPlan: state.subscriptionPlan,
@@ -2880,6 +2970,9 @@ export function useActivePersonFinance() {
     addSavingsGoal: state.addSavingsGoal,
     updateSavingsGoal: state.updateSavingsGoal,
     removeSavingsGoal: state.removeSavingsGoal,
+    setIncomeSprintPlans: state.setIncomeSprintPlans,
+    upsertIncomeSprintPlan: state.upsertIncomeSprintPlan,
+    removeIncomeSprintPlan: state.removeIncomeSprintPlan,
     addDebt: state.addDebt,
     updateDebt: state.updateDebt,
     removeDebt: state.removeDebt,

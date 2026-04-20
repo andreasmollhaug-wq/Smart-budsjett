@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Header from '@/components/layout/Header'
+import SparingSubnav from '@/components/sparing/SparingSubnav'
 import { FormuebyggerMonthlyTable } from '@/components/formuebygger/FormuebyggerMonthlyTable'
 import {
   computeBreakEvenYear,
@@ -120,6 +121,7 @@ export default function FormuebyggerPage() {
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header title="Formuebyggeren PRO" subtitle="Simuler formuesvekst over tid" />
+      <SparingSubnav />
       <div className="p-8 space-y-8 max-w-6xl">
         <div className="flex flex-wrap items-center gap-4">
           <Link
