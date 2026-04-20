@@ -631,7 +631,7 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     if (!base.people[pr.id]) {
       base.people[pr.id] = createEmptyPersonData()
     }
-    let person = normalizePersonIncomeSprintPlans(base.people[pr.id]!)
+    const person = normalizePersonIncomeSprintPlans(base.people[pr.id]!)
     if (!person.customBudgetLabels) person.customBudgetLabels = emptyLabelLists().customBudgetLabels
     if (!person.hiddenBudgetLabels) person.hiddenBudgetLabels = emptyLabelLists().hiddenBudgetLabels
     if (!Array.isArray(person.serviceSubscriptions)) person.serviceSubscriptions = []

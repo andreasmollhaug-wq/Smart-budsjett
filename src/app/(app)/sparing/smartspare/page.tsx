@@ -34,6 +34,8 @@ export default function SmartSparePage() {
 
   const readOnly = isHouseholdAggregate
 
+  const activeProfileName = profiles.find((p) => p.id === activeProfileId)?.name ?? 'Profil'
+
   const [createPlanModalOpen, setCreatePlanModalOpen] = useState(false)
   const [modalStart, setModalStart] = useState('')
   const [modalEnd, setModalEnd] = useState('')
@@ -110,17 +112,20 @@ export default function SmartSparePage() {
   }
 
   const allDashboardRows = useMemo(() => {
-    const rows = profiles.flatMap((p) =>
-      (people[p.id]?.incomeSprintPlans ?? []).map((plan) => ({
-        profileId: p.id,
-        profileName: p.name,
+    const profileIds = isHouseholdAggregate ? profiles.map((p) => p.id) : [activeProfileId]
+    const rows = profileIds.flatMap((pid) => {
+      const prof = profiles.find((p) => p.id === pid)
+      const profileName = prof?.name ?? ''
+      return (people[pid]?.incomeSprintPlans ?? []).map((plan) => ({
+        profileId: pid,
+        profileName,
         plan,
         derived: computeIncomeSprintDerived(plan),
-      })),
-    )
+      }))
+    })
     rows.sort((a, b) => b.plan.endDate.localeCompare(a.plan.endDate))
     return rows
-  }, [people, profiles])
+  }, [people, profiles, isHouseholdAggregate, activeProfileId])
 
   const aggregateKpi = useMemo(() => {
     let target = 0
@@ -142,7 +147,14 @@ export default function SmartSparePage() {
 
   return (
     <div className="flex-1 overflow-auto min-w-0" style={{ background: 'var(--bg)' }}>
-      <Header title="smartSpare" subtitle="Oversikt over planer — åpne en plan for detaljer og redigering" />
+      <Header
+        title="smartSpare"
+        subtitle={
+          isHouseholdAggregate
+            ? 'Oversikt over planer — åpne en plan for detaljer og redigering'
+            : `Planer for ${activeProfileName} — bytt profil i menyen for andre medlemmers planer`
+        }
+      />
       <SparingSubnav />
       <div
         className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto w-full min-w-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
@@ -175,7 +187,11 @@ export default function SmartSparePage() {
               onPointerDown={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-5 shrink-0" style={{ borderColor: 'var(--border)' }}>
-                <h2 id="smartspare-create-title" className="text-lg font-semibold pr-2" style={{ color: 'var(--text)' }}>
+                <h2
+                  id="smartspare-create-title"
+                  className="text-lg font-semibold pr-2 min-w-0 break-words"
+                  style={{ color: 'var(--text)' }}
+                >
                   Opprett plan
                 </h2>
                 <button
@@ -189,9 +205,10 @@ export default function SmartSparePage() {
                 </button>
               </div>
               <div className="overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-4 flex-1 min-h-0">
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Fyll inn det viktigste først. Innbetalt beløp og kilder kan du legge inn etterpå under «Brutto per måned»
-                  og «Innstillinger» på plansiden.
+                <p className="text-sm min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+                  Planen knyttes til profilen <strong style={{ color: 'var(--text)' }}>{activeProfileName}</strong> (den du
+                  har valgt under «Viser data for»). Fyll inn det viktigste først. Innbetalt beløp og kilder kan du legge
+                  inn etterpå under «Brutto per måned» og «Innstillinger» på plansiden.
                 </p>
                 {modalError && (
                   <p className="text-sm rounded-xl px-3 py-2" style={{ background: 'var(--primary-pale)', color: 'var(--text)' }}>
@@ -345,7 +362,7 @@ export default function SmartSparePage() {
                 <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
                   {isHouseholdAggregate
                     ? 'Sum av alle planer i husholdningen (per plan brukes valgt målgrunnlag).'
-                    : 'Sum av alle dine planer (per plan brukes valgt målgrunnlag).'}
+                    : `Sum av planene til ${activeProfileName} (per plan brukes valgt målgrunnlag).`}
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
@@ -392,7 +409,9 @@ export default function SmartSparePage() {
                     {isHouseholdAggregate ? 'Planer i husholdningen' : 'Dine planer'}
                   </h2>
                   <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Trykk på en plan for å se diagrammer, tabell og innstillinger.
+                    {isHouseholdAggregate
+                      ? 'Trykk på en plan for å se diagrammer, tabell og innstillinger.'
+                      : `Kun planer som tilhører ${activeProfileName}. Trykk på en plan for detaljer.`}
                   </p>
                 </div>
                 {!readOnly && (
@@ -429,11 +448,10 @@ export default function SmartSparePage() {
                       <p className="font-medium break-words" style={{ color: 'var(--text)' }}>
                         {title}
                       </p>
-                      {isHouseholdAggregate && (
+                      {(isHouseholdAggregate || profiles.length >= 2) && (
                         <span
-                          className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-lg max-w-full truncate"
+                          className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-lg max-w-full break-words leading-snug"
                           style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
-                          title={profileName}
                         >
                           {profileName}
                         </span>
@@ -493,9 +511,10 @@ export default function SmartSparePage() {
             <h2 className="font-semibold text-lg" style={{ color: 'var(--text)' }}>
               Kom i gang
             </h2>
-            <p className="text-sm max-w-xl" style={{ color: 'var(--text-muted)' }}>
-              Sett start- og sluttdato, mål (før eller etter skatt), og legg inn forventet bruttoinntekt per kilde og
-              måned etter at planen er opprettet. Du får oppsummering, KPI og grafer på plansiden.
+            <p className="text-sm max-w-xl mx-auto sm:mx-0" style={{ color: 'var(--text-muted)' }}>
+              Planen lagres på <strong style={{ color: 'var(--text)' }}>{activeProfileName}</strong>. Sett start- og
+              sluttdato, mål (før eller etter skatt), og legg inn forventet bruttoinntekt per kilde og måned etter at
+              planen er opprettet. Du får oppsummering, KPI og grafer på plansiden.
             </p>
             <button
               type="button"

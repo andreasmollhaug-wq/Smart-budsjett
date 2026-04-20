@@ -83,7 +83,7 @@ Sparing (/sparing)
 - Underfaner: «Sparing» (/sparing), «smartSpare» (/sparing/smartspare), «Formuebygger» (/sparing/formuebygger).
 - Sparing (/sparing): sparemål med navn, målbeløp, valgfri måldato, valgfri kobling til en budsjettkategori under gruppen «Sparing».
 - Med kobling til sparekategori: innskudd kan registreres som transaksjon i den kategorien. Uten kobling: innskudd som egne poster på målet.
-- smartSpare: **Oversikt** på /sparing/smartspare (dashbord med kort for alle planer; i husholdning vises alle medlemmer). **Én plan** åpnes på egen rute /sparing/smartspare/ etterfulgt av plan-id (detaljer, grafer, tabell, innstillinger). Du kan ha **flere planer per profil**. I husholdningsvisning: «Åpne» bytter til **enkeltprofilvisning** og riktig profil. Gammel lenke med spørreparameter plan på oversikten videresendes til plansiden. Gammel URL /sparing/innspurt videresendes til /sparing/smartspare.
+- smartSpare: **Oversikt** på /sparing/smartspare (i **enkeltprofilvisning** vises kun den aktive profilens planer og KPI; i **husholdning** vises alle medlemmers planer samlet). **Én plan** åpnes på egen rute /sparing/smartspare/ etterfulgt av plan-id (detaljer, grafer, tabell, innstillinger). Nye planer lagres på **den profilen som er valgt** under «Viser data for». Du kan ha **flere planer per profil**. I husholdningsvisning: «Åpne» bytter til **enkeltprofilvisning** og riktig profil. Gammel lenke med spørreparameter plan på oversikten videresendes til plansiden. Gammel URL /sparing/innspurt videresendes til /sparing/smartspare.
 - Formuebyggeren PRO (/sparing/formuebygger): egen simulator for langsiktig formue, kjøpekraft og milepæler (separat fra sparemål-listen og smartSpare).
 
 Gjeld (/gjeld)

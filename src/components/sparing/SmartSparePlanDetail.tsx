@@ -115,6 +115,10 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
   const planTitle = plan ? (plan.name?.trim() || formatIncomeSprintPlanPeriodNb(plan)) : ''
 
+  const ownerProfileName = profiles.find((p) => p.id === activeProfileId)?.name ?? ''
+  const headerSubtitle =
+    planTitle && profiles.length >= 2 ? `${planTitle} · ${ownerProfileName}` : planTitle
+
   if (!planExistsSomewhere) {
     return (
       <div className="flex-1 overflow-auto min-w-0" style={{ background: 'var(--bg)' }}>
@@ -161,7 +165,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
   return (
     <div className="flex-1 overflow-auto min-w-0" style={{ background: 'var(--bg)' }}>
-      <Header title="smartSpare" subtitle={planTitle} />
+      <Header title="smartSpare" subtitle={headerSubtitle} />
       <SparingSubnav />
       <div
         className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto w-full min-w-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
