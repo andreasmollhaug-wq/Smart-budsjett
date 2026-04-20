@@ -474,9 +474,9 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     Brutto per måned
                   </h2>
                   <p className="text-xs mt-1 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
-                    Trykk på <strong style={{ color: 'var(--text)' }}>kildenavnet</strong> (til venstre i den blå boksen) for
-                    innbetalt, brutto/netto og valgfri skatt — velg måned i vinduet. Beløpet til høyre er brutto for måneden
-                    perioden peker på (samme som månedscellen). Bruk blyanten for å endre navn.
+                    Trykk på <strong style={{ color: 'var(--text)' }}>kildenavnet</strong> i den blå ruten for innbetalt,
+                    brutto/netto og valgfri skatt — velg måned i vinduet. Bruk blyanten for å endre navn. Brutto per måned
+                    tastes i cellene til høyre.
                   </p>
                 </div>
                 <button
@@ -506,7 +506,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     <thead>
                       <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                         <th
-                          className="text-left py-2 pr-3 font-medium sticky left-0 z-10 min-w-[12.5rem] sm:min-w-[14rem] w-[12.5rem] sm:w-[14rem]"
+                          className="text-left py-2 pr-2 font-medium sticky left-0 z-10 min-w-[8.5rem] sm:min-w-[9.5rem] w-[8.5rem] sm:w-[9.5rem]"
                           style={{ background: 'var(--surface)' }}
                         >
                           Kilde
@@ -527,13 +527,10 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                       {plan.sources.map((src, si) => (
                         <tr key={src.id} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
                           <td
-                            className="py-1.5 pr-2 sticky left-0 z-10 align-middle min-w-0 w-[12.5rem] sm:w-[14rem] max-w-[14rem]"
+                            className="py-1 pr-1.5 sticky left-0 z-10 align-middle min-w-0 w-[8.5rem] sm:w-[9.5rem] max-w-[9.5rem]"
                             style={{ background: 'var(--surface)' }}
                           >
                             {(() => {
-                              const refMk = derived.referenceMonthKey
-                              const refGross = src.amountsByMonthKey[refMk] ?? 0
-                              const amountLabel = refGross ? formatThousands(String(refGross)) : '—'
                               const displayName = src.name.trim() || `Kilde ${si + 1}`
                               const openSourceModal = () => {
                                 setRenamingSourceId(null)
@@ -545,7 +542,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                               const isRenaming = renamingSourceId === src.id
                               return (
                                 <div
-                                  className="flex items-center gap-1 min-w-0 rounded-xl border min-h-[48px] px-2 sm:px-3 py-1.5 touch-manipulation"
+                                  className="flex items-stretch gap-0 min-w-0 rounded-lg border px-0.5 touch-manipulation"
                                   style={{
                                     borderColor: 'var(--primary)',
                                     background: 'var(--primary-pale)',
@@ -572,12 +569,15 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                         }
                                       }}
                                       placeholder={`Kilde ${si + 1}`}
-                                      className="flex-1 min-w-0 border-0 bg-transparent text-sm font-semibold outline-none focus:ring-0 py-1"
+                                      className="flex-1 min-w-0 border-0 bg-transparent font-semibold outline-none focus:ring-0 py-2 px-1 text-[10px] sm:text-sm"
                                       style={{ color: 'var(--text)' }}
                                       aria-label={`Rediger kildenavn ${si + 1}`}
                                     />
                                   ) : readOnly ? (
-                                    <span className="flex-1 min-w-0 text-sm font-semibold truncate py-2 px-1" style={{ color: 'var(--text)' }}>
+                                    <span
+                                      className="flex-1 min-w-0 font-semibold truncate py-2 px-1 text-[10px] sm:text-sm"
+                                      style={{ color: 'var(--text)' }}
+                                    >
                                       {displayName}
                                     </span>
                                   ) : (
@@ -585,10 +585,10 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                       <button
                                         type="button"
                                         onClick={openSourceModal}
-                                        className="flex-1 min-w-0 text-left text-sm font-semibold min-h-[44px] py-2 px-1 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                                        className="flex flex-1 min-w-0 items-center text-left font-semibold py-2 px-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] touch-manipulation text-[10px] sm:text-sm"
                                         style={{ color: 'var(--text)' }}
                                       >
-                                        <span className="break-words line-clamp-2 sm:line-clamp-1">{displayName}</span>
+                                        <span className="break-words line-clamp-2 sm:line-clamp-1 leading-snug">{displayName}</span>
                                       </button>
                                       <button
                                         type="button"
@@ -597,7 +597,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                           e.stopPropagation()
                                           setRenamingSourceId(src.id)
                                         }}
-                                        className="inline-flex shrink-0 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                                        className="inline-flex shrink-0 items-center justify-center py-2 px-1.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] touch-manipulation"
                                         style={{ color: 'var(--primary)' }}
                                         aria-label={`Endre navn: ${displayName}`}
                                       >
@@ -605,13 +605,6 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                       </button>
                                     </>
                                   )}
-                                  <span
-                                    className="shrink-0 text-[10px] sm:text-xs font-medium tabular-nums text-right pointer-events-none pl-0.5 max-w-[5.25rem] sm:max-w-none truncate"
-                                    style={{ color: 'var(--text-muted)' }}
-                                    title={`Brutto ${monthKeyHeadingNb(refMk)} (redigeres i månedstabellen)`}
-                                  >
-                                    {amountLabel}
-                                  </span>
                                 </div>
                               )
                             })()}
