@@ -1,4 +1,4 @@
-import { BUDGET_MONTH_LABELS } from '@/lib/budgetPeriod'
+import { BUDGET_MONTH_LABELS, type PeriodMode } from '@/lib/budgetPeriod'
 import { generateId } from '@/lib/utils'
 
 export type IncomeSprintGoalBasis = 'afterTax' | 'beforeTax'
@@ -6,6 +6,8 @@ export type IncomeSprintGoalBasis = 'afterTax' | 'beforeTax'
 export interface IncomeSprintSource {
   id: string
   name: string
+  /** Valgfri skattesats for denne kilden når plan.applyTax er true; ellers brukes plan.taxPercent. */
+  taxPercent?: number
   amountsByMonthKey: Record<string, number>
 }
 
@@ -19,7 +21,10 @@ export interface IncomeSprintPlan {
   targetAmount: number
   applyTax: boolean
   taxPercent: number
+  /** Engangs innbetalt utenom månedlige tilføringer (samme målgrunnlag som målet). */
   paidTowardGoal: number
+  /** Faktisk innbetalt per kalendermåned (YYYY-MM), samme målgrunnlag som målet. */
+  paidByMonthKey?: Record<string, number>
   sources: IncomeSprintSource[]
 }
 
@@ -101,12 +106,93 @@ export function taxMultiplier(applyTax: boolean, taxPercent: number): number {
   return 1 - r
 }
 
+/** Effektiv skattesats (0–100) for en kilde når plan har skatt på. */
+export function effectiveTaxPercentForSource(plan: IncomeSprintPlan, source: IncomeSprintSource): number {
+  if (!plan.applyTax) return 0
+  const p = source.taxPercent !== undefined && source.taxPercent !== null ? source.taxPercent : plan.taxPercent
+  return clampTaxPercent(p)
+}
+
+/** Brutto, skatt og netto for én kilde i én måned (for modal). */
+export function computeSourceMonthGrossTaxNet(
+  plan: IncomeSprintPlan,
+  sourceId: string,
+  monthKey: string,
+): { gross: number; tax: number; net: number; taxPercentUsed: number } | null {
+  const src = plan.sources.find((s) => s.id === sourceId)
+  if (!src) return null
+  const grossRaw = src.amountsByMonthKey[monthKey]
+  const gross = typeof grossRaw === 'number' && Number.isFinite(grossRaw) ? Math.max(0, grossRaw) : 0
+  const tp = effectiveTaxPercentForSource(plan, src)
+  const r = tp / 100
+  const tax = plan.applyTax ? gross * r : 0
+  const net = gross - tax
+  return { gross, tax, net, taxPercentUsed: tp }
+}
+
+/** Referansedato for smartSpare-oversikt (alle planer): valgt periodes slutt, aldri etter i dag. */
+export function smartSpareOverviewReferenceDate(
+  filterYear: number,
+  periodMode: PeriodMode,
+  monthIndex: number,
+): string {
+  const today = new Date().toISOString().slice(0, 10)
+  let endMonth0 = monthIndex
+  if (periodMode === 'year') endMonth0 = 11
+  const lastD = new Date(filterYear, endMonth0 + 1, 0).getDate()
+  const candidate = `${filterYear}-${String(endMonth0 + 1).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`
+  return candidate > today ? today : candidate
+}
+
+/**
+ * Siste dag i valgt periode (år + modus + måned), klippet mot plan og i dag.
+ * Brukes med samme filter som dashboard (år / hittil i år / måned / hele året).
+ */
+export function smartSpareFilterToReferenceDate(
+  plan: Pick<IncomeSprintPlan, 'startDate' | 'endDate'>,
+  filterYear: number,
+  periodMode: PeriodMode,
+  monthIndex: number,
+): string {
+  const today = new Date().toISOString().slice(0, 10)
+  let endMonth0 = monthIndex
+  if (periodMode === 'year') endMonth0 = 11
+  const lastD = new Date(filterYear, endMonth0 + 1, 0).getDate()
+  const candidate = `${filterYear}-${String(endMonth0 + 1).padStart(2, '0')}-${String(lastD).padStart(2, '0')}`
+
+  let ref = candidate
+  if (ref > plan.endDate) ref = plan.endDate
+  if (ref > today) ref = today
+  if (ref < plan.startDate) ref = plan.startDate
+  return ref
+}
+
+/** År som overlapper planperioden (for nedtrekk). */
+export function yearOptionsTouchingPlan(plan: Pick<IncomeSprintPlan, 'startDate' | 'endDate'>): number[] {
+  const sy = yearMonthFromIsoDate(plan.startDate)?.y
+  const ey = yearMonthFromIsoDate(plan.endDate)?.y
+  const cur = new Date().getFullYear()
+  if (sy == null || ey == null) return [cur]
+  const set = new Set<number>()
+  for (let y = sy; y <= ey; y++) set.add(y)
+  set.add(cur)
+  return [...set].sort((a, b) => b - a)
+}
+
 export function reconcileIncomeSprintPlan(plan: IncomeSprintPlan): IncomeSprintPlan {
   const keys = listMonthKeysInRange(plan.startDate, plan.endDate)
+  const paidIn = typeof plan.paidByMonthKey === 'object' && plan.paidByMonthKey !== null ? { ...plan.paidByMonthKey } : {}
+  const paidClean: Record<string, number> = {}
+  for (const k of keys) {
+    const v = paidIn[k]
+    paidClean[k] = typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0
+  }
+
   return {
     ...plan,
     targetAmount: Math.max(0, plan.targetAmount),
     paidTowardGoal: Math.max(0, plan.paidTowardGoal),
+    paidByMonthKey: paidClean,
     taxPercent: clampTaxPercent(plan.taxPercent),
     sources: plan.sources.map((s) => {
       const amounts: Record<string, number> = {}
@@ -114,7 +200,11 @@ export function reconcileIncomeSprintPlan(plan: IncomeSprintPlan): IncomeSprintP
         const v = s.amountsByMonthKey[k]
         amounts[k] = typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0
       }
-      return { ...s, amountsByMonthKey: amounts }
+      const next: IncomeSprintSource = { ...s, amountsByMonthKey: amounts }
+      if (s.taxPercent !== undefined && s.taxPercent !== null) {
+        next.taxPercent = clampTaxPercent(s.taxPercent)
+      }
+      return next
     }),
   }
 }
@@ -151,6 +241,7 @@ export function defaultNewIncomeSprintPlan(): IncomeSprintPlan {
     applyTax: false,
     taxPercent: 40,
     paidTowardGoal: 0,
+    paidByMonthKey: {},
     sources: [],
   })
 }
@@ -177,12 +268,24 @@ export interface IncomeSprintDerived {
   earnedGrossToDate: number
   earnedNetToDate: number
   earnedInGoalBasis: number
+  /** Sum innbetalt fra paidByMonthKey til og med ref-måned. */
+  paidFromMonthsToDate: number
+  /** Engangs innbetalt (paidTowardGoal). */
+  paidLump: number
+  /** Månedlig + engangs — «innbetalt hittil». */
+  paidTotalToDate: number
+  /** I avledet: samme som paidTotalToDate (gammelt navn unngått i nye skjermbilder). */
   paidTowardGoal: number
   targetAmount: number
   goalBasis: IncomeSprintGoalBasis
-  totalTowardGoal: number
+  /** max(0, tjent − innbetalt) i målgrunnlag. */
+  pendingNotReceived: number
+  /** Mål minus innbetalt hittil (konservativ fremdrift). */
   remaining: number
+  /** Basert på innbetalt / mål. */
   progressPercent: number
+  /** = paidTotalToDate — for bakoverkompatibilitet der «total mot mål» skal være kun innbetalt. */
+  totalTowardGoal: number
   daysLeft: number
 }
 
@@ -205,12 +308,12 @@ export function computeIncomeSprintDerived(
   const refYm = referenceDate.length >= 7 ? referenceDate.slice(0, 7) : keys[0]!
   const keysToDate = keys.filter((k) => k <= refYm)
 
-  const rate = clampTaxPercent(plan.taxPercent) / 100
   const apply = plan.applyTax === true
 
   const sourceTotals: IncomeSprintSourceTotals[] = plan.sources.map((src) => {
     const grossFull = sumSourceGrossForKeys(src, keys)
     const grossTd = sumSourceGrossForKeys(src, keysToDate)
+    const rate = effectiveTaxPercentForSource(plan, src) / 100
     const taxFull = apply ? grossFull * rate : 0
     const taxTd = apply ? grossTd * rate : 0
     const netFull = grossFull - taxFull
@@ -231,11 +334,20 @@ export function computeIncomeSprintDerived(
   const earnedNetToDate = sourceTotals.reduce((a, r) => a + r.netToDate, 0)
   const earnedInGoalBasis = plan.goalBasis === 'beforeTax' ? earnedGrossToDate : earnedNetToDate
 
+  let paidFromMonthsToDate = 0
+  const paidMap = plan.paidByMonthKey ?? {}
+  for (const k of keysToDate) {
+    const v = paidMap[k]
+    if (typeof v === 'number' && Number.isFinite(v)) paidFromMonthsToDate += Math.max(0, v)
+  }
+  const paidLump = Math.max(0, plan.paidTowardGoal)
+  const paidTotalToDate = paidFromMonthsToDate + paidLump
+
+  const pendingNotReceived = Math.max(0, earnedInGoalBasis - paidTotalToDate)
+
   const target = Math.max(0, plan.targetAmount)
-  const paid = Math.max(0, plan.paidTowardGoal)
-  const totalTowardGoal = paid + earnedInGoalBasis
-  const remaining = Math.max(0, target - totalTowardGoal)
-  const progressPercent = target > 0 ? Math.min(100, (totalTowardGoal / target) * 100) : 0
+  const remaining = Math.max(0, target - paidTotalToDate)
+  const progressPercent = target > 0 ? Math.min(100, (paidTotalToDate / target) * 100) : 0
 
   const grandGrossFull = sourceTotals.reduce((a, r) => a + r.grossFullPeriod, 0)
   const grandTaxFull = sourceTotals.reduce((a, r) => a + r.taxFullPeriod, 0)
@@ -260,12 +372,16 @@ export function computeIncomeSprintDerived(
     earnedGrossToDate,
     earnedNetToDate,
     earnedInGoalBasis,
-    paidTowardGoal: paid,
+    paidFromMonthsToDate,
+    paidLump,
+    paidTotalToDate,
+    paidTowardGoal: paidTotalToDate,
     targetAmount: target,
     goalBasis: plan.goalBasis,
-    totalTowardGoal,
+    pendingNotReceived,
     remaining,
     progressPercent,
+    totalTowardGoal: paidTotalToDate,
     daysLeft,
   }
 }

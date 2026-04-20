@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Header from '@/components/layout/Header'
+import DashboardPeriodToolbar from '@/components/dashboard/DashboardPeriodToolbar'
 import SparingSubnav from '@/components/sparing/SparingSubnav'
 import StatCard from '@/components/ui/StatCard'
+import type { PeriodMode } from '@/lib/budgetPeriod'
+import { periodSubtitle } from '@/lib/budgetPeriod'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import {
   computeIncomeSprintDerived,
@@ -13,10 +16,12 @@ import {
   formatIncomeSprintPlanPeriodNb,
   listMonthKeysInRange,
   reconcileIncomeSprintPlan,
+  smartSpareOverviewReferenceDate,
+  yearOptionsTouchingPlan,
   type IncomeSprintGoalBasis,
 } from '@/lib/incomeSprint'
 import { formatNOK, formatThousands, generateId, parseThousands } from '@/lib/utils'
-import { AlertTriangle, ChevronRight, PiggyBank, Target, TrendingUp, Wallet, X } from 'lucide-react'
+import { AlertTriangle, ChevronRight, Clock, PiggyBank, Target, TrendingUp, Wallet, X } from 'lucide-react'
 
 export default function SmartSparePage() {
   const {
@@ -111,6 +116,39 @@ export default function SmartSparePage() {
     router.push(`/sparing/smartspare/${newPlan.id}`)
   }
 
+  const plansForToolbar = useMemo(() => {
+    const profileIds = isHouseholdAggregate ? profiles.map((p) => p.id) : [activeProfileId]
+    return profileIds.flatMap((pid) => people[pid]?.incomeSprintPlans ?? [])
+  }, [people, profiles, isHouseholdAggregate, activeProfileId])
+
+  const overviewYearOptions = useMemo(() => {
+    const s = new Set<number>([new Date().getFullYear()])
+    for (const p of plansForToolbar) {
+      for (const y of yearOptionsTouchingPlan(p)) s.add(y)
+    }
+    return [...s].sort((a, b) => b - a)
+  }, [plansForToolbar])
+
+  const [filterYear, setFilterYear] = useState(() => new Date().getFullYear())
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('ytd')
+  const [monthIndex, setMonthIndex] = useState(() => new Date().getMonth())
+
+  useEffect(() => {
+    const s = new Set<number>([new Date().getFullYear()])
+    for (const p of plansForToolbar) {
+      for (const y of yearOptionsTouchingPlan(p)) s.add(y)
+    }
+    const opts = [...s].sort((a, b) => b - a)
+    if (opts.length === 0) return
+    const y = new Date().getFullYear()
+    setFilterYear(opts.includes(y) ? y : opts[0]!)
+  }, [isHouseholdAggregate, activeProfileId, plansForToolbar])
+
+  const overviewReferenceDate = useMemo(
+    () => smartSpareOverviewReferenceDate(filterYear, periodMode, monthIndex),
+    [filterYear, periodMode, monthIndex],
+  )
+
   const allDashboardRows = useMemo(() => {
     const profileIds = isHouseholdAggregate ? profiles.map((p) => p.id) : [activeProfileId]
     const rows = profileIds.flatMap((pid) => {
@@ -120,27 +158,29 @@ export default function SmartSparePage() {
         profileId: pid,
         profileName,
         plan,
-        derived: computeIncomeSprintDerived(plan),
+        derived: computeIncomeSprintDerived(plan, overviewReferenceDate),
       }))
     })
     rows.sort((a, b) => b.plan.endDate.localeCompare(a.plan.endDate))
     return rows
-  }, [people, profiles, isHouseholdAggregate, activeProfileId])
+  }, [people, profiles, isHouseholdAggregate, activeProfileId, overviewReferenceDate])
 
   const aggregateKpi = useMemo(() => {
     let target = 0
     let earnedToward = 0
     let paid = 0
+    let pending = 0
     let remaining = 0
     for (const row of allDashboardRows) {
       const d = row.derived
       if (!d) continue
       target += d.targetAmount
       earnedToward += d.earnedInGoalBasis
-      paid += d.paidTowardGoal
+      paid += d.paidTotalToDate
+      pending += d.pendingNotReceived
       remaining += d.remaining
     }
-    return { target, earnedToward, paid, remaining }
+    return { target, earnedToward, paid, pending, remaining }
   }, [allDashboardRows])
 
   const safePad = 'max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom))'
@@ -355,17 +395,30 @@ export default function SmartSparePage() {
               className="rounded-2xl p-4 sm:p-5 space-y-4 min-w-0"
               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
             >
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-3">
                 <h2 className="font-semibold text-lg" style={{ color: 'var(--text)' }}>
                   Samlet oversikt
                 </h2>
-                <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                   {isHouseholdAggregate
                     ? 'Sum av alle planer i husholdningen (per plan brukes valgt målgrunnlag).'
-                    : `Sum av planene til ${activeProfileName} (per plan brukes valgt målgrunnlag).`}
+                    : `Sum av planene til ${activeProfileName} (per plan brukes valgt målgrunnlag).`}{' '}
+                  <strong style={{ color: 'var(--text)' }}>Periode:</strong> {periodSubtitle(periodMode, filterYear, monthIndex)}{' '}
+                  (klippet til i dag).
                 </p>
+                {overviewYearOptions.length > 0 && (
+                  <DashboardPeriodToolbar
+                    filterYear={filterYear}
+                    onFilterYearChange={setFilterYear}
+                    periodMode={periodMode}
+                    onPeriodModeChange={setPeriodMode}
+                    monthIndex={monthIndex}
+                    onMonthIndexChange={setMonthIndex}
+                    yearOptions={overviewYearOptions}
+                  />
+                )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
                 <StatCard
                   label="Mål"
                   value={formatNOK(aggregateKpi.target)}
@@ -377,22 +430,29 @@ export default function SmartSparePage() {
                 <StatCard
                   label="Tjent hittil"
                   value={formatNOK(aggregateKpi.earnedToward)}
-                  sub="Summert «tjent hittil» per plan (brutto eller netto etter innstilling på hver plan)."
+                  sub="Summert «tjent hittil» per plan innenfor valgt periode."
                   icon={TrendingUp}
                   color="#0CA678"
                   info="Beløpet er summen av hver plans «tjent hittil» i målgrunnlaget for den planen. Planer med ulikt målgrunnlag kan derfor ikke sammenlignes som én homogen total, men summen gir et samlet bilde."
                 />
                 <StatCard
-                  label="Innbetalt mot mål"
+                  label="Innbetalt hittil"
                   value={formatNOK(aggregateKpi.paid)}
-                  sub="Summert manuelt innbetalt beløp på tvers av planene."
+                  sub="Summert innbetalt (månedlig + engangs) per plan, valgt periode."
                   icon={PiggyBank}
                   color="#7048E8"
                 />
                 <StatCard
+                  label="Ventende"
+                  value={formatNOK(aggregateKpi.pending)}
+                  sub="Summert ventende (tjent minus innbetalt) per plan."
+                  icon={Clock}
+                  color="#AE3EC9"
+                />
+                <StatCard
                   label="Resterende"
                   value={formatNOK(aggregateKpi.remaining)}
-                  sub="Summert rest per plan (mål minus innbetaling og tjent hittil)."
+                  sub="Summert rest (mål minus innbetalt) per plan."
                   icon={Wallet}
                   color="#F08C00"
                 />

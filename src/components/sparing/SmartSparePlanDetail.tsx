@@ -1,23 +1,42 @@
 'use client'
 
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
+import DashboardPeriodToolbar from '@/components/dashboard/DashboardPeriodToolbar'
 import SparingSubnav from '@/components/sparing/SparingSubnav'
 import StatCard from '@/components/ui/StatCard'
+import type { PeriodMode } from '@/lib/budgetPeriod'
+import { periodSubtitle } from '@/lib/budgetPeriod'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import {
   buildStackedBarRows,
+  clampTaxPercent,
   computeIncomeSprintDerived,
+  computeSourceMonthGrossTaxNet,
   formatIncomeSprintPlanPeriodNb,
   listMonthKeysInRange,
   monthKeyHeadingNb,
   reconcileIncomeSprintPlan,
+  smartSpareFilterToReferenceDate,
+  yearOptionsTouchingPlan,
   type IncomeSprintPlan,
 } from '@/lib/incomeSprint'
 import { formatNOK, formatNOKChartLabel, formatThousands, generateId, parseThousands } from '@/lib/utils'
-import { AlertTriangle, Calendar, ChevronLeft, PiggyBank, Plus, Target, Trash2, TrendingUp, Wallet } from 'lucide-react'
+import {
+  AlertTriangle,
+  Calendar,
+  ChevronLeft,
+  Clock,
+  PiggyBank,
+  Plus,
+  Target,
+  Trash2,
+  TrendingUp,
+  Wallet,
+  X,
+} from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -82,7 +101,67 @@ export default function SmartSparePlanDetail({ planId }: Props) {
     [readOnly, upsertIncomeSprintPlan],
   )
 
-  const derived = useMemo(() => (plan ? computeIncomeSprintDerived(plan) : null), [plan])
+  const planYearOptions = useMemo(() => (plan ? yearOptionsTouchingPlan(plan) : []), [plan])
+
+  const [filterYear, setFilterYear] = useState(() => new Date().getFullYear())
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('ytd')
+  const [monthIndex, setMonthIndex] = useState(() => new Date().getMonth())
+
+  const planRef = useRef(plan)
+  planRef.current = plan
+
+  useEffect(() => {
+    const p = planRef.current
+    if (!p) return
+    const opts = yearOptionsTouchingPlan(p)
+    if (opts.length === 0) return
+    const y = new Date().getFullYear()
+    setFilterYear(opts.includes(y) ? y : opts[0]!)
+  }, [plan?.id, plan?.startDate, plan?.endDate])
+
+  const referenceDate = useMemo(
+    () => (plan ? smartSpareFilterToReferenceDate(plan, filterYear, periodMode, monthIndex) : ''),
+    [plan, filterYear, periodMode, monthIndex],
+  )
+
+  const derived = useMemo(
+    () => (plan && referenceDate ? computeIncomeSprintDerived(plan, referenceDate) : null),
+    [plan, referenceDate],
+  )
+
+  type CellModal = { sourceId: string; monthKey: string }
+  const [cellModal, setCellModal] = useState<CellModal | null>(null)
+  const [modalAddCustomStr, setModalAddCustomStr] = useState('')
+
+  useEffect(() => {
+    if (!cellModal) setModalAddCustomStr('')
+  }, [cellModal])
+
+  useEffect(() => {
+    if (!cellModal) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCellModal(null)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [cellModal])
+
+  const cellModalBreakdown = useMemo(() => {
+    if (!plan || !cellModal) return null
+    return computeSourceMonthGrossTaxNet(plan, cellModal.sourceId, cellModal.monthKey)
+  }, [plan, cellModal])
+
+  const cellModalSource = useMemo(
+    () => (plan && cellModal ? plan.sources.find((s) => s.id === cellModal.sourceId) ?? null : null),
+    [plan, cellModal],
+  )
+
+  const suggestedTransferAmount = useMemo(() => {
+    if (!cellModalBreakdown || !plan) return 0
+    return plan.goalBasis === 'afterTax' ? cellModalBreakdown.net : cellModalBreakdown.gross
+  }, [cellModalBreakdown, plan])
+
+  const safePad = 'max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom))'
 
   const monthKeys = useMemo(() => {
     if (!plan) return []
@@ -93,10 +172,10 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
   const pieProgress = useMemo(() => {
     if (!derived || derived.targetAmount <= 0) return []
-    const achieved = Math.min(derived.targetAmount, derived.totalTowardGoal)
+    const achieved = Math.min(derived.targetAmount, derived.paidTotalToDate)
     const left = Math.max(0, derived.targetAmount - achieved)
     return [
-      { name: 'Oppnådd', value: achieved, fill: 'var(--primary)' },
+      { name: 'Innbetalt', value: achieved, fill: 'var(--primary)' },
       { name: 'Igjen', value: left, fill: 'var(--border)' },
     ]
   }, [derived])
@@ -193,6 +272,30 @@ export default function SmartSparePlanDetail({ planId }: Props) {
           </div>
         )}
 
+        {plan && planYearOptions.length > 0 && (
+          <div
+            className="rounded-2xl p-4 sm:p-5 space-y-2 min-w-0"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+          >
+            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+              Tall per: {periodSubtitle(periodMode, filterYear, monthIndex)}
+            </p>
+            <p className="text-xs min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+              KPI og «hittil» følger valgt periode (klippet mot plan og dagens dato). Tabellen under viser hele
+              planperioden for redigering.
+            </p>
+            <DashboardPeriodToolbar
+              filterYear={filterYear}
+              onFilterYearChange={setFilterYear}
+              periodMode={periodMode}
+              onPeriodModeChange={setPeriodMode}
+              monthIndex={monthIndex}
+              onMonthIndexChange={setMonthIndex}
+              yearOptions={planYearOptions}
+            />
+          </div>
+        )}
+
         {!derived && (
           <p className="text-sm rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             Ingen gyldige måneder i perioden. Sjekk at startdato er før eller samme måned som sluttdato.
@@ -201,7 +304,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
         {derived && (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
               <StatCard
                 label="Mål"
                 value={formatNOK(derived.targetAmount)}
@@ -218,18 +321,26 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                 sub={earnedSub}
                 icon={TrendingUp}
                 color="#0CA678"
+                info="Opptjent/forventet fra brutto-tabellen innenfor valgt periode — kan være utbetalt eller ikke."
               />
               <StatCard
-                label="Innbetalt mot mål"
-                value={formatNOK(derived.paidTowardGoal)}
-                sub="Manuelt beløp i samme målgrunnlag som målet."
+                label="Innbetalt hittil"
+                value={formatNOK(derived.paidTotalToDate)}
+                sub="Månedlige tilføringer + eventuelt engangs (samme målgrunnlag som målet)."
                 icon={PiggyBank}
                 color="#7048E8"
               />
               <StatCard
+                label="Ventende"
+                value={formatNOK(derived.pendingNotReceived)}
+                sub="Tjent hittil minus innbetalt (min. 0)."
+                icon={Clock}
+                color="#AE3EC9"
+              />
+              <StatCard
                 label="Resterende"
                 value={formatNOK(derived.remaining)}
-                sub="Mål minus innbetaling og «tjent hittil»."
+                sub="Mål minus innbetalt hittil (konservativ fremdrift)."
                 icon={Wallet}
                 color="#F08C00"
               />
@@ -297,7 +408,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   Fremdrift mot mål
                 </h3>
                 <p className="text-xs mb-2 self-start w-full" style={{ color: 'var(--text-muted)' }}>
-                  Innbetalt + tjent hittil (i målgrunnlag) mot målbeløp.
+                  Kun faktisk innbetalt mot målbeløp (valgt periode).
                 </p>
                 {derived.targetAmount <= 0 ? (
                   <p className="text-sm self-start" style={{ color: 'var(--text-muted)' }}>
@@ -335,22 +446,13 @@ export default function SmartSparePlanDetail({ planId }: Props) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <StatCard
-                label="Dager til sluttdato"
-                value={String(derived.daysLeft)}
-                sub="Fra dagens dato til siste dag i perioden."
-                icon={Calendar}
-                color="#4C6EF5"
-              />
-              <StatCard
-                label="Totalt mot mål"
-                value={formatNOK(derived.totalTowardGoal)}
-                sub="Innbetalt + tjent hittil (i valgt målgrunnlag)."
-                icon={Target}
-                color="#0B7285"
-              />
-            </div>
+            <StatCard
+              label="Dager til sluttdato"
+              value={String(derived.daysLeft)}
+              sub="Fra referansedato (filter) til siste dag i planen."
+              icon={Calendar}
+              color="#4C6EF5"
+            />
 
             <div
               className="rounded-2xl p-4 sm:p-5 space-y-3 min-w-0"
@@ -425,27 +527,39 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                           {monthKeys.map((mk) => {
                             const v = src.amountsByMonthKey[mk] ?? 0
                             return (
-                              <td key={mk} className="py-1 px-0.5 align-middle">
-                                <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  disabled={readOnly}
-                                  value={v ? formatThousands(String(v)) : ''}
-                                  onChange={(e) => {
-                                    const n = parseThousands(e.target.value)
-                                    persistPlan({
-                                      ...plan,
-                                      sources: plan.sources.map((s) =>
-                                        s.id === src.id
-                                          ? { ...s, amountsByMonthKey: { ...s.amountsByMonthKey, [mk]: n } }
-                                          : s,
-                                      ),
-                                    })
-                                  }}
-                                  className="w-full min-w-[4.25rem] sm:min-w-[4.5rem] px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm"
-                                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                                  aria-label={`Beløp ${src.name} ${monthKeyHeadingNb(mk)}`}
-                                />
+                              <td key={mk} className="py-1 px-0.5 align-top">
+                                <div className="flex flex-col gap-1 min-w-[4.5rem]">
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    disabled={readOnly}
+                                    value={v ? formatThousands(String(v)) : ''}
+                                    onChange={(e) => {
+                                      const n = parseThousands(e.target.value)
+                                      persistPlan({
+                                        ...plan,
+                                        sources: plan.sources.map((s) =>
+                                          s.id === src.id
+                                            ? { ...s, amountsByMonthKey: { ...s.amountsByMonthKey, [mk]: n } }
+                                            : s,
+                                        ),
+                                      })
+                                    }}
+                                    className="w-full min-w-0 px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm"
+                                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                                    aria-label={`Beløp ${src.name} ${monthKeyHeadingNb(mk)}`}
+                                  />
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setCellModal({ sourceId: src.id, monthKey: mk })}
+                                      className="min-h-[40px] sm:min-h-[36px] px-1 py-1.5 rounded-lg text-[10px] sm:text-xs font-medium touch-manipulation leading-tight"
+                                      style={{ border: '1px solid var(--border)', color: 'var(--primary)', background: 'var(--bg)' }}
+                                    >
+                                      Innbetalt…
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             )
                           })}
@@ -625,7 +739,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
-                  Innbetalt mot mål (kr)
+                  Ekstra innbetalt, engangs (kr)
                   <input
                     type="text"
                     inputMode="numeric"
@@ -637,6 +751,9 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm w-full min-w-0 tabular-nums"
                     style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                   />
+                  <span className="text-xs leading-snug break-words">
+                    Utenom månedlige tilføringer fra «Innbetalt…» på cellene. Samme målgrunnlag som målet.
+                  </span>
                 </label>
               </div>
 
@@ -672,6 +789,158 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                 )}
               </div>
             </div>
+
+            {cellModal && plan && cellModalBreakdown && cellModalSource && (
+              <div
+                className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center touch-manipulation"
+                style={{ padding: safePad }}
+                role="presentation"
+              >
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-black/40"
+                  aria-label="Lukk"
+                  onPointerDown={(e) => {
+                    if (e.target === e.currentTarget) setCellModal(null)
+                  }}
+                />
+                <div
+                  className="relative flex max-h-[min(92dvh,36rem)] w-full max-w-lg flex-col rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden touch-manipulation"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="smartspare-cell-modal-title"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    marginTop: 'max(0.5rem, env(safe-area-inset-top))',
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-5 shrink-0" style={{ borderColor: 'var(--border)' }}>
+                    <h2
+                      id="smartspare-cell-modal-title"
+                      className="text-lg font-semibold pr-2 min-w-0 break-words"
+                      style={{ color: 'var(--text)' }}
+                    >
+                      {cellModalSource.name || 'Kilde'} · {monthKeyHeadingNb(cellModal.monthKey)}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setCellModal(null)}
+                      className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl shrink-0 outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                      style={{ color: 'var(--text-muted)' }}
+                      aria-label="Lukk"
+                    >
+                      <X size={22} strokeWidth={2} />
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-4 flex-1 min-h-0">
+                    <p className="text-sm min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+                      Brutto er det du har lagt inn i cellen. Netto følger skattesats (plan eller egen for kilden).
+                    </p>
+                    <dl className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <dt style={{ color: 'var(--text-muted)' }}>Brutto</dt>
+                        <dd className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
+                          {formatNOK(cellModalBreakdown.gross)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt style={{ color: 'var(--text-muted)' }}>Skatt</dt>
+                        <dd className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
+                          {plan.applyTax ? formatNOK(cellModalBreakdown.tax) : '—'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt style={{ color: 'var(--text-muted)' }}>Netto</dt>
+                        <dd className="font-semibold tabular-nums" style={{ color: 'var(--text)' }}>
+                          {plan.applyTax ? formatNOK(cellModalBreakdown.net) : formatNOK(cellModalBreakdown.gross)}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {plan.applyTax && (
+                      <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
+                        Skatteprosent for denne kilden (tom = planens {plan.taxPercent} %)
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={cellModalSource.taxPercent !== undefined ? cellModalSource.taxPercent : ''}
+                          placeholder={String(plan.taxPercent)}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            persistPlan({
+                              ...plan,
+                              sources: plan.sources.map((s) => {
+                                if (s.id !== cellModalSource.id) return s
+                                if (raw.trim() === '') return { ...s, taxPercent: undefined }
+                                return { ...s, taxPercent: clampTaxPercent(Number(raw) || 0) }
+                              }),
+                            })
+                          }}
+                          className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm w-full sm:w-28 tabular-nums"
+                          style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                        />
+                      </label>
+                    )}
+
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                      Innbetalt denne måneden (sum):{' '}
+                      <strong style={{ color: 'var(--text)' }}>
+                        {formatNOK((plan.paidByMonthKey ?? {})[cellModal.monthKey] ?? 0)}
+                      </strong>
+                    </p>
+
+                    <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
+                      Annet beløp å tilføye (kr) — tom bruker forslag under
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={modalAddCustomStr}
+                        onChange={(e) => setModalAddCustomStr(formatThousands(e.target.value))}
+                        placeholder={formatThousands(String(suggestedTransferAmount))}
+                        className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm w-full min-w-0 tabular-nums"
+                        style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                      />
+                    </label>
+
+                    <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setCellModal(null)}
+                        className="min-h-[44px] px-4 py-2.5 rounded-xl text-sm font-medium touch-manipulation"
+                        style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+                      >
+                        Lukk
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const add = modalAddCustomStr.trim()
+                            ? parseThousands(modalAddCustomStr)
+                            : suggestedTransferAmount
+                          if (!Number.isFinite(add) || add <= 0) return
+                          const mk = cellModal.monthKey
+                          const map = plan.paidByMonthKey ?? {}
+                          const prev = map[mk] ?? 0
+                          persistPlan({
+                            ...plan,
+                            paidByMonthKey: { ...map, [mk]: prev + add },
+                          })
+                          setModalAddCustomStr('')
+                        }}
+                        className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-medium touch-manipulation"
+                        style={{ background: 'var(--primary)', color: '#fff' }}
+                      >
+                        Tilfør {formatNOK(modalAddCustomStr.trim() ? parseThousands(modalAddCustomStr) : suggestedTransferAmount)}{' '}
+                        til innbetalt
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

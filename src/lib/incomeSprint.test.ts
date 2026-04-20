@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeIncomeSprintDerived,
+  computeSourceMonthGrossTaxNet,
   ensureIncomeSprintPlanId,
   formatIncomeSprintPlanPeriodNb,
   listMonthKeysInRange,
   monthKeyHeadingNb,
   reconcileIncomeSprintPlan,
+  smartSpareFilterToReferenceDate,
   taxMultiplier,
   yearMonthFromIsoDate,
 } from '@/lib/incomeSprint'
@@ -46,6 +48,7 @@ describe('incomeSprint', () => {
       applyTax: false,
       taxPercent: 0,
       paidTowardGoal: 0,
+      paidByMonthKey: {},
       sources: [],
     })
     const e = ensureIncomeSprintPlanId(p)
@@ -75,6 +78,7 @@ describe('incomeSprint', () => {
       applyTax: true,
       taxPercent: 200,
       paidTowardGoal: -5,
+      paidByMonthKey: { '2026-01': 100, '2099-12': 50 },
       sources: [
         {
           id: 'a',
@@ -89,9 +93,11 @@ describe('incomeSprint', () => {
     expect(Object.keys(r.sources[0]!.amountsByMonthKey).sort()).toEqual(['2026-01', '2026-02'])
     expect(r.sources[0]!.amountsByMonthKey['2026-01']).toBe(1000)
     expect(r.sources[0]!.amountsByMonthKey['2026-02']).toBe(0)
+    expect(r.paidByMonthKey!['2026-01']).toBe(100)
+    expect(r.paidByMonthKey!['2026-02']).toBe(0)
   })
 
-  it('computeIncomeSprintDerived beforeTax uses gross to date', () => {
+  it('computeIncomeSprintDerived beforeTax: fremdrift kun på innbetalt', () => {
     const plan = reconcileIncomeSprintPlan({
       id: 'plan-test-2',
       startDate: '2026-03-01',
@@ -101,6 +107,7 @@ describe('incomeSprint', () => {
       applyTax: true,
       taxPercent: 40,
       paidTowardGoal: 10_000,
+      paidByMonthKey: {},
       sources: [
         {
           id: '1',
@@ -119,12 +126,14 @@ describe('incomeSprint', () => {
     expect(d!.earnedGrossToDate).toBe(80_000)
     expect(d!.earnedNetToDate).toBeCloseTo(80_000 * 0.6)
     expect(d!.earnedInGoalBasis).toBe(80_000)
-    expect(d!.totalTowardGoal).toBe(90_000)
-    expect(d!.remaining).toBe(10_000)
+    expect(d!.paidTotalToDate).toBe(10_000)
+    expect(d!.totalTowardGoal).toBe(10_000)
+    expect(d!.remaining).toBe(90_000)
+    expect(d!.pendingNotReceived).toBe(70_000)
     expect(d!.grandGrossFull).toBe(110_000)
   })
 
-  it('computeIncomeSprintDerived afterTax uses net to date', () => {
+  it('computeIncomeSprintDerived afterTax: resterende kun mot innbetalt', () => {
     const plan = reconcileIncomeSprintPlan({
       id: 'plan-test-3',
       startDate: '2026-03-01',
@@ -134,6 +143,7 @@ describe('incomeSprint', () => {
       applyTax: true,
       taxPercent: 50,
       paidTowardGoal: 0,
+      paidByMonthKey: {},
       sources: [
         {
           id: '1',
@@ -145,6 +155,65 @@ describe('incomeSprint', () => {
     const d = computeIncomeSprintDerived(plan, '2026-03-31')
     expect(d!.earnedNetToDate).toBe(50_000)
     expect(d!.earnedInGoalBasis).toBe(50_000)
-    expect(d!.remaining).toBe(10_000)
+    expect(d!.paidTotalToDate).toBe(0)
+    expect(d!.remaining).toBe(60_000)
+    expect(d!.pendingNotReceived).toBe(50_000)
+  })
+
+  it('paidByMonthKey summeres til innbetalt hittil', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'p',
+      startDate: '2026-01-01',
+      endDate: '2026-03-31',
+      goalBasis: 'afterTax',
+      targetAmount: 100_000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 5000,
+      paidByMonthKey: { '2026-01': 10_000, '2026-02': 15_000 },
+      sources: [{ id: 's', name: 'S', amountsByMonthKey: { '2026-01': 20_000 } }],
+    })
+    const d = computeIncomeSprintDerived(plan, '2026-02-15')
+    expect(d!.paidFromMonthsToDate).toBe(25_000)
+    expect(d!.paidTotalToDate).toBe(30_000)
+  })
+
+  it('ulike skatteprosent per kilde', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'p',
+      startDate: '2026-01-01',
+      endDate: '2026-01-31',
+      goalBasis: 'afterTax',
+      targetAmount: 50_000,
+      applyTax: true,
+      taxPercent: 40,
+      paidTowardGoal: 0,
+      paidByMonthKey: {},
+      sources: [
+        { id: 'a', name: 'A', taxPercent: 50, amountsByMonthKey: { '2026-01': 100_000 } },
+        { id: 'b', name: 'B', amountsByMonthKey: { '2026-01': 100_000 } },
+      ],
+    })
+    const d = computeIncomeSprintDerived(plan, '2026-01-31')
+    expect(d!.sourceTotals.find((x) => x.id === 'a')!.netFullPeriod).toBe(50_000)
+    expect(d!.sourceTotals.find((x) => x.id === 'b')!.netFullPeriod).toBe(60_000)
+    expect(d!.earnedNetToDate).toBe(110_000)
+
+    const m = computeSourceMonthGrossTaxNet(plan, 'a', '2026-01')
+    expect(m!.net).toBe(50_000)
+    const m2 = computeSourceMonthGrossTaxNet(plan, 'b', '2026-01')
+    expect(m2!.net).toBe(60_000)
+  })
+
+  it('smartSpareFilterToReferenceDate klipper mot planstart', () => {
+    const plan = { startDate: '2026-02-01', endDate: '2026-12-31' }
+    const ref = smartSpareFilterToReferenceDate(plan, 2026, 'month', 0)
+    expect(ref).toBe('2026-02-01')
+  })
+
+  it('smartSpareFilterToReferenceDate bruker valgt måneds siste dag innenfor plan', () => {
+    const plan = { startDate: '2026-01-01', endDate: '2026-12-31' }
+    const ref = smartSpareFilterToReferenceDate(plan, 2026, 'month', 2)
+    expect(ref).toBe('2026-03-31')
   })
 })
