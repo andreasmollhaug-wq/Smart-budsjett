@@ -6,7 +6,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { buildCategoryActualsYearMatrix } from '@/lib/bankReportData'
 import { transactionsListeHrefForCategory } from '@/lib/budgetDashboardLinks'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
-import type { BudgetCategory, Transaction } from '@/lib/store'
+import type { BudgetCategory, PersonData, Transaction } from '@/lib/store'
 import { formatNOK } from '@/lib/utils'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
@@ -35,12 +35,13 @@ type Props = {
   year: number
   categories: BudgetCategory[]
   transactions: Transaction[]
+  people: Record<string, PersonData>
 }
 
-export default function TransactionActualsYearGrid({ year, categories, transactions }: Props) {
+export default function TransactionActualsYearGrid({ year, categories, transactions, people }: Props) {
   const matrix = useMemo(
-    () => buildCategoryActualsYearMatrix(transactions, year, categories),
-    [transactions, year, categories],
+    () => buildCategoryActualsYearMatrix(transactions, year, categories, people),
+    [transactions, year, categories, people],
   )
 
   const getCategoriesForGroup = (group: ParentCategory) =>

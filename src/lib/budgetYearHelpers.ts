@@ -1,4 +1,9 @@
-import type { BudgetCategory, Transaction } from '@/lib/store'
+import {
+  effectiveBudgetedIncomeMonth,
+  effectiveIncomeTransactionAmount,
+  type IncomeWithholdingRule,
+} from '@/lib/incomeWithholding'
+import type { BudgetCategory, PersonData, Transaction } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 
 function ensureBudgetedArray(budgeted: unknown): number[] {
@@ -14,10 +19,7 @@ export function sumBudgetedIncomeForMonth(
   if (!categories?.length) return 0
   return categories
     .filter((c) => c.parentCategory === 'inntekter')
-    .reduce((sum, c) => {
-      const arr = ensureBudgetedArray(c.budgeted)
-      return sum + (arr[monthIndex] ?? 0)
-    }, 0)
+    .reduce((sum, c) => sum + effectiveBudgetedIncomeMonth(c, monthIndex), 0)
 }
 
 /**
@@ -51,6 +53,9 @@ export function budgetedArrayForCategoryName(
     (x) => x.parentCategory === parentCategory && x.name === categoryName,
   )
   if (!c) return empty
+  if (parentCategory === 'inntekter' && c.type === 'income') {
+    return Array.from({ length: 12 }, (_, i) => effectiveBudgetedIncomeMonth(c, i))
+  }
   const arr = ensureBudgetedArray(c.budgeted)
   return Array.from({ length: 12 }, (_, i) => arr[i] ?? 0)
 }
@@ -71,8 +76,7 @@ export function incomeMonthlyTotalsForCategories(
   if (!categories?.length) return out
   for (const c of categories) {
     if (c.parentCategory !== 'inntekter') continue
-    const arr = ensureBudgetedArray(c.budgeted)
-    for (let i = 0; i < 12; i++) out[i]! += arr[i] ?? 0
+    for (let i = 0; i < 12; i++) out[i]! += effectiveBudgetedIncomeMonth(c, i)
   }
   return out
 }
@@ -113,6 +117,7 @@ export function sumTxForCategoryInYear(
   type: 'income' | 'expense',
   year: number,
   profileId: string,
+  incomeWithholdingDefault?: IncomeWithholdingRule | null,
 ): number {
   const prefix = `${year}-`
   return transactions
@@ -123,7 +128,14 @@ export function sumTxForCategoryInYear(
         t.date.startsWith(prefix) &&
         (t.profileId ?? profileId) === profileId,
     )
-    .reduce((s, t) => s + t.amount, 0)
+    .reduce(
+      (s, t) =>
+        s +
+        (type === 'income'
+          ? effectiveIncomeTransactionAmount(t, incomeWithholdingDefault ?? undefined)
+          : t.amount),
+      0,
+    )
 }
 
 export function sumTxForCategoryInYearAllProfiles(
@@ -131,11 +143,17 @@ export function sumTxForCategoryInYearAllProfiles(
   categoryName: string,
   type: 'income' | 'expense',
   year: number,
+  people?: Record<string, PersonData>,
 ): number {
   const prefix = `${year}-`
   return transactions
     .filter(
       (t) => t.category === categoryName && t.type === type && t.date.startsWith(prefix),
     )
-    .reduce((s, t) => s + t.amount, 0)
+    .reduce((s, t) => {
+      if (type !== 'income') return s + t.amount
+      const pid = t.profileId ?? ''
+      const def = people?.[pid]?.defaultIncomeWithholding
+      return s + effectiveIncomeTransactionAmount(t, def)
+    }, 0)
 }

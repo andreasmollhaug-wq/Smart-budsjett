@@ -100,6 +100,13 @@ export function clampTaxPercent(p: number): number {
   return Math.min(100, Math.max(0, p))
 }
 
+/** Skatteprosent fra felt: kun siffer, maks tre tegn før klem; fjerner «010»-variant via parseInt. */
+export function parseTaxPercentFieldInput(raw: string): number {
+  const digits = raw.replace(/\D/g, '').slice(0, 3)
+  if (digits === '') return 0
+  return clampTaxPercent(parseInt(digits, 10))
+}
+
 export function taxMultiplier(applyTax: boolean, taxPercent: number): number {
   if (!applyTax) return 1
   const r = clampTaxPercent(taxPercent) / 100
@@ -405,6 +412,82 @@ export function computeIncomeSprintDerived(
     totalTowardGoal: paidTotalToDate,
     daysLeft,
   }
+}
+
+/** Planmåneder som inngår i KPI-vinduet (samme logikk som keysToDate i computeIncomeSprintDerived). */
+export function filterPlanMonthKeysToKpiWindow(
+  planMonthKeys: string[],
+  referenceDate: string,
+  kpiPeriod: IncomeSprintKpiPeriodFilter,
+): string[] {
+  const refYm = referenceDate.length >= 7 ? referenceDate.slice(0, 7) : planMonthKeys[0] ?? ''
+  const { start, end } = periodRange(kpiPeriod.periodMode, kpiPeriod.monthIndex)
+  const periodStartMonthKey = `${kpiPeriod.filterYear}-${String(start + 1).padStart(2, '0')}`
+  const periodEndMonthKey = `${kpiPeriod.filterYear}-${String(end + 1).padStart(2, '0')}`
+  const upperYm =
+    kpiPeriod.periodMode === 'ytd'
+      ? refYm <= periodEndMonthKey
+        ? refYm
+        : periodEndMonthKey
+      : periodEndMonthKey
+  return planMonthKeys.filter((k) => k >= periodStartMonthKey && k <= upperYm)
+}
+
+/** Opptjent i valgt målgrunnlag for én kalendermåned (sum kilder). */
+export function monthEarnedInGoalBasis(plan: IncomeSprintPlan, monthKey: string): number {
+  let grossTotal = 0
+  let netTotal = 0
+  for (const s of plan.sources) {
+    const v = s.amountsByMonthKey[monthKey]
+    const gross = typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0
+    grossTotal += gross
+    if (plan.applyTax) {
+      const rate = effectiveTaxPercentForSource(plan, s) / 100
+      netTotal += gross * (1 - rate)
+    } else {
+      netTotal += gross
+    }
+  }
+  return plan.goalBasis === 'beforeTax' ? grossTotal : netTotal
+}
+
+/** Maks beløp som kan legges til innbetalt for måneden uten å overstige opptjent i målgrunnlag (planfelles innbetalt). */
+export function maxAdditionalPaidForMonth(plan: IncomeSprintPlan, monthKey: string): number {
+  const earned = monthEarnedInGoalBasis(plan, monthKey)
+  const paidRaw = plan.paidByMonthKey?.[monthKey]
+  const paid = typeof paidRaw === 'number' && Number.isFinite(paidRaw) ? Math.max(0, paidRaw) : 0
+  return Math.max(0, earned - paid)
+}
+
+export interface SmartSpareMonthlyPaidEarnedRow {
+  monthKey: string
+  monthHeading: string
+  earnedInGoalBasis: number
+  paid: number
+  pendingInMonth: number
+}
+
+/** Månedlig oversikt: opptjent vs innbetalt innenfor valgt KPI-periode (innbetalt er felles per plan). */
+export function buildSmartSpareMonthlyPaidEarnedRows(
+  plan: IncomeSprintPlan,
+  referenceDate: string,
+  kpiPeriod: IncomeSprintKpiPeriodFilter,
+): SmartSpareMonthlyPaidEarnedRow[] {
+  const planMonthKeys = listMonthKeysInRange(plan.startDate, plan.endDate)
+  const windowKeys = filterPlanMonthKeysToKpiWindow(planMonthKeys, referenceDate, kpiPeriod)
+  const paidMap = plan.paidByMonthKey ?? {}
+  return windowKeys.map((monthKey) => {
+    const earned = monthEarnedInGoalBasis(plan, monthKey)
+    const paidRaw = paidMap[monthKey]
+    const paid = typeof paidRaw === 'number' && Number.isFinite(paidRaw) ? Math.max(0, paidRaw) : 0
+    return {
+      monthKey,
+      monthHeading: monthKeyHeadingNb(monthKey),
+      earnedInGoalBasis: earned,
+      paid,
+      pendingInMonth: Math.max(0, earned - paid),
+    }
+  })
 }
 
 /** Rader til stablet søylediagram: brutto per kilde per måned. */

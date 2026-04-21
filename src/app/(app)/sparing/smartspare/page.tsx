@@ -15,13 +15,14 @@ import {
   defaultNewIncomeSprintPlanWithOneSource,
   formatIncomeSprintPlanPeriodNb,
   listMonthKeysInRange,
+  parseTaxPercentFieldInput,
   reconcileIncomeSprintPlan,
   smartSpareOverviewReferenceDate,
   yearOptionsTouchingPlan,
   type IncomeSprintGoalBasis,
 } from '@/lib/incomeSprint'
 import { formatNOK, formatThousands, generateId, parseThousands } from '@/lib/utils'
-import { AlertTriangle, ChevronRight, Clock, PiggyBank, Target, TrendingUp, Wallet, X } from 'lucide-react'
+import { AlertTriangle, ChevronRight, CircleHelp, Clock, PiggyBank, Target, TrendingUp, Wallet, X } from 'lucide-react'
 
 export default function SmartSparePage() {
   const {
@@ -48,8 +49,12 @@ export default function SmartSparePage() {
   const [modalTargetStr, setModalTargetStr] = useState('')
   const [modalApplyTax, setModalApplyTax] = useState(false)
   const [modalTaxPercent, setModalTaxPercent] = useState(40)
+  const [modalTaxPercentStr, setModalTaxPercentStr] = useState('')
+  const [modalPlanName, setModalPlanName] = useState('')
+  const [createPlanHelpOpen, setCreatePlanHelpOpen] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
   const createModalFirstFieldRef = useRef<HTMLInputElement>(null)
+  const createPlanHelpRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const legacyPlan = searchParams.get('plan')
@@ -67,8 +72,22 @@ export default function SmartSparePage() {
     setModalTargetStr(d.targetAmount > 0 ? formatThousands(String(d.targetAmount)) : '')
     setModalApplyTax(d.applyTax)
     setModalTaxPercent(d.taxPercent)
+    setModalTaxPercentStr(d.taxPercent === 0 ? '' : String(d.taxPercent))
+    setModalPlanName('')
+    setCreatePlanHelpOpen(false)
     setModalError(null)
   }, [createPlanModalOpen])
+
+  useEffect(() => {
+    if (!createPlanHelpOpen) return
+    const close = (e: PointerEvent) => {
+      if (createPlanHelpRef.current && !createPlanHelpRef.current.contains(e.target as Node)) {
+        setCreatePlanHelpOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [createPlanHelpOpen])
 
   useEffect(() => {
     if (!createPlanModalOpen) return
@@ -102,14 +121,16 @@ export default function SmartSparePage() {
       return
     }
     const base = defaultNewIncomeSprintPlanWithOneSource(generateId())
+    const tax = modalApplyTax ? parseTaxPercentFieldInput(modalTaxPercentStr) : modalTaxPercent
     const newPlan = reconcileIncomeSprintPlan({
       ...base,
+      name: modalPlanName.trim() || undefined,
       startDate: modalStart,
       endDate: modalEnd,
       goalBasis: modalGoalBasis,
       targetAmount: parseThousands(modalTargetStr),
       applyTax: modalApplyTax,
-      taxPercent: modalTaxPercent,
+      taxPercent: tax,
     })
     upsertIncomeSprintPlan(newPlan)
     setCreatePlanModalOpen(false)
@@ -201,7 +222,7 @@ export default function SmartSparePage() {
       />
       <SparingSubnav />
       <div
-        className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto w-full min-w-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl xl:max-w-[90rem] mx-auto w-full min-w-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
         style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}
       >
         {createPlanModalOpen && (
@@ -230,14 +251,65 @@ export default function SmartSparePage() {
               }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-5 shrink-0" style={{ borderColor: 'var(--border)' }}>
-                <h2
-                  id="smartspare-create-title"
-                  className="text-lg font-semibold pr-2 min-w-0 break-words"
-                  style={{ color: 'var(--text)' }}
-                >
-                  Opprett plan
-                </h2>
+              <div className="flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-5 shrink-0" style={{ borderColor: 'var(--border)' }}>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <h2
+                    id="smartspare-create-title"
+                    className="text-lg font-semibold pr-1 min-w-0 break-words"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    Opprett plan
+                  </h2>
+                  <div className="relative flex shrink-0 items-center" ref={createPlanHelpRef}>
+                    <button
+                      type="button"
+                      onClick={() => setCreatePlanHelpOpen((o) => !o)}
+                      aria-expanded={createPlanHelpOpen}
+                      aria-label="Forklaring av feltene"
+                      className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      <CircleHelp size={20} strokeWidth={2} aria-hidden />
+                    </button>
+                    {createPlanHelpOpen && (
+                      <div
+                        className="absolute left-0 top-full z-[110] mt-1.5 w-[min(calc(100vw-2rem),20rem)] max-w-[calc(100vw-2rem)] rounded-xl p-3 shadow-lg"
+                        style={{
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text)',
+                        }}
+                        role="region"
+                      >
+                        <ul className="list-disc space-y-2 pl-4 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                          <li>
+                            <strong style={{ color: 'var(--text)' }}>Start og slutt</strong> avgrenser hvilke måneder som
+                            inngår i planen.
+                          </li>
+                          <li>
+                            <strong style={{ color: 'var(--text)' }}>Navn</strong> er valgfritt — vises på kort og i
+                            overskrift (ellers brukes periodelinje).
+                          </li>
+                          <li>
+                            <strong style={{ color: 'var(--text)' }}>Målgrunnlag</strong> sier om målet er før eller etter
+                            skatt; «Tjent» på plansiden følger dette.
+                          </li>
+                          <li>
+                            <strong style={{ color: 'var(--text)' }}>Skatt i tabellen</strong> trekker valgfritt skatt av
+                            bruttoinntekt per kilde i oppsummering og grafer.
+                          </li>
+                          <li>
+                            <strong style={{ color: 'var(--text)' }}>Målbeløp</strong> er sparemålet i samme målgrunnlag.
+                          </li>
+                          <li>
+                            <strong style={{ color: 'var(--text)' }}>Kilder og innbetalt</strong> legges inn etterpå under
+                            «Brutto per måned» og via kildenavn på plansiden.
+                          </li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setCreatePlanModalOpen(false)}
@@ -259,6 +331,17 @@ export default function SmartSparePage() {
                     {modalError}
                   </p>
                 )}
+                <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
+                  Navn på plan (valgfritt)
+                  <input
+                    type="text"
+                    value={modalPlanName}
+                    onChange={(e) => setModalPlanName(e.target.value)}
+                    placeholder="f.eks. Egenkapital bolig"
+                    className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm w-full min-w-0"
+                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  />
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
                     Startdato
@@ -282,11 +365,11 @@ export default function SmartSparePage() {
                     />
                   </label>
                 </div>
-                <fieldset className="space-y-2 border-0 p-0 m-0">
+                <fieldset className="space-y-4 border-0 p-0 m-0">
                   <legend className="text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
                     Målgrunnlag
                   </legend>
-                  <label className="inline-flex items-center gap-2 min-h-[44px] touch-manipulation cursor-pointer">
+                  <label className="flex items-center gap-2 min-h-[44px] touch-manipulation cursor-pointer">
                     <input
                       type="radio"
                       name="smartspare-modal-goal"
@@ -294,11 +377,11 @@ export default function SmartSparePage() {
                       onChange={() => setModalGoalBasis('afterTax')}
                       className="shrink-0"
                     />
-                    <span className="text-sm" style={{ color: 'var(--text)' }}>
+                    <span className="text-sm leading-snug" style={{ color: 'var(--text)' }}>
                       Mål etter skatt
                     </span>
                   </label>
-                  <label className="inline-flex items-center gap-2 min-h-[44px] touch-manipulation cursor-pointer">
+                  <label className="flex items-center gap-2 min-h-[44px] touch-manipulation cursor-pointer">
                     <input
                       type="radio"
                       name="smartspare-modal-goal"
@@ -306,7 +389,7 @@ export default function SmartSparePage() {
                       onChange={() => setModalGoalBasis('beforeTax')}
                       className="shrink-0"
                     />
-                    <span className="text-sm" style={{ color: 'var(--text)' }}>
+                    <span className="text-sm leading-snug" style={{ color: 'var(--text)' }}>
                       Mål før skatt
                     </span>
                   </label>
@@ -328,13 +411,21 @@ export default function SmartSparePage() {
                   </label>
                   {modalApplyTax && (
                     <label className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
-                      <span className="shrink-0">Skatteprosent</span>
+                      <span className="shrink-0">Skatteprosent (0–100)</span>
                       <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={modalTaxPercent}
-                        onChange={(e) => setModalTaxPercent(Number(e.target.value) || 0)}
+                        type="text"
+                        inputMode="numeric"
+                        value={modalTaxPercentStr}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '').slice(0, 3)
+                          setModalTaxPercentStr(raw)
+                          setModalTaxPercent(parseTaxPercentFieldInput(raw))
+                        }}
+                        onBlur={() => {
+                          const c = parseTaxPercentFieldInput(modalTaxPercentStr)
+                          setModalTaxPercent(c)
+                          setModalTaxPercentStr(c === 0 ? '' : String(c))
+                        }}
                         className="min-h-[44px] px-3 py-2 rounded-xl w-full sm:w-28 text-base sm:text-sm tabular-nums"
                         style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                       />
@@ -387,7 +478,7 @@ export default function SmartSparePage() {
             <AlertTriangle className="shrink-0 mt-0.5" size={20} style={{ color: 'var(--primary)' }} />
             <p className="text-sm min-w-0 leading-snug break-words" style={{ color: 'var(--text)' }}>
               Du viser <strong>husholdning</strong>. Her ser du alle medlemmers planer. For å opprette eller redigere en
-              plan: bytt til <strong>én profil</strong> (ikke husholdning), eller trykk <strong>Åpne</strong> på et kort
+              plan: bytt til <strong>én profil</strong> (ikke husholdning), eller trykk på et <strong>plan-kort</strong>{' '}
               (da byttes du til riktig profil og planside).
             </p>
           </div>
@@ -414,6 +505,7 @@ export default function SmartSparePage() {
                 </p>
                 {overviewYearOptions.length > 0 && (
                   <DashboardPeriodToolbar
+                    variant="inline"
                     filterYear={filterYear}
                     onFilterYearChange={setFilterYear}
                     periodMode={periodMode}
@@ -424,13 +516,14 @@ export default function SmartSparePage() {
                   />
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 min-w-0">
+              <div className="grid grid-cols-1 gap-3 min-w-0 md:grid-cols-2 xl:grid-cols-3">
                 <StatCard
                   label="Mål"
                   value={formatNOK(aggregateKpi.target)}
                   sub="Summert målbeløp på tvers av planene."
                   icon={Target}
                   color="#3B5BDB"
+                  valueNoWrap
                   info="Hver plan har eget mål i valgt målgrunnlag (før eller etter skatt). Her er summen av disse målene."
                 />
                 <StatCard
@@ -439,6 +532,7 @@ export default function SmartSparePage() {
                   sub="Summert «tjent hittil» per plan innenfor valgt periode."
                   icon={TrendingUp}
                   color="#0CA678"
+                  valueNoWrap
                   info="Beløpet er summen av hver plans «tjent hittil» i målgrunnlaget for den planen. Planer med ulikt målgrunnlag kan derfor ikke sammenlignes som én homogen total, men summen gir et samlet bilde."
                 />
                 <StatCard
@@ -447,6 +541,7 @@ export default function SmartSparePage() {
                   sub="Summert innbetalt (månedlig + engangs) per plan, valgt periode."
                   icon={PiggyBank}
                   color="#7048E8"
+                  valueNoWrap
                 />
                 <StatCard
                   label="Ventende"
@@ -454,6 +549,7 @@ export default function SmartSparePage() {
                   sub="Summert ventende (tjent minus innbetalt) per plan."
                   icon={Clock}
                   color="#AE3EC9"
+                  valueNoWrap
                 />
                 <StatCard
                   label="Resterende"
@@ -461,6 +557,7 @@ export default function SmartSparePage() {
                   sub="Summert rest (mål minus innbetalt) per plan."
                   icon={Wallet}
                   color="#F08C00"
+                  valueNoWrap
                 />
               </div>
             </div>
@@ -493,7 +590,9 @@ export default function SmartSparePage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0">
               {allDashboardRows.map(({ profileId, profileName, plan: p, derived: d }) => {
-                const title = p.name?.trim() || formatIncomeSprintPlanPeriodNb(p)
+                const planName = p.name?.trim() ?? ''
+                const periodNb = formatIncomeSprintPlanPeriodNb(p)
+                const headline = planName || periodNb
                 const basis = p.goalBasis === 'beforeTax' ? 'Mål før skatt' : 'Mål etter skatt'
                 const refToday = new Date().toISOString().slice(0, 10)
                 const ended = p.endDate < refToday
@@ -504,28 +603,43 @@ export default function SmartSparePage() {
                     : `${d.daysLeft} dager igjen`
                 const progress = d && d.targetAmount > 0 ? `${Math.round(d.progressPercent)} %` : '—'
                 const isOwner = profileId === activeProfileId
+                const showOwnerBadge = isHouseholdAggregate || profiles.length >= 2
+                const openLabel =
+                  isHouseholdAggregate && !isOwner
+                    ? `Åpne planen «${headline}». Bytter til ${profileName} og åpner detaljer.`
+                    : `Åpne planen «${headline}»`
                 return (
-                  <div
+                  <button
                     key={`${profileId}-${p.id}`}
-                    className="rounded-xl p-4 min-w-0 flex flex-col gap-2"
+                    type="button"
+                    onClick={() => goToPlan(p.id, profileId)}
+                    aria-label={openLabel}
+                    className="rounded-xl p-4 min-w-0 w-full flex flex-col gap-2 text-left touch-manipulation transition-[box-shadow,border-color,transform] hover:shadow-md active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]"
                     style={{ border: '1px solid var(--border)', background: 'var(--bg)' }}
                   >
-                    <div className="min-w-0">
-                      <p className="font-medium break-words" style={{ color: 'var(--text)' }}>
-                        {title}
+                    <div className="min-w-0 space-y-1.5">
+                      <p className="font-semibold text-base break-words leading-snug" style={{ color: 'var(--text)' }}>
+                        {headline}
                       </p>
-                      {(isHouseholdAggregate || profiles.length >= 2) && (
-                        <span
-                          className="inline-block mt-1.5 text-xs px-2 py-0.5 rounded-lg max-w-full break-words leading-snug"
-                          style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
-                        >
-                          {profileName}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs leading-snug">
+                        {planName ? (
+                          <span className="break-words" style={{ color: 'var(--text-muted)' }}>
+                            {periodNb}
+                          </span>
+                        ) : null}
+                        <span className="break-words" style={{ color: 'var(--text-muted)' }}>
+                          {planName ? `· ${basis}` : basis}
                         </span>
-                      )}
+                        {showOwnerBadge && (
+                          <span
+                            className="inline-flex max-w-full items-center px-2 py-0.5 rounded-lg break-words font-medium"
+                            style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
+                          >
+                            {profileName}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs break-words" style={{ color: 'var(--text-muted)' }}>
-                      {basis} · {formatIncomeSprintPlanPeriodNb(p)}
-                    </p>
                     <div className="grid grid-cols-2 gap-2 text-sm min-w-0">
                       <div className="min-w-0">
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -547,21 +661,22 @@ export default function SmartSparePage() {
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                       {statusLine}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => goToPlan(p.id, profileId)}
-                      className="mt-auto min-h-[44px] inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium touch-manipulation w-full sm:w-auto self-stretch sm:self-start"
-                      style={{ background: 'var(--primary)', color: '#fff' }}
-                    >
-                      Åpne
-                      <ChevronRight size={18} className="shrink-0" aria-hidden />
-                    </button>
-                    {isHouseholdAggregate && !isOwner && (
-                      <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
-                        Åpne bytter til {profileName} og åpner plansiden (enkeltprofilvisning).
-                      </p>
-                    )}
-                  </div>
+                    <div className="mt-auto flex flex-col gap-2 min-w-0">
+                      {isHouseholdAggregate && !isOwner && (
+                        <p className="text-xs leading-snug text-left" style={{ color: 'var(--text-muted)' }}>
+                          Åpne bytter til {profileName} og åpner plansiden (enkeltprofilvisning).
+                        </p>
+                      )}
+                      <span
+                        className="min-h-[44px] inline-flex items-center justify-start gap-1.5 rounded-xl px-4 py-2.5 text-sm font-medium w-full sm:w-auto self-stretch sm:self-start pointer-events-none"
+                        style={{ background: 'var(--primary)', color: '#fff' }}
+                        aria-hidden
+                      >
+                        Åpne
+                        <ChevronRight size={18} className="shrink-0" aria-hidden />
+                      </span>
+                    </div>
+                  </button>
                 )
               })}
               </div>

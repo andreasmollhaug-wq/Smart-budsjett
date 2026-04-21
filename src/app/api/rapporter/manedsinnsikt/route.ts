@@ -116,6 +116,7 @@ export async function POST(req: Request) {
     payload = buildMonthlyInsightPayload(txs, cats, year, monthIndex, scopeLabel, {
       isHouseholdAggregate,
       profileNamesById,
+      people: raw.people,
     })
   } catch (e) {
     console.error('[manedsinnsikt] buildMonthlyInsightPayload', e)

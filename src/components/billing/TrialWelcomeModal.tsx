@@ -51,14 +51,14 @@ export default function TrialWelcomeModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'color-mix(in srgb, #000 45%, transparent)' }}
       role="dialog"
       aria-modal="true"
       aria-labelledby="trial-welcome-title"
     >
       <div
-        className="w-full max-w-lg rounded-2xl p-6 shadow-lg"
+        className="w-full max-w-lg min-w-0 max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-6 shadow-lg pb-[max(1.5rem,env(safe-area-inset-bottom))]"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <h2 id="trial-welcome-title" className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
@@ -80,7 +80,7 @@ export default function TrialWelcomeModal({
               dismissTrialWelcomeModalPersist()
               onStartSolo()
             }}
-            className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full min-h-[44px] rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 touch-manipulation"
             style={{ background: 'linear-gradient(135deg, #364FC7, #4C6EF5)' }}
           >
             {loadingPlan === 'solo' ? (
@@ -99,7 +99,7 @@ export default function TrialWelcomeModal({
               dismissTrialWelcomeModalPersist()
               onStartFamily()
             }}
-            className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full min-h-[44px] rounded-xl px-4 py-3 text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60 touch-manipulation"
             style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
           >
             {loadingPlan === 'family' ? (
@@ -118,7 +118,7 @@ export default function TrialWelcomeModal({
               dismissTrialWelcomeModalPersist()
               onClose()
             }}
-            className="w-full rounded-xl px-4 py-3 text-sm font-semibold"
+            className="w-full min-h-[44px] rounded-xl px-4 py-3 text-sm font-semibold touch-manipulation"
             style={{
               border: '1px solid var(--border)',
               color: 'var(--text)',

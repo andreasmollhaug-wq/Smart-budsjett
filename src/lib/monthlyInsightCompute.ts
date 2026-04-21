@@ -7,7 +7,11 @@ import {
   sumTransactionsByCategoryForMonth,
   type BudgetVsActualRow,
 } from '@/lib/bankReportData'
-import type { BudgetCategory, Transaction } from '@/lib/store'
+import {
+  grossWithholdingNetForBudgetMonth,
+  grossWithholdingNetForIncomeTransaction,
+} from '@/lib/incomeWithholding'
+import type { BudgetCategory, PersonData, Transaction } from '@/lib/store'
 
 function pctVariance(actual: number, budgeted: number): number | null {
   if (budgeted <= 0) return null
@@ -22,6 +26,11 @@ export type MonthlyInsightVarianceRow = {
   actual: number
   variance: number
   variancePct: number | null
+}
+
+export type MonthlyInsightIncomeDetail = {
+  budgeted: { gross: number; withholding: number; net: number }
+  actual: { gross: number; withholding: number; net: number }
 }
 
 export type MonthlyInsightKpis = {
@@ -61,14 +70,21 @@ export type MonthlyInsightPayload = {
   monthKey: string
   scopeLabel: string
   kpis: MonthlyInsightKpis
+  /** Brutto / forenklet trekk / netto for inntekt når relevant (ellers null). */
+  incomeDetail: MonthlyInsightIncomeDetail | null
   overBudget: MonthlyInsightVarianceRow[]
   underBudget: MonthlyInsightVarianceRow[]
   priorMonthsExpense: MonthlyInsightPriorMonthExpense[]
   topExpenseTransactions: MonthlyInsightTopTx[]
 }
 
-function actualExpenseForMonth(transactions: Transaction[], year: number, monthIndex: number): number {
-  const totals = sumTransactionsByCategoryForMonth(transactions, year, monthIndex)
+function actualExpenseForMonth(
+  transactions: Transaction[],
+  year: number,
+  monthIndex: number,
+  people?: Record<string, PersonData>,
+): number {
+  const totals = sumTransactionsByCategoryForMonth(transactions, year, monthIndex, people)
   const { expense } = sumMonthlyIncomeExpense(totals)
   return expense
 }
@@ -90,6 +106,8 @@ export type BuildMonthlyInsightPayloadOptions = {
   /** Når sann: topp-transaksjoner merkes med profilnavn der det finnes. */
   isHouseholdAggregate?: boolean
   profileNamesById?: Record<string, string>
+  /** For effektiv netto på inntektstransaksjoner (brutto/utbetalt). */
+  people?: Record<string, PersonData>
 }
 
 /**
@@ -103,27 +121,65 @@ export function buildMonthlyInsightPayload(
   scopeLabel: string,
   options?: BuildMonthlyInsightPayloadOptions,
 ): MonthlyInsightPayload {
-  const monthTotals = sumTransactionsByCategoryForMonth(transactions, reportYear, reportMonthIndex)
+  const people = options?.people
+  const monthTotals = sumTransactionsByCategoryForMonth(
+    transactions,
+    reportYear,
+    reportMonthIndex,
+    people,
+  )
   const rows = buildBudgetVsActual(budgetCategories, monthTotals, reportMonthIndex)
 
   let budgetedIncome = 0
-  let actualIncome = 0
   let budgetedExpense = 0
-  let actualExpense = 0
-
   for (const r of rows) {
-    if (r.type === 'income') {
-      budgetedIncome += r.budgeted
-      actualIncome += r.actual
-    } else {
-      budgetedExpense += r.budgeted
-      actualExpense += r.actual
-    }
+    if (r.type === 'income') budgetedIncome += r.budgeted
+    else budgetedExpense += r.budgeted
   }
+
+  /** Alle inntekts-/utgiftstransaksjoner i måneden (også uten matchende budsjettlinje). */
+  const { income: actualIncome, expense: actualExpense } = sumMonthlyIncomeExpense(monthTotals)
 
   const incomeVariance = actualIncome - budgetedIncome
   const expenseVariance = actualExpense - budgetedExpense
   const netActual = actualIncome - actualExpense
+
+  let budgetedGross = 0
+  let budgetedWithholding = 0
+  for (const c of budgetCategories) {
+    if (c.parentCategory !== 'inntekter' || c.type !== 'income') continue
+    const x = grossWithholdingNetForBudgetMonth(c, reportMonthIndex)
+    budgetedGross += x.gross
+    budgetedWithholding += x.withholding
+  }
+
+  const monthPrefix = getMonthKey(reportYear, reportMonthIndex)
+  let actualGross = 0
+  let actualWithholding = 0
+  for (const t of transactions) {
+    if (t.type !== 'income' || !t.date?.startsWith(monthPrefix)) continue
+    const pid = t.profileId ?? ''
+    const def = people?.[pid]?.defaultIncomeWithholding
+    const x = grossWithholdingNetForIncomeTransaction(t, def)
+    actualGross += x.gross
+    actualWithholding += x.withholding
+  }
+
+  const incomeDetail: MonthlyInsightIncomeDetail | null =
+    budgetedWithholding > 0 || actualWithholding > 0
+      ? {
+          budgeted: {
+            gross: budgetedGross,
+            withholding: budgetedWithholding,
+            net: budgetedIncome,
+          },
+          actual: {
+            gross: actualGross,
+            withholding: actualWithholding,
+            net: actualIncome,
+          },
+        }
+      : null
 
   const kpis: MonthlyInsightKpis = {
     budgetedIncome,
@@ -142,7 +198,7 @@ export function buildMonthlyInsightPayload(
   if (reportMonthIndex > 0) {
     let sumPrior = 0
     for (let m = 0; m < reportMonthIndex; m++) {
-      sumPrior += actualExpenseForMonth(transactions, reportYear, m)
+      sumPrior += actualExpenseForMonth(transactions, reportYear, m, people)
     }
     const ytdAvg = sumPrior / reportMonthIndex
     kpis.ytdAvgMonthlyExpense = ytdAvg
@@ -166,11 +222,10 @@ export function buildMonthlyInsightPayload(
     priorMonthsExpense.push({
       monthIndex: m,
       label: MONTH_LABELS_SHORT_NB[m] ?? String(m + 1),
-      actualExpense: actualExpenseForMonth(transactions, reportYear, m),
+      actualExpense: actualExpenseForMonth(transactions, reportYear, m, people),
     })
   }
 
-  const monthPrefix = getMonthKey(reportYear, reportMonthIndex)
   const monthTxs = transactions.filter((t) => t.date && t.date.startsWith(monthPrefix) && t.type === 'expense')
   const topExpenseTransactions: MonthlyInsightTopTx[] = [...monthTxs]
     .sort((a, b) => b.amount - a.amount)
@@ -195,6 +250,7 @@ export function buildMonthlyInsightPayload(
     monthKey: monthPrefix,
     scopeLabel,
     kpis,
+    incomeDetail,
     overBudget,
     underBudget,
     priorMonthsExpense,
@@ -214,6 +270,13 @@ export function formatMonthlyInsightContextForAi(payload: MonthlyInsightPayload)
     `Inntekt: budsjettert ${kpis.budgetedIncome.toFixed(0)} kr, faktisk ${kpis.actualIncome.toFixed(0)} kr, avvik ${kpis.incomeVariance.toFixed(0)} kr` +
       (kpis.incomeVariancePct != null ? ` (${kpis.incomeVariancePct.toFixed(1)} %)` : ''),
   )
+  if (payload.incomeDetail) {
+    const b = payload.incomeDetail.budgeted
+    const a = payload.incomeDetail.actual
+    lines.push(
+      `Inntekt detalj (forenklet trekk, ikke offisiell skatt): budsjett brutto ${b.gross.toFixed(0)} kr, trekk ${b.withholding.toFixed(0)} kr, netto ${b.net.toFixed(0)} kr; faktisk brutto ${a.gross.toFixed(0)} kr, trekk ${a.withholding.toFixed(0)} kr, netto ${a.net.toFixed(0)} kr`,
+    )
+  }
   lines.push(
     `Kostnader (alle utgiftskategorier): budsjettert ${kpis.budgetedExpense.toFixed(0)} kr, faktisk ${kpis.actualExpense.toFixed(0)} kr, avvik ${kpis.expenseVariance.toFixed(0)} kr` +
       (kpis.expenseVariancePct != null ? ` (${kpis.expenseVariancePct.toFixed(1)} %)` : ''),

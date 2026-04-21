@@ -11,7 +11,7 @@ import SameDayBatchTransactionForm from '@/components/transactions/SameDayBatchT
 import { useTransaksjonPageQuery } from '@/components/transactions/useTransaksjonPageQuery'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
 import { buildCategoryActualsYearMatrix, REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
-import { mergeBudgetCategoriesFromSnapshots } from '@/lib/store'
+import { mergeBudgetCategoriesFromSnapshots, useStore } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
 import {
@@ -81,6 +81,8 @@ function TransaksjonerPageInner() {
     budgetYear,
     archivedBudgetsByYear,
   } = useTransaksjonerFilters()
+
+  const people = useStore((s) => s.people)
 
   const { vis, setVis, setYearInUrl } = useTransaksjonPageQuery()
 
@@ -199,8 +201,8 @@ function TransaksjonerPageInner() {
 
   const actualsMatrixForOverviewKpi = useMemo(() => {
     if (vis !== 'oversikt') return null
-    return buildCategoryActualsYearMatrix(transactions, filterYear, filteredCategoriesForOverview)
-  }, [vis, transactions, filterYear, filteredCategoriesForOverview])
+    return buildCategoryActualsYearMatrix(transactions, filterYear, filteredCategoriesForOverview, people)
+  }, [vis, transactions, filterYear, filteredCategoriesForOverview, people])
 
   const overviewIncome = useMemo(() => {
     if (!actualsMatrixForOverviewKpi) return 0
@@ -476,6 +478,11 @@ function TransaksjonerPageInner() {
         }}
         householdHint={isHouseholdAggregate}
         createCategory={createCategoryProps}
+        incomeWithholdingDefault={
+          detailTx
+            ? people[detailTx.profileId ?? activeProfileId]?.defaultIncomeWithholding
+            : undefined
+        }
       />
       <div className="space-y-6 px-4 py-6 md:p-8">
         {vis === 'liste' && hasKommendeBanner ? (
@@ -1227,6 +1234,7 @@ function TransaksjonerPageInner() {
                   year={filterYear}
                   categories={filteredCategoriesForOverview}
                   transactions={transactions}
+                  people={people}
                 />
                 <p className="text-sm">
                   <button

@@ -46,7 +46,7 @@ Data og lagring
 
 Startveiledning (første gangs oppsett, 6 steg)
 - Vises som dialog over appen når ny bruker starter (kan åpnes på nytt fra Min konto → Innstillinger → «Vis veiledningen på nytt»).
-- Steg: velkomst → navn på profil → budsjettår (eller melding hvis du allerede har arkiverte år) → omtrentlig hovedinntekt per måned (setter «Lønn» i budsjettet) → valgfritt demodata → «Du er klar» med lenker til oversikt, transaksjoner, budsjett.
+- Steg: velkomst → navn på profil → budsjettår (eller melding hvis du allerede har arkiverte år) → hovedinntekt per måned på «Lønn» (beløp du taster inn, valgfritt brutto med forenklet trekk) → valgfritt demodata → «Du er klar» med lenker til oversikt, transaksjoner, budsjett.
 - «Hopp over» avslutter veiledningen uten alle steg.
 - Utvidet valgfri guide (anbefalt rekkefølge, moduler, tips): /konto/kom-i-gang — også lenket fra siste steg i startveiledningen og fra Min konto → Innstillinger.
 - Kom i gang-siden (/konto/kom-i-gang) er en utvidet reise i anbefalt rekkefølge: (1) budsjettår og hovedinntekt, (2) budsjett linje for linje, (3) transaksjoner for faktiske tall, (4) oversikten, (5) sparing/gjeld/snøball, (6) rapporter, investering og EnkelExcel AI — pluss valgfri dybde om Formuebyggeren PRO.
@@ -69,6 +69,13 @@ Budsjett (/budsjett)
 - Månedsvisning eller årsvisning; «brukt» mot plan kobles til transaksjoner i samme kategori der det er relevant.
 - Underfaner: «Budsjett», «Budsjett dashboard» (plan vs. faktisk, «Last ned CSV»), og «Husholdning» (kun i husholdningsvisning) med fordeling per person: budsjettert inntekt og faktiske beløp per profil.
 - Bytt budsjettår, start nytt år, åpne arkiverte år (visning av gamle år kan være skrivebeskyttet; aktivt år redigeres normalt).
+
+Inntekt og forenklet trekk (valgfritt)
+- Standard i appen er «Modus A» på budsjettlinjer: beløpet du legger inn brukes direkte i summeringer.
+- Valgfritt «Modus B»: på inntektslinjer kan beløpet tolkes som brutto med en forenklet trekkprosent, slik at summeringer og rapporter bruker netto (avrundet til hele kroner). Dette er en forenklet modell for planlegging — ikke offisiell skatt og ikke rådgivning fra Skatteetaten.
+- Ny linje under Inntekter: avkrysning og prosent i «Legg til linje»; standard hentes fra Min konto → Innstillinger (gjelder aktiv budsjettprofil). Eksisterende linje: justeres med ikonet ved linjen på budsjettsiden.
+- Transaksjoner med type inntekt: standard er at beløpet er netto (utbetalt på konto). Du kan merke beløpet som brutto og angi prosent (eller bruke profilstandard) i transaksjonsdetaljer.
+- AI og rapporter (f.eks. månedsinnsikt) kan vise brutto, trekk og netto når slike valg er i bruk, slik at tallene ikke virker «magiske».
 
 Transaksjoner (/transaksjoner)
 - Registrer enkelttransaksjoner: dato, beskrivelse, beløp, kategori, ev. underkategori.
@@ -124,9 +131,9 @@ Tjenesteabonnementer (/abonnementer)
 - Under /abonnementer finnes tre faner: «Registrer abonnement» (/abonnementer) — registrer og eventuelt synk til budsjett; «Sammendrag» (/abonnementer/sammendrag) — oversikt per profil, samlet kostnad og enkel visning av overlapp når samme tjeneste er valgt for flere; «Avsluttede» (/abonnementer/avsluttet) — tidligere avsluttede abonnement (historikk).
 
 Rapporter
-- /rapporter — menyvalg «Rapport til bank», «Månedsinnsikt» og «Sparemålrapport».
+- /rapporter — menyvalg «Rapport til bank», «Månedsinnsikt» og «Sparemålrapport». Rapport til bank (PDF/utskrift) kan vise egen boks «Inntekt: brutto og forenklet trekk» for valgt måned når trekk er i bruk (samme prinsipp som månedsinnsikt).
 - /rapporter/bank — velg år og måned; kryss av hvilke deler som skal med; valgfri fritekst til saksbehandler; tre måneders sammenligning fra transaksjoner; utskrift eller lagre som PDF.
-- /rapporter/manedsinnsikt — velg år og måned; generer ett AI-sammendrag per kalendermåned (serverstyrt kvote); nøkkeltall og tabeller mot budsjett; utskrift eller lagre som PDF (PDF teller ikke som ny generering). Tallene følger samme valgte visning som resten av appen (én profil eller samlet husholdning); siden forklarer hvilket grunnlag som brukes.
+- /rapporter/manedsinnsikt — velg år og måned; generer ett AI-sammendrag per kalendermåned (serverstyrt kvote); nøkkeltall og tabeller mot budsjett; utskrift eller lagre som PDF (PDF teller ikke som ny generering). Tallene følger samme valgte visning som resten av appen (én profil eller samlet husholdning); siden forklarer hvilket grunnlag som brukes. Når du bruker forenklet trekk på inntekt, kan rapporten vise brutto, trekk og netto i tillegg til hoved-KPI på netto.
 - /rapporter/sparemal — sparemål, fremdrift, aktivitet; PDF/utskrift.
 
 EnkelExcel AI (/enkelexcel-ai)

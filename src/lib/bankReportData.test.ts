@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import {
+  buildBankReportIncomeDetail,
   buildCategoryBudgetYearMatrix,
   buildMonthlyBudgetActualSeries,
   buildMonthlyNetSeriesForPeriod,
@@ -13,7 +14,7 @@ import {
   sumIncomeExpenseNetByProfileForMonthRange,
   sumActualByProfileForCategoryInMonthRange,
 } from './bankReportData'
-import type { BudgetCategory, Transaction } from './store'
+import { createEmptyPersonData, type BudgetCategory, type Transaction } from './store'
 
 function cat(overrides: Partial<BudgetCategory> & Pick<BudgetCategory, 'id' | 'name' | 'parentCategory' | 'type'>): BudgetCategory {
   return {
@@ -464,6 +465,74 @@ describe('faste utgifter og inntekt per måned (budsjett)', () => {
     const list = listBudgetedFixedMonthlyExpensesForMonth(budgetCategories, 0)
     expect(list.map((r) => r.name)).toEqual(['Husleie', 'Strøm'])
     expect(list[0].amount).toBe(12000)
+  })
+})
+
+describe('buildBankReportIncomeDetail', () => {
+  it('returnerer null når verken budsjett eller faktisk har forenklet trekk', () => {
+    const budgetCategories: BudgetCategory[] = [
+      cat({
+        id: '1',
+        name: 'Lønn',
+        type: 'income',
+        parentCategory: 'inntekter',
+        budgeted: Array(12).fill(50_000),
+      }),
+    ]
+    const transactions: Transaction[] = [
+      {
+        id: 't',
+        date: '2026-03-15',
+        amount: 50_000,
+        category: 'Lønn',
+        type: 'income',
+      },
+    ]
+    expect(buildBankReportIncomeDetail(transactions, budgetCategories, 2026, 2)).toBeNull()
+  })
+
+  it('returnerer oppdeling når budsjett har trekk (netto matcher budsjettkolonne)', () => {
+    const budgetCategories: BudgetCategory[] = [
+      cat({
+        id: '1',
+        name: 'Lønn',
+        type: 'income',
+        parentCategory: 'inntekter',
+        budgeted: Array(12).fill(100_000),
+        incomeWithholding: { apply: true, percent: 25 },
+      }),
+    ]
+    const d = buildBankReportIncomeDetail([], budgetCategories, 2026, 0)
+    expect(d).not.toBeNull()
+    expect(d!.budgeted.gross).toBe(100_000)
+    expect(d!.budgeted.withholding).toBe(25_000)
+    expect(d!.budgeted.net).toBe(75_000)
+    expect(d!.actual.net).toBe(0)
+  })
+
+  it('teller trekk for brutto-inntektstransaksjon med profilstandard', () => {
+    const people = {
+      p1: {
+        ...createEmptyPersonData(),
+        defaultIncomeWithholding: { apply: true, percent: 20 },
+      },
+    }
+    const transactions: Transaction[] = [
+      {
+        id: 't',
+        date: '2026-01-10',
+        amount: 100_000,
+        category: 'X',
+        type: 'income',
+        profileId: 'p1',
+        incomeIsNet: false,
+      },
+    ]
+    const d = buildBankReportIncomeDetail(transactions, [], 2026, 0, people)
+    expect(d).not.toBeNull()
+    expect(d!.actual.gross).toBe(100_000)
+    expect(d!.actual.withholding).toBe(20_000)
+    expect(d!.actual.net).toBe(80_000)
   })
 })
 

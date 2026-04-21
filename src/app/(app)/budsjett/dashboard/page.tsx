@@ -81,8 +81,8 @@ export default function BudsjettDashboardPage() {
   const { start, end } = useMemo(() => periodRange(periodMode, monthIndex), [periodMode, monthIndex])
 
   const monthTotals = useMemo(
-    () => sumTransactionsByCategoryForMonthRange(transactions, year, start, end),
-    [transactions, year, start, end],
+    () => sumTransactionsByCategoryForMonthRange(transactions, year, start, end, people),
+    [transactions, year, start, end, people],
   )
 
   const budgetVsRows = useMemo(
@@ -133,8 +133,8 @@ export default function BudsjettDashboardPage() {
   }, [budgetVsRows])
 
   const monthlySeries = useMemo(
-    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories),
-    [transactions, year, displayCategories],
+    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories, people),
+    [transactions, year, displayCategories, people],
   )
 
   const yearOptions = useMemo(() => {
@@ -398,6 +398,7 @@ export default function BudsjettDashboardPage() {
         transactions={transactions ?? []}
         profiles={profiles}
         isHouseholdAggregate={isHouseholdAggregate}
+        people={people}
       />
       <BudgetDashboardVarianceCategoriesModal
         open={kpiModal === 'badCategories'}

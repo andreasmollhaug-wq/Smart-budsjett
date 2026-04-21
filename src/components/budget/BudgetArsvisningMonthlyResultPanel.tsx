@@ -19,6 +19,7 @@ import {
 } from '@/lib/budgetYearMatrixHelpers'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import type { BudgetCategory, Transaction } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { formatNOK } from '@/lib/utils'
 
 function isMonthInKpiRange(m: number, start: number, end: number): boolean {
@@ -65,6 +66,7 @@ export default function BudgetArsvisningMonthlyResultPanel({
   periodMode: PeriodMode
   periodSubtitle: string
 }) {
+  const people = useStore((s) => s.people)
   const [moreInfoExpanded, setMoreInfoExpanded] = useState(false)
   const [showBudgetBreakdown, setShowBudgetBreakdown] = useState(false)
   const [showActualBreakdown, setShowActualBreakdown] = useState(false)
@@ -89,14 +91,14 @@ export default function BudgetArsvisningMonthlyResultPanel({
     if (!showVariance) return null
     const map = new Map<number, BudgetVsActualRow[]>()
     for (const m of monthsInKpiPeriod) {
-      const totals = sumTransactionsByCategoryForMonthRange(transactions, year, m, m)
+      const totals = sumTransactionsByCategoryForMonthRange(transactions, year, m, m, people)
       const rows = [...buildBudgetVsActualForPeriod(displayCategories, totals, m, m)].sort(
         (a, b) => Math.abs(b.variance) - Math.abs(a.variance),
       )
       map.set(m, rows.slice(0, ARSVISNING_TOP_VARIANCE_COUNT))
     }
     return map
-  }, [showVariance, year, transactions, displayCategories, monthsInKpiPeriod])
+  }, [showVariance, year, transactions, displayCategories, monthsInKpiPeriod, people])
 
   const topYearExpenseRows = useMemo(() => {
     if (!showTopYearExpenses) return null
@@ -105,6 +107,7 @@ export default function BudgetArsvisningMonthlyResultPanel({
       year,
       kpiMonthStart,
       kpiMonthEnd,
+      people,
     )
     const rows: { id: string; name: string; total: number }[] = []
     for (const c of displayCategories) {
@@ -115,7 +118,7 @@ export default function BudgetArsvisningMonthlyResultPanel({
     }
     rows.sort((a, b) => b.total - a.total)
     return rows.slice(0, ARSVISNING_TOP_EXPENSES_COUNT)
-  }, [showTopYearExpenses, transactions, year, displayCategories, kpiMonthStart, kpiMonthEnd])
+  }, [showTopYearExpenses, transactions, year, displayCategories, kpiMonthStart, kpiMonthEnd, people])
 
   const expenseListTxMonthIndex = periodMode === 'month' ? kpiMonthStart : 0
 

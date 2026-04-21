@@ -4,6 +4,7 @@ import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
 import BudgetAmountCell from '@/components/budget/BudgetAmountCell'
 import AddBudgetLineModal from '@/components/budget/AddBudgetLineModal'
+import BudgetLineIncomeWithholdingModal from '@/components/budget/BudgetLineIncomeWithholdingModal'
 import {
   useStore,
   useActivePersonFinance,
@@ -15,10 +16,19 @@ import { budgetedArrayForCategoryName } from '@/lib/budgetYearHelpers'
 import {
   budgetedMonthsFromFrequency,
   formatNOK,
+  formatNOKOrDash,
   formatPercent,
   generateId,
   parseThousands,
 } from '@/lib/utils'
+import {
+  budgetCategoryUsesIncomeWithholding,
+  effectiveBudgetedIncomeMonth,
+  grossFromDesiredNet,
+  grossWithholdingNetForBudgetMonth,
+  normalizeIncomeWithholdingRule,
+  withholdingPercentForBudgetCategory,
+} from '@/lib/incomeWithholding'
 import { mergeBudgetCategoryValues } from '@/lib/budgetCategoryMerge'
 import {
   getAvailableLabels,
@@ -36,6 +46,7 @@ import {
   Scale,
   Copy,
   Percent,
+  SlidersHorizontal,
 } from 'lucide-react'
 import BudsjettSubnav from '@/components/budget/BudsjettSubnav'
 import BudsjettOpenArchiveModal from '@/components/budget/BudsjettOpenArchiveModal'
@@ -65,6 +76,45 @@ function groupLabel(id: ParentCategory): string {
 function ensureArrayBudgeted(budgeted: unknown): number[] {
   if (Array.isArray(budgeted)) return budgeted
   return Array(12).fill(budgeted || 0)
+}
+
+function yearBudgetLineTotal(cat: BudgetCategory, parent: ParentCategory): number {
+  if (parent === 'inntekter' && cat.type === 'income') {
+    let s = 0
+    for (let i = 0; i < 12; i++) s += effectiveBudgetedIncomeMonth(cat, i)
+    return s
+  }
+  const arr = ensureArrayBudgeted(cat.budgeted)
+  return arr.reduce((a, b) => a + b, 0)
+}
+
+function yearIncomeWhBreakdownTotals(cat: BudgetCategory): { gross: number; withholding: number; net: number } {
+  let gross = 0
+  let withholding = 0
+  let net = 0
+  for (let i = 0; i < 12; i++) {
+    const b = grossWithholdingNetForBudgetMonth(cat, i)
+    gross += b.gross
+    withholding += b.withholding
+    net += b.net
+  }
+  return { gross, withholding, net }
+}
+
+/** Brutto for én inntektslinje én måned (samme som lagret brutto når trekk er på). */
+function incomeLineGrossMonth(cat: BudgetCategory, monthIndex: number): number {
+  if (cat.parentCategory !== 'inntekter' || cat.type !== 'income') return 0
+  return grossWithholdingNetForBudgetMonth(cat, monthIndex).gross
+}
+
+function sumIncomeGrossForMonth(items: BudgetCategory[], monthIndex: number): number {
+  return items.filter((c) => c.type === 'income').reduce((s, c) => s + incomeLineGrossMonth(c, monthIndex), 0)
+}
+
+function sumIncomeGrossYear(items: BudgetCategory[]): number {
+  let t = 0
+  for (let i = 0; i < 12; i++) t += sumIncomeGrossForMonth(items, i)
+  return t
 }
 
 function applyBudgetAmountCellChange(
@@ -109,6 +159,9 @@ export default function BudsjettPage() {
   const people = useStore((s) => s.people)
   /** Husholdning: hvilken budsjettlinje (aggregat-id) som viser bidrag per person. */
   const [householdLineBreakdownOpen, setHouseholdLineBreakdownOpen] = useState<string | null>(null)
+  const [incomeWhBreakdownOpenId, setIncomeWhBreakdownOpenId] = useState<string | null>(null)
+  const [incomeGroupGrossBreakdownOpen, setIncomeGroupGrossBreakdownOpen] = useState(false)
+  const [incomeWithholdingModalCategoryId, setIncomeWithholdingModalCategoryId] = useState<string | null>(null)
 
   const [viewingYear, setViewingYear] = useState(budgetYear)
   const [newYearModalOpen, setNewYearModalOpen] = useState(false)
@@ -172,6 +225,10 @@ export default function BudsjettPage() {
   useEffect(() => {
     if (readOnly) setAddModalGroup(null)
   }, [readOnly])
+
+  useEffect(() => {
+    if (readOnly) setIncomeWhBreakdownOpenId(null)
+  }, [readOnly])
   const [view, setView] = useState<'month' | 'year'>('year')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -188,6 +245,8 @@ export default function BudsjettPage() {
     amount: '',
     freq: 'monthly' as BudgetCategory['frequency'],
     onceMonthIndex: 0,
+    incomeWhApply: false,
+    incomeWhPercent: '32',
   })
   const [focusAmountSignal, setFocusAmountSignal] = useState(0)
 
@@ -198,6 +257,9 @@ export default function BudsjettPage() {
 
   const getSumForMonth = (group: ParentCategory, monthIndex: number) =>
     getCategoriesForGroup(group).reduce((sum, c) => {
+      if (group === 'inntekter' && c.type === 'income') {
+        return sum + effectiveBudgetedIncomeMonth(c, monthIndex)
+      }
       const arr = ensureArrayBudgeted(c.budgeted)
       return sum + (arr[monthIndex] || 0)
     }, 0)
@@ -210,6 +272,12 @@ export default function BudsjettPage() {
 
   const sumBudgetedForGroup = (group: ParentCategory, mode: 'month' | 'year', monthIndex: number) =>
     getCategoriesForGroup(group).reduce((sum, c) => {
+      if (group === 'inntekter' && c.type === 'income') {
+        if (mode === 'month') return sum + effectiveBudgetedIncomeMonth(c, monthIndex)
+        let y = 0
+        for (let i = 0; i < 12; i++) y += effectiveBudgetedIncomeMonth(c, i)
+        return sum + y
+      }
       const arr = ensureArrayBudgeted(c.budgeted)
       if (mode === 'month') return sum + (arr[monthIndex] || 0)
       return sum + arr.reduce((a, b) => a + b, 0)
@@ -243,13 +311,43 @@ export default function BudsjettPage() {
   const closeAddModal = () => {
     setAddModalGroup(null)
     setModalSearch('')
-    setNewForm({ name: '', amount: '', freq: 'monthly', onceMonthIndex: 0 })
+    setNewForm({
+      name: '',
+      amount: '',
+      freq: 'monthly',
+      onceMonthIndex: 0,
+      incomeWhApply: false,
+      incomeWhPercent: '32',
+    })
+  }
+
+  const openAddLineModal = (group: ParentCategory) => {
+    const d = normalizeIncomeWithholdingRule(people[activeProfileId]?.defaultIncomeWithholding)
+    setAddModalGroup(group)
+    setModalSearch('')
+    setNewForm({
+      name: '',
+      amount: '',
+      freq: 'monthly',
+      onceMonthIndex: 0,
+      incomeWhApply: group === 'inntekter' && d.apply,
+      incomeWhPercent: String(d.percent > 0 ? d.percent : 32),
+    })
+    setFocusAmountSignal(0)
   }
 
   const handlePickSuggestion = (group: ParentCategory, name: string) => {
     const trimmed = name.trim()
     if (!trimmed) return
-    setNewForm({ name: trimmed, amount: '', freq: 'monthly', onceMonthIndex: 0 })
+    const d = normalizeIncomeWithholdingRule(people[activeProfileId]?.defaultIncomeWithholding)
+    setNewForm({
+      name: trimmed,
+      amount: '',
+      freq: 'monthly',
+      onceMonthIndex: 0,
+      incomeWhApply: group === 'inntekter' && d.apply,
+      incomeWhPercent: String(d.percent > 0 ? d.percent : 32),
+    })
     setModalSearch('')
     setFocusAmountSignal((n) => n + 1)
   }
@@ -274,6 +372,14 @@ export default function BudsjettPage() {
 
     if (shouldRegisterCustom(group, name)) addCustomBudgetLabel(group, name)
 
+    const whRule =
+      group === 'inntekter'
+        ? normalizeIncomeWithholdingRule({
+            apply: newForm.incomeWhApply,
+            percent: Number(String(newForm.incomeWhPercent).replace(',', '.')) || 0,
+          })
+        : null
+
     const cat: BudgetCategory = {
       id: generateId(),
       name,
@@ -284,6 +390,9 @@ export default function BudsjettPage() {
       parentCategory: group,
       frequency: newForm.freq as BudgetCategory['frequency'],
       ...(newForm.freq === 'once' ? { onceMonthIndex: newForm.onceMonthIndex } : {}),
+      ...(group === 'inntekter' && whRule?.apply
+        ? { incomeWithholding: { apply: true, percent: whRule.percent } }
+        : {}),
     }
     addBudgetCategory(cat)
     closeAddModal()
@@ -291,6 +400,13 @@ export default function BudsjettPage() {
 
   const fillAllMonthsFromSelected = (cat: BudgetCategory) => {
     const arr = ensureArrayBudgeted(cat.budgeted)
+    if (budgetCategoryUsesIncomeWithholding(cat)) {
+      const targetNet = effectiveBudgetedIncomeMonth(cat, selectedMonth)
+      const p = withholdingPercentForBudgetCategory(cat)
+      const gross = grossFromDesiredNet(targetNet, p)
+      updateBudgetCategory(cat.id, { budgeted: Array(12).fill(gross) })
+      return
+    }
     const v = arr[selectedMonth] ?? 0
     updateBudgetCategory(cat.id, { budgeted: Array(12).fill(v) })
   }
@@ -361,6 +477,23 @@ export default function BudsjettPage() {
         onAddCustom={() => addModalGroup && handleAddCustom(addModalGroup)}
         onClose={closeAddModal}
         focusAmountSignal={focusAmountSignal}
+      />
+
+      <BudgetLineIncomeWithholdingModal
+        open={incomeWithholdingModalCategoryId !== null}
+        category={
+          incomeWithholdingModalCategoryId
+            ? displayCategories.find((c) => c.id === incomeWithholdingModalCategoryId) ?? null
+            : null
+        }
+        previewMonthIndex={selectedMonth}
+        monthLabel={`${MONTHS_FULL[selectedMonth]} ${viewingYear}`}
+        onClose={() => setIncomeWithholdingModalCategoryId(null)}
+        onSave={(id, rule) => {
+          updateBudgetCategory(id, {
+            incomeWithholding: rule.apply ? { apply: true, percent: rule.percent } : undefined,
+          })
+        }}
       />
 
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -574,14 +707,14 @@ export default function BudsjettPage() {
                         className="text-right py-2 px-1 tabular-nums align-middle"
                         style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}
                       >
-                        {formatNOK(getSumForMonth('inntekter', mi))}
+                        {formatNOKOrDash(getSumForMonth('inntekter', mi))}
                       </td>
                     ))}
                     <td
                       className="text-right py-2 pl-2 pr-0 tabular-nums font-medium align-middle"
                       style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}
                     >
-                      {formatNOK(sumBudgetedForGroup('inntekter', 'year', selectedMonth))}
+                      {formatNOKOrDash(sumBudgetedForGroup('inntekter', 'year', selectedMonth))}
                     </td>
                   </tr>
                   {COST_GROUPS.map((gid) => (
@@ -604,14 +737,14 @@ export default function BudsjettPage() {
                           className="text-right py-2 px-1 tabular-nums align-middle"
                           style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}
                         >
-                          {formatNOK(getSumForMonth(gid, mi))}
+                          {formatNOKOrDash(getSumForMonth(gid, mi))}
                         </td>
                       ))}
                       <td
                         className="text-right py-2 pl-2 pr-0 tabular-nums font-medium align-middle"
                         style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}
                       >
-                        {formatNOK(sumBudgetedForGroup(gid, 'year', selectedMonth))}
+                        {formatNOKOrDash(sumBudgetedForGroup(gid, 'year', selectedMonth))}
                       </td>
                     </tr>
                   ))}
@@ -640,7 +773,7 @@ export default function BudsjettPage() {
                             background: 'var(--primary-pale)',
                           }}
                         >
-                          {formatNOK(r)}
+                          {formatNOKOrDash(r)}
                         </td>
                       )
                     })}
@@ -652,7 +785,7 @@ export default function BudsjettPage() {
                         background: 'var(--primary-pale)',
                       }}
                     >
-                      {formatNOK(budgetResult)}
+                      {formatNOKOrDash(budgetResult)}
                     </td>
                   </tr>
                 </tbody>
@@ -663,6 +796,7 @@ export default function BudsjettPage() {
 
         {GROUPS.map((group) => {
           const items = getCategoriesForGroup(group.id)
+          const incomeLinesOnly = group.id === 'inntekter' ? items.filter((c) => c.type === 'income') : []
           const isExpanded = expanded[group.id] ?? true
           const groupSum = sumBudgetedForGroup(group.id, view, selectedMonth)
 
@@ -675,7 +809,7 @@ export default function BudsjettPage() {
               <button
                 type="button"
                 aria-expanded={isExpanded}
-                aria-label={`${group.label}, ${formatNOK(groupSum)}, ${isExpanded ? 'utvidet' : 'skjult'}`}
+                aria-label={`${group.label}, ${formatNOKOrDash(groupSum)}, ${isExpanded ? 'utvidet' : 'skjult'}`}
                 onClick={() => setExpanded({ ...expanded, [group.id]: !isExpanded })}
                 className="w-full flex items-center justify-between gap-3 text-left pointer-events-auto"
               >
@@ -693,7 +827,7 @@ export default function BudsjettPage() {
                       className="font-semibold tabular-nums text-sm sm:text-base"
                       style={{ color: 'var(--primary)' }}
                     >
-                      {formatNOK(groupSum)}
+                      {formatNOKOrDash(groupSum)}
                     </p>
                     {items.length === 0 && (
                       <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
@@ -760,6 +894,10 @@ export default function BudsjettPage() {
                               : []
                           const subBudgetLocked = linkedServiceSubs.length > 0
                           const amountReadOnly = readOnly || subBudgetLocked
+                          const incomeWhOn =
+                            group.id === 'inntekter' && cat.type === 'income' && budgetCategoryUsesIncomeWithholding(cat)
+                          const whBreakdownOpen = incomeWhOn && incomeWhBreakdownOpenId === cat.id
+                          const whYearTotals = whBreakdownOpen ? yearIncomeWhBreakdownTotals(cat) : null
                           return (
                             <Fragment key={cat.id}>
                               <tr className="align-middle" style={{ borderTop: '1px solid var(--border)' }}>
@@ -804,6 +942,36 @@ export default function BudsjettPage() {
                                       onMoveUp={() => reorderBudgetCategory(group.id, cat.id, 'up')}
                                       onMoveDown={() => reorderBudgetCategory(group.id, cat.id, 'down')}
                                     />
+                                    {incomeWhOn && (
+                                      <button
+                                        type="button"
+                                        className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity min-w-[28px] min-h-[28px] inline-flex items-center justify-center"
+                                        style={{ color: 'var(--text-muted)' }}
+                                        onClick={() =>
+                                          setIncomeWhBreakdownOpenId((o) => (o === cat.id ? null : cat.id))
+                                        }
+                                        aria-expanded={whBreakdownOpen}
+                                        aria-label={`Vis eller skjul forenklet trekk for ${cat.name}`}
+                                      >
+                                        {whBreakdownOpen ? (
+                                          <Minus size={14} strokeWidth={2} />
+                                        ) : (
+                                          <Plus size={14} strokeWidth={2} />
+                                        )}
+                                      </button>
+                                    )}
+                                    {group.id === 'inntekter' && cat.type === 'income' && !readOnly && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setIncomeWithholdingModalCategoryId(cat.id)}
+                                        className="p-1 opacity-70 hover:opacity-100 flex-shrink-0 min-w-[28px] min-h-[28px] inline-flex items-center justify-center rounded-lg"
+                                        style={{ color: 'var(--primary)' }}
+                                        title="Forenklet trekk på linjen"
+                                        aria-label={`Forenklet trekk for ${cat.name}`}
+                                      >
+                                        <SlidersHorizontal size={14} strokeWidth={2} />
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       onClick={() => removeBudgetCategory(cat.id)}
@@ -821,10 +989,24 @@ export default function BudsjettPage() {
                                     style={{ borderLeft: '1px solid var(--border)' }}
                                   >
                                     <BudgetAmountCell
-                                      value={budgetedArr[mi] ?? 0}
+                                      value={
+                                        incomeWhOn
+                                          ? effectiveBudgetedIncomeMonth(cat, mi)
+                                          : budgetedArr[mi] ?? 0
+                                      }
                                       readOnly={amountReadOnly}
                                       onChange={(n) =>
-                                        applyBudgetAmountCellChange(cat, mi, n, updateBudgetCategory)
+                                        incomeWhOn
+                                          ? applyBudgetAmountCellChange(
+                                              cat,
+                                              mi,
+                                              grossFromDesiredNet(
+                                                n,
+                                                withholdingPercentForBudgetCategory(cat),
+                                              ),
+                                              updateBudgetCategory,
+                                            )
+                                          : applyBudgetAmountCellChange(cat, mi, n, updateBudgetCategory)
                                       }
                                     />
                                   </td>
@@ -833,7 +1015,7 @@ export default function BudsjettPage() {
                                   className="align-middle py-2 px-2 text-xs tabular-nums whitespace-nowrap text-right font-semibold"
                                   style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
                                 >
-                                  {formatNOK(budgetedArr.reduce((a, b) => a + b, 0))}
+                                  {formatNOKOrDash(yearBudgetLineTotal(cat, group.id))}
                                 </td>
                                 <td className="align-middle py-1 px-1 text-center">
                                   <button
@@ -849,6 +1031,118 @@ export default function BudsjettPage() {
                                   </button>
                                 </td>
                               </tr>
+                              {whBreakdownOpen && whYearTotals && (
+                                <>
+                                  <tr
+                                    className="align-middle"
+                                    style={{
+                                      borderTop: '1px solid var(--border)',
+                                      background: 'var(--surface)',
+                                    }}
+                                  >
+                                    <td
+                                      className="py-1.5 px-2 text-xs align-middle max-w-[14rem] md:max-w-[18rem]"
+                                      style={{
+                                        color: 'var(--text-muted)',
+                                        boxShadow: 'inset 3px 0 0 var(--border)',
+                                      }}
+                                    >
+                                      Brutto (budsjett)
+                                    </td>
+                                    {monthColumnIndices.map((mi) => {
+                                      const b = grossWithholdingNetForBudgetMonth(cat, mi)
+                                      return (
+                                        <td
+                                          key={mi}
+                                          className="align-middle py-1 px-0.5 text-right text-xs tabular-nums"
+                                          style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                        >
+                                          {formatNOKOrDash(b.gross)}
+                                        </td>
+                                      )
+                                    })}
+                                    <td
+                                      className="align-middle py-1.5 px-2 text-xs tabular-nums text-right font-medium whitespace-nowrap"
+                                      style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                    >
+                                      {formatNOKOrDash(whYearTotals.gross)}
+                                    </td>
+                                    <td className="align-middle py-1 px-1" aria-hidden />
+                                  </tr>
+                                  <tr
+                                    className="align-middle"
+                                    style={{
+                                      borderTop: '1px solid var(--border)',
+                                      background: 'var(--surface)',
+                                    }}
+                                  >
+                                    <td
+                                      className="py-1.5 px-2 text-xs align-middle max-w-[14rem] md:max-w-[18rem]"
+                                      style={{
+                                        color: 'var(--text-muted)',
+                                        boxShadow: 'inset 3px 0 0 var(--border)',
+                                      }}
+                                    >
+                                      Forenklet trekk ({withholdingPercentForBudgetCategory(cat)} %)
+                                    </td>
+                                    {monthColumnIndices.map((mi) => {
+                                      const b = grossWithholdingNetForBudgetMonth(cat, mi)
+                                      return (
+                                        <td
+                                          key={mi}
+                                          className="align-middle py-1 px-0.5 text-right text-xs tabular-nums"
+                                          style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                        >
+                                          {formatNOKOrDash(b.withholding)}
+                                        </td>
+                                      )
+                                    })}
+                                    <td
+                                      className="align-middle py-1.5 px-2 text-xs tabular-nums text-right font-medium whitespace-nowrap"
+                                      style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                    >
+                                      {formatNOKOrDash(whYearTotals.withholding)}
+                                    </td>
+                                    <td className="align-middle py-1 px-1" aria-hidden />
+                                  </tr>
+                                  <tr
+                                    className="align-middle"
+                                    style={{
+                                      borderTop: '1px solid var(--border)',
+                                      background: 'var(--surface)',
+                                    }}
+                                  >
+                                    <td
+                                      className="py-1.5 px-2 text-xs align-middle max-w-[14rem] md:max-w-[18rem]"
+                                      style={{
+                                        color: 'var(--text-muted)',
+                                        boxShadow: 'inset 3px 0 0 var(--border)',
+                                      }}
+                                    >
+                                      Netto i summeringer
+                                    </td>
+                                    {monthColumnIndices.map((mi) => {
+                                      const b = grossWithholdingNetForBudgetMonth(cat, mi)
+                                      return (
+                                        <td
+                                          key={mi}
+                                          className="align-middle py-1 px-0.5 text-right text-xs tabular-nums"
+                                          style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                        >
+                                          {formatNOKOrDash(b.net)}
+                                        </td>
+                                      )
+                                    })}
+                                    <td
+                                      className="align-middle py-1.5 px-2 text-xs tabular-nums text-right font-medium whitespace-nowrap"
+                                      style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
+                                    >
+                                      {formatNOKOrDash(whYearTotals.net)}
+                                    </td>
+                                    <td className="align-middle py-1 px-1" aria-hidden />
+                                  </tr>
+                                </>
+                              )}
                               {linkedServiceSubs.length > 0 && group.id === 'regninger' && (
                                 <tr style={{ background: 'var(--bg)' }}>
                                   <td
@@ -890,14 +1184,14 @@ export default function BudsjettPage() {
                                           color: 'var(--text)',
                                         }}
                                       >
-                                        {formatNOK(row.monthly[mi] ?? 0)}
+                                        {formatNOKOrDash(row.monthly[mi] ?? 0)}
                                       </td>
                                     ))}
                                     <td
                                       className="align-middle py-1.5 px-2 text-xs tabular-nums whitespace-nowrap text-right font-medium"
                                       style={{ borderLeft: '1px solid var(--border)', color: 'var(--text)' }}
                                     >
-                                      {formatNOK(row.yearTotal)}
+                                      {formatNOKOrDash(row.yearTotal)}
                                     </td>
                                     <td className="align-middle py-1 px-1" aria-hidden />
                                   </tr>
@@ -915,22 +1209,120 @@ export default function BudsjettPage() {
                               className="text-right text-xs tabular-nums py-2 px-1"
                               style={{ borderLeft: '1px solid var(--border)', color: 'var(--primary)' }}
                             >
-                              {formatNOK(getSumForMonth(group.id, mi))}
+                              {formatNOKOrDash(getSumForMonth(group.id, mi))}
                             </td>
                           ))}
                           <td
                             className="text-right py-2 px-2 text-xs tabular-nums"
                             style={{ borderLeft: '1px solid var(--border)', color: 'var(--primary)' }}
                           >
-                            {formatNOK(
-                              getCategoriesForGroup(group.id).reduce((sum, c) => {
-                                const arr = ensureArrayBudgeted(c.budgeted)
-                                return sum + arr.reduce((a, b) => a + b, 0)
-                              }, 0),
-                            )}
+                            {formatNOKOrDash(sumBudgetedForGroup(group.id, 'year', selectedMonth))}
                           </td>
                           <td />
                         </tr>
+                        {incomeLinesOnly.length > 0 && (
+                          <>
+                            <tr aria-hidden="true">
+                              <td
+                                colSpan={monthColumnIndices.length + 3}
+                                className="h-3 p-0 border-0"
+                                style={{ background: 'transparent', lineHeight: 0, fontSize: 0 }}
+                              />
+                            </tr>
+                            <tr
+                              className="align-middle"
+                              style={{
+                                background: 'transparent',
+                                borderTop: '1px dashed var(--border)',
+                              }}
+                            >
+                              <td className="py-2 px-2 align-middle max-w-[14rem] md:max-w-[18rem]">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <button
+                                    type="button"
+                                    className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity min-w-[28px] min-h-[28px] inline-flex items-center justify-center touch-manipulation"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    onClick={() => setIncomeGroupGrossBreakdownOpen((o) => !o)}
+                                    aria-expanded={incomeGroupGrossBreakdownOpen}
+                                    aria-label="Vis eller skjul brutto per inntektslinje"
+                                  >
+                                    {incomeGroupGrossBreakdownOpen ? (
+                                      <Minus size={14} strokeWidth={2} />
+                                    ) : (
+                                      <Plus size={14} strokeWidth={2} />
+                                    )}
+                                  </button>
+                                  <span
+                                    className="text-[11px] leading-snug font-normal italic"
+                                    style={{ color: 'var(--text-muted)' }}
+                                  >
+                                    Brutto totalt (sum linjer){' '}
+                                    <span className="not-italic opacity-80">— til sammenligning med netto over</span>
+                                  </span>
+                                </div>
+                              </td>
+                              {monthColumnIndices.map((mi) => (
+                                <td
+                                  key={mi}
+                                  className="text-right text-[11px] tabular-nums py-2 px-1 align-middle font-normal"
+                                  style={{
+                                    borderLeft: '1px solid var(--border)',
+                                    color: 'var(--text-muted)',
+                                  }}
+                                >
+                                  {formatNOKOrDash(sumIncomeGrossForMonth(items, mi))}
+                                </td>
+                              ))}
+                              <td
+                                className="text-right py-2 px-2 text-[11px] tabular-nums align-middle whitespace-nowrap font-normal"
+                                style={{ borderLeft: '1px solid var(--border)', color: 'var(--text-muted)' }}
+                              >
+                                {formatNOKOrDash(sumIncomeGrossYear(items))}
+                              </td>
+                              <td className="align-middle" aria-hidden />
+                            </tr>
+                            {incomeGroupGrossBreakdownOpen &&
+                              incomeLinesOnly.map((cat) => (
+                                <tr
+                                  key={`income-gross-${cat.id}`}
+                                  className="align-middle"
+                                  style={{ background: 'transparent' }}
+                                >
+                                  <td
+                                    className="py-1 px-2 pl-8 text-[10px] align-middle max-w-[14rem] md:max-w-[18rem] truncate font-normal"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    title={cat.name}
+                                  >
+                                    {cat.name}
+                                  </td>
+                                  {monthColumnIndices.map((mi) => (
+                                    <td
+                                      key={mi}
+                                      className="text-right text-[10px] tabular-nums py-1 px-0.5 align-middle font-normal"
+                                      style={{
+                                        borderLeft: '1px solid var(--border)',
+                                        color: 'var(--text-muted)',
+                                        opacity: 0.92,
+                                      }}
+                                    >
+                                      {formatNOKOrDash(incomeLineGrossMonth(cat, mi))}
+                                    </td>
+                                  ))}
+                                  <td
+                                    className="text-right py-1 px-2 text-[10px] tabular-nums align-middle whitespace-nowrap font-normal"
+                                    style={{
+                                      borderLeft: '1px solid var(--border)',
+                                      color: 'var(--text-muted)',
+                                      opacity: 0.92,
+                                    }}
+                                  >
+                                    {formatNOKOrDash(yearIncomeWhBreakdownTotals(cat).gross)}
+                                  </td>
+                                  <td className="align-middle" aria-hidden />
+                                </tr>
+                              ))}
+                          </>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -950,6 +1342,10 @@ export default function BudsjettPage() {
                               : []
                           const subBudgetLocked = linkedServiceSubs.length > 0
                           const amountReadOnly = readOnly || subBudgetLocked
+                          const incomeWhOn =
+                            group.id === 'inntekter' && cat.type === 'income' && budgetCategoryUsesIncomeWithholding(cat)
+                          const whBreakdownOpen = incomeWhOn && incomeWhBreakdownOpenId === cat.id
+                          const whYearTotalsMob = whBreakdownOpen ? yearIncomeWhBreakdownTotals(cat) : null
                           return (
                             <div key={cat.id} className="p-3 rounded-lg" style={{ background: 'var(--bg)' }}>
                               <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
@@ -982,6 +1378,24 @@ export default function BudsjettPage() {
                                       )}
                                     </button>
                                   )}
+                                  {incomeWhOn && (
+                                    <button
+                                      type="button"
+                                      className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity min-h-[28px] min-w-[28px] inline-flex items-center justify-center"
+                                      style={{ color: 'var(--text-muted)' }}
+                                      onClick={() =>
+                                        setIncomeWhBreakdownOpenId((o) => (o === cat.id ? null : cat.id))
+                                      }
+                                      aria-expanded={whBreakdownOpen}
+                                      aria-label={`Vis eller skjul forenklet trekk for ${cat.name}`}
+                                    >
+                                      {whBreakdownOpen ? (
+                                        <Minus size={14} strokeWidth={2} />
+                                      ) : (
+                                        <Plus size={14} strokeWidth={2} />
+                                      )}
+                                    </button>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1 flex-shrink-0">
                                   <BudgetLineReorderButtons
@@ -992,6 +1406,18 @@ export default function BudsjettPage() {
                                     onMoveUp={() => reorderBudgetCategory(group.id, cat.id, 'up')}
                                     onMoveDown={() => reorderBudgetCategory(group.id, cat.id, 'down')}
                                   />
+                                  {group.id === 'inntekter' && cat.type === 'income' && !readOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setIncomeWithholdingModalCategoryId(cat.id)}
+                                      className="p-1.5 rounded-lg min-w-[36px] min-h-[36px] inline-flex items-center justify-center"
+                                      style={{ background: 'var(--surface)', color: 'var(--primary)' }}
+                                      title="Forenklet trekk"
+                                      aria-label={`Forenklet trekk for ${cat.name}`}
+                                    >
+                                      <SlidersHorizontal size={16} strokeWidth={2} />
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     disabled={readOnly || subBudgetLocked}
@@ -1023,15 +1449,70 @@ export default function BudsjettPage() {
                                 {budgetedArr.map((val, i) => (
                                   <BudgetAmountCell
                                     key={i}
-                                    value={val}
+                                    value={incomeWhOn ? effectiveBudgetedIncomeMonth(cat, i) : val}
                                     readOnly={amountReadOnly}
                                     onChange={(n) =>
-                                      applyBudgetAmountCellChange(cat, i, n, updateBudgetCategory)
+                                      incomeWhOn
+                                        ? applyBudgetAmountCellChange(
+                                            cat,
+                                            i,
+                                            grossFromDesiredNet(
+                                              n,
+                                              withholdingPercentForBudgetCategory(cat),
+                                            ),
+                                            updateBudgetCategory,
+                                          )
+                                        : applyBudgetAmountCellChange(cat, i, n, updateBudgetCategory)
                                     }
                                     className="!max-w-full !ml-0 w-full text-[11px]"
                                   />
                                 ))}
                               </div>
+                              {whBreakdownOpen && whYearTotalsMob && (
+                                <div
+                                  className="mt-3 pt-3 space-y-3 pointer-events-auto"
+                                  style={{ borderTop: '1px solid var(--border)' }}
+                                >
+                                  <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                                    Forenklet trekk — detalj
+                                  </p>
+                                  {(
+                                    [
+                                      ['Brutto (budsjett)', 'gross'],
+                                      [
+                                        `Forenklet trekk (${withholdingPercentForBudgetCategory(cat)} %)`,
+                                        'withholding',
+                                      ],
+                                      ['Netto i summeringer', 'net'],
+                                    ] as const
+                                  ).map(([label, key]) => (
+                                    <div key={key}>
+                                      <div className="text-[10px] mb-1" style={{ color: 'var(--text-muted)' }}>
+                                        {label}
+                                      </div>
+                                      <div className="overflow-x-auto -mx-1 px-1">
+                                        <div className="flex gap-2 min-w-max pb-1">
+                                          {MONTH_INDEXES.map((mi) => {
+                                            const b = grossWithholdingNetForBudgetMonth(cat, mi)
+                                            const v = b[key]
+                                            return (
+                                              <div key={mi} className="text-center shrink-0 w-11">
+                                                <div style={{ color: 'var(--text-muted)' }}>{MONTHS[mi]}</div>
+                                                <div className="tabular-nums mt-0.5 text-[11px]" style={{ color: 'var(--text)' }}>
+                                                  {formatNOKOrDash(v)}
+                                                </div>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                      <div className="text-[11px] tabular-nums text-right mt-1" style={{ color: 'var(--text)' }}>
+                                        Totalt/år {formatNOKOrDash(whYearTotalsMob[key])}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                               {linkedServiceSubs.length > 0 && group.id === 'regninger' && (
                                 <p className="text-[11px] mt-2 mb-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                                   <span style={{ color: 'var(--text)' }}>Abonnementer: </span>
@@ -1058,7 +1539,7 @@ export default function BudsjettPage() {
                                             <div key={mi} className="text-center shrink-0 w-11">
                                               <div style={{ color: 'var(--text-muted)' }}>{MONTHS[mi]}</div>
                                               <div className="tabular-nums mt-0.5" style={{ color: 'var(--text)' }}>
-                                                {formatNOK(row.monthly[mi] ?? 0)}
+                                                {formatNOKOrDash(row.monthly[mi] ?? 0)}
                                               </div>
                                             </div>
                                           ))}
@@ -1085,6 +1566,13 @@ export default function BudsjettPage() {
                             : []
                         const subBudgetLocked = linkedServiceSubs.length > 0
                         const amountReadOnly = readOnly || subBudgetLocked
+                        const incomeWhOn =
+                          group.id === 'inntekter' && cat.type === 'income' && budgetCategoryUsesIncomeWithholding(cat)
+                        const whBreakdownOpen = incomeWhOn && incomeWhBreakdownOpenId === cat.id
+                        const whYearTotalsMobMonth = whBreakdownOpen ? yearIncomeWhBreakdownTotals(cat) : null
+                        const whSel = whBreakdownOpen
+                          ? grossWithholdingNetForBudgetMonth(cat, selectedMonth)
+                          : null
                         return (
                           <div key={cat.id} className="p-3 rounded-lg" style={{ background: 'var(--bg)' }}>
                             <div className="flex items-center justify-between gap-2 mb-2 min-w-0">
@@ -1117,6 +1605,24 @@ export default function BudsjettPage() {
                                     )}
                                   </button>
                                 )}
+                                {incomeWhOn && (
+                                  <button
+                                    type="button"
+                                    className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity min-h-[28px] min-w-[28px] inline-flex items-center justify-center"
+                                    style={{ color: 'var(--text-muted)' }}
+                                    onClick={() =>
+                                      setIncomeWhBreakdownOpenId((o) => (o === cat.id ? null : cat.id))
+                                    }
+                                    aria-expanded={whBreakdownOpen}
+                                    aria-label={`Vis eller skjul forenklet trekk for ${cat.name}`}
+                                  >
+                                    {whBreakdownOpen ? (
+                                      <Minus size={14} strokeWidth={2} />
+                                    ) : (
+                                      <Plus size={14} strokeWidth={2} />
+                                    )}
+                                  </button>
+                                )}
                               </div>
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <BudgetLineReorderButtons
@@ -1127,6 +1633,18 @@ export default function BudsjettPage() {
                                   onMoveUp={() => reorderBudgetCategory(group.id, cat.id, 'up')}
                                   onMoveDown={() => reorderBudgetCategory(group.id, cat.id, 'down')}
                                 />
+                                {group.id === 'inntekter' && cat.type === 'income' && !readOnly && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setIncomeWithholdingModalCategoryId(cat.id)}
+                                    className="p-1.5 rounded-lg min-w-[36px] min-h-[36px] inline-flex items-center justify-center"
+                                    style={{ background: 'var(--surface)', color: 'var(--primary)' }}
+                                    title="Forenklet trekk"
+                                    aria-label={`Forenklet trekk for ${cat.name}`}
+                                  >
+                                    <SlidersHorizontal size={16} strokeWidth={2} />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   disabled={readOnly || subBudgetLocked}
@@ -1148,26 +1666,82 @@ export default function BudsjettPage() {
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                              <div>{MONTHS[selectedMonth]}:</div>
+                              <div>
+                                {MONTHS[selectedMonth]}
+                                {incomeWhOn ? ' (netto)' : ''}:
+                              </div>
                               <div style={{ textAlign: 'right' }}>
                                 <BudgetAmountCell
-                                  value={budgetedArr[selectedMonth] || 0}
+                                  value={
+                                    incomeWhOn
+                                      ? effectiveBudgetedIncomeMonth(cat, selectedMonth)
+                                      : budgetedArr[selectedMonth] || 0
+                                  }
                                   readOnly={amountReadOnly}
                                   onChange={(n) =>
-                                    applyBudgetAmountCellChange(
-                                      cat,
-                                      selectedMonth,
-                                      n,
-                                      updateBudgetCategory,
-                                    )
+                                    incomeWhOn
+                                      ? applyBudgetAmountCellChange(
+                                          cat,
+                                          selectedMonth,
+                                          grossFromDesiredNet(
+                                            n,
+                                            withholdingPercentForBudgetCategory(cat),
+                                          ),
+                                          updateBudgetCategory,
+                                        )
+                                      : applyBudgetAmountCellChange(
+                                          cat,
+                                          selectedMonth,
+                                          n,
+                                          updateBudgetCategory,
+                                        )
                                   }
                                 />
                               </div>
                               <div>Totalt år:</div>
                               <div style={{ textAlign: 'right', color: 'var(--text)', fontWeight: 600 }}>
-                                {formatNOK(budgetedArr.reduce((a, b) => a + b, 0))}
+                                {formatNOKOrDash(yearBudgetLineTotal(cat, group.id))}
                               </div>
                             </div>
+                            {whBreakdownOpen && whYearTotalsMobMonth && whSel && (
+                              <div
+                                className="mt-3 pt-3 space-y-2 text-xs pointer-events-auto"
+                                style={{ borderTop: '1px solid var(--border)' }}
+                              >
+                                <p className="text-[10px] font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>
+                                  Forenklet trekk — detalj
+                                </p>
+                                <div className="flex justify-between gap-2 tabular-nums">
+                                  <span style={{ color: 'var(--text-muted)' }}>Brutto (budsjett)</span>
+                                  <span style={{ color: 'var(--text)' }}>
+                                    {formatNOKOrDash(whSel.gross)}{' '}
+                                    <span className="text-[10px] opacity-80">
+                                      / år {formatNOKOrDash(whYearTotalsMobMonth.gross)}
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2 tabular-nums">
+                                  <span style={{ color: 'var(--text-muted)' }}>
+                                    Trekk ({withholdingPercentForBudgetCategory(cat)} %)
+                                  </span>
+                                  <span style={{ color: 'var(--text)' }}>
+                                    {formatNOKOrDash(whSel.withholding)}{' '}
+                                    <span className="text-[10px] opacity-80">
+                                      / år {formatNOKOrDash(whYearTotalsMobMonth.withholding)}
+                                    </span>
+                                  </span>
+                                </div>
+                                <div className="flex justify-between gap-2 tabular-nums">
+                                  <span style={{ color: 'var(--text-muted)' }}>Netto i summeringer</span>
+                                  <span style={{ color: 'var(--text)' }}>
+                                    {formatNOKOrDash(whSel.net)}{' '}
+                                    <span className="text-[10px] opacity-80">
+                                      / år {formatNOKOrDash(whYearTotalsMobMonth.net)}
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                             {linkedServiceSubs.length > 0 && group.id === 'regninger' && (
                               <p className="text-[11px] mt-2 mb-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                                 <span style={{ color: 'var(--text)' }}>Abonnementer: </span>
@@ -1187,10 +1761,10 @@ export default function BudsjettPage() {
                                     <span style={{ color: 'var(--text-muted)' }}>{row.name}</span>
                                     <div className="text-right shrink-0">
                                       <div className="tabular-nums font-medium" style={{ color: 'var(--text)' }}>
-                                        {formatNOK(row.monthly[selectedMonth] ?? 0)}
+                                        {formatNOKOrDash(row.monthly[selectedMonth] ?? 0)}
                                       </div>
                                       <div style={{ color: 'var(--text-muted)' }}>
-                                        Totalt/år {formatNOK(row.yearTotal)}
+                                        Totalt/år {formatNOKOrDash(row.yearTotal)}
                                       </div>
                                     </div>
                                   </div>
@@ -1208,7 +1782,7 @@ export default function BudsjettPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div style={{ color: 'var(--primary)', fontWeight: 600 }}>Total {group.label}</div>
                         <div style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: 600 }}>
-                          {formatNOK(
+                          {formatNOKOrDash(
                             view === 'year'
                               ? sumBudgetedForGroup(group.id, 'year', selectedMonth)
                               : getSumForMonth(group.id, selectedMonth),
@@ -1216,16 +1790,79 @@ export default function BudsjettPage() {
                         </div>
                       </div>
                     </div>
+                    {group.id === 'inntekter' && incomeLinesOnly.length > 0 && (
+                      <div
+                        className="mt-2.5 p-2.5 rounded-xl space-y-2"
+                        style={{
+                          background: 'var(--surface)',
+                          border: '1px dashed var(--border)',
+                        }}
+                      >
+                        <p className="text-[10px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                          Bruttoinformasjon
+                        </p>
+                        <div className="flex items-center justify-between gap-2 text-xs min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <button
+                              type="button"
+                              className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity min-h-[28px] min-w-[28px] inline-flex items-center justify-center touch-manipulation"
+                              style={{ color: 'var(--text-muted)' }}
+                              onClick={() => setIncomeGroupGrossBreakdownOpen((o) => !o)}
+                              aria-expanded={incomeGroupGrossBreakdownOpen}
+                              aria-label="Vis eller skjul brutto per inntektslinje"
+                            >
+                              {incomeGroupGrossBreakdownOpen ? (
+                                <Minus size={14} strokeWidth={2} />
+                              ) : (
+                                <Plus size={14} strokeWidth={2} />
+                              )}
+                            </button>
+                            <span
+                              className="leading-snug min-w-0 text-[11px] italic font-normal"
+                              style={{ color: 'var(--text-muted)' }}
+                            >
+                              Sum brutto (alle linjer)
+                            </span>
+                          </div>
+                          <span
+                            className="tabular-nums font-normal shrink-0 text-[11px]"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            {formatNOKOrDash(
+                              view === 'year'
+                                ? sumIncomeGrossYear(items)
+                                : sumIncomeGrossForMonth(items, selectedMonth),
+                            )}
+                          </span>
+                        </div>
+                        {incomeGroupGrossBreakdownOpen && (
+                          <ul className="space-y-1.5 pl-7 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                            {incomeLinesOnly.map((cat) => (
+                              <li
+                                key={`mob-gross-${cat.id}`}
+                                className="flex items-start justify-between gap-2 tabular-nums font-normal"
+                              >
+                                <span className="truncate min-w-0" title={cat.name}>
+                                  {cat.name}
+                                </span>
+                                <span className="shrink-0 text-right">
+                                  {formatNOKOrDash(
+                                    view === 'year'
+                                      ? yearIncomeWhBreakdownTotals(cat).gross
+                                      : incomeLineGrossMonth(cat, selectedMonth),
+                                  )}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setAddModalGroup(group.id)
-                      setModalSearch('')
-                      setNewForm({ name: '', amount: '', freq: 'monthly', onceMonthIndex: 0 })
-                      setFocusAmountSignal(0)
-                    }}
+                    onClick={() => openAddLineModal(group.id)}
                     className="mt-4 flex items-center gap-2 px-3 py-2 text-sm font-medium rounded transition-colors"
                     style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
                   >

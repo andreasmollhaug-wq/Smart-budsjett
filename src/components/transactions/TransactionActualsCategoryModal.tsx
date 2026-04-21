@@ -133,14 +133,14 @@ export default function TransactionActualsCategoryModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="tx-actuals-cat-modal-title"
     >
       <button type="button" className="absolute inset-0 bg-black/25 backdrop-blur-[2px]" aria-label="Lukk" onClick={onClose} />
       <div
-        className="relative flex max-h-[min(90vh,800px)] w-full max-w-lg flex-col rounded-2xl shadow-2xl md:max-w-xl"
+        className="relative flex max-h-[min(90vh,800px)] w-full max-w-lg min-w-0 flex-col rounded-t-2xl sm:rounded-2xl shadow-2xl md:max-w-xl"
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
@@ -181,7 +181,7 @@ export default function TransactionActualsCategoryModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 outline-none transition-colors hover:opacity-70 focus-visible:ring-2 focus-visible:ring-[var(--primary)] shrink-0"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-full outline-none transition-colors hover:opacity-70 focus-visible:ring-2 focus-visible:ring-[var(--primary)] shrink-0 touch-manipulation"
             style={{ background: 'var(--bg)' }}
             aria-label="Lukk"
           >
@@ -257,13 +257,13 @@ export default function TransactionActualsCategoryModal({
         </div>
 
         <div
-          className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end px-6 pb-6 pt-2 shrink-0 border-t"
+          className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end px-6 pt-2 shrink-0 border-t pb-[max(1.5rem,env(safe-area-inset-bottom))]"
           style={{ borderColor: 'var(--border)' }}
         >
           <button
             type="button"
             onClick={onClose}
-            className="py-2.5 px-4 rounded-xl text-[15px] font-medium w-full sm:w-auto"
+            className="min-h-[44px] py-2.5 px-4 rounded-xl text-[15px] font-medium w-full sm:w-auto touch-manipulation"
             style={{ background: 'var(--bg)', color: 'var(--text)' }}
           >
             Lukk
@@ -271,7 +271,7 @@ export default function TransactionActualsCategoryModal({
           <Link
             href={transactionsListeHref}
             onClick={onClose}
-            className="py-2.5 px-4 rounded-xl text-[15px] font-semibold text-white text-center w-full sm:w-auto"
+            className="min-h-[44px] inline-flex items-center justify-center py-2.5 px-4 rounded-xl text-[15px] font-semibold text-white text-center w-full sm:w-auto touch-manipulation"
             style={{ background: 'var(--primary)' }}
           >
             Åpne i transaksjonslisten

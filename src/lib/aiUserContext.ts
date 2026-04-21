@@ -19,6 +19,11 @@ import {
   transactionRequiresPlanFollowUp,
 } from '@/lib/plannedTransactions'
 import { formatTransactionDateNbNo } from '@/lib/utils'
+import {
+  effectiveBudgetedIncomeMonth,
+  effectiveIncomeTransactionAmount,
+  transactionIncomeIsNet,
+} from '@/lib/incomeWithholding'
 
 const MAX_TRANSACTION_LINES = 300
 const MAX_CONTEXT_CHARS = 25_000
@@ -120,6 +125,15 @@ function sumBudgetedYear(cat: BudgetCategory): number {
   return arr.reduce((s, n) => s + (typeof n === 'number' && Number.isFinite(n) ? n : 0), 0)
 }
 
+function plannedYearTotalForAi(cat: BudgetCategory): number {
+  if (cat.type === 'income' && cat.parentCategory === 'inntekter') {
+    let s = 0
+    for (let i = 0; i < 12; i++) s += effectiveBudgetedIncomeMonth(cat, i)
+    return s
+  }
+  return sumBudgetedYear(cat)
+}
+
 function profileShort(
   profileId: string | undefined,
   profileNamesById: Record<string, string>,
@@ -174,7 +188,7 @@ function truncateSubscriptionServiceCell(s: string): string {
 }
 
 function appendTransactionsSection(lines: string[], person: PersonData, meta: AiFinanceContextMeta): void {
-  const { isHouseholdAggregate, profileNamesById } = meta
+  const { isHouseholdAggregate, profileNamesById, peopleById } = meta
   const txs = sortTransactionsNewestFirst(person.transactions ?? [])
   const totalTx = txs.length
   const shown = txs.slice(0, MAX_TRANSACTION_LINES)
@@ -190,16 +204,26 @@ function appendTransactionsSection(lines: string[], person: PersonData, meta: Ai
       lines.push('dato | beskrivelse | beløp (kr) | kategori | underkategori | type')
     }
     for (const t of shown) {
-      const amt = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
+      const amtRaw = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
+      const wh =
+        t.profileId && peopleById[t.profileId]
+          ? peopleById[t.profileId]!.defaultIncomeWithholding
+          : undefined
+      const netInc =
+        t.type === 'income' ? effectiveIncomeTransactionAmount(t, wh ?? undefined) : amtRaw
+      let amtShow = String(amtRaw)
+      if (t.type === 'income' && !transactionIncomeIsNet(t)) {
+        amtShow = `${amtRaw} (brutto; ca. ${netInc} kr netto i summeringer)`
+      }
       const desc = (t.description ?? '').replace(/\s+/g, ' ').trim() || '(uten beskrivelse)'
       const cat = (t.category ?? '').replace(/\s+/g, ' ').trim() || '(uten kategori)'
       const sub = (t.subcategory ?? '').replace(/\s+/g, ' ').trim() || '–'
       const dateShow = formatTransactionDateNbNo(t.date) || t.date
       const prof = profileShort(t.profileId, profileNamesById, isHouseholdAggregate)
       if (isHouseholdAggregate) {
-        lines.push(`${dateShow} | ${desc} | ${amt} | ${cat} | ${sub} | ${typeLabel(t.type)} | ${prof || '–'}`)
+        lines.push(`${dateShow} | ${desc} | ${amtShow} | ${cat} | ${sub} | ${typeLabel(t.type)} | ${prof || '–'}`)
       } else {
-        lines.push(`${dateShow} | ${desc} | ${amt} | ${cat} | ${sub} | ${typeLabel(t.type)}`)
+        lines.push(`${dateShow} | ${desc} | ${amtShow} | ${cat} | ${sub} | ${typeLabel(t.type)}`)
       }
     }
     if (omitted > 0) {
@@ -326,6 +350,7 @@ export type AiFinanceContextMeta = {
   scopeLabel: string
   isHouseholdAggregate: boolean
   profileNamesById: Record<string, string>
+  peopleById: Record<string, PersonData>
 }
 
 export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceContextMeta): string {
@@ -334,6 +359,9 @@ export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceCon
   lines.push('--- Brukerens data fra appen (kun lesing) ---')
   lines.push(`Budsjettår: ${budgetYear}`)
   lines.push(`Visningsmodus: ${scopeLabel}`)
+  lines.push(
+    'Inntekt i budsjett og transaksjoner: der brukeren har valgt forenklet trekk, er planlagte budsjettbeløp og lister vist som netto i summeringer (beløp i cellen kan fortsatt være brutto). Dette er ikke offisiell skatt.',
+  )
   if (isHouseholdAggregate) {
     lines.push(
       'Bruk av data: tallene under er aggregert på tvers av alle profiler. Transaksjoner og enkeltposter som er merket med profil, tilhører den profilen.',
@@ -375,10 +403,10 @@ export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceCon
         lines.push(`… og ${cats.length - n} flere kategorier vises ikke.`)
         break
       }
-      const planned = sumBudgetedYear(c)
+      const planned = plannedYearTotalForAi(c)
       const spent = typeof c.spent === 'number' && Number.isFinite(c.spent) ? c.spent : 0
       lines.push(
-        `- ${c.name} (${typeLabel(c.type)}): brukt ${spent} kr, planlagt ${planned} kr (sum av månedsbeløp)`,
+        `- ${c.name} (${typeLabel(c.type)}): brukt ${spent} kr, planlagt ${planned} kr (år, netto der trekk er på for inntekt)`,
       )
       n += 1
     }
@@ -468,10 +496,12 @@ export function buildAiUserContextFromPersistedState(state: unknown): string {
   }
   const { person, scopeLabel, isHouseholdAggregate } = resolvePersonDataForAi(state)
   const profileNamesById = profileNamesMapFromSlice(state)
+  const peopleById = getEffectivePeopleForAi(state)
   return buildAiFinanceContextText(person, {
     budgetYear: state.budgetYear,
     scopeLabel,
     isHouseholdAggregate,
     profileNamesById,
+    peopleById,
   })
 }

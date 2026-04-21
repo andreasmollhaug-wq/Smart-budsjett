@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { User, Bell, Sparkles, FlaskConical } from 'lucide-react'
 import { useStore, type BudgetCategory } from '@/lib/store'
-import { useEffect, useState, type FormEvent } from 'react'
+import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BudgetSetupChecklistCard from '@/components/konto/BudgetSetupChecklistCard'
@@ -196,6 +197,108 @@ function DemoDataCard() {
   )
 }
 
+function IncomeWithholdingDefaultsCard() {
+  const activeProfileId = useStore((s) => s.activeProfileId)
+  const profileName = useStore((s) => s.profiles.find((p) => p.id === s.activeProfileId)?.name?.trim() ?? 'Profil')
+  const rule = useStore((s) => s.people[s.activeProfileId]?.defaultIncomeWithholding)
+  const setDefaultIncomeWithholding = useStore((s) => s.setDefaultIncomeWithholding)
+  const n = normalizeIncomeWithholdingRule(rule)
+  const [apply, setApply] = useState(n.apply)
+  const [pct, setPct] = useState(String(n.percent > 0 ? n.percent : 32))
+  const [showSaved, setShowSaved] = useState(false)
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const r = normalizeIncomeWithholdingRule(rule)
+    setApply(r.apply)
+    setPct(String(r.percent > 0 ? r.percent : 32))
+  }, [activeProfileId, rule?.apply, rule?.percent])
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    }
+  }, [])
+
+  const flashSaved = () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    setShowSaved(true)
+    savedTimerRef.current = setTimeout(() => {
+      setShowSaved(false)
+      savedTimerRef.current = null
+    }, 2800)
+  }
+
+  return (
+    <div
+      className="rounded-2xl p-6 scroll-mt-24"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <h2 className="font-semibold mb-2" style={{ color: 'var(--text)' }}>
+        Inntekt — standard for nye linjer
+      </h2>
+      <p className="text-sm mb-4 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        Gjelder <strong>{profileName}</strong> (aktiv budsjettprofil). Brukes som forhåndsvalg når du legger til nye
+        inntektslinjer og som fallback for inntektstransaksjoner som er markert som brutto uten egen prosent. Forenklet
+        modell — ikke offisiell skatt.
+      </p>
+      <label className="flex items-start gap-3 min-h-[44px] cursor-pointer mb-3">
+        <input
+          type="checkbox"
+          checked={apply}
+          onChange={(e) => setApply(e.target.checked)}
+          className="mt-1 h-4 w-4 rounded shrink-0"
+        />
+        <span className="text-sm" style={{ color: 'var(--text)' }}>
+          Nye inntektslinjer: beløp er brutto med forenklet trekk
+        </span>
+      </label>
+      {apply && (
+        <label className="flex flex-col gap-2.5 mb-4">
+          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            Standard trekk (prosent)
+          </span>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={pct}
+            onChange={(e) => setPct(e.target.value.replace(/[^\d.,]/g, ''))}
+            className="w-full max-w-xs px-3 py-2 rounded-xl text-sm min-h-[44px]"
+            style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+          />
+        </label>
+      )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            const r = normalizeIncomeWithholdingRule({
+              apply,
+              percent: Number(String(pct).replace(',', '.')) || 0,
+            })
+            setDefaultIncomeWithholding(r)
+            flashSaved()
+          }}
+          className="px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[44px] w-fit touch-manipulation"
+          style={{ background: 'var(--primary)' }}
+        >
+          Lagre standard
+        </button>
+        {showSaved && (
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-sm font-medium"
+            style={{ color: 'var(--success)' }}
+          >
+            Lagret
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function StartveiledningCard() {
   const openOnboardingAgain = useStore((s) => s.openOnboardingAgain)
 
@@ -252,6 +355,8 @@ export default function KontoInnstillingerPage() {
       </div>
 
       <DemoDataCard />
+
+      <IncomeWithholdingDefaultsCard />
 
       <StartveiledningCard />
 

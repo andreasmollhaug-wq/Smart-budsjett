@@ -28,27 +28,27 @@ export default function TransactionImportSummaryModal({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
       role="presentation"
     >
       <div
-        className="w-full max-w-lg rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-lg min-w-0 rounded-t-2xl sm:rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="import-summary-title"
       >
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <h3 id="import-summary-title" className="font-semibold text-lg" style={{ color: 'var(--text)' }}>
+        <div className="flex items-start justify-between gap-3 mb-4 min-w-0">
+          <h3 id="import-summary-title" className="font-semibold text-lg min-w-0 pr-2" style={{ color: 'var(--text)' }}>
             Import fullført
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg shrink-0 touch-manipulation"
             style={{ color: 'var(--text-muted)' }}
             aria-label="Lukk"
           >
@@ -88,8 +88,12 @@ export default function TransactionImportSummaryModal({
         <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
           Sum per kategori
         </p>
-        <div className="rounded-xl overflow-hidden border text-sm mb-6" style={{ borderColor: 'var(--border)' }}>
-          <table className="w-full">
+        <div
+          className="rounded-xl border text-sm mb-6 min-w-0 overflow-hidden"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[280px]">
             <thead>
               <tr style={{ background: 'var(--bg)' }}>
                 <th className="text-left px-3 py-2 font-medium">Kategori</th>
@@ -107,12 +111,13 @@ export default function TransactionImportSummaryModal({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 justify-end">
+        <div className="flex flex-col-reverse sm:flex-row flex-wrap gap-2 sm:justify-end">
           <button
             type="button"
-            className="rounded-xl px-4 py-2 text-sm font-medium"
+            className="min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium w-full sm:w-auto touch-manipulation"
             style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
             onClick={onClose}
           >
@@ -120,7 +125,7 @@ export default function TransactionImportSummaryModal({
           </button>
           <Link
             href={transactionsHref}
-            className="rounded-xl px-4 py-2 text-sm font-medium inline-flex items-center"
+            className="min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium inline-flex items-center justify-center w-full sm:w-auto touch-manipulation"
             style={{ background: 'var(--primary)', color: 'white' }}
             onClick={onClose}
           >

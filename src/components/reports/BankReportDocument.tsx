@@ -7,6 +7,7 @@ import {
   type BudgetVsActualRow,
   debtTypeLabel,
   investmentTypeLabel,
+  type BankReportIncomeDetail,
   type BankReportKpis,
 } from '@/lib/bankReportData'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
@@ -64,6 +65,8 @@ export interface BankReportDocumentProps {
   freeTextPurpose?: string
   /** Tre måneder bakover fra valgt måned (transaksjoner). */
   rolling3m?: { income: number; expense: number; net: number } | null
+  /** Brutto / forenklet trekk / netto for valgt måned når relevant. */
+  incomeDetail?: BankReportIncomeDetail | null
 }
 
 const tableClass =
@@ -71,7 +74,7 @@ const tableClass =
 const thClass = 'text-left py-2 px-3 font-semibold border-b'
 const tdClass = 'py-2 px-3 border-b'
 const sectionTitle = 'text-lg font-bold mt-8 mb-3'
-const cardGrid = 'grid grid-cols-2 md:grid-cols-3 gap-3 mb-6'
+const cardGrid = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6'
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
@@ -105,6 +108,7 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
       freeTextSituation,
       freeTextPurpose,
       rolling3m,
+      incomeDetail = null,
     },
     ref,
   ) {
@@ -124,7 +128,7 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
     return (
       <div
         ref={ref}
-        className="bank-report-document rounded-2xl p-8 max-w-4xl mx-auto"
+        className="bank-report-document rounded-2xl p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-8 max-w-4xl mx-auto min-w-0"
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
@@ -194,6 +198,49 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
               <KpiCard label="Inntekt (3 mnd)" value={formatNOK(rolling3m.income)} />
               <KpiCard label="Utgift (3 mnd)" value={formatNOK(rolling3m.expense)} />
               <KpiCard label="Netto (3 mnd)" value={formatNOK(rolling3m.net)} />
+            </div>
+            {incomeDetail ? (
+              <p className="text-xs mt-3 leading-relaxed max-w-prose" style={{ color: 'var(--text-muted)' }}>
+                Inntekt i tre-månedersvinduet er summert som <strong>netto</strong> der du har forenklet trekk eller
+                brutto-inntektstransaksjoner — samme prinsipp som i tabellen «Inntekt: brutto og forenklet trekk»
+                under.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {incomeDetail != null && (sec.summary || sec.budgetVs || sec.rolling3m) ? (
+          <section className="mb-6">
+            <h3 className={sectionTitle} style={{ color: 'var(--text)' }}>
+              Inntekt: brutto og forenklet trekk ({periodLabel})
+            </h3>
+            <div
+              className="rounded-xl p-4 text-sm space-y-3"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            >
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Basert på innstillingene i Smart Budsjett (forenklet modell, ikke offisiell skatteberegning). Kolonnene
+                «Budsjett» og «Faktisk» under Inntekter bruker <strong>netto</strong> slik at avvik sammenlignes med
+                utbetalt beløp fra bank der transaksjonene er netto.
+              </p>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                    Budsjett (måned)
+                  </p>
+                  <p>Brutto: {formatNOK(incomeDetail.budgeted.gross)}</p>
+                  <p>Forenklet trekk: {formatNOK(incomeDetail.budgeted.withholding)}</p>
+                  <p className="font-medium">Netto: {formatNOK(incomeDetail.budgeted.net)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                    Faktisk (måned)
+                  </p>
+                  <p>Brutto: {formatNOK(incomeDetail.actual.gross)}</p>
+                  <p>Forenklet trekk: {formatNOK(incomeDetail.actual.withholding)}</p>
+                  <p className="font-medium">Netto: {formatNOK(incomeDetail.actual.net)}</p>
+                </div>
+              </div>
             </div>
           </section>
         ) : null}
@@ -417,6 +464,12 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
                 <h4 className="text-base font-semibold mb-2" style={{ color: 'var(--text)' }}>
                   {REPORT_GROUP_LABELS[group]}
                 </h4>
+                {group === 'inntekter' && incomeDetail ? (
+                  <p className="text-xs mb-2 leading-relaxed max-w-prose" style={{ color: 'var(--text-muted)' }}>
+                    Budsjett-kolonnen viser <strong>netto</strong> når trekk er aktivert på linjen. Se også seksjonen
+                    «Inntekt: brutto og forenklet trekk» over for full oppdeling for måneden.
+                  </p>
+                ) : null}
                 <table className={tableClass} style={{ borderColor: 'var(--border)' }}>
                   <thead>
                     <tr style={{ color: 'var(--text-muted)' }}>

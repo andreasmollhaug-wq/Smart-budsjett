@@ -6,6 +6,12 @@ export function formatNOK(amount: number): string {
   }).format(amount)
 }
 
+/** Som {@link formatNOK}, men `0` og ugyldig tall vises som lang tankestrek (ryddig tom celle). */
+export function formatNOKOrDash(amount: number): string {
+  if (!Number.isFinite(amount) || amount === 0) return '—'
+  return formatNOK(amount)
+}
+
 /** Heltall med tusenskille (nb-NO), uten valutasymbol — til beløpsfelt. */
 export function formatIntegerNbNo(amount: number): string {
   if (!Number.isFinite(amount)) return ''

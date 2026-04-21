@@ -15,7 +15,7 @@ const tableClass = 'w-full text-sm border-collapse'
 const thClass = 'text-left py-2 px-3 font-semibold border-b'
 const tdClass = 'py-2 px-3 border-b'
 const sectionTitle = 'text-lg font-bold mt-8 mb-3'
-const cardGrid = 'grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6'
+const cardGrid = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6'
 
 const MONTH_NAMES_FULL = [
   'Januar',
@@ -68,7 +68,7 @@ const MonthlyInsightDocument = forwardRef<HTMLDivElement, MonthlyInsightDocument
     return (
       <div
         ref={ref}
-        className="bank-report-document report-document rounded-2xl p-8 max-w-4xl mx-auto"
+        className="bank-report-document report-document rounded-2xl p-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-8 max-w-4xl mx-auto min-w-0"
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
@@ -139,6 +139,38 @@ const MonthlyInsightDocument = forwardRef<HTMLDivElement, MonthlyInsightDocument
               }
             />
           </div>
+          {payload.incomeDetail ? (
+            <div
+              className="mt-4 rounded-xl p-4 text-sm space-y-3"
+              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            >
+              <p className="font-semibold" style={{ color: 'var(--text)' }}>
+                Inntekt: brutto og forenklet trekk
+              </p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Beløpene er basert på innstillingene i appen (forenklet modell, ikke offisiell skatteberegning).
+                Sammenligning mot budsjett bruker netto som i kortene over.
+              </p>
+              <div className="grid grid-cols-1 gap-4 min-w-0">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                    Budsjett (måned)
+                  </p>
+                  <p>Brutto: {formatNOK(payload.incomeDetail.budgeted.gross)}</p>
+                  <p>Forenklet trekk: {formatNOK(payload.incomeDetail.budgeted.withholding)}</p>
+                  <p className="font-medium">Netto: {formatNOK(payload.incomeDetail.budgeted.net)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                    Faktisk (måned)
+                  </p>
+                  <p>Brutto: {formatNOK(payload.incomeDetail.actual.gross)}</p>
+                  <p>Forenklet trekk: {formatNOK(payload.incomeDetail.actual.withholding)}</p>
+                  <p className="font-medium">Netto: {formatNOK(payload.incomeDetail.actual.net)}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <section aria-label="Sammendrag">

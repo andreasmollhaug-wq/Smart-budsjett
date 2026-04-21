@@ -1,4 +1,8 @@
 import { sumActualByProfileForCategoryInMonthRange } from '@/lib/bankReportData'
+import {
+  effectiveBudgetedIncomeMonth,
+  effectiveIncomeTransactionAmount,
+} from '@/lib/incomeWithholding'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type {
   ArchivedBudgetsByYear,
@@ -106,11 +110,15 @@ function sumBudgetedExpenseGroupsForPeriod(
 
   for (const c of categories) {
     const arr = ensureBudgetedArray(c.budgeted)
-    const v = sumBudgetedForMonthRange(arr, monthStart, monthEnd)
     if (c.parentCategory === 'inntekter') {
+      let v = 0
+      for (let i = monthStart; i <= monthEnd; i++) {
+        v += effectiveBudgetedIncomeMonth(c, i)
+      }
       income += v
       continue
     }
+    const v = sumBudgetedForMonthRange(arr, monthStart, monthEnd)
     if (HOUSEHOLD_EXPENSE_GROUPS.includes(c.parentCategory as HouseholdExpenseGroup)) {
       byGroup[c.parentCategory as HouseholdExpenseGroup] += v
     }
@@ -126,6 +134,7 @@ function sumActualForProfileInRange(
   monthEnd: number,
   profileId: string,
   categoryMap: Map<string, ParentCategory>,
+  people: Record<string, PersonData>,
 ): { income: number; expense: number; expenseByGroup: BudgetedExpenseByGroup } {
   let income = 0
   let expense = 0
@@ -147,7 +156,8 @@ function sumActualForProfileInRange(
     if (owner !== profileId) continue
 
     if (t.type === 'income') {
-      income += t.amount
+      const def = people[profileId]?.defaultIncomeWithholding
+      income += effectiveIncomeTransactionAmount(t, def)
     } else {
       expense += t.amount
       const parent = categoryMap.get(t.category)
@@ -201,7 +211,7 @@ export function buildHouseholdPeriodData(
 
     const categoryMap = buildCategoryNameToParentMap(cats)
     const { income: actualIncome, expense: actualExpense, expenseByGroup: actualExpenseByGroup } =
-      sumActualForProfileInRange(transactions, year, monthStart, monthEnd, p.id, categoryMap)
+      sumActualForProfileInRange(transactions, year, monthStart, monthEnd, p.id, categoryMap, people)
 
     householdActualIncome += actualIncome
     householdActualExpense += actualExpense
@@ -272,6 +282,7 @@ export function buildCategoryBudgetActualVarianceByProfile(
     monthEnd,
     categoryName,
     categoryType,
+    people,
   )
   const actualByPid = new Map(actualRows.map((r) => [r.profileId, r.actual]))
 
@@ -280,7 +291,17 @@ export function buildCategoryBudgetActualVarianceByProfile(
     const cats = getBudgetCategoriesForProfileYear(people, archivedBudgetsByYear, prof.id, year, budgetYear)
     const cat = cats.find((c) => c.name === categoryName && c.type === categoryType)
     const arr = ensureBudgetedArray(cat?.budgeted)
-    const budgeted = sumBudgetedForMonthRange(arr, monthStart, monthEnd)
+    let budgeted = 0
+    if (
+      categoryType === 'income' &&
+      cat?.parentCategory === 'inntekter'
+    ) {
+      for (let i = monthStart; i <= monthEnd; i++) {
+        budgeted += effectiveBudgetedIncomeMonth(cat, i)
+      }
+    } else {
+      budgeted = sumBudgetedForMonthRange(arr, monthStart, monthEnd)
+    }
     const actual = actualByPid.get(prof.id) ?? 0
     const variance = actual - budgeted
     out.push({ profileId: prof.id, budgeted, actual, variance })

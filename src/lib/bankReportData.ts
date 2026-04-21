@@ -1,5 +1,11 @@
+import {
+  effectiveBudgetedIncomeMonth,
+  effectiveIncomeTransactionAmount,
+  grossWithholdingNetForBudgetMonth,
+  grossWithholdingNetForIncomeTransaction,
+} from '@/lib/incomeWithholding'
 import type { ParentCategory } from './budgetCategoryCatalog'
-import type { BudgetCategory, Debt, Investment, SavingsGoal, Transaction } from './store'
+import type { BudgetCategory, Debt, Investment, PersonData, SavingsGoal, Transaction } from './store'
 
 export const REPORT_GROUP_ORDER: ParentCategory[] = [
   'inntekter',
@@ -37,8 +43,9 @@ export function sumTransactionsByCategoryForMonth(
   transactions: Transaction[],
   year: number,
   monthIndex: number,
+  people?: Record<string, PersonData>,
 ): CategoryMonthTotals {
-  return sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+  return sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex, people)
 }
 
 /**
@@ -50,6 +57,7 @@ export function sumTransactionsByCategoryForMonthRange(
   year: number,
   monthStartInclusive: number,
   monthEndInclusive: number,
+  people?: Record<string, PersonData>,
 ): CategoryMonthTotals {
   const map: CategoryMonthTotals = new Map()
 
@@ -67,7 +75,9 @@ export function sumTransactionsByCategoryForMonthRange(
 
     const cur = map.get(t.category) ?? { income: 0, expense: 0 }
     if (t.type === 'income') {
-      cur.income += t.amount
+      const pid = t.profileId ?? ''
+      const def = people?.[pid]?.defaultIncomeWithholding
+      cur.income += effectiveIncomeTransactionAmount(t, def)
     } else {
       cur.expense += t.amount
     }
@@ -90,6 +100,7 @@ export function sumIncomeExpenseNetByProfileForMonthRange(
   year: number,
   monthStartInclusive: number,
   monthEndInclusive: number,
+  people?: Record<string, PersonData>,
 ): IncomeExpenseNetByProfile[] {
   const byProfile = new Map<string, { income: number; expense: number }>()
 
@@ -108,7 +119,8 @@ export function sumIncomeExpenseNetByProfileForMonthRange(
     const pid = t.profileId ?? ''
     const cur = byProfile.get(pid) ?? { income: 0, expense: 0 }
     if (t.type === 'income') {
-      cur.income += t.amount
+      const def = people?.[pid]?.defaultIncomeWithholding
+      cur.income += effectiveIncomeTransactionAmount(t, def)
     } else {
       cur.expense += t.amount
     }
@@ -141,6 +153,7 @@ export function sumActualByProfileForCategoryInMonthRange(
   monthEndInclusive: number,
   categoryName: string,
   type: 'income' | 'expense',
+  people?: Record<string, PersonData>,
 ): ActualByProfileForCategory[] {
   const byProfile = new Map<string, number>()
 
@@ -158,7 +171,12 @@ export function sumActualByProfileForCategoryInMonthRange(
     if (monthIndex < monthStartInclusive || monthIndex > monthEndInclusive) continue
 
     const pid = t.profileId ?? ''
-    const amt = Number.isFinite(t.amount) ? t.amount : 0
+    const amt =
+      type === 'income'
+        ? effectiveIncomeTransactionAmount(t, people?.[pid]?.defaultIncomeWithholding)
+        : Number.isFinite(t.amount)
+          ? t.amount
+          : 0
     byProfile.set(pid, (byProfile.get(pid) ?? 0) + amt)
   }
 
@@ -178,6 +196,7 @@ export function buildCategoryActualsYearMatrix(
   transactions: Transaction[],
   year: number,
   categories: BudgetCategory[],
+  people?: Record<string, PersonData>,
 ): Map<string, number[]> {
   const metaByName = new Map(categories.map((c) => [c.name, c]))
   const matrix = new Map<string, number[]>()
@@ -193,7 +212,12 @@ export function buildCategoryActualsYearMatrix(
     if (!meta || meta.type !== t.type) continue
     const row = matrix.get(t.category)
     if (!row) continue
-    row[mm - 1] += t.amount
+    const pid = t.profileId ?? ''
+    const add =
+      t.type === 'income'
+        ? effectiveIncomeTransactionAmount(t, people?.[pid]?.defaultIncomeWithholding)
+        : t.amount
+    row[mm - 1] += add
   }
   return matrix
 }
@@ -204,7 +228,14 @@ export function buildCategoryActualsYearMatrix(
 export function buildCategoryBudgetYearMatrix(categories: BudgetCategory[]): Map<string, number[]> {
   const matrix = new Map<string, number[]>()
   for (const c of categories) {
-    matrix.set(c.name, ensureBudgetedArray(c.budgeted))
+    if (c.parentCategory === 'inntekter' && c.type === 'income') {
+      matrix.set(
+        c.name,
+        Array.from({ length: 12 }, (_, i) => effectiveBudgetedIncomeMonth(c, i)),
+      )
+    } else {
+      matrix.set(c.name, ensureBudgetedArray(c.budgeted))
+    }
   }
   return matrix
 }
@@ -237,7 +268,14 @@ export function buildBudgetVsActualForPeriod(
 
   for (const c of budgetCategories) {
     const arr = ensureBudgetedArray(c.budgeted)
-    const budgeted = sumBudgetedForMonthRange(arr, monthStartInclusive, monthEndInclusive)
+    let budgeted = 0
+    if (c.parentCategory === 'inntekter' && c.type === 'income') {
+      for (let i = monthStartInclusive; i <= monthEndInclusive; i++) {
+        budgeted += effectiveBudgetedIncomeMonth(c, i)
+      }
+    } else {
+      budgeted = sumBudgetedForMonthRange(arr, monthStartInclusive, monthEndInclusive)
+    }
     const t = totals.get(c.name)
     const actual =
       c.type === 'income' ? (t?.income ?? 0) : (t?.expense ?? 0)
@@ -337,10 +375,17 @@ export function buildMonthlyBudgetActualSeries(
   transactions: Transaction[],
   year: number,
   budgetCategories: BudgetCategory[],
+  people?: Record<string, PersonData>,
 ): MonthlyBudgetActualPoint[] {
   const out: MonthlyBudgetActualPoint[] = []
   for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-    const totals = sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+    const totals = sumTransactionsByCategoryForMonthRange(
+      transactions,
+      year,
+      monthIndex,
+      monthIndex,
+      people,
+    )
     const rows = buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
     let budgetedIncome = 0
     let budgetedExpense = 0
@@ -385,6 +430,7 @@ export function buildMonthlyNetSeriesForPeriod(
   budgetCategories: BudgetCategory[],
   monthStartInclusive: number,
   monthEndInclusive: number,
+  people?: Record<string, PersonData>,
 ): MonthlyNetPoint[] {
   const a = Math.min(11, Math.max(0, Math.floor(monthStartInclusive)))
   const b = Math.min(11, Math.max(0, Math.floor(monthEndInclusive)))
@@ -393,7 +439,13 @@ export function buildMonthlyNetSeriesForPeriod(
   const end = b
   const out: MonthlyNetPoint[] = []
   for (let monthIndex = start; monthIndex <= end; monthIndex++) {
-    const totals = sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+    const totals = sumTransactionsByCategoryForMonthRange(
+      transactions,
+      year,
+      monthIndex,
+      monthIndex,
+      people,
+    )
     const rows = buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
     let budgetedIncome = 0
     let budgetedExpense = 0
@@ -423,9 +475,16 @@ export function sumActualsByMonthForType(
   transactions: Transaction[],
   year: number,
   type: 'income' | 'expense',
+  people?: Record<string, PersonData>,
 ): number[] {
   return Array.from({ length: 12 }, (_, monthIndex) => {
-    const totals = sumTransactionsByCategoryForMonthRange(transactions, year, monthIndex, monthIndex)
+    const totals = sumTransactionsByCategoryForMonthRange(
+      transactions,
+      year,
+      monthIndex,
+      monthIndex,
+      people,
+    )
     let s = 0
     for (const v of totals.values()) {
       s += type === 'income' ? v.income : v.expense
@@ -438,11 +497,12 @@ export function sumActualsByMonthForType(
 export function buildDashboardSixMonthIncomeExpense(
   transactions: Transaction[],
   budgetYear: number,
+  people?: Record<string, PersonData>,
 ): { month: string; inntekt: number; utgift: number; netto: number }[] {
   const refMonth = referenceMonthIndexForBudgetYear(budgetYear)
   const startMonth = Math.max(0, refMonth - 5)
-  const income = sumActualsByMonthForType(transactions, budgetYear, 'income')
-  const expense = sumActualsByMonthForType(transactions, budgetYear, 'expense')
+  const income = sumActualsByMonthForType(transactions, budgetYear, 'income', people)
+  const expense = sumActualsByMonthForType(transactions, budgetYear, 'expense', people)
   const out: { month: string; inntekt: number; utgift: number; netto: number }[] = []
   for (let m = startMonth; m <= refMonth; m++) {
     const inn = income[m] ?? 0
@@ -463,8 +523,12 @@ export function sumBudgetedByMonthForType(budgetCategories: BudgetCategory[], ty
     let s = 0
     for (const c of budgetCategories) {
       if (c.type !== type) continue
-      const arr = ensureBudgetedArray(c.budgeted)
-      s += arr[m] ?? 0
+      if (type === 'income' && c.parentCategory === 'inntekter') {
+        s += effectiveBudgetedIncomeMonth(c, m)
+      } else {
+        const arr = ensureBudgetedArray(c.budgeted)
+        s += arr[m] ?? 0
+      }
     }
     return s
   })
@@ -514,8 +578,12 @@ export function sumBudgetedIncomeForMonth(budgetCategories: BudgetCategory[], mo
   let s = 0
   for (const c of budgetCategories) {
     if (c.type !== 'income') continue
-    const arr = ensureBudgetedArray(c.budgeted)
-    s += arr[monthIndex] ?? 0
+    if (c.parentCategory === 'inntekter') {
+      s += effectiveBudgetedIncomeMonth(c, monthIndex)
+    } else {
+      const arr = ensureBudgetedArray(c.budgeted)
+      s += arr[monthIndex] ?? 0
+    }
   }
   return s
 }
@@ -538,13 +606,14 @@ export function sumIncomeExpenseNetThreeMonthWindow(
   transactions: Transaction[],
   endYear: number,
   endMonthIndex: number,
+  people?: Record<string, PersonData>,
 ): { income: number; expense: number; net: number } {
   let y = endYear
   let mi = endMonthIndex
   let income = 0
   let expense = 0
   for (let i = 0; i < 3; i++) {
-    const totals = sumTransactionsByCategoryForMonth(transactions, y, mi)
+    const totals = sumTransactionsByCategoryForMonth(transactions, y, mi, people)
     const ie = sumMonthlyIncomeExpense(totals)
     income += ie.income
     expense += ie.expense
@@ -555,6 +624,71 @@ export function sumIncomeExpenseNetThreeMonthWindow(
     }
   }
   return { income, expense, net: income - expense }
+}
+
+/** Brutto / forenklet trekk / netto for inntekt i én måned (samme definisjon som månedsinnsikt). */
+export type BankReportIncomeDetail = {
+  budgeted: { gross: number; withholding: number; net: number }
+  actual: { gross: number; withholding: number; net: number }
+}
+
+/**
+ * Når budsjett eller faktisk har positivt forenklet trekk i måneden, returnerer oppdelingen; ellers null.
+ */
+export function buildBankReportIncomeDetail(
+  transactions: Transaction[],
+  budgetCategories: BudgetCategory[],
+  year: number,
+  monthIndex: number,
+  people?: Record<string, PersonData>,
+): BankReportIncomeDetail | null {
+  const monthTotals = sumTransactionsByCategoryForMonth(transactions, year, monthIndex, people)
+  const rows = buildBudgetVsActual(budgetCategories, monthTotals, monthIndex)
+  let budgetedIncome = 0
+  let actualIncome = 0
+  for (const r of rows) {
+    if (r.type !== 'income') continue
+    budgetedIncome += r.budgeted
+    actualIncome += r.actual
+  }
+
+  let budgetedGross = 0
+  let budgetedWithholding = 0
+  for (const c of budgetCategories) {
+    if (c.parentCategory !== 'inntekter' || c.type !== 'income') continue
+    const x = grossWithholdingNetForBudgetMonth(c, monthIndex)
+    budgetedGross += x.gross
+    budgetedWithholding += x.withholding
+  }
+
+  const monthPrefix = getMonthKey(year, monthIndex)
+  let actualGross = 0
+  let actualWithholding = 0
+  for (const t of transactions) {
+    if (t.type !== 'income' || !t.date?.startsWith(monthPrefix)) continue
+    const pid = t.profileId ?? ''
+    const def = people?.[pid]?.defaultIncomeWithholding
+    const x = grossWithholdingNetForIncomeTransaction(t, def)
+    actualGross += x.gross
+    actualWithholding += x.withholding
+  }
+
+  if (budgetedWithholding <= 0 && actualWithholding <= 0) return null
+
+  const { income: actualIncomeFromTotals } = sumMonthlyIncomeExpense(monthTotals)
+
+  return {
+    budgeted: {
+      gross: budgetedGross,
+      withholding: budgetedWithholding,
+      net: budgetedIncome,
+    },
+    actual: {
+      gross: actualGross,
+      withholding: actualWithholding,
+      net: actualIncomeFromTotals,
+    },
+  }
 }
 
 export interface BankReportKpis {

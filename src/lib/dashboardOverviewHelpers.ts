@@ -1,6 +1,7 @@
 import type { BudgetVsActualRow } from '@/lib/bankReportData'
 import { MONTH_LABELS_SHORT_NB } from '@/lib/bankReportData'
-import type { BudgetCategory, Transaction } from '@/lib/store'
+import { effectiveIncomeTransactionAmount } from '@/lib/incomeWithholding'
+import type { BudgetCategory, PersonData, Transaction } from '@/lib/store'
 
 export type BudgetVsSummary = {
   budgetedIncome: number
@@ -89,10 +90,11 @@ export function buildSavingsRateTrendForPeriod(
   year: number,
   monthStartInclusive: number,
   monthEndInclusive: number,
+  people?: Record<string, PersonData>,
 ): SavingsRateMonthPoint[] {
   const out: SavingsRateMonthPoint[] = []
   for (let m = monthStartInclusive; m <= monthEndInclusive; m++) {
-    const { income, expense } = sumIncomeExpenseInMonthRange(transactions, year, m, m)
+    const { income, expense } = sumIncomeExpenseInMonthRange(transactions, year, m, m, people)
     out.push({
       monthLabel: MONTH_LABELS_SHORT_NB[m] ?? String(m + 1),
       monthIndex: m,
@@ -107,13 +109,16 @@ export function sumIncomeExpenseInMonthRange(
   year: number,
   monthStartInclusive: number,
   monthEndInclusive: number,
+  people?: Record<string, PersonData>,
 ): { income: number; expense: number } {
   let income = 0
   let expense = 0
   for (const t of transactions) {
     if (!transactionInMonthRange(t, year, monthStartInclusive, monthEndInclusive)) continue
-    if (t.type === 'income') income += t.amount
-    else expense += t.amount
+    if (t.type === 'income') {
+      const pid = t.profileId ?? ''
+      income += effectiveIncomeTransactionAmount(t, people?.[pid]?.defaultIncomeWithholding)
+    } else expense += t.amount
   }
   return { income, expense }
 }

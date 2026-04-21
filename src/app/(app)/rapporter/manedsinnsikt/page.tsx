@@ -251,90 +251,96 @@ export default function ManedsinnsiktPage() {
           subtitle="Faktisk mot budsjett, trender og kort oppsummering med EnkelExcel AI"
         />
         <p
-          className="px-8 pt-3 pb-1 text-sm max-w-4xl leading-snug"
+          className="px-4 sm:px-8 pt-3 pb-1 text-sm max-w-4xl mx-auto leading-snug min-w-0"
           style={{ color: 'var(--text)' }}
           role="status"
         >
           {insightScopeLine}
         </p>
         <div
-          className="px-8 py-4 flex flex-wrap items-center gap-3 border-b"
+          className="px-4 sm:px-8 py-4 border-b min-w-0"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <Link
-            href="/rapporter"
-            className="inline-flex items-center gap-1 text-sm font-medium"
-            style={{ color: 'var(--primary)' }}
-          >
-            <ChevronLeft size={16} />
-            Rapporter
-          </Link>
-          <div className="flex flex-wrap items-center gap-2 ml-auto">
-            <label className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              År
-              <select
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-                className="ml-2 px-3 py-2 rounded-xl text-sm"
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Måned
-              <select
-                value={monthIndex}
-                onChange={(e) => setMonthIndex(Number(e.target.value))}
-                className="ml-2 px-3 py-2 rounded-xl text-sm"
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-              >
-                {MONTH_OPTIONS.map((label, i) => (
-                  <option key={label} value={i}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={generating || !canGenerate}
-              title={
-                !canGenerate && quotaUsed
-                  ? 'Du har brukt månedens AI-generering. Neste mulighet er fra neste kalendermåned.'
-                  : undefined
-              }
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: 'var(--primary)' }}
+          <div className="flex flex-col gap-4 min-w-0">
+            <Link
+              href="/rapporter"
+              className="inline-flex items-center gap-1 text-sm font-medium min-h-[44px] w-fit touch-manipulation py-1"
+              style={{ color: 'var(--primary)' }}
             >
-              {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-              {generating ? 'Genererer…' : 'Generer månedsinnsikt'}
-            </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={!canExport}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium disabled:opacity-50"
-              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
-            >
-              <Printer size={16} />
-              Skriv ut
-            </button>
-            <button
-              type="button"
-              onClick={handlePdf}
-              disabled={pdfLoading || !canExport}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-white disabled:opacity-60"
-              style={{ background: 'var(--primary)' }}
-            >
-              <FileDown size={16} />
-              {pdfLoading ? 'Genererer PDF…' : 'Eksporter til PDF'}
-            </button>
+              <ChevronLeft size={16} />
+              Rapporter
+            </Link>
+            <div className="flex flex-col gap-3 w-full min-w-0 xl:flex-row xl:flex-wrap xl:items-end xl:justify-between">
+              <div className="flex flex-col gap-3 w-full min-w-0 sm:flex-row sm:flex-wrap sm:items-end">
+                <label className="flex flex-col gap-1 text-sm min-w-0 flex-1 sm:flex-initial sm:min-w-[7.5rem]" style={{ color: 'var(--text-muted)' }}>
+                  <span>År</span>
+                  <select
+                    value={year}
+                    onChange={(e) => setYear(Number(e.target.value))}
+                    className="w-full min-h-[44px] px-3 rounded-xl text-sm touch-manipulation"
+                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                  >
+                    {yearOptions.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1 text-sm min-w-0 flex-1 sm:flex-initial sm:min-w-[9rem]" style={{ color: 'var(--text-muted)' }}>
+                  <span>Måned</span>
+                  <select
+                    value={monthIndex}
+                    onChange={(e) => setMonthIndex(Number(e.target.value))}
+                    className="w-full min-h-[44px] px-3 rounded-xl text-sm touch-manipulation"
+                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                  >
+                    {MONTH_OPTIONS.map((label, i) => (
+                      <option key={label} value={i}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-row sm:flex-wrap sm:justify-end">
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={generating || !canGenerate}
+                  title={
+                    !canGenerate && quotaUsed
+                      ? 'Du har brukt månedens AI-generering. Neste mulighet er fra neste kalendermåned.'
+                      : undefined
+                  }
+                  className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium text-white disabled:opacity-60 touch-manipulation w-full sm:w-auto sm:min-w-[12rem]"
+                  style={{ background: 'var(--primary)' }}
+                >
+                  {generating ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {generating ? 'Genererer…' : 'Generer månedsinnsikt'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  disabled={!canExport}
+                  className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium disabled:opacity-50 touch-manipulation w-full sm:w-auto"
+                  style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                >
+                  <Printer size={16} />
+                  Skriv ut
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePdf}
+                  disabled={pdfLoading || !canExport}
+                  className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium text-white disabled:opacity-60 touch-manipulation w-full sm:w-auto"
+                  style={{ background: 'var(--primary)' }}
+                >
+                  <FileDown size={16} />
+                  {pdfLoading ? 'Genererer PDF…' : 'Eksporter til PDF'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

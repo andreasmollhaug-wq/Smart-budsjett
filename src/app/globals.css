@@ -82,3 +82,12 @@ body {
     box-shadow: none !important;
   }
 }
+
+/* SmartSpare plan: Recharts setter fokus på SVG ved klikk — skjul standard outline (scoped) */
+.smartspare-recharts-no-focus :focus,
+.smartspare-recharts-no-focus :focus-visible {
+  outline: none !important;
+}
+.smartspare-recharts-no-focus .recharts-surface:focus {
+  outline: none !important;
+}

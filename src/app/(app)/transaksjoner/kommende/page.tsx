@@ -7,6 +7,7 @@ import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionDetailModal, { type TransactionSavePatch } from '@/components/transactions/TransactionDetailModal'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
 import type { Transaction } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import {
   inferPlannedFollowUpOnDateChange,
   isOverduePlanFollowUp,
@@ -35,7 +36,10 @@ function KommendePageInner() {
     addBudgetCategory,
     addCustomBudgetLabel,
     budgetCategories,
+    activeProfileId,
   } = useTransaksjonerFilters()
+
+  const people = useStore((s) => s.people)
 
   const [detailTx, setDetailTx] = useState<Transaction | null>(null)
   const [expenseOnly, setExpenseOnly] = useState(false)
@@ -441,6 +445,11 @@ function KommendePageInner() {
         onPatchTransaction={handleQuickPatch}
         householdHint={isHouseholdAggregate}
         createCategory={createCategoryProps}
+        incomeWithholdingDefault={
+          detailTx
+            ? people[detailTx.profileId ?? activeProfileId]?.defaultIncomeWithholding
+            : undefined
+        }
       />
     </div>
   )

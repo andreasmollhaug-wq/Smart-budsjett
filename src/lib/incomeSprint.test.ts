@@ -7,6 +7,9 @@ import {
   listMonthKeysInRange,
   monthKeyHeadingNb,
   reconcileIncomeSprintPlan,
+  buildSmartSpareMonthlyPaidEarnedRows,
+  maxAdditionalPaidForMonth,
+  parseTaxPercentFieldInput,
   smartSpareFilterToReferenceDate,
   taxMultiplier,
   yearMonthFromIsoDate,
@@ -66,6 +69,14 @@ describe('incomeSprint', () => {
     expect(taxMultiplier(false, 40)).toBe(1)
     expect(taxMultiplier(true, 40)).toBeCloseTo(0.6)
     expect(taxMultiplier(true, 0)).toBe(1)
+  })
+
+  it('parseTaxPercentFieldInput: klemmer og fjerner ledende nuller', () => {
+    expect(parseTaxPercentFieldInput('010')).toBe(10)
+    expect(parseTaxPercentFieldInput('100')).toBe(100)
+    expect(parseTaxPercentFieldInput('150')).toBe(100)
+    expect(parseTaxPercentFieldInput('')).toBe(0)
+    expect(parseTaxPercentFieldInput('abc40x')).toBe(40)
   })
 
   it('reconcileIncomeSprintPlan aligns month keys and clamps', () => {
@@ -342,5 +353,58 @@ describe('incomeSprint', () => {
       monthIndex: 4,
     })
     expect(d!.earnedGrossToDate).toBe(5_000 + 10_000)
+  })
+
+  it('buildSmartSpareMonthlyPaidEarnedRows: opptjent og innbetalt per måned i KPI-vindu', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'rows',
+      startDate: '2026-01-01',
+      endDate: '2026-03-31',
+      goalBasis: 'afterTax',
+      targetAmount: 100_000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: { '2026-01': 5_000, '2026-02': 3_000 },
+      sources: [
+        { id: 's', name: 'S', amountsByMonthKey: { '2026-01': 10_000, '2026-02': 8_000, '2026-03': 2_000 } },
+      ],
+    })
+    const rows = buildSmartSpareMonthlyPaidEarnedRows(plan, '2026-03-31', {
+      filterYear: 2026,
+      periodMode: 'month',
+      monthIndex: 1,
+    })
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.monthKey).toBe('2026-02')
+    expect(rows[0]!.earnedInGoalBasis).toBe(8_000)
+    expect(rows[0]!.paid).toBe(3_000)
+    expect(rows[0]!.pendingInMonth).toBe(5_000)
+  })
+
+  it('maxAdditionalPaidForMonth: rom til innbetalt = opptjent minus paid', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'cap',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      goalBasis: 'beforeTax',
+      targetAmount: 50_000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: {},
+      sources: [{ id: 's', name: 'S', amountsByMonthKey: { '2026-04': 10_000 } }],
+    })
+    expect(maxAdditionalPaidForMonth(plan, '2026-04')).toBe(10_000)
+    const afterPaid = reconcileIncomeSprintPlan({
+      ...plan,
+      paidByMonthKey: { '2026-04': 10_000 },
+    })
+    expect(maxAdditionalPaidForMonth(afterPaid, '2026-04')).toBe(0)
+    const overPaid = reconcileIncomeSprintPlan({
+      ...plan,
+      paidByMonthKey: { '2026-04': 12_000 },
+    })
+    expect(maxAdditionalPaidForMonth(overPaid, '2026-04')).toBe(0)
   })
 })

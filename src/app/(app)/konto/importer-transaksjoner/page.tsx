@@ -240,7 +240,7 @@ export default function ImporterTransaksjonerPage() {
 
     setSkippedImportRows(parsedRows.length - txs.length)
     setDupWarn(existingDup)
-    setSummary(summarizeImportedTransactions(txs))
+    setSummary(summarizeImportedTransactions(txs, people[importProfileId]?.defaultIncomeWithholding))
     setSummaryOpen(true)
     setStep('upload')
 

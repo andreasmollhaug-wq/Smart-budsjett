@@ -24,6 +24,11 @@ function amountPlaceholder(freq: BudgetCategory['frequency']): string {
   }
 }
 
+export type IncomeWithholdingNewLineFields = {
+  incomeWhApply: boolean
+  incomeWhPercent: string
+}
+
 type Props = {
   open: boolean
   group: ParentCategory | null
@@ -32,13 +37,13 @@ type Props = {
   onSearchChange: (v: string) => void
   available: string[]
   onPickSuggestion: (name: string) => void
-  newForm: { name: string; amount: string; freq: BudgetCategory['frequency']; onceMonthIndex: number }
-  onNewFormChange: (f: {
+  newForm: {
     name: string
     amount: string
     freq: BudgetCategory['frequency']
     onceMonthIndex: number
-  }) => void
+  } & IncomeWithholdingNewLineFields
+  onNewFormChange: (f: Props['newForm']) => void
   onAddCustom: () => void
   onClose: () => void
   /** Økes når bruker velger et forslag; fokuserer beløpsfeltet. */
@@ -90,23 +95,23 @@ export default function AddBudgetLineModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="w-full max-w-md min-w-0 rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-x-hidden overflow-y-auto"
+        className="w-full max-w-md min-w-0 rounded-t-2xl sm:rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-x-hidden overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h3 className="font-semibold text-lg" style={{ color: 'var(--text)' }}>
+        <div className="flex items-center justify-between gap-3 mb-4 min-w-0">
+          <h3 className="font-semibold text-lg min-w-0 pr-2" style={{ color: 'var(--text)' }}>
             Legg til linje · {groupLabel}
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg shrink-0 touch-manipulation"
             style={{ color: 'var(--text-muted)' }}
             aria-label="Lukk"
           >
@@ -123,7 +128,7 @@ export default function AddBudgetLineModal({
           placeholder="Søk…"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full mt-3 px-3 py-2 text-sm rounded-xl font-sans"
+          className="w-full mt-3 min-h-[44px] px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
           style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
           autoFocus
         />
@@ -134,7 +139,7 @@ export default function AddBudgetLineModal({
               <li key={name}>
                 <button
                   type="button"
-                  className="w-full text-left px-3 py-2 text-sm hover:opacity-90"
+                  className="w-full min-h-[44px] text-left px-3 py-2 text-sm hover:opacity-90 touch-manipulation"
                   style={{ background: 'transparent', color: 'var(--text)' }}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onPickSuggestion(name)}
@@ -155,7 +160,7 @@ export default function AddBudgetLineModal({
               placeholder="Navn"
               value={newForm.name}
               onChange={(e) => onNewFormChange({ ...newForm, name: e.target.value })}
-              className="w-full px-3 py-2 text-sm rounded-xl font-sans"
+              className="w-full min-h-[44px] px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
               style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
@@ -168,7 +173,7 @@ export default function AddBudgetLineModal({
                 onChange={(e) =>
                   onNewFormChange({ ...newForm, amount: parseThousands(e.target.value).toString() })
                 }
-                className="min-w-0 px-3 py-2 text-sm rounded-xl font-sans"
+                className="min-w-0 min-h-[44px] px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
                 style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               />
               <div className="group/freq min-w-0 flex flex-col gap-1">
@@ -178,7 +183,7 @@ export default function AddBudgetLineModal({
                   </span>
                   <button
                     type="button"
-                    className="p-0.5 rounded outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                    className="min-h-[44px] min-w-[44px] -mr-2 inline-flex items-center justify-center rounded outline-none focus-visible:ring-2 focus-visible:ring-offset-1 touch-manipulation"
                     style={{ color: 'var(--text-muted)' }}
                     aria-label="Forklaring av frekvens"
                   >
@@ -206,7 +211,7 @@ export default function AddBudgetLineModal({
                   onChange={(e) =>
                     onNewFormChange({ ...newForm, freq: e.target.value as BudgetCategory['frequency'] })
                   }
-                  className="w-full min-w-0 px-3 py-2 text-sm rounded-xl"
+                  className="w-full min-w-0 min-h-[44px] px-3 py-2 text-sm rounded-xl touch-manipulation"
                   style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                 >
                   <option value="monthly">Månedlig</option>
@@ -228,7 +233,7 @@ export default function AddBudgetLineModal({
                   onChange={(e) =>
                     onNewFormChange({ ...newForm, onceMonthIndex: Number(e.target.value) })
                   }
-                  className="w-full min-w-0 px-3 py-2 text-sm rounded-xl"
+                  className="w-full min-w-0 min-h-[44px] px-3 py-2 text-sm rounded-xl touch-manipulation"
                   style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                   aria-label="Måned for engangsbudsjett"
                 >
@@ -240,6 +245,55 @@ export default function AddBudgetLineModal({
                 </select>
               </div>
             )}
+            {group === 'inntekter' && (
+              <div
+                className="rounded-xl px-3 py-3 space-y-3"
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+              >
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                  Inntekt i budsjettet
+                </p>
+                <p className="text-[11px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+                  Beløpet du legger inn her er <strong>brutto</strong>. Når du huker av for trekk, vises det som{' '}
+                  <strong>netto</strong> i budsjett-cellene (utbetaling); + ved linjen viser brutto, trekk og netto.
+                </p>
+                <label className="flex items-start gap-3 min-h-[44px] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newForm.incomeWhApply}
+                    onChange={(e) => onNewFormChange({ ...newForm, incomeWhApply: e.target.checked })}
+                    className="mt-1 h-4 w-4 rounded shrink-0"
+                  />
+                  <span className="text-sm leading-snug" style={{ color: 'var(--text)' }}>
+                    Beløpet over er <strong>brutto</strong> — bruk forenklet trekk (ikke offisiell skatt)
+                  </span>
+                </label>
+                {newForm.incomeWhApply && (
+                  <label className="block">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Trekk (prosent)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={newForm.incomeWhPercent}
+                      onChange={(e) =>
+                        onNewFormChange({
+                          ...newForm,
+                          incomeWhPercent: e.target.value.replace(/[^\d.,]/g, ''),
+                        })
+                      }
+                      className="mt-1 w-full min-h-[44px] px-3 py-2 text-sm rounded-xl touch-manipulation"
+                      style={{
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
             <button
               type="button"
               onClick={onAddCustom}
@@ -249,7 +303,7 @@ export default function AddBudgetLineModal({
                   ? 'Fyll inn navn og beløp (beløp kan ikke være tomt).'
                   : undefined
               }
-              className="w-full px-3 py-2.5 text-sm font-medium rounded-xl text-white disabled:opacity-45 disabled:cursor-not-allowed"
+              className="w-full min-h-[44px] px-3 py-2.5 text-sm font-medium rounded-xl text-white disabled:opacity-45 disabled:cursor-not-allowed touch-manipulation"
               style={{ background: 'var(--primary)' }}
             >
               Legg til egendefinert
@@ -260,7 +314,7 @@ export default function AddBudgetLineModal({
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full text-sm"
+          className="mt-4 w-full min-h-[44px] text-sm rounded-xl touch-manipulation"
           style={{ color: 'var(--text-muted)' }}
         >
           Avbryt

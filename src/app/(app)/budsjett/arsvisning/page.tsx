@@ -34,7 +34,7 @@ import {
   type ArsvisningRowVisibility,
 } from '@/lib/budgetYearMatrixHelpers'
 import { buildArsvisningDataInsights, summarizeBudgetVsRows } from '@/lib/dashboardOverviewHelpers'
-import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance } from '@/lib/store'
+import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
 import { formatNOK } from '@/lib/utils'
 import { AlertTriangle, ChevronDown, Scale, TrendingDown, Wallet } from 'lucide-react'
 
@@ -48,6 +48,8 @@ export default function BudsjettArsvisningPage() {
     activeProfileId,
     isHouseholdAggregate,
   } = useActivePersonFinance()
+
+  const people = useStore((s) => s.people)
 
   const [year, setYear] = useState(budgetYear)
   const [monthIndex, setMonthIndex] = useState(() => referenceMonthIndexForBudgetYear(budgetYear))
@@ -132,8 +134,8 @@ export default function BudsjettArsvisningPage() {
   const { start, end } = useMemo(() => periodRange(periodMode, monthIndex), [periodMode, monthIndex])
 
   const monthTotals = useMemo(
-    () => sumTransactionsByCategoryForMonthRange(transactions, year, start, end),
-    [transactions, year, start, end],
+    () => sumTransactionsByCategoryForMonthRange(transactions, year, start, end, people),
+    [transactions, year, start, end, people],
   )
 
   const budgetVsRows = useMemo(
@@ -154,8 +156,8 @@ export default function BudsjettArsvisningPage() {
   const summary = useMemo(() => summarizeBudgetVsRows(budgetVsRows), [budgetVsRows])
 
   const actualYearMatrix = useMemo(
-    () => buildCategoryActualsYearMatrix(transactions, year, displayCategories),
-    [transactions, year, displayCategories],
+    () => buildCategoryActualsYearMatrix(transactions, year, displayCategories, people),
+    [transactions, year, displayCategories, people],
   )
 
   const budgetYearMatrix = useMemo(
@@ -180,8 +182,8 @@ export default function BudsjettArsvisningPage() {
   )
 
   const monthlyBudgetActualSeries = useMemo(
-    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories),
-    [transactions, year, displayCategories],
+    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories, people),
+    [transactions, year, displayCategories, people],
   )
 
   const yearOptions = useMemo(() => {

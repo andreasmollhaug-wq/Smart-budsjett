@@ -6,6 +6,8 @@ import {
   formatIntegerNbNo,
   formatIntegerNbNoWhileTyping,
   formatIsoDateDdMmYyyy,
+  formatNOK,
+  formatNOKOrDash,
 } from './utils'
 
 describe('daysInMonth', () => {
@@ -96,6 +98,17 @@ describe('budgetedMonthsFromFrequency', () => {
     expect(low[0]).toBe(1)
     const high = budgetedMonthsFromFrequency(2, 'once', 99)
     expect(high[11]).toBe(2)
+  })
+})
+
+describe('formatNOKOrDash', () => {
+  it('0 og NaN gir tankestrek', () => {
+    expect(formatNOKOrDash(0)).toBe('—')
+    expect(formatNOKOrDash(Number.NaN)).toBe('—')
+  })
+
+  it('matcher formatNOK for ikke-null', () => {
+    expect(formatNOKOrDash(12_500)).toBe(formatNOK(12_500))
   })
 })
 

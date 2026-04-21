@@ -162,13 +162,13 @@ export default function DashboardPage() {
   const periodLabel = useMemo(() => periodSubtitle(periodMode, filterYear, monthIndex), [periodMode, filterYear, monthIndex])
 
   const periodIncomeExpense = useMemo(
-    () => sumIncomeExpenseInMonthRange(transactions ?? [], filterYear, start, end),
-    [transactions, filterYear, start, end],
+    () => sumIncomeExpenseInMonthRange(transactions ?? [], filterYear, start, end, people),
+    [transactions, filterYear, start, end, people],
   )
 
   const monthTotals = useMemo(
-    () => sumTransactionsByCategoryForMonthRange(transactions ?? [], filterYear, start, end),
-    [transactions, filterYear, start, end],
+    () => sumTransactionsByCategoryForMonthRange(transactions ?? [], filterYear, start, end, people),
+    [transactions, filterYear, start, end, people],
   )
 
   const budgetVsRows = useMemo(
@@ -236,8 +236,8 @@ export default function DashboardPage() {
   }, [investments])
 
   const incomeExpenseChartData = useMemo(
-    () => buildDashboardSixMonthIncomeExpense(transactions, budgetYear),
-    [transactions, budgetYear],
+    () => buildDashboardSixMonthIncomeExpense(transactions, budgetYear, people),
+    [transactions, budgetYear, people],
   )
 
   const invGainUp = portfolio.totalGain >= 0
@@ -276,10 +276,10 @@ export default function DashboardPage() {
 
   const yoyCompare = useMemo(() => {
     const prevYear = filterYear - 1
-    const prev = sumIncomeExpenseInMonthRange(transactions ?? [], prevYear, start, end)
+    const prev = sumIncomeExpenseInMonthRange(transactions ?? [], prevYear, start, end, people)
     const hasPrevData = prev.income > 0 || prev.expense > 0
     return { prevYear, prevIncome: prev.income, prevExpense: prev.expense, hasPrevData }
-  }, [transactions, filterYear, start, end])
+  }, [transactions, filterYear, start, end, people])
 
   const savingsRatePct = useMemo(
     () => computeSavingsRatePercent(periodIncomeExpense.income, periodIncomeExpense.expense),
@@ -287,8 +287,8 @@ export default function DashboardPage() {
   )
 
   const savingsRateTrend = useMemo(
-    () => buildSavingsRateTrendForPeriod(transactions ?? [], filterYear, start, end),
-    [transactions, filterYear, start, end],
+    () => buildSavingsRateTrendForPeriod(transactions ?? [], filterYear, start, end, people),
+    [transactions, filterYear, start, end, people],
   )
 
   const householdPeriod = useMemo(() => {
@@ -324,9 +324,10 @@ export default function DashboardPage() {
             displayCategories,
             start,
             end,
+            people,
           )
         : [],
-    [transactions, filterYear, displayCategories, start, end],
+    [transactions, filterYear, displayCategories, start, end, people],
   )
 
   const transaksjonerHref = transaksjonerPeriodHref(filterYear, periodMode, monthIndex)

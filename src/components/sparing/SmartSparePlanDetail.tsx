@@ -11,13 +11,15 @@ import type { PeriodMode } from '@/lib/budgetPeriod'
 import { periodSubtitle } from '@/lib/budgetPeriod'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import {
+  buildSmartSpareMonthlyPaidEarnedRows,
   buildStackedBarRows,
-  clampTaxPercent,
   computeIncomeSprintDerived,
   computeSourceMonthGrossTaxNet,
   formatIncomeSprintPlanPeriodNb,
   listMonthKeysInRange,
+  maxAdditionalPaidForMonth,
   monthKeyHeadingNb,
+  parseTaxPercentFieldInput,
   reconcileIncomeSprintPlan,
   smartSpareFilterToReferenceDate,
   yearOptionsTouchingPlan,
@@ -27,7 +29,9 @@ import { formatNOK, formatNOKChartLabel, formatThousands, generateId, parseThous
 import {
   AlertTriangle,
   Calendar,
+  ChevronDown,
   ChevronLeft,
+  CircleHelp,
   Clock,
   Pencil,
   PiggyBank,
@@ -53,6 +57,68 @@ import {
 } from 'recharts'
 
 const SOURCE_COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#0B7285', '#7048E8']
+
+type GoalDonutSlice = { name: string; value: number; fill: string }
+
+function SmartSpareGoalDonutBlock({ pieData, centerPercent }: { pieData: GoalDonutSlice[]; centerPercent: number }) {
+  if (pieData.length === 0) return null
+  const label = `${Math.round(centerPercent)} %`
+  return (
+    <>
+      {/*
+        Ingen <Legend> inne i PieChart (gjorde senter feilplassert). Senter-tekst som HTML overlagt i relative-boks
+        for nøyaktig visuell midtstilling, ikke Recharts-Label.
+      */}
+      <div className="w-full max-w-[min(100%,280px)] min-w-0 mx-auto">
+        <div className="relative h-[196px] w-full min-w-0 sm:h-[210px]">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={160}>
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius="52%"
+                outerRadius="76%"
+                paddingAngle={2}
+              >
+                {pieData.map((row, i) => (
+                  <Cell key={i} fill={row.fill} stroke="var(--surface)" strokeWidth={1} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v) => formatNOK(Number(v ?? 0))} />
+            </PieChart>
+          </ResponsiveContainer>
+          <p
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 w-full max-w-full -translate-x-1/2 -translate-y-1/2 px-1 text-center tabular-nums text-[clamp(0.9375rem,3.5vw+0.6rem,1.375rem)] font-bold leading-none"
+            style={{ color: 'var(--text)' }}
+          >
+            {label}
+          </p>
+        </div>
+        <div
+          className="flex max-w-full flex-wrap justify-center gap-x-2 gap-y-0.5 px-0.5 pt-1 text-[11px] leading-snug sm:gap-x-3"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {pieData.map((row) => (
+            <span key={row.name} className="inline-flex items-center gap-1.5">
+              <span
+                className="size-2.5 shrink-0 rounded-sm border"
+                style={{ background: row.fill, borderColor: 'var(--border)' }}
+                aria-hidden
+              />
+              {row.name}
+            </span>
+          ))}
+        </div>
+      </div>
+      <p className="text-xs mt-1 text-center" style={{ color: 'var(--text-muted)' }}>
+        av målet
+      </p>
+    </>
+  )
+}
 
 type Props = { planId: string }
 
@@ -139,9 +205,13 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
   type CellModal = { sourceId: string; monthKey: string }
   const [cellModal, setCellModal] = useState<CellModal | null>(null)
+  const [cellModalHelpOpen, setCellModalHelpOpen] = useState(false)
+  const cellModalHelpRef = useRef<HTMLDivElement>(null)
   const [renamingSourceId, setRenamingSourceId] = useState<string | null>(null)
   const [modalAddCustomStr, setModalAddCustomStr] = useState('')
   const [modalSelectedMonthPaidStr, setModalSelectedMonthPaidStr] = useState('')
+  const [periodFilterExpanded, setPeriodFilterExpanded] = useState(false)
+  const [planTaxPercentStr, setPlanTaxPercentStr] = useState('')
 
   useEffect(() => {
     if (!cellModal) setModalAddCustomStr('')
@@ -154,13 +224,42 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   }, [cellModal?.monthKey, cellModal?.sourceId, plan?.id, plan?.paidByMonthKey, cellModal, plan])
 
   useEffect(() => {
-    if (!cellModal) return
+    if (!cellModal) {
+      setCellModalHelpOpen(false)
+      return
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setCellModal(null)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [cellModal])
+
+  useEffect(() => {
+    if (!cellModalHelpOpen) return
+    const close = (e: PointerEvent) => {
+      if (cellModalHelpRef.current && !cellModalHelpRef.current.contains(e.target as Node)) {
+        setCellModalHelpOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [cellModalHelpOpen])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)')
+    const apply = () => {
+      if (mq.matches) setPeriodFilterExpanded(true)
+    }
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  useEffect(() => {
+    if (!plan) return
+    setPlanTaxPercentStr(plan.taxPercent === 0 ? '' : String(plan.taxPercent))
+  }, [plan?.id, plan?.taxPercent])
 
   const cellModalBreakdown = useMemo(() => {
     if (!plan || !cellModal) return null
@@ -176,6 +275,22 @@ export default function SmartSparePlanDetail({ planId }: Props) {
     if (!cellModalBreakdown || !plan) return 0
     return plan.goalBasis === 'afterTax' ? cellModalBreakdown.net : cellModalBreakdown.gross
   }, [cellModalBreakdown, plan])
+
+  const tilforCap = useMemo(() => {
+    if (!plan || !cellModal) return 0
+    return maxAdditionalPaidForMonth(plan, cellModal.monthKey)
+  }, [plan, cellModal])
+
+  const tilforDesiredAmount = useMemo(() => {
+    if (!cellModal) return Number.NaN
+    if (modalAddCustomStr.trim()) return parseThousands(modalAddCustomStr)
+    return suggestedTransferAmount
+  }, [cellModal, modalAddCustomStr, suggestedTransferAmount])
+
+  const tilforEffectiveAmount = useMemo(() => {
+    if (!Number.isFinite(tilforDesiredAmount) || tilforDesiredAmount <= 0) return 0
+    return Math.min(tilforDesiredAmount, tilforCap)
+  }, [tilforDesiredAmount, tilforCap])
 
   const safePad = 'max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom))'
 
@@ -212,7 +327,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
   const barRows = useMemo(() => (plan && monthKeys.length ? buildStackedBarRows(plan, monthKeys) : []), [plan, monthKeys])
 
-  const pieProgress = useMemo(() => {
+  const pieProgress = useMemo((): GoalDonutSlice[] => {
     if (!derived || derived.targetAmount <= 0) return []
     const achieved = Math.min(derived.targetAmount, derived.paidTotalToDate)
     const left = Math.max(0, derived.targetAmount - achieved)
@@ -221,6 +336,33 @@ export default function SmartSparePlanDetail({ planId }: Props) {
       { name: 'Igjen', value: left, fill: 'var(--border)' },
     ]
   }, [derived])
+
+  const pieEarnedTowardGoal = useMemo((): GoalDonutSlice[] => {
+    if (!derived || derived.targetAmount <= 0) return []
+    const achieved = Math.min(derived.targetAmount, derived.earnedInGoalBasis)
+    const left = Math.max(0, derived.targetAmount - achieved)
+    return [
+      { name: 'Tjent', value: achieved, fill: 'var(--success)' },
+      { name: 'Igjen', value: left, fill: 'var(--border)' },
+    ]
+  }, [derived])
+
+  const earnedProgressPercent = useMemo(() => {
+    if (!derived || derived.targetAmount <= 0) return 0
+    return Math.min(100, (derived.earnedInGoalBasis / derived.targetAmount) * 100)
+  }, [derived])
+
+  const monthlyPaidEarnedRows = useMemo(() => {
+    if (!plan || !referenceDate) return []
+    return buildSmartSpareMonthlyPaidEarnedRows(plan, referenceDate, {
+      filterYear,
+      periodMode,
+      monthIndex,
+    })
+  }, [plan, referenceDate, filterYear, periodMode, monthIndex])
+
+  const periodFilterToggleId = `smartspare-period-filter-${planId}`
+  const periodFilterPanelId = `${periodFilterToggleId}-panel`
 
   const goalSub =
     plan?.goalBasis === 'beforeTax'
@@ -246,7 +388,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
         <Header title="smartSpare" subtitle="Plan ikke funnet" />
         <SparingSubnav />
         <div
-          className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto w-full min-w-0 space-y-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+          className="p-4 sm:p-6 lg:p-8 max-w-7xl xl:max-w-[90rem] mx-auto w-full min-w-0 space-y-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
           style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}
         >
           <p className="text-sm min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
@@ -289,7 +431,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
       <Header title="smartSpare" subtitle={headerSubtitle} />
       <SparingSubnav />
       <div
-        className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl mx-auto w-full min-w-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl xl:max-w-[90rem] mx-auto w-full min-w-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
         style={{ paddingLeft: 'max(1rem, env(safe-area-inset-left))', paddingRight: 'max(1rem, env(safe-area-inset-right))' }}
       >
         <Link
@@ -319,22 +461,52 @@ export default function SmartSparePlanDetail({ planId }: Props) {
             className="rounded-2xl p-4 sm:p-5 space-y-2 min-w-0"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
-            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+            <button
+              type="button"
+              id={periodFilterToggleId}
+              aria-expanded={periodFilterExpanded}
+              aria-controls={periodFilterPanelId}
+              onClick={() => setPeriodFilterExpanded((e) => !e)}
+              className="flex min-h-[44px] w-full touch-manipulation items-center justify-between gap-2 rounded-xl px-1 py-1 text-left outline-none transition-colors hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:hidden"
+              style={{ color: 'var(--text)' }}
+            >
+              <span className="min-w-0 flex-1 text-sm font-medium leading-snug">
+                Tall per: {periodSubtitle(periodMode, filterYear, monthIndex)}
+              </span>
+              <ChevronDown
+                size={20}
+                className="shrink-0 transition-transform duration-200"
+                style={{
+                  color: 'var(--text-muted)',
+                  transform: periodFilterExpanded ? 'rotate(180deg)' : undefined,
+                }}
+                aria-hidden
+              />
+            </button>
+            <p className="hidden text-sm font-medium sm:block" style={{ color: 'var(--text)' }}>
               Tall per: {periodSubtitle(periodMode, filterYear, monthIndex)}
             </p>
-            <p className="text-xs min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
-              «Hittil i år» klippes til i dag og plan. «Én måned» og «Hele året» summerer brutto-tabellen for hele valgt
-              vindu (også måneder som ikke er passert). Tabellen under viser hele planperioden for redigering.
-            </p>
-            <DashboardPeriodToolbar
-              filterYear={filterYear}
-              onFilterYearChange={setFilterYear}
-              periodMode={periodMode}
-              onPeriodModeChange={setPeriodMode}
-              monthIndex={monthIndex}
-              onMonthIndexChange={setMonthIndex}
-              yearOptions={planYearOptions}
-            />
+            <div
+              id={periodFilterPanelId}
+              role="region"
+              aria-label={`Periodefilter: ${periodSubtitle(periodMode, filterYear, monthIndex)}`}
+              className={`min-w-0 space-y-2 ${periodFilterExpanded ? 'block' : 'hidden'} sm:block`}
+            >
+              <p className="text-xs min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+                «Hittil i år» klippes til i dag og plan. «Én måned» og «Hele året» summerer brutto-tabellen for hele valgt
+                vindu (også måneder som ikke er passert). Tabellen under viser hele planperioden for redigering.
+              </p>
+              <DashboardPeriodToolbar
+                variant="inline"
+                filterYear={filterYear}
+                onFilterYearChange={setFilterYear}
+                periodMode={periodMode}
+                onPeriodModeChange={setPeriodMode}
+                monthIndex={monthIndex}
+                onMonthIndexChange={setMonthIndex}
+                yearOptions={planYearOptions}
+              />
+            </div>
           </div>
         )}
 
@@ -388,9 +560,46 @@ export default function SmartSparePlanDetail({ planId }: Props) {
               />
             </div>
 
+            {monthlyPaidEarnedRows.length > 0 && (
+              <div
+                className="rounded-2xl p-4 sm:p-5 overflow-x-auto min-w-0"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+              >
+                <h2 className="font-semibold mb-1" style={{ color: 'var(--text)' }}>
+                  Innbetalt og opptjent per måned
+                </h2>
+                <p className="text-xs mb-3 min-w-0 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+                  Gjelder valgt periode over. <strong style={{ color: 'var(--text)' }}>Innbetalt</strong> er felles for
+                  hele planen per måned (samme beløp som i kildemodal). <strong style={{ color: 'var(--text)' }}>Opptjent</strong>{' '}
+                  er summert fra brutto-tabellen i målgrunnlaget. <strong style={{ color: 'var(--text)' }}>Ventende</strong> i
+                  måneden er opptjent minus innbetalt (min. 0).
+                </p>
+                <table className="w-full text-xs sm:text-sm border-collapse min-w-[18rem]">
+                  <thead>
+                    <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
+                      <th className="text-left py-2 pr-2 font-medium">Måned</th>
+                      <th className="text-right py-2 px-2 font-medium tabular-nums">Opptjent</th>
+                      <th className="text-right py-2 px-2 font-medium tabular-nums">Innbetalt</th>
+                      <th className="text-right py-2 pl-2 font-medium tabular-nums">Ventende</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyPaidEarnedRows.map((row) => (
+                      <tr key={row.monthKey} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
+                        <td className="py-2 pr-2 whitespace-nowrap">{row.monthHeading}</td>
+                        <td className="text-right py-2 px-2 tabular-nums">{formatNOK(row.earnedInGoalBasis)}</td>
+                        <td className="text-right py-2 px-2 tabular-nums">{formatNOK(row.paid)}</td>
+                        <td className="text-right py-2 pl-2 tabular-nums">{formatNOK(row.pendingInMonth)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0">
               <div
-                className="rounded-2xl p-4 sm:p-5 min-w-0"
+                className="rounded-2xl p-4 sm:p-5 min-w-0 smartspare-recharts-no-focus"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
               >
                 <h3 className="font-semibold text-sm mb-1" style={{ color: 'var(--text)' }}>
@@ -442,49 +651,53 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                 )}
               </div>
 
-              <div
-                className="rounded-2xl p-4 sm:p-5 min-w-0 flex flex-col items-center justify-center"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-              >
-                <h3 className="font-semibold text-sm mb-1 self-start w-full" style={{ color: 'var(--text)' }}>
-                  Fremdrift mot mål
-                </h3>
-                <p className="text-xs mb-2 self-start w-full" style={{ color: 'var(--text-muted)' }}>
-                  Kun faktisk innbetalt mot målbeløp (valgt periode).
-                </p>
-                {derived.targetAmount <= 0 ? (
-                  <p className="text-sm self-start" style={{ color: 'var(--text-muted)' }}>
-                    Sett et målbeløp over null for å se diagrammet.
+              {/*
+                md: to donuter side om side — sm (640px) gjorde to veldig smale felt på mange telefoner i landskap.
+              */}
+              <div className="grid grid-cols-1 gap-4 min-w-0 md:grid-cols-2">
+                <div
+                  className="flex min-h-0 min-w-0 w-full flex-col items-stretch touch-manipulation rounded-2xl p-4 sm:p-5 smartspare-recharts-no-focus"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                >
+                  <h3 className="shrink-0 font-semibold text-sm mb-1" style={{ color: 'var(--text)' }}>
+                    Tjent mot mål
+                  </h3>
+                  <p
+                    className="mb-2 min-h-[3.75rem] shrink-0 break-words text-xs leading-snug sm:min-h-[2.75rem]"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Tjent hittil i valgt periode, i planens målgrunnlag (før/etter skatt som for målet).
                   </p>
-                ) : (
-                  <>
-                    <div className="h-[200px] sm:h-[220px] w-full max-w-[280px] min-w-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={pieProgress}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={52}
-                            outerRadius={76}
-                            paddingAngle={2}
-                          >
-                            {pieProgress.map((_, i) => (
-                              <Cell key={i} fill={pieProgress[i]?.fill} stroke="var(--surface)" strokeWidth={1} />
-                            ))}
-                          </Pie>
-                          <Tooltip formatter={(v) => formatNOK(Number(v ?? 0))} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <p className="text-sm font-semibold tabular-nums mt-1" style={{ color: 'var(--text)' }}>
-                      {Math.round(derived.progressPercent)} % av målet
+                  {derived.targetAmount <= 0 ? (
+                    <p className="text-sm self-start" style={{ color: 'var(--text-muted)' }}>
+                      Sett et målbeløp over null for å se diagrammet.
                     </p>
-                  </>
-                )}
+                  ) : (
+                    <SmartSpareGoalDonutBlock pieData={pieEarnedTowardGoal} centerPercent={earnedProgressPercent} />
+                  )}
+                </div>
+
+                <div
+                  className="flex min-h-0 min-w-0 w-full flex-col items-stretch touch-manipulation rounded-2xl p-4 sm:p-5 smartspare-recharts-no-focus"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                >
+                  <h3 className="shrink-0 font-semibold text-sm mb-1" style={{ color: 'var(--text)' }}>
+                    Innbetalt mot mål
+                  </h3>
+                  <p
+                    className="mb-2 min-h-[3.75rem] shrink-0 break-words text-xs leading-snug sm:min-h-[2.75rem]"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Kun faktisk innbetalt mot målbeløp (valgt periode).
+                  </p>
+                  {derived.targetAmount <= 0 ? (
+                    <p className="text-sm self-start" style={{ color: 'var(--text-muted)' }}>
+                      Sett et målbeløp over null for å se diagrammet.
+                    </p>
+                  ) : (
+                    <SmartSpareGoalDonutBlock pieData={pieProgress} centerPercent={derived.progressPercent} />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -877,16 +1090,22 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                 </label>
                 {plan.applyTax && (
                   <label className="flex flex-col gap-1.5 text-sm sm:flex-row sm:items-center sm:gap-2 min-w-0">
-                    <span style={{ color: 'var(--text-muted)' }}>Skatteprosent</span>
+                    <span style={{ color: 'var(--text-muted)' }}>Skatteprosent (0–100)</span>
                     <input
-                      type="number"
-                      min={0}
-                      max={100}
+                      type="text"
+                      inputMode="numeric"
                       disabled={readOnly}
-                      value={plan.taxPercent}
-                      onChange={(e) =>
-                        persistPlan({ ...plan, taxPercent: Number(e.target.value) || 0 })
-                      }
+                      value={planTaxPercentStr}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '').slice(0, 3)
+                        setPlanTaxPercentStr(raw)
+                        persistPlan({ ...plan, taxPercent: parseTaxPercentFieldInput(raw) })
+                      }}
+                      onBlur={() => {
+                        const c = parseTaxPercentFieldInput(planTaxPercentStr)
+                        setPlanTaxPercentStr(c === 0 ? '' : String(c))
+                        persistPlan({ ...plan, taxPercent: c })
+                      }}
                       className="min-h-[44px] px-3 py-2 rounded-xl w-full sm:w-24 text-base sm:text-sm tabular-nums"
                       style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                     />
@@ -921,14 +1140,59 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   }}
                   onPointerDown={(e) => e.stopPropagation()}
                 >
-                  <div className="flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-5 shrink-0" style={{ borderColor: 'var(--border)' }}>
-                    <h2
-                      id="smartspare-cell-modal-title"
-                      className="text-lg font-semibold pr-2 min-w-0 break-words"
-                      style={{ color: 'var(--text)' }}
-                    >
-                      Kilde og innbetalt
-                    </h2>
+                  <div className="flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-5 shrink-0" style={{ borderColor: 'var(--border)' }}>
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <h2
+                        id="smartspare-cell-modal-title"
+                        className="text-lg font-semibold pr-1 min-w-0 break-words"
+                        style={{ color: 'var(--text)' }}
+                      >
+                        Kilde og innbetalt
+                      </h2>
+                      <div className="relative flex shrink-0 items-center" ref={cellModalHelpRef}>
+                        <button
+                          type="button"
+                          onClick={() => setCellModalHelpOpen((o) => !o)}
+                          aria-expanded={cellModalHelpOpen}
+                          aria-label="Mer om kilde og innbetalt"
+                          className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          <CircleHelp size={20} strokeWidth={2} aria-hidden />
+                        </button>
+                        {cellModalHelpOpen && (
+                          <div
+                            className="absolute left-0 top-full z-[110] mt-1.5 w-[min(calc(100vw-2rem),20rem)] max-w-[calc(100vw-2rem)] rounded-xl p-3 shadow-lg"
+                            style={{
+                              background: 'var(--surface)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text)',
+                            }}
+                            role="region"
+                          >
+                            <ul className="list-disc space-y-2 pl-4 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                              <li>
+                                <strong style={{ color: 'var(--text)' }}>Kildenavn</strong> grupperer brutto-rader; du kan
+                                endre det her eller med blyanten i tabellen.
+                              </li>
+                              <li>
+                                <strong style={{ color: 'var(--text)' }}>Månedlig innbetalt</strong> er{' '}
+                                <strong style={{ color: 'var(--text)' }}>felles for hele planen</strong> — ikke per kilde.
+                              </li>
+                              <li>
+                                <strong style={{ color: 'var(--text)' }}>Tilfør</strong> legger beløp til valgt måneds
+                                innbetalt (forslag følger brutto/netto og målgrunnlag). Summen kan ikke overstige det som
+                                er opptjent for måneden totalt (felles innbetalt) — gjenværende rom klippes automatisk.
+                              </li>
+                              <li>
+                                Valgfri <strong style={{ color: 'var(--text)' }}>skatt per kilde</strong> overstyrer
+                                planens sats når skatt er på.
+                              </li>
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setCellModal(null)}
@@ -1004,20 +1268,34 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                       <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
                         Skatteprosent for denne kilden (tom = planens {plan.taxPercent} %)
                         <input
-                          type="number"
-                          min={0}
-                          max={100}
+                          type="text"
+                          inputMode="numeric"
                           disabled={readOnly}
-                          value={cellModalSource.taxPercent !== undefined ? cellModalSource.taxPercent : ''}
+                          value={
+                            cellModalSource.taxPercent !== undefined && cellModalSource.taxPercent !== null
+                              ? String(cellModalSource.taxPercent)
+                              : ''
+                          }
                           placeholder={String(plan.taxPercent)}
                           onChange={(e) => {
-                            const raw = e.target.value
+                            const raw = e.target.value.replace(/\D/g, '').slice(0, 3)
                             persistPlan({
                               ...plan,
                               sources: plan.sources.map((s) => {
                                 if (s.id !== cellModalSource.id) return s
                                 if (raw.trim() === '') return { ...s, taxPercent: undefined }
-                                return { ...s, taxPercent: clampTaxPercent(Number(raw) || 0) }
+                                return { ...s, taxPercent: parseTaxPercentFieldInput(raw) }
+                              }),
+                            })
+                          }}
+                          onBlur={(e) => {
+                            const raw = e.target.value.replace(/\D/g, '')
+                            persistPlan({
+                              ...plan,
+                              sources: plan.sources.map((s) => {
+                                if (s.id !== cellModalSource.id) return s
+                                if (raw === '') return { ...s, taxPercent: undefined }
+                                return { ...s, taxPercent: parseTaxPercentFieldInput(raw) }
                               }),
                             })
                           }}
@@ -1105,7 +1383,8 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     </div>
 
                     <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
-                      Legg til ekstra innbetalt for valgt måned (kr) — tom bruker forslag under
+                      Legg til ekstra innbetalt for valgt måned (kr) — tom bruker forslag under. Maks tilgjengelig er
+                      gjenværende opptjent for måneden (samme som «ventende» i oversiktstabellen).
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1117,6 +1396,14 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                         style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                       />
                     </label>
+                    {tilforCap > 0 &&
+                      Number.isFinite(tilforDesiredAmount) &&
+                      tilforDesiredAmount > tilforCap && (
+                        <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
+                          Tilføres maks {formatNOK(tilforCap)} for {monthKeyHeadingNb(cellModal.monthKey)} (ikke mer enn
+                          opptjent minus allerede innbetalt).
+                        </p>
+                      )}
 
                     <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2">
                       <button
@@ -1129,12 +1416,10 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                       </button>
                       <button
                         type="button"
-                        disabled={readOnly}
+                        disabled={readOnly || tilforCap <= 0 || tilforEffectiveAmount <= 0}
                         onClick={() => {
-                          const add = modalAddCustomStr.trim()
-                            ? parseThousands(modalAddCustomStr)
-                            : suggestedTransferAmount
-                          if (!Number.isFinite(add) || add <= 0) return
+                          const add = tilforEffectiveAmount
+                          if (add <= 0) return
                           const mk = cellModal.monthKey
                           const map = plan.paidByMonthKey ?? {}
                           const prev = map[mk] ?? 0
@@ -1147,8 +1432,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                         className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-medium touch-manipulation disabled:opacity-50"
                         style={{ background: 'var(--primary)', color: '#fff' }}
                       >
-                        Tilfør {formatNOK(modalAddCustomStr.trim() ? parseThousands(modalAddCustomStr) : suggestedTransferAmount)}{' '}
-                        til innbetalt
+                        Tilfør {formatNOK(tilforEffectiveAmount)} til innbetalt
                       </button>
                     </div>
                   </div>

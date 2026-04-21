@@ -12,6 +12,7 @@ export default function StatCard({
   color,
   info,
   onClick,
+  valueNoWrap,
   'aria-label': ariaLabel,
 }: {
   label: string
@@ -24,6 +25,8 @@ export default function StatCard({
   info?: string
   /** Gjør kortet klikkbart (f.eks. åpne oversikt). Ikke kombiner med `info` — bruk da `div`-wrapper utenfor. */
   onClick?: () => void
+  /** Én linje for beløp (unngår linjeskift i smale kort / store NOK-tall). */
+  valueNoWrap?: boolean
   'aria-label'?: string
 }) {
   const [infoOpen, setInfoOpen] = useState(false)
@@ -87,8 +90,15 @@ export default function StatCard({
           <Icon size={18} style={{ color }} />
         </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-lg font-bold tabular-nums sm:text-2xl break-words" style={{ color: 'var(--text)' }}>
+      <div className={valueNoWrap ? 'min-w-0 max-w-full overflow-x-auto overscroll-x-contain' : 'min-w-0'}>
+        <p
+          className={
+            valueNoWrap
+              ? 'w-max max-w-none whitespace-nowrap text-base font-bold tabular-nums tracking-tight leading-tight sm:text-lg md:text-xl lg:text-2xl'
+              : 'break-words text-lg font-bold tabular-nums sm:text-2xl'
+          }
+          style={{ color: 'var(--text)' }}
+        >
           {value}
         </p>
         <div className="mt-1 flex flex-wrap items-start gap-x-1 gap-y-0.5">

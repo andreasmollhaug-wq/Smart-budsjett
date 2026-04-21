@@ -90,33 +90,34 @@ export default function NewBudgetCategoryModal({
     onClose()
   }
 
-  const inputClass = 'w-full px-3 py-2 rounded-xl text-sm'
+  const inputClass =
+    'w-full min-h-[44px] px-3 py-2 rounded-xl text-sm touch-manipulation'
   const labelClass = 'block text-xs font-medium mb-1'
   const labelStyle = { color: 'var(--text-muted)' } as const
 
   return (
     <div
-      className="fixed inset-0 z-[400] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[400] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
       role="presentation"
     >
       <div
-        className="w-full max-w-md rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto"
+        className="w-full max-w-md min-w-0 rounded-t-2xl sm:rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-cat-title"
       >
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <h3 id="new-cat-title" className="font-semibold text-lg" style={{ color: 'var(--text)' }}>
+        <div className="flex items-start justify-between gap-3 mb-4 min-w-0">
+          <h3 id="new-cat-title" className="font-semibold text-lg min-w-0 pr-2" style={{ color: 'var(--text)' }}>
             Ny budsjettkategori
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 rounded-lg shrink-0"
+            className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg shrink-0 touch-manipulation"
             style={{ color: 'var(--text-muted)' }}
             aria-label="Lukk"
           >
@@ -144,22 +145,30 @@ export default function NewBudgetCategoryModal({
             <span className={labelClass} style={labelStyle}>
               Type
             </span>
-            <div className="flex gap-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+              <label
+                className="flex items-center gap-2 min-h-[44px] text-sm cursor-pointer touch-manipulation"
+                style={{ color: 'var(--text)' }}
+              >
                 <input
                   type="radio"
                   name="newcat-kind"
                   checked={kind === 'expense'}
                   onChange={() => setKind('expense')}
+                  className="shrink-0"
                 />
                 Utgift
               </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text)' }}>
+              <label
+                className="flex items-center gap-2 min-h-[44px] text-sm cursor-pointer touch-manipulation"
+                style={{ color: 'var(--text)' }}
+              >
                 <input
                   type="radio"
                   name="newcat-kind"
                   checked={kind === 'income'}
                   onChange={() => setKind('income')}
+                  className="shrink-0"
                 />
                 Inntekt
               </label>
@@ -185,22 +194,22 @@ export default function NewBudgetCategoryModal({
             </div>
           )}
         </div>
-        <div className="flex flex-wrap gap-3 mt-6">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="px-4 py-2 rounded-xl text-sm font-medium text-white"
-            style={{ background: 'var(--primary)' }}
-          >
-            Opprett og velg
-          </button>
+        <div className="flex flex-col-reverse sm:flex-row sm:flex-wrap gap-3 mt-6">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-medium"
+            className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium w-full sm:w-auto touch-manipulation"
             style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}
           >
             Avbryt
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium text-white w-full sm:w-auto touch-manipulation"
+            style={{ background: 'var(--primary)' }}
+          >
+            Opprett og velg
           </button>
         </div>
       </div>

@@ -12,11 +12,13 @@ type Props = {
 
 export default function BudgetAmountCell({ value, onChange, className = '', readOnly = false }: Props) {
   const [editing, setEditing] = useState(false)
-  const [display, setDisplay] = useState(value > 0 ? formatThousands(value) : '')
+  const [display, setDisplay] = useState(
+    Number.isFinite(value) && value !== 0 ? formatThousands(value) : '',
+  )
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!editing) setDisplay(value > 0 ? formatThousands(value) : '')
+    if (!editing) setDisplay(Number.isFinite(value) && value !== 0 ? formatThousands(value) : '')
   }, [value, editing])
 
   useEffect(() => {
@@ -37,10 +39,12 @@ export default function BudgetAmountCell({ value, onChange, className = '', read
   if (readOnly) {
     return (
       <span
-        className={`block w-full max-w-[6.5rem] ml-auto text-right text-xs tabular-nums min-h-8 px-1 py-0.5 rounded font-sans ${className}`}
-        style={{ color: value > 0 ? 'var(--text)' : 'var(--text-muted)' }}
+        className={`block w-full max-w-[6.5rem] ml-auto text-right text-xs tabular-nums min-h-8 px-2 pr-2.5 py-0.5 rounded font-sans ${className}`}
+        style={{
+          color: Number.isFinite(value) && value !== 0 ? 'var(--text)' : 'var(--text-muted)',
+        }}
       >
-        {value > 0 ? formatNOK(value) : '—'}
+        {Number.isFinite(value) && value !== 0 ? formatNOK(value) : '—'}
       </span>
     )
   }
@@ -50,10 +54,12 @@ export default function BudgetAmountCell({ value, onChange, className = '', read
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className={`block w-full max-w-[6.5rem] ml-auto text-right text-xs tabular-nums min-h-8 px-1 py-0.5 rounded font-sans border border-transparent hover:border-[var(--border)] transition-colors truncate ${className}`}
-        style={{ color: value > 0 ? 'var(--text)' : 'var(--text-muted)' }}
+        className={`block w-full max-w-[6.5rem] ml-auto text-right text-xs tabular-nums min-h-8 px-2 pr-2.5 py-0.5 rounded font-sans border border-transparent hover:border-[var(--border)] transition-colors truncate ${className}`}
+        style={{
+          color: Number.isFinite(value) && value !== 0 ? 'var(--text)' : 'var(--text-muted)',
+        }}
       >
-        {value > 0 ? formatNOK(value) : '—'}
+        {Number.isFinite(value) && value !== 0 ? formatNOK(value) : '—'}
       </button>
     )
   }
@@ -73,7 +79,7 @@ export default function BudgetAmountCell({ value, onChange, className = '', read
           setEditing(false)
         }
       }}
-      className={`w-full max-w-[6.5rem] ml-auto text-right text-xs tabular-nums h-8 px-1.5 py-0.5 rounded font-sans ${className}`}
+      className={`w-full max-w-[6.5rem] ml-auto text-right text-xs tabular-nums h-8 px-2 pr-2.5 py-0.5 rounded font-sans ${className}`}
       style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
     />
   )

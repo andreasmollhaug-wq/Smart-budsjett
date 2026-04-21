@@ -45,6 +45,7 @@ describe('buildAiFinanceContextText', () => {
       scopeLabel: 'Jenny',
       isHouseholdAggregate: false,
       profileNamesById: { p1: 'Jenny' },
+      peopleById: { p1: basePerson() },
     })
     expect(text).toContain('Visningsmodus: Jenny')
     expect(text).toContain('tallene under gjelder kun den valgte profilen')
@@ -91,6 +92,7 @@ describe('buildAiFinanceContextText', () => {
       scopeLabel: 'Husholdning (alle profiler)',
       isHouseholdAggregate: true,
       profileNamesById: { meg: 'Meg', vetle: 'Vetle' },
+      peopleById: { meg: basePerson(), vetle: basePerson() },
     })
     expect(text).toContain('aggregert på tvers av alle profiler')
     expect(text.indexOf('Tjenesteabonnementer (streaming')).toBeLessThan(

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { REPORT_GROUP_ORDER } from '@/lib/bankReportData'
-import { useActivePersonFinance } from '@/lib/store'
+import { effectiveIncomeTransactionAmount } from '@/lib/incomeWithholding'
+import { useActivePersonFinance, useStore } from '@/lib/store'
 import type { BudgetCategory } from '@/lib/store'
 import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
 import {
@@ -45,6 +46,7 @@ function compareCategoriesForPicker(a: BudgetCategory, b: BudgetCategory): numbe
 export function useTransaksjonerFilters() {
   const searchParams = useSearchParams()
   const finance = useActivePersonFinance()
+  const people = useStore((s) => s.people)
   const {
     transactions,
     budgetCategories,
@@ -169,7 +171,10 @@ export function useTransaksjonerFilters() {
 
   const periodIncome = displayFilteredTxForKpis
     .filter((t) => t.type === 'income')
-    .reduce((a, b) => a + b.amount, 0)
+    .reduce((a, b) => {
+      const pid = b.profileId ?? activeProfileId
+      return a + effectiveIncomeTransactionAmount(b, people[pid]?.defaultIncomeWithholding)
+    }, 0)
   const periodExpense = displayFilteredTxForKpis
     .filter((t) => t.type === 'expense')
     .reduce((a, b) => a + b.amount, 0)

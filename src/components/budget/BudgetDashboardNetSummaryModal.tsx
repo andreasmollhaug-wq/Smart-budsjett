@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo } from 'react'
-import type { PersonProfile, Transaction } from '@/lib/store'
+import type { PersonData, PersonProfile, Transaction } from '@/lib/store'
 import { sumIncomeExpenseNetByProfileForMonthRange } from '@/lib/bankReportData'
 import { formatNOK } from '@/lib/utils'
 import { X } from 'lucide-react'
@@ -30,6 +30,7 @@ type Props = {
   transactions: Transaction[]
   profiles: PersonProfile[]
   isHouseholdAggregate: boolean
+  people: Record<string, PersonData>
 }
 
 function signedNOK(n: number): string {
@@ -57,6 +58,7 @@ export default function BudgetDashboardNetSummaryModal({
   transactions,
   profiles,
   isHouseholdAggregate,
+  people,
 }: Props) {
   useEffect(() => {
     if (!open) return
@@ -74,8 +76,9 @@ export default function BudgetDashboardNetSummaryModal({
         year,
         monthStartInclusive,
         monthEndInclusive,
+        people,
       ),
-    [transactions, year, monthStartInclusive, monthEndInclusive],
+    [transactions, year, monthStartInclusive, monthEndInclusive, people],
   )
 
   const incomeVariance = kpis.actualIncome - kpis.budgetedIncome

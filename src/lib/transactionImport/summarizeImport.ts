@@ -1,4 +1,5 @@
 import type { Transaction } from '@/lib/store'
+import { effectiveIncomeTransactionAmount, type IncomeWithholdingRule } from '@/lib/incomeWithholding'
 
 export type CategorySummaryRow = {
   category: string
@@ -16,7 +17,10 @@ export type ImportSummary = {
   byCategory: CategorySummaryRow[]
 }
 
-export function summarizeImportedTransactions(transactions: Transaction[]): ImportSummary {
+export function summarizeImportedTransactions(
+  transactions: Transaction[],
+  profileIncomeWithholding?: IncomeWithholdingRule | null,
+): ImportSummary {
   let incomeTotal = 0
   let expenseTotal = 0
   let dateMin: string | null = null
@@ -24,7 +28,9 @@ export function summarizeImportedTransactions(transactions: Transaction[]): Impo
   const byCat = new Map<string, { count: number; sum: number }>()
 
   for (const t of transactions) {
-    if (t.type === 'income') incomeTotal += t.amount
+    const incAmt =
+      t.type === 'income' ? effectiveIncomeTransactionAmount(t, profileIncomeWithholding ?? undefined) : t.amount
+    if (t.type === 'income') incomeTotal += incAmt
     else expenseTotal += t.amount
 
     if (!dateMin || t.date < dateMin) dateMin = t.date
@@ -32,7 +38,7 @@ export function summarizeImportedTransactions(transactions: Transaction[]): Impo
 
     const cur = byCat.get(t.category) ?? { count: 0, sum: 0 }
     cur.count += 1
-    cur.sum += t.amount
+    cur.sum += incAmt
     byCat.set(t.category, cur)
   }
 
@@ -40,7 +46,14 @@ export function summarizeImportedTransactions(transactions: Transaction[]): Impo
     .map(([category, v]) => ({ category, count: v.count, sum: v.sum }))
     .sort((a, b) => b.sum - a.sum || a.category.localeCompare(b.category, 'nb'))
 
-  const totalAmount = transactions.reduce((s, t) => s + t.amount, 0)
+  const totalAmount = transactions.reduce(
+    (s, t) =>
+      s +
+      (t.type === 'income'
+        ? effectiveIncomeTransactionAmount(t, profileIncomeWithholding ?? undefined)
+        : t.amount),
+    0,
+  )
 
   return {
     importedCount: transactions.length,

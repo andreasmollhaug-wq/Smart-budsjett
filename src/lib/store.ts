@@ -63,6 +63,7 @@ import {
   getDemoSubscriptionMonthlyAmountsForVariant,
   getDemoVariantIndexForProfile,
 } from './demoPersonVariants'
+import { effectiveBudgetedIncomeMonth, normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import {
   ensureIncomeSprintPlanId,
   reconcileIncomeSprintPlan,
@@ -112,6 +113,10 @@ export interface Transaction {
   /** Valgfri underkategori (butikk, detalj) — påvirker ikke budsjettsummering. */
   subcategory?: string
   type: 'income' | 'expense'
+  /** Inntekt: beløpet er netto utbetalt (standard / bank). `false` = brutto med forenklet trekk. */
+  incomeIsNet?: boolean
+  /** Inntekt, når `incomeIsNet === false`: valgfri prosent (ellers profilens standard). */
+  incomeWithholdingPercent?: number
   /** Eierprofil (påkrevd for nye rader; migreres for eldre data). */
   profileId?: string
   /** App-genererte planlagte trekk fra tjenesteabonnement. */
@@ -142,6 +147,10 @@ export interface BudgetCategory {
   onceMonthIndex?: number
   /** Abonnement-synk: `aggregated` = flere abo på samme linje; `single` = én auto-linje. */
   subscriptionBudgetManaged?: 'off' | 'single' | 'aggregated'
+  /**
+   * Inntektslinje: når `apply`, er `budgeted` brutto og summeringer bruker netto etter `percent`.
+   */
+  incomeWithholding?: { apply: boolean; percent: number }
 }
 
 export interface SavingsDeposit {
@@ -309,6 +318,8 @@ export interface PersonData {
   debtPayoffStrategy?: DebtPayoffStrategy
   /** smartSpare-planer: inntekt per måned mot mål (per profil). */
   incomeSprintPlans?: IncomeSprintPlan[]
+  /** Standard for nye inntektslinjer og fallback for brutto-transaksjoner uten egen prosent. */
+  defaultIncomeWithholding?: { apply: boolean; percent: number }
 }
 
 export type OnboardingStatus = 'pending' | 'completed' | 'skipped'
@@ -384,6 +395,8 @@ interface AppState {
         | 'reviewedAt'
         | 'paidAt'
         | 'plannedFollowUp'
+        | 'incomeIsNet'
+        | 'incomeWithholdingPercent'
       >
     >,
   ) => void
@@ -415,6 +428,7 @@ interface AppState {
   updateDebt: (id: string, data: Partial<Debt>) => void
   removeDebt: (id: string) => void
   setSnowballExtraMonthly: (amount: number) => void
+  setDefaultIncomeWithholding: (rule: { apply: boolean; percent: number }) => void
   setDebtPayoffStrategy: (strategy: DebtPayoffStrategy) => void
 
   addInvestment: (i: Investment) => void
@@ -554,9 +568,10 @@ function ensureTwelveBudgeted(budgeted: number[]): number[] {
 }
 
 function recalcPersonBudgetSpentForYear(person: PersonData, profileId: string, year: number): PersonData {
+  const def = person.defaultIncomeWithholding
   const budgetCategories = person.budgetCategories.map((c) => ({
     ...c,
-    spent: sumTxForCategoryInYear(person.transactions, c.name, c.type, year, profileId),
+    spent: sumTxForCategoryInYear(person.transactions, c.name, c.type, year, profileId, def),
   }))
   return syncLinkedSavingsGoalsCurrent({ ...person, budgetCategories }, profileId)
 }
@@ -998,6 +1013,57 @@ function sumMonthlyArrays(a: number[], b: number[]): number[] {
   return Array.from({ length: 12 }, (_, i) => (a[i] ?? 0) + (b[i] ?? 0))
 }
 
+function syntheticHouseholdCategoryId(key: string): string {
+  return `hh-${key.replace(/[^a-zA-Z0-9æøåÆØÅ_-]/g, '-')}`
+}
+
+/** Inntektslinjer: `budgeted` på aggregat er sum av effektiv netto per profil; trekk-metadata fjernes. */
+function mergeBudgetCategoryAggregatePair(
+  existing: BudgetCategory | undefined,
+  incoming: BudgetCategory,
+  key: string,
+): BudgetCategory {
+  const isIncomeLine = incoming.parentCategory === 'inntekter' && incoming.type === 'income'
+  const hid = syntheticHouseholdCategoryId(key)
+
+  if (!existing) {
+    if (isIncomeLine) {
+      return {
+        ...incoming,
+        id: hid,
+        spent: incoming.spent,
+        budgeted: Array.from({ length: 12 }, (_, i) => effectiveBudgetedIncomeMonth(incoming, i)),
+        incomeWithholding: undefined,
+      }
+    }
+    return {
+      ...incoming,
+      id: hid,
+      spent: incoming.spent,
+      budgeted: [...incoming.budgeted],
+    }
+  }
+
+  if (isIncomeLine) {
+    return {
+      ...existing,
+      id: hid,
+      spent: existing.spent + incoming.spent,
+      budgeted: Array.from({ length: 12 }, (_, i) => {
+        return (existing.budgeted[i] ?? 0) + effectiveBudgetedIncomeMonth(incoming, i)
+      }),
+      incomeWithholding: undefined,
+    }
+  }
+
+  return {
+    ...existing,
+    id: hid,
+    spent: existing.spent + incoming.spent,
+    budgeted: sumMonthlyArrays(existing.budgeted, incoming.budgeted),
+  }
+}
+
 /** Slår sammen budsjettkategorier fra arkiverte snapshots (samme nøkkel som husholdningsaggregat). */
 export function mergeBudgetCategoriesFromSnapshots(
   snapshotsByProfile: Record<string, BudgetCategory[]>,
@@ -1011,20 +1077,7 @@ export function mergeBudgetCategoriesFromSnapshots(
     for (const c of list) {
       const key = `${c.parentCategory}::${c.name}`
       const existing = budgetKeyToCat.get(key)
-      if (!existing) {
-        budgetKeyToCat.set(key, {
-          ...c,
-          id: `hh-${key.replace(/[^a-zA-Z0-9æøåÆØÅ_-]/g, '-')}`,
-          spent: c.spent,
-          budgeted: [...c.budgeted],
-        })
-      } else {
-        budgetKeyToCat.set(key, {
-          ...existing,
-          spent: existing.spent + c.spent,
-          budgeted: sumMonthlyArrays(existing.budgeted, c.budgeted),
-        })
-      }
+      budgetKeyToCat.set(key, mergeBudgetCategoryAggregatePair(existing, c, key))
     }
   }
   return [...budgetKeyToCat.values()]
@@ -1062,20 +1115,7 @@ export function aggregateHouseholdData(
     for (const c of p.budgetCategories ?? []) {
       const key = `${c.parentCategory}::${c.name}`
       const existing = budgetKeyToCat.get(key)
-      if (!existing) {
-        budgetKeyToCat.set(key, {
-          ...c,
-          id: `hh-${key.replace(/[^a-zA-Z0-9æøåÆØÅ_-]/g, '-')}`,
-          spent: c.spent,
-          budgeted: [...c.budgeted],
-        })
-      } else {
-        budgetKeyToCat.set(key, {
-          ...existing,
-          spent: existing.spent + c.spent,
-          budgeted: sumMonthlyArrays(existing.budgeted, c.budgeted),
-        })
-      }
+      budgetKeyToCat.set(key, mergeBudgetCategoryAggregatePair(existing, c, key))
     }
 
     mergeLabels(labels.customBudgetLabels, p.customBudgetLabels)
@@ -1133,7 +1173,7 @@ export function aggregateHouseholdData(
 
   const mergedCats = [...budgetKeyToCat.values()].map((cat) => ({
     ...cat,
-    spent: sumTxForCategoryInYearAllProfiles(txs, cat.name, cat.type, budgetYear),
+    spent: sumTxForCategoryInYearAllProfiles(txs, cat.name, cat.type, budgetYear, people),
   }))
 
   return {
@@ -1727,7 +1767,14 @@ export const useStore = create<AppState>()((set, get) => {
             const y = get().budgetYear
             const cat = d.budgetCategories.find((c) => c.name === categoryName)
             if (!cat) return d
-            const spent = sumTxForCategoryInYear(d.transactions, categoryName, cat.type, y, pid)
+            const spent = sumTxForCategoryInYear(
+              d.transactions,
+              categoryName,
+              cat.type,
+              y,
+              pid,
+              d.defaultIncomeWithholding,
+            )
             const next: PersonData = {
               ...d,
               budgetCategories: d.budgetCategories.map((c) =>
@@ -2294,6 +2341,12 @@ export const useStore = create<AppState>()((set, get) => {
           patchActive((d) => ({
             ...d,
             snowballExtraMonthly: Number.isFinite(amount) ? Math.max(0, amount) : 0,
+          })),
+
+        setDefaultIncomeWithholding: (rule) =>
+          patchActive((d) => ({
+            ...d,
+            defaultIncomeWithholding: normalizeIncomeWithholdingRule(rule),
           })),
 
         setDebtPayoffStrategy: (strategy) =>
@@ -2901,6 +2954,7 @@ export function useActivePersonFinance() {
       updateDebt: s.updateDebt,
       removeDebt: s.removeDebt,
       setSnowballExtraMonthly: s.setSnowballExtraMonthly,
+      setDefaultIncomeWithholding: s.setDefaultIncomeWithholding,
       setDebtPayoffStrategy: s.setDebtPayoffStrategy,
       addInvestment: s.addInvestment,
       updateInvestment: s.updateInvestment,
@@ -2977,6 +3031,7 @@ export function useActivePersonFinance() {
     updateDebt: state.updateDebt,
     removeDebt: state.removeDebt,
     setSnowballExtraMonthly: state.setSnowballExtraMonthly,
+    setDefaultIncomeWithholding: state.setDefaultIncomeWithholding,
     setDebtPayoffStrategy: state.setDebtPayoffStrategy,
     addInvestment: state.addInvestment,
     updateInvestment: state.updateInvestment,

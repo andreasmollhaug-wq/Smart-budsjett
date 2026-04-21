@@ -22,11 +22,12 @@ const STEPS: JourneyStep[] = [
       'Alt annet i appen bygger på at du har valgt riktig år og en realistisk hovedinntekt. Det er «kartet» resten av tallene forholder seg til.',
     bullets: [
       'Sjekk at budsjettåret matcher det du vil planlegge for (du kan bytte år fra budsjettsiden senere).',
-      'Sett inn omtrentlig månedslønn etter skatt på linjen for lønn — du finpusser når du kjenner tallene bedre.',
+      'På linjen for lønn legger du inn enten det du vil bruke direkte i summeringer (typisk utbetalt beløp), eller brutto med valgfri «forenklet trekk» i appen — det siste er en praktisk modell, ikke offisiell skatt.',
+      'Transaksjoner fra bank er som regel netto (utbetalt); du kan merke en inntekt som brutto i transaksjonsdetaljer dersom du trenger det.',
     ],
     primary: { href: '/budsjett', label: 'Åpne budsjettet' },
     pitfall:
-      'Hvis inntekten står på null eller er urealistisk høy, vil både oversikt og «brukt mot plan» føles meningsløse. Juster tidlig.',
+      'Hvis inntekten står på null eller er urealistisk høy, vil både oversikt og «brukt mot plan» føles meningsløse. Velg bevisst om budsjettbeløpet er brutto eller netto når du bruker forenklet trekk — juster tidlig.',
   },
   {
     id: 'steg-2',

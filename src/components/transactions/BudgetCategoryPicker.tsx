@@ -77,7 +77,7 @@ export default function BudgetCategoryPicker({
   }, [open])
 
   const btnClass =
-    `flex w-full items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm text-left min-h-[2.5rem] ` +
+    `flex w-full items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm text-left min-h-[44px] touch-manipulation ` +
     (className ? `${className} ` : '')
 
   return (
@@ -130,7 +130,7 @@ export default function BudgetCategoryPicker({
                   autoComplete="off"
                   autoCorrect="off"
                   spellCheck={false}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                  className="w-full min-h-[44px] pl-9 pr-3 py-2 rounded-xl text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] touch-manipulation"
                   style={{
                     border: '1px solid var(--border)',
                     background: 'var(--bg)',
@@ -143,7 +143,7 @@ export default function BudgetCategoryPicker({
                 {showFilterAllRow && (
                   <button
                     type="button"
-                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
+                    className="w-full min-h-[44px] text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90 touch-manipulation"
                     style={{
                       background: value === 'all' ? 'var(--bg)' : 'transparent',
                       color: 'var(--text)',
@@ -159,7 +159,7 @@ export default function BudgetCategoryPicker({
                 {showPickPlaceholderRow && (
                   <button
                     type="button"
-                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
+                    className="w-full min-h-[44px] text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90 touch-manipulation"
                     style={{
                       background: !value ? 'var(--bg)' : 'transparent',
                       color: 'var(--text-muted)',
@@ -176,7 +176,7 @@ export default function BudgetCategoryPicker({
                   <button
                     key={c.id}
                     type="button"
-                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90"
+                    className="w-full min-h-[44px] text-left px-3 py-2.5 rounded-xl text-sm transition-opacity hover:opacity-90 touch-manipulation"
                     style={{
                       background:
                         (variant === 'filter' ? value === c.name : value === c.name) ? 'var(--bg)' : 'transparent',

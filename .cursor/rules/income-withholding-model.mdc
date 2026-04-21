@@ -1,0 +1,12 @@
+---
+description: Forenklet trekk på inntekt (budsjett + transaksjoner)
+globs: src/lib/incomeWithholding.ts,src/lib/store.ts,src/lib/budgetYearHelpers.ts,src/lib/bankReportData.ts,src/lib/monthlyInsightCompute.ts
+---
+
+# Inntekt: brutto/netto og forenklet trekk
+
+- **Budsjett:** `BudgetCategory.incomeWithholding` med `apply` + `percent`. Når `apply` er false eller felt mangler, summeres `budgeted` direkte. Når `apply` er true, er lagret beløp **brutto** og netto for måned *m* er `Math.round(gross * (1 - p/100))` via `effectiveBudgetedIncomeMonth`.
+- **Profil:** `PersonData.defaultIncomeWithholding` — standard for nye inntektslinjer og fallback for brutto-inntektstransaksjoner uten egen prosent.
+- **Transaksjon:** `Transaction.incomeIsNet` (mangler = true). Når `incomeIsNet === false`, brukes `incomeWithholdingPercent` eller profilstandard der `apply` er true; ellers 0 % trekk. Summeringer bruker `effectiveIncomeTransactionAmount`.
+- **Husholdningsaggregat:** `budgeted` på sammenslåtte inntektslinjer er **sum av netto** per måned; `incomeWithholding` på `hh-`-rader skal ikke tolkes (ofte undefined).
+- **Ikke** bland dette med `incomeSprint.ts` / smartSpare skattemodell — del eventuelt kun `clampTaxPercent` / `taxMultiplier`.
