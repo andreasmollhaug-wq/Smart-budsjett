@@ -18,6 +18,7 @@ import {
   formatIncomeSprintPlanPeriodNb,
   listMonthKeysInRange,
   maxAdditionalPaidForMonth,
+  monthEarnedInGoalBasis,
   monthKeyHeadingNb,
   parseTaxPercentFieldInput,
   reconcileIncomeSprintPlan,
@@ -82,6 +83,8 @@ function SmartSpareGoalDonutBlock({ pieData, centerPercent }: { pieData: GoalDon
                 innerRadius="52%"
                 outerRadius="76%"
                 paddingAngle={2}
+                startAngle={90}
+                endAngle={-270}
               >
                 {pieData.map((row, i) => (
                   <Cell key={i} fill={row.fill} stroke="var(--surface)" strokeWidth={1} />
@@ -317,13 +320,27 @@ export default function SmartSparePlanDetail({ planId }: Props) {
     [plan, readOnly, persistPlan],
   )
 
-  /** Standard måned i kildemodal: siste planmåned t.o.m. filtrets referansemåned. */
-  const defaultSourceModalMonthKey = useMemo(() => {
+  /** Siste planmåned t.o.m. filtrets referansemåned — kildemodal, rask innbetalt under brutto-tabell. */
+  const primaryInnbetaltMonthKey = useMemo(() => {
     if (monthKeys.length === 0) return ''
     const refMk = derived?.referenceMonthKey ?? monthKeys[monthKeys.length - 1]!
     const eligible = monthKeys.filter((k) => k <= refMk)
     return eligible.length ? eligible[eligible.length - 1]! : monthKeys[0]!
   }, [monthKeys, derived?.referenceMonthKey])
+
+  /** Per kalendermåned: opptjent i målgrunnlag og rom til mer innbetalt (hjelperader under innbetalt i tabellen). */
+  const innbetaltHjelpetallPerMåned = useMemo(() => {
+    if (!plan) {
+      return { opptjent: [] as number[], romTilMer: [] as number[] }
+    }
+    const opptjent: number[] = []
+    const romTilMer: number[] = []
+    for (const mk of monthKeys) {
+      opptjent.push(monthEarnedInGoalBasis(plan, mk))
+      romTilMer.push(maxAdditionalPaidForMonth(plan, mk))
+    }
+    return { opptjent, romTilMer }
+  }, [plan, monthKeys])
 
   const barRows = useMemo(() => (plan && monthKeys.length ? buildStackedBarRows(plan, monthKeys) : []), [plan, monthKeys])
 
@@ -720,8 +737,9 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   </h2>
                   <p className="text-xs mt-1 leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
                     Trykk på <strong style={{ color: 'var(--text)' }}>kildenavnet</strong> i den blå ruten for innbetalt,
-                    brutto/netto og valgfri skatt — velg måned i vinduet (navn kan også endres der). Bruk blyanten for å
-                    endre navn i tabellen. Brutto per måned tastes i cellene til høyre.
+                    brutto/netto og valgfri skatt — velg måned i vinduet (navn kan også endres der). Månedlig innbetalt
+                    mot mål (felles for planen) tastes rad for rad nederst i tabellen sammen med opptjent og rom til mer.
+                    Bruk blyanten for å endre navn i tabellen. Brutto per måned tastes i kilderadene over.
                   </p>
                 </div>
                 <button
@@ -746,12 +764,12 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   Velg gyldig start- og sluttdato.
                 </p>
               ) : (
-                <div className="overflow-x-auto -mx-1 min-w-0 touch-manipulation">
+                <div className="overflow-x-auto -mx-1 min-w-0 touch-manipulation overscroll-x-contain [scrollbar-gutter:stable]">
                   <table className="w-full text-[10px] sm:text-xs border-collapse min-w-[42rem]">
                     <thead>
                       <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
                         <th
-                          className="text-left py-2 pr-2 font-medium sticky left-0 z-10 min-w-[8.5rem] sm:min-w-[9.5rem] w-[8.5rem] sm:w-[9.5rem]"
+                          className="text-left py-2 pr-2 font-medium sticky left-0 z-10 min-w-[8.5rem] sm:min-w-[9.5rem] w-[8.5rem] sm:w-[9.5rem] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)]"
                           style={{ background: 'var(--surface)' }}
                         >
                           Kilde
@@ -772,7 +790,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                       {plan.sources.map((src, si) => (
                         <tr key={src.id} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
                           <td
-                            className="py-1 pr-1.5 sticky left-0 z-10 align-middle min-w-0 w-[8.5rem] sm:w-[9.5rem] max-w-[9.5rem]"
+                            className="py-1 pr-1.5 sticky left-0 z-10 align-middle min-w-0 w-[8.5rem] sm:w-[9.5rem] max-w-[9.5rem] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)]"
                             style={{ background: 'var(--surface)' }}
                           >
                             {(() => {
@@ -781,7 +799,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                 setRenamingSourceId(null)
                                 setCellModal({
                                   sourceId: src.id,
-                                  monthKey: defaultSourceModalMonthKey || monthKeys[0]!,
+                                  monthKey: primaryInnbetaltMonthKey || monthKeys[0]!,
                                 })
                               }
                               const isRenaming = renamingSourceId === src.id
@@ -874,7 +892,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                       ),
                                     })
                                   }}
-                                  className="w-full min-w-[4.25rem] sm:min-w-[4.5rem] px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm"
+                                  className="w-full min-h-[44px] min-w-[4.25rem] sm:min-w-[4.5rem] px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm touch-manipulation"
                                   style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                                   aria-label={`Beløp ${src.name} ${monthKeyHeadingNb(mk)}`}
                                 />
@@ -900,6 +918,86 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                           </td>
                         </tr>
                       ))}
+                      <tr
+                        className="align-middle"
+                        style={{ borderTop: '2px solid var(--border)', color: 'var(--text)' }}
+                      >
+                        <td
+                          className="py-1.5 pr-2 sticky left-0 z-10 min-w-0 w-[8.5rem] sm:w-[9.5rem] max-w-[9.5rem] align-top shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)]"
+                          style={{ background: 'var(--surface)' }}
+                        >
+                          <div className="font-semibold leading-tight pr-1 min-w-0 break-words" style={{ color: 'var(--text)' }}>
+                            Innbetalt mot mål
+                            <p className="text-[10px] sm:text-[11px] font-normal mt-0.5 leading-snug" style={{ color: 'var(--text-muted)' }}>
+                              Felles per måned, samme som i kildemodal
+                            </p>
+                          </div>
+                        </td>
+                        {monthKeys.map((mk) => {
+                          const v = plan.paidByMonthKey?.[mk] ?? 0
+                          return (
+                            <td key={mk} className="py-1 px-0.5 align-middle">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                disabled={readOnly}
+                                value={v ? formatThousands(String(v)) : ''}
+                                onChange={(e) => {
+                                  const n = Math.max(0, parseThousands(e.target.value))
+                                  persistPlan({
+                                    ...plan,
+                                    paidByMonthKey: { ...(plan.paidByMonthKey ?? {}), [mk]: n },
+                                  })
+                                }}
+                                className="w-full min-h-[44px] min-w-[4.25rem] sm:min-w-[4.5rem] px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm touch-manipulation"
+                                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                                aria-label={`Innbetalt mot mål ${monthKeyHeadingNb(mk)}`}
+                              />
+                            </td>
+                          )
+                        })}
+                        <td className="py-1.5 pl-1 w-10" aria-hidden />
+                      </tr>
+                      <tr style={{ color: 'var(--text)' }}>
+                        <td
+                          className="py-1.5 pr-2 text-left sticky left-0 z-10 align-middle min-w-0 w-[8.5rem] sm:w-[9.5rem] max-w-[9.5rem] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)]"
+                          style={{ background: 'var(--surface)' }}
+                        >
+                          <span className="text-[10px] sm:text-xs font-medium leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+                            Opptjent i målgrunnlag
+                          </span>
+                        </td>
+                        {monthKeys.map((mk, mi) => (
+                          <td
+                            key={mk}
+                            className="py-1.5 px-0.5 text-right tabular-nums text-[10px] sm:text-xs leading-tight align-middle"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            {formatNOK(innbetaltHjelpetallPerMåned.opptjent[mi] ?? 0)}
+                          </td>
+                        ))}
+                        <td className="w-10" aria-hidden />
+                      </tr>
+                      <tr style={{ color: 'var(--text)' }}>
+                        <td
+                          className="py-1.5 pr-2 text-left pb-2 sticky left-0 z-10 align-middle min-w-0 w-[8.5rem] sm:w-[9.5rem] max-w-[9.5rem] shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)]"
+                          style={{ background: 'var(--surface)' }}
+                        >
+                          <span className="text-[10px] sm:text-xs font-medium leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+                            Rom til mer innbetalt
+                          </span>
+                        </td>
+                        {monthKeys.map((mk, mi) => (
+                          <td
+                            key={mk}
+                            className="py-1.5 px-0.5 pb-2 text-right tabular-nums text-[10px] sm:text-xs leading-tight align-middle"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            {formatNOK(innbetaltHjelpetallPerMåned.romTilMer[mi] ?? 0)}
+                          </td>
+                        ))}
+                        <td className="w-10 pb-2" aria-hidden />
+                      </tr>
                     </tbody>
                   </table>
                 </div>
