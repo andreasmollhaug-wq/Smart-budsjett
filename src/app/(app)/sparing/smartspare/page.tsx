@@ -158,12 +158,16 @@ export default function SmartSparePage() {
         profileId: pid,
         profileName,
         plan,
-        derived: computeIncomeSprintDerived(plan, overviewReferenceDate),
+        derived: computeIncomeSprintDerived(plan, overviewReferenceDate, {
+          filterYear,
+          periodMode,
+          monthIndex,
+        }),
       }))
     })
     rows.sort((a, b) => b.plan.endDate.localeCompare(a.plan.endDate))
     return rows
-  }, [people, profiles, isHouseholdAggregate, activeProfileId, overviewReferenceDate])
+  }, [people, profiles, isHouseholdAggregate, activeProfileId, overviewReferenceDate, filterYear, periodMode, monthIndex])
 
   const aggregateKpi = useMemo(() => {
     let target = 0
@@ -403,8 +407,10 @@ export default function SmartSparePage() {
                   {isHouseholdAggregate
                     ? 'Sum av alle planer i husholdningen (per plan brukes valgt målgrunnlag).'
                     : `Sum av planene til ${activeProfileName} (per plan brukes valgt målgrunnlag).`}{' '}
-                  <strong style={{ color: 'var(--text)' }}>Periode:</strong> {periodSubtitle(periodMode, filterYear, monthIndex)}{' '}
-                  (klippet til i dag).
+                  <strong style={{ color: 'var(--text)' }}>Periode:</strong> {periodSubtitle(periodMode, filterYear, monthIndex)}.{' '}
+                  {periodMode === 'ytd'
+                    ? 'KPI («tjent» og månedlig innbetalt) klippes til i dag og hver plan.'
+                    : 'KPI summerer hele valgt periode i brutto-tabellen (også fremtidige måneder i vinduet).'}
                 </p>
                 {overviewYearOptions.length > 0 && (
                   <DashboardPeriodToolbar

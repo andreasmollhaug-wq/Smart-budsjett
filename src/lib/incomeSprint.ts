@@ -1,4 +1,4 @@
-import { BUDGET_MONTH_LABELS, type PeriodMode } from '@/lib/budgetPeriod'
+import { BUDGET_MONTH_LABELS, periodRange, type PeriodMode } from '@/lib/budgetPeriod'
 import { generateId } from '@/lib/utils'
 
 export type IncomeSprintGoalBasis = 'afterTax' | 'beforeTax'
@@ -257,6 +257,13 @@ export interface IncomeSprintSourceTotals {
   netToDate: number
 }
 
+/** Samme periode som dashboard: avgrenser «tjent hittil» / månedlig innbetalt i KPI til valgt år og modus. */
+export type IncomeSprintKpiPeriodFilter = {
+  filterYear: number
+  periodMode: PeriodMode
+  monthIndex: number
+}
+
 export interface IncomeSprintDerived {
   monthKeys: string[]
   referenceDate: string
@@ -301,12 +308,26 @@ function sumSourceGrossForKeys(source: IncomeSprintSource, keys: string[]): numb
 export function computeIncomeSprintDerived(
   plan: IncomeSprintPlan,
   referenceDate: string = new Date().toISOString().slice(0, 10),
+  kpiPeriod?: IncomeSprintKpiPeriodFilter,
 ): IncomeSprintDerived | null {
   const keys = listMonthKeysInRange(plan.startDate, plan.endDate)
   if (keys.length === 0) return null
 
   const refYm = referenceDate.length >= 7 ? referenceDate.slice(0, 7) : keys[0]!
-  const keysToDate = keys.filter((k) => k <= refYm)
+  let keysToDate = keys.filter((k) => k <= refYm)
+  if (kpiPeriod) {
+    const { start, end } = periodRange(kpiPeriod.periodMode, kpiPeriod.monthIndex)
+    const periodStartMonthKey = `${kpiPeriod.filterYear}-${String(start + 1).padStart(2, '0')}`
+    const periodEndMonthKey = `${kpiPeriod.filterYear}-${String(end + 1).padStart(2, '0')}`
+    /** YTD: klipp til i dag (refYm). Måned/hele år: fullt kalendervindu i plan-tabellen (også fremtidige måneder i vinduet). */
+    const upperYm =
+      kpiPeriod.periodMode === 'ytd'
+        ? refYm <= periodEndMonthKey
+          ? refYm
+          : periodEndMonthKey
+        : periodEndMonthKey
+    keysToDate = keys.filter((k) => k >= periodStartMonthKey && k <= upperYm)
+  }
 
   const apply = plan.applyTax === true
 

@@ -216,4 +216,131 @@ describe('incomeSprint', () => {
     const ref = smartSpareFilterToReferenceDate(plan, 2026, 'month', 2)
     expect(ref).toBe('2026-03-31')
   })
+
+  it('computeIncomeSprintDerived med KPI-filter: ekskluderer forrige års måneder ved 2026 YTD', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'cross-year',
+      startDate: '2025-11-01',
+      endDate: '2026-06-30',
+      goalBasis: 'beforeTax',
+      targetAmount: 1_000_000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: {
+        '2025-11': 1_000,
+        '2025-12': 2_000,
+        '2026-01': 3_000,
+        '2026-02': 4_000,
+        '2026-03': 5_000,
+        '2026-04': 6_000,
+      },
+      sources: [
+        {
+          id: 's',
+          name: 'S',
+          amountsByMonthKey: {
+            '2025-11': 10_000,
+            '2025-12': 20_000,
+            '2026-01': 30_000,
+            '2026-02': 40_000,
+            '2026-03': 50_000,
+            '2026-04': 60_000,
+            '2026-05': 70_000,
+            '2026-06': 80_000,
+          },
+        },
+      ],
+    })
+    const kpi = { filterYear: 2026, periodMode: 'ytd' as const, monthIndex: 3 }
+    const d = computeIncomeSprintDerived(plan, '2026-04-30', kpi)
+    expect(d).not.toBeNull()
+    expect(d!.earnedGrossToDate).toBe(30_000 + 40_000 + 50_000 + 60_000)
+    expect(d!.paidFromMonthsToDate).toBe(3_000 + 4_000 + 5_000 + 6_000)
+  })
+
+  it('computeIncomeSprintDerived med KPI-filter: én måned i filterår', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'one-month',
+      startDate: '2026-01-01',
+      endDate: '2026-03-31',
+      goalBasis: 'afterTax',
+      targetAmount: 100_000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: { '2026-01': 1, '2026-02': 2, '2026-03': 3 },
+      sources: [{ id: 's', name: 'S', amountsByMonthKey: { '2026-01': 100, '2026-02': 200, '2026-03': 300 } }],
+    })
+    const d = computeIncomeSprintDerived(plan, '2026-03-31', {
+      filterYear: 2026,
+      periodMode: 'month',
+      monthIndex: 1,
+    })
+    expect(d!.earnedNetToDate).toBe(200)
+    expect(d!.paidFromMonthsToDate).toBe(2)
+  })
+
+  it('KPI hele året: summerer plan gjennom desember selv om refYm er april', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'full-year-kpi',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+      goalBasis: 'beforeTax',
+      targetAmount: 1_000_000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: {},
+      sources: [
+        {
+          id: 'a',
+          name: 'A',
+          amountsByMonthKey: {
+            '2026-04': 11_000,
+            '2026-05': 5_000,
+            '2026-12': 999,
+          },
+        },
+      ],
+    })
+    const d = computeIncomeSprintDerived(plan, '2026-04-21', {
+      filterYear: 2026,
+      periodMode: 'year',
+      monthIndex: 0,
+    })
+    expect(d!.earnedGrossToDate).toBe(11_000 + 5_000 + 999)
+  })
+
+  it('KPI én måned (mai): inkluderer mai når ref-dato fortsatt er i april', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'future-month-kpi',
+      startDate: '2026-04-01',
+      endDate: '2026-06-30',
+      goalBasis: 'beforeTax',
+      targetAmount: 100_000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: {},
+      sources: [
+        {
+          id: 's1',
+          name: 'S1',
+          amountsByMonthKey: { '2026-04': 1_000, '2026-05': 10_000 },
+        },
+        {
+          id: 's2',
+          name: 'S2',
+          amountsByMonthKey: { '2026-04': 10_000, '2026-05': 5_000 },
+        },
+      ],
+    })
+    const d = computeIncomeSprintDerived(plan, '2026-04-15', {
+      filterYear: 2026,
+      periodMode: 'month',
+      monthIndex: 4,
+    })
+    expect(d!.earnedGrossToDate).toBe(5_000 + 10_000)
+  })
 })
