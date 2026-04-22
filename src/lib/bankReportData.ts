@@ -320,6 +320,27 @@ export function groupBudgetVsActualByParent(
   return out
 }
 
+export type ParentBudgetVsTotals = { budgeted: number; actual: number }
+
+/** Agreggert budsjett og faktisk per hovedgruppe (for dashboard-oppsummering m.m.). */
+export function sumBudgetVsActualByParent(
+  rows: BudgetVsActualRow[],
+): Record<ParentCategory, ParentBudgetVsTotals> {
+  const out: Record<ParentCategory, ParentBudgetVsTotals> = {
+    inntekter: { budgeted: 0, actual: 0 },
+    regninger: { budgeted: 0, actual: 0 },
+    utgifter: { budgeted: 0, actual: 0 },
+    gjeld: { budgeted: 0, actual: 0 },
+    sparing: { budgeted: 0, actual: 0 },
+  }
+  for (const r of rows) {
+    const g = out[r.parentCategory]
+    g.budgeted += r.budgeted
+    g.actual += r.actual
+  }
+  return out
+}
+
 export function groupBudgetCategoriesByParent(
   categories: BudgetCategory[],
 ): Record<ParentCategory, BudgetCategory[]> {

@@ -13,6 +13,8 @@ import {
   sumBudgetedIncomeForMonth,
   sumIncomeExpenseNetByProfileForMonthRange,
   sumActualByProfileForCategoryInMonthRange,
+  sumBudgetVsActualByParent,
+  type BudgetVsActualRow,
 } from './bankReportData'
 import { createEmptyPersonData, type BudgetCategory, type Transaction } from './store'
 
@@ -533,6 +535,46 @@ describe('buildBankReportIncomeDetail', () => {
     expect(d!.actual.gross).toBe(100_000)
     expect(d!.actual.withholding).toBe(20_000)
     expect(d!.actual.net).toBe(80_000)
+  })
+})
+
+describe('sumBudgetVsActualByParent', () => {
+  it('summerer flere rader i samme foreldregruppe', () => {
+    const rows: BudgetVsActualRow[] = [
+      {
+        categoryId: '1',
+        name: 'A',
+        parentCategory: 'utgifter',
+        type: 'expense',
+        budgeted: 100,
+        actual: 40,
+        variance: -60,
+      },
+      {
+        categoryId: '2',
+        name: 'B',
+        parentCategory: 'utgifter',
+        type: 'expense',
+        budgeted: 200,
+        actual: 150,
+        variance: -50,
+      },
+      {
+        categoryId: '3',
+        name: 'C',
+        parentCategory: 'inntekter',
+        type: 'income',
+        budgeted: 10_000,
+        actual: 8_000,
+        variance: -2_000,
+      },
+    ]
+    const s = sumBudgetVsActualByParent(rows)
+    expect(s.utgifter).toEqual({ budgeted: 300, actual: 190 })
+    expect(s.inntekter).toEqual({ budgeted: 10_000, actual: 8_000 })
+    expect(s.regninger).toEqual({ budgeted: 0, actual: 0 })
+    expect(s.gjeld).toEqual({ budgeted: 0, actual: 0 })
+    expect(s.sparing).toEqual({ budgeted: 0, actual: 0 })
   })
 })
 

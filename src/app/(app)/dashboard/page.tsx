@@ -47,6 +47,7 @@ import DashboardServiceSubscriptionsPeriodCard from '@/components/dashboard/Dash
 import DashboardHouseholdSnapshotCard from '@/components/dashboard/DashboardHouseholdSnapshotCard'
 import DashboardNetBudgetPeriodSection from '@/components/dashboard/DashboardNetBudgetPeriodSection'
 import DashboardTopBudgetedExpenseCategoriesCard from '@/components/dashboard/DashboardTopBudgetedExpenseCategoriesCard'
+import DashboardParentBudgetProgressCard from '@/components/dashboard/DashboardParentBudgetProgressCard'
 import DashboardSavingsRateCard from '@/components/dashboard/DashboardSavingsRateCard'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import { periodRange, periodSubtitle } from '@/lib/budgetPeriod'
@@ -637,23 +638,34 @@ export default function DashboardPage() {
         </div>
 
         {displayCategories.length > 0 ? (
-          <div className="grid min-w-0 w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-6">
-            <DashboardNetBudgetPeriodSection
-              periodLabel={periodLabel}
-              summary={vsSummary}
-              chartSeries={netBudgetChartSeries}
-              budgetVsRows={budgetVsRows}
-              periodMode={periodMode}
-              filterYear={filterYear}
-              monthIndex={monthIndex}
-              onSelectExpenseCategory={(name, actual) => setCategoryModal({ category: name, total: actual })}
-            />
-            <DashboardTopBudgetedExpenseCategoriesCard
-              periodLabel={periodLabel}
-              rows={budgetVsRows}
-              onSelectCategory={(name, actual) => setCategoryModal({ category: name, total: actual })}
-            />
-          </div>
+          <>
+            <div className="grid min-w-0 w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-6">
+              <DashboardNetBudgetPeriodSection
+                periodLabel={periodLabel}
+                summary={vsSummary}
+                chartSeries={netBudgetChartSeries}
+                budgetVsRows={budgetVsRows}
+                periodMode={periodMode}
+                filterYear={filterYear}
+                monthIndex={monthIndex}
+                onSelectExpenseCategory={(name, actual) => setCategoryModal({ category: name, total: actual })}
+              />
+              <DashboardTopBudgetedExpenseCategoriesCard
+                periodLabel={periodLabel}
+                rows={budgetVsRows}
+                onSelectCategory={(name, actual) => setCategoryModal({ category: name, total: actual })}
+              />
+            </div>
+            <div className="grid min-w-0 w-full grid-cols-1 lg:grid-cols-3 lg:gap-6 xl:gap-8 2xl:gap-10 lg:items-start">
+              <div className="min-w-0">
+                <DashboardParentBudgetProgressCard
+                  periodLabel={periodLabel}
+                  budgetVsRows={budgetVsRows}
+                  summary={vsSummary}
+                />
+              </div>
+            </div>
+          </>
         ) : null}
       </div>
 
