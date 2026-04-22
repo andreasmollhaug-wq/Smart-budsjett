@@ -351,7 +351,12 @@ export default function SnoballPage() {
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Ingen gjeld registrert ennå. Legg til lån her eller under Gjeld — det er samme liste.
             </p>
-            {!readOnly && (
+            {!readOnly && showForm && (
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Fyll ut skjemaet nedenfor. Avbryt lukker skjemaet.
+              </p>
+            )}
+            {!readOnly && !showForm && (
               <div className="flex flex-wrap justify-center gap-3">
                 <button
                   type="button"
@@ -594,14 +599,14 @@ export default function SnoballPage() {
           />
         )}
 
-        {!readOnly && debts.length > 0 && (
+        {!readOnly && (debts.length > 0 || showForm) && (
           <div
             className="rounded-2xl p-6"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             {showForm ? (
               <AddDebtForm
-                heading="Legg til lån (tas med i køen)"
+                heading={debts.length === 0 ? 'Legg til gjeld' : 'Legg til lån (tas med i køen)'}
                 onSubmit={handleAddDebt}
                 onCancel={() => setShowForm(false)}
               />
