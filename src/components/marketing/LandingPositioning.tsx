@@ -1,6 +1,8 @@
+import { landingHorizontalPadding } from './constants'
+
 export default function LandingPositioning() {
   return (
-    <section className="px-4 py-12 sm:px-6">
+    <section className={`py-12 ${landingHorizontalPadding}`}>
       <div
         className="mx-auto max-w-3xl rounded-2xl p-8 text-center"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}

@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { Shield } from 'lucide-react'
+import { landingHorizontalPadding } from './constants'
 
 export default function LandingTrust() {
   return (
-    <section className="px-4 py-12 sm:px-6">
+    <section className={`py-12 ${landingHorizontalPadding}`}>
       <div
         className="mx-auto flex max-w-3xl flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:gap-8 sm:p-8"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}

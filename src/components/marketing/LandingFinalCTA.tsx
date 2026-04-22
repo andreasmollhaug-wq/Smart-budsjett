@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { CTA_HREF } from './constants'
+import { CTA_HREF, landingHorizontalPadding } from './constants'
 
 export default function LandingFinalCTA() {
   return (
-    <section className="px-4 pb-16 pt-4 sm:px-6">
+    <section className={`pb-16 pt-4 ${landingHorizontalPadding}`}>
       <div
         className="mx-auto max-w-3xl rounded-2xl p-6 text-center text-white sm:p-10 md:p-12"
         style={{ background: 'linear-gradient(135deg, #3B5BDB 0%, #4C6EF5 50%, #7048E8 100%)' }}

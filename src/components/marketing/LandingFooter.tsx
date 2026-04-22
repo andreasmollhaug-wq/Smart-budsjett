@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { CONTACT_EMAIL } from '@/lib/legal'
-import { CTA_HREF, LOGIN_HREF } from './constants'
+import { CTA_HREF, LOGIN_HREF, landingHorizontalPadding } from './constants'
 
 export default function LandingFooter() {
   return (
-    <footer className="border-t px-4 py-10 sm:px-6" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+    <footer
+      className={`border-t py-10 ${landingHorizontalPadding}`}
+      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+    >
       <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 sm:flex-row">
         <div className="text-center sm:text-left">
           <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>

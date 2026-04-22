@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { landingHorizontalPadding } from './constants'
 
 const steps = [
   {
@@ -25,7 +26,7 @@ const steps = [
 
 export default function LandingHowItWorks() {
   return (
-    <section className="px-4 py-14 sm:px-6">
+    <section id="slik-fungerer" className={`scroll-mt-24 py-14 ${landingHorizontalPadding}`}>
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Slik fungerer det

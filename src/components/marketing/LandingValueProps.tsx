@@ -1,4 +1,5 @@
-import { BarChart3, Layers, ListChecks, Wallet } from 'lucide-react'
+import { BarChart3, Layers, ListChecks, Percent, Wallet } from 'lucide-react'
+import { landingHorizontalPadding } from './constants'
 
 const cards = [
   {
@@ -25,11 +26,20 @@ const cards = [
     text: 'Innsikt i hva som faktisk står igjen etter alle kostnader.',
     color: '#7048E8',
   },
+  {
+    icon: Percent,
+    title: 'Trekk på inntekt',
+    text: 'Du kan legge inn brutto inntekt med valgfritt trekkprosent — for eksempel forenklet skatt — slik at budsjett og oversikt bygger på det du får utbetalt.',
+    color: '#0B7285',
+  },
 ]
 
 export default function LandingValueProps() {
   return (
-    <section className="px-4 py-14 sm:px-6" style={{ background: 'color-mix(in srgb, var(--primary-pale) 35%, var(--bg))' }}>
+    <section
+      className={`py-14 ${landingHorizontalPadding}`}
+      style={{ background: 'color-mix(in srgb, var(--primary-pale) 35%, var(--bg))' }}
+    >
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Hva du får med Smart Budsjett
@@ -37,7 +47,7 @@ export default function LandingValueProps() {
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
           Struktur og kategorier er satt opp på forhånd. Du legger inn tallene dine — resten er samlet på ett sted.
         </p>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {cards.map(({ icon: Icon, title, text, color }) => (
             <div
               key={title}

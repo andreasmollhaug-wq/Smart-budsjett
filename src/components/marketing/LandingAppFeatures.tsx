@@ -13,6 +13,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
+import { landingHorizontalPadding } from './constants'
 
 type FeatureItem = {
   id: string
@@ -44,6 +45,7 @@ const features: FeatureItem[] = [
     paragraphs: [
       'Budsjettsiden er satt opp med struktur og kategorier på forhånd, så du slipper å bygge alt fra bunnen av.',
       'Du fyller inn egne beløp og justerer underveis når inntekt eller vaner endrer seg — tallene henger sammen med resten av løsningen.',
+      'På inntekter kan du bruke brutto med et valgfritt trekkprosent (forenklet skatt), slik at månedstallene speiler det du beholder etter trekk.',
     ],
   },
   {
@@ -55,6 +57,7 @@ const features: FeatureItem[] = [
     paragraphs: [
       'Her registrerer du kjøp og utgifter og fordeler dem i kategorier, slik at budsjett og grafer blir riktige.',
       'Jo mer du følger med, jo tydeligere blir bildet av hvor pengene faktisk går.',
+      'For lønnsinntekt kan du føre brutto og la appen ta hensyn til trekk, eller registrere netto — det som passer deg.',
     ],
   },
   {
@@ -125,6 +128,15 @@ const features: FeatureItem[] = [
   },
 ]
 
+const PRIMARY_FEATURE_IDS = ['oversikt', 'budsjett', 'transaksjoner', 'sparing'] as const
+
+function partitionFeatures(all: FeatureItem[]) {
+  const primary = PRIMARY_FEATURE_IDS.map((id) => all.find((f) => f.id === id)).filter((f): f is FeatureItem => Boolean(f))
+  const primarySet = new Set<string>(PRIMARY_FEATURE_IDS)
+  const secondary = all.filter((f) => !primarySet.has(f.id))
+  return { primary, secondary }
+}
+
 export default function LandingAppFeatures() {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -132,6 +144,7 @@ export default function LandingAppFeatures() {
   const closeBtnRef = useRef<HTMLButtonElement>(null)
 
   const active = openId ? features.find((f) => f.id === openId) : null
+  const { primary: primaryFeatures, secondary: secondaryFeatures } = partitionFeatures(features)
 
   useEffect(() => {
     const el = dialogRef.current
@@ -149,7 +162,7 @@ export default function LandingAppFeatures() {
   }
 
   return (
-    <section id="funksjoner" className="scroll-mt-24 px-4 py-14 sm:px-6">
+    <section id="funksjoner" className={`scroll-mt-24 py-14 ${landingHorizontalPadding}`}>
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Funksjoner i Smart Budsjett
@@ -157,8 +170,15 @@ export default function LandingAppFeatures() {
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
           Samme moduler som i menyen etter innlogging — én oversikt fra tall til sparing og gjeld.
         </p>
-        <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map(({ id, icon: Icon, title, text, color }) => (
+        <p className="mx-auto mt-2 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
+          Klikk en modul for kort forklaring.
+        </p>
+
+        <h3 className="mt-10 text-center text-lg font-semibold sm:text-xl" style={{ color: 'var(--text)' }}>
+          Det meste starter her
+        </h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {primaryFeatures.map(({ id, icon: Icon, title, text, color }) => (
             <button
               key={id}
               type="button"
@@ -177,9 +197,44 @@ export default function LandingAppFeatures() {
                   <Icon size={20} style={{ color }} aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  <h4 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                     {title}
-                  </h3>
+                  </h4>
+                  <p className="mt-1.5 text-xs leading-relaxed sm:text-sm" style={{ color: 'var(--text-muted)' }}>
+                    {text}
+                  </p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <h3 className="mt-12 text-center text-lg font-semibold sm:text-xl" style={{ color: 'var(--text)' }}>
+          Mer i Smart Budsjett
+        </h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {secondaryFeatures.map(({ id, icon: Icon, title, text, color }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setOpenId(id)}
+              aria-expanded={openId === id}
+              aria-haspopup="dialog"
+              aria-controls="landing-feature-dialog"
+              className="cursor-pointer rounded-2xl p-5 text-left transition-[border-color,box-shadow] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                  style={{ background: `${color}18` }}
+                >
+                  <Icon size={20} style={{ color }} aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                    {title}
+                  </h4>
                   <p className="mt-1.5 text-xs leading-relaxed sm:text-sm" style={{ color: 'var(--text-muted)' }}>
                     {text}
                   </p>

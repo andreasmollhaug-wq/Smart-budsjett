@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
-import { CTA_HREF, LOGIN_HREF } from './constants'
+import { CTA_HREF, LOGIN_HREF, landingHorizontalPadding } from './constants'
 
 const NAV_ITEMS = [
+  { href: '#produkt', label: 'Produkt' },
+  { href: '#slik-fungerer', label: 'Slik det funker' },
   { href: '#funksjoner', label: 'Funksjoner' },
   { href: '#priser', label: 'Priser' },
   { href: '#faq', label: 'FAQ' },
@@ -52,9 +54,11 @@ export default function LandingHeader() {
           style={{
             background: 'var(--surface)',
             borderRight: '1px solid var(--border)',
+            paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
+            paddingRight: '0.75rem',
           }}
         >
-          <div className="flex shrink-0 items-center justify-between border-b px-3 py-3" style={{ borderColor: 'var(--border)' }}>
+          <div className="flex shrink-0 items-center justify-between border-b py-3" style={{ borderColor: 'var(--border)' }}>
             <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
               Meny
             </span>
@@ -106,7 +110,9 @@ export default function LandingHeader() {
         borderColor: 'var(--border)',
       }}
     >
-      <div className="mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-2 px-4 py-3 sm:gap-4 sm:px-6">
+      <div
+        className={`mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-2 py-3 sm:gap-4 ${landingHorizontalPadding}`}
+      >
         <Link
           href="/"
           className="flex min-w-0 max-w-[min(100%,12rem)] shrink items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:max-w-none sm:gap-3"

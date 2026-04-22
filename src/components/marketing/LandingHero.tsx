@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CTA_HREF } from './constants'
+import { CTA_HREF, landingHorizontalPadding } from './constants'
 
 export type LandingHeroVariant = 'default' | 'partnerCampaign'
 
@@ -11,7 +11,9 @@ export default function LandingHero({ variant = 'default' }: Props) {
   const partnerCampaign = variant === 'partnerCampaign'
 
   return (
-    <section className="relative overflow-hidden px-4 pb-8 pt-12 sm:px-6 sm:pb-12 sm:pt-16">
+    <section
+      className={`relative overflow-hidden pb-8 pt-12 sm:pb-12 sm:pt-16 ${landingHorizontalPadding}`}
+    >
       <div
         className="pointer-events-none absolute inset-0 opacity-40"
         style={{
@@ -31,7 +33,7 @@ export default function LandingHero({ variant = 'default' }: Props) {
           14 dagers gratis prøveperiode
         </p>
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-[2.75rem]" style={{ color: 'var(--text)' }}>
-          Oversikt på økonomien — uten forkunnskaper
+          Ryddig oversikt på økonomien — uten forkunnskaper
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: 'var(--text-muted)' }}>
           Smart Budsjett er et enkelt og strukturert budsjettverktøy som hjelper deg å se inntekter, utgifter og hva du har igjen
@@ -43,8 +45,14 @@ export default function LandingHero({ variant = 'default' }: Props) {
           </p>
         )}
         <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          Ved oppstart registrerer du betalingskort. Du betaler ikke før etter prøveperioden er over — vi er tydelige på det, så du
-          slipper overraskelser.
+          Ved oppstart registrerer du betalingskort — vi trekker ikke før prøveperioden er over.{' '}
+          <a
+            href="#faq-betalingskort"
+            className="font-medium underline underline-offset-2 transition-opacity hover:opacity-90"
+            style={{ color: 'var(--primary)' }}
+          >
+            Les mer om prøveperiode og betaling.
+          </a>
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link

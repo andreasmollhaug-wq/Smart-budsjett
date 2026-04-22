@@ -27,10 +27,10 @@ export default function LandingMain({ variant = 'default' }: Props) {
       {irisEarly && <LandingIrisPartnership tightBottom />}
       <LandingForWhom />
       <LandingValueProps />
+      <LandingProductPreview />
+      <LandingHowItWorks />
       <LandingAppFeatures />
       <LandingPositioning />
-      <LandingHowItWorks />
-      <LandingProductPreview />
       {!irisEarly && <LandingIrisPartnership />}
       <LandingPricing />
       <LandingFAQ />

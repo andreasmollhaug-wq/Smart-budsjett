@@ -1,4 +1,5 @@
 import { HelpCircle, PieChart, Sparkles } from 'lucide-react'
+import { landingHorizontalPadding } from './constants'
 
 const items = [
   {
@@ -20,7 +21,7 @@ const items = [
 
 export default function LandingForWhom() {
   return (
-    <section className="px-4 pb-14 pt-6 sm:px-6 sm:pt-8">
+    <section className={`pb-14 pt-6 sm:pt-8 ${landingHorizontalPadding}`}>
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Laget for deg som

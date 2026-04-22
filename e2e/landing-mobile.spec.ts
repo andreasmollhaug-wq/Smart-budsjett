@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Landing (mobil viewport)', () => {
   test('viser hovedoverskrift uten horisontell body-overflow', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('main h1')).toContainText('Oversikt på økonomien', { timeout: 15_000 })
+    await expect(page.locator('main h1')).toContainText(/oversikt på økonomien/i, { timeout: 15_000 })
 
     const overflow = await page.evaluate(() => {
       const el = document.documentElement

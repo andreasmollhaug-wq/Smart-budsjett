@@ -1,4 +1,5 @@
 import { HeartHandshake } from 'lucide-react'
+import { landingHorizontalPadding } from './constants'
 
 const IRIS_PAGE_HREF = 'https://enkelexcel.no/pages/iriseyfjord'
 
@@ -11,7 +12,7 @@ export default function LandingIrisPartnership({ tightBottom = false }: Props) {
   return (
     <section
       id="partnerskap"
-      className={`scroll-mt-24 px-4 sm:px-6 ${tightBottom ? 'pt-12 pb-6 sm:pb-8' : 'py-12'}`}
+      className={`scroll-mt-24 ${landingHorizontalPadding} ${tightBottom ? 'pt-12 pb-6 sm:pb-8' : 'py-12'}`}
     >
       <div
         className="mx-auto flex max-w-3xl flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-start sm:gap-8 sm:p-8"

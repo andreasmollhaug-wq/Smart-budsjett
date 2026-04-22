@@ -1,3 +1,5 @@
+import { landingHorizontalPadding } from './constants'
+
 const faqs: { q: string; a: string }[] = [
   {
     q: 'Hvorfor må jeg registrere betalingskort ved oppstart?',
@@ -27,7 +29,11 @@ const faqs: { q: string; a: string }[] = [
 
 export default function LandingFAQ() {
   return (
-    <section id="faq" className="scroll-mt-24 px-4 py-14 sm:px-6" style={{ background: 'color-mix(in srgb, var(--primary-pale) 35%, var(--bg))' }}>
+    <section
+      id="faq"
+      className={`scroll-mt-24 py-14 ${landingHorizontalPadding}`}
+      style={{ background: 'color-mix(in srgb, var(--primary-pale) 35%, var(--bg))' }}
+    >
       <div className="mx-auto max-w-3xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Ofte stilte spørsmål
@@ -36,10 +42,11 @@ export default function LandingFAQ() {
           Kort svar på det mange lurer på før de starter.
         </p>
         <div className="mt-10 space-y-3">
-          {faqs.map(({ q, a }) => (
+          {faqs.map(({ q, a }, index) => (
             <details
               key={q}
-              className="group rounded-2xl p-5 open:shadow-sm"
+              id={index === 0 ? 'faq-betalingskort' : undefined}
+              className={`group rounded-2xl p-5 open:shadow-sm${index === 0 ? ' scroll-mt-24' : ''}`}
               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
             >
               <summary className="cursor-pointer list-none font-semibold outline-none [&::-webkit-details-marker]:hidden" style={{ color: 'var(--text)' }}>

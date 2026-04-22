@@ -32,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--bg)' }}>
       <RecoveryHashRedirect />
       <LandingHeader />
       <LandingMain variant="default" />

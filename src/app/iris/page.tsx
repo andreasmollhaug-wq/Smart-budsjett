@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 
 export default function IrisLandingPage() {
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--bg)' }}>
       <LandingHeader />
       <LandingMain variant="partnerCampaign" />
       <LandingFooter />

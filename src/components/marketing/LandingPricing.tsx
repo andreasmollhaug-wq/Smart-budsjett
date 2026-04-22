@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Check } from 'lucide-react'
-import { CTA_HREF } from './constants'
+import { CTA_HREF, landingHorizontalPadding } from './constants'
 
 const soloFeatures = ['Én brukerkonto', 'Full tilgang til alle funksjoner', 'Passer deg som styrer økonomien alene']
 const familyFeatures = [
@@ -11,7 +11,7 @@ const familyFeatures = [
 
 export default function LandingPricing() {
   return (
-    <section id="priser" className="scroll-mt-24 px-4 py-16 sm:px-6">
+    <section id="priser" className={`scroll-mt-24 py-16 ${landingHorizontalPadding}`}>
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
           Velg plan
