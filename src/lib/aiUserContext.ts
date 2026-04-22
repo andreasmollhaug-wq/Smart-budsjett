@@ -11,9 +11,10 @@ import {
 } from '@/lib/store'
 import { monthlyEquivalentNok, yearlyEquivalentNok } from '@/lib/serviceSubscriptionHelpers'
 import {
-  isOverduePlanFollowUp,
+  isIncompletePlannedInCalendarMonth,
   isPlannedKommendeLater,
-  isPlannedKommendeThisMonth,
+  isPlanOverdueFromEarlierMonths,
+  sortThisMonthPlannedByUrgency,
   sortTransactionsByDateAsc,
   todayYyyyMmDd,
   transactionRequiresPlanFollowUp,
@@ -235,20 +236,20 @@ function appendTransactionsSection(lines: string[], person: PersonData, meta: Ai
 function appendPlannedFollowUpSection(lines: string[], person: PersonData): void {
   const todayAi = todayYyyyMmDd()
   const planRelevant = (person.transactions ?? []).filter((t) => transactionRequiresPlanFollowUp(t))
-  const overdueAi = planRelevant
-    .filter((t) => isOverduePlanFollowUp(t, todayAi))
+  const overdueEarlierAi = planRelevant
+    .filter((t) => isPlanOverdueFromEarlierMonths(t, todayAi))
     .sort(sortTransactionsByDateAsc)
     .slice(0, 15)
   const thisMonthAi = planRelevant
-    .filter((t) => isPlannedKommendeThisMonth(t, todayAi))
-    .sort(sortTransactionsByDateAsc)
+    .filter((t) => isIncompletePlannedInCalendarMonth(t, todayAi))
+    .sort((a, b) => sortThisMonthPlannedByUrgency(a, b, todayAi))
     .slice(0, 15)
   const laterAi = planRelevant
     .filter((t) => isPlannedKommendeLater(t, todayAi))
     .sort(sortTransactionsByDateAsc)
     .slice(0, 10)
   lines.push('Planlagt oppfølging (Kommende — begrenset utdrag):')
-  if (overdueAi.length === 0 && thisMonthAi.length === 0 && laterAi.length === 0) {
+  if (overdueEarlierAi.length === 0 && thisMonthAi.length === 0 && laterAi.length === 0) {
     lines.push('Ingen planlagte poster som krever ekstra oppfølging i dette utdraget.')
   } else {
     const pushPlanLines = (label: string, txs: Transaction[]) => {
@@ -263,7 +264,7 @@ function appendPlannedFollowUpSection(lines: string[], person: PersonData): void
         lines.push(`- ${dateShow} | ${desc} | ${amt} kr | ${typeLabel(t.type)} | ${rev}${paid}`)
       }
     }
-    pushPlanLines('Etter planlagt dato (trenger oppfølging):', overdueAi)
+    pushPlanLines('Forfalt, tidligere måneder (trenger oppfølging):', overdueEarlierAi)
     pushPlanLines('Denne måneden (planlagt, uferdig):', thisMonthAi)
     pushPlanLines('Senere (fra neste måned, utdrag):', laterAi)
   }

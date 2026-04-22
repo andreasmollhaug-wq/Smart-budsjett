@@ -662,6 +662,14 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     base.activeProfileId = base.profiles[0]?.id ?? DEFAULT_PROFILE_ID
   }
 
+  /**
+   * Inkonsistent lagring (eldre klient / manuell JSON): flere profiler krever Familie-modus i appen.
+   * Uten dette mangler «Husholdning», og enkelte sider (f.eks. /konto/profiler) oppfører seg feil.
+   */
+  if (base.profiles.length >= 2 && base.subscriptionPlan === 'solo') {
+    base.subscriptionPlan = 'family'
+  }
+
   if (!Array.isArray(base.notifications)) base.notifications = []
   if (!Array.isArray(base.deliveredAnnouncementIds)) base.deliveredAnnouncementIds = []
   if (!Array.isArray(base.deliveredInsightIds)) base.deliveredInsightIds = []
@@ -1555,8 +1563,11 @@ export const useStore = create<AppState>()((set, get) => {
         setActiveProfileId: (id) => {
           const s = get()
           if (!s.profiles.some((p) => p.id === id)) return
-          if (!s.people[id]) return
-          set({ activeProfileId: id, financeScope: 'profile' })
+          let people = s.people
+          if (!s.people[id]) {
+            people = { ...s.people, [id]: createEmptyPersonData() }
+          }
+          set({ activeProfileId: id, financeScope: 'profile', people })
         },
 
         setFinanceScope: (scope) => {

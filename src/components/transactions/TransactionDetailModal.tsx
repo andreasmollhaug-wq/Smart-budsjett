@@ -396,6 +396,10 @@ export default function TransactionDetailModal({
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                   Planlagt oppfølging
                 </p>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  Gjennomgått: sjekk at posten gjelder. Betalt: utgiften er trukket. Enten av delene ferdigstiller. Du
+                  kan angre nedenfor.
+                </p>
                 <div className="flex flex-col sm:flex-row flex-wrap gap-2">
                   {!transaction.reviewedAt ? (
                     <button
@@ -409,12 +413,22 @@ export default function TransactionDetailModal({
                       Marker som gjennomgått
                     </button>
                   ) : (
-                    <span
-                      className="inline-flex items-center min-h-[44px] px-3 rounded-xl text-sm"
-                      style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
-                    >
-                      Gjennomgått
-                    </span>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
+                      <span
+                        className="inline-flex items-center min-h-[44px] px-3 rounded-xl text-sm"
+                        style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
+                      >
+                        Gjennomgått
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onPatchTransaction(transaction.id, { reviewedAt: undefined })}
+                        className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium w-full sm:w-auto"
+                        style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      >
+                        Angre gjennomgang
+                      </button>
+                    </div>
                   )}
                   {transaction.type === 'expense' && !transaction.paidAt ? (
                     <button
@@ -426,9 +440,19 @@ export default function TransactionDetailModal({
                       Marker som betalt
                     </button>
                   ) : transaction.type === 'expense' && transaction.paidAt ? (
-                    <span className="text-xs self-center" style={{ color: 'var(--text-muted)' }}>
-                      Betalt registrert
-                    </span>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
+                      <span className="text-xs self-center" style={{ color: 'var(--text-muted)' }}>
+                        Betalt registrert
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onPatchTransaction(transaction.id, { paidAt: undefined })}
+                        className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium w-full sm:w-auto"
+                        style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      >
+                        Fjern betalt
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               </div>

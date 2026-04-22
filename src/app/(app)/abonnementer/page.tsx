@@ -13,6 +13,7 @@ import {
 } from '@/lib/serviceSubscriptionHelpers'
 import {
   AUTO_SELECT_ABONNEMENTER_VALUE,
+  AUTO_SELECT_MEDLEMSKAP_VALUE,
   AUTO_SELECT_TV_STREAMING_VALUE,
   desiredNameForAutoSelectValue,
   ensureSubscriptionSharedRegningerLine,
@@ -189,14 +190,11 @@ export default function AbonnementerPage() {
 
   const [newRegningerLineModalOpen, setNewRegningerLineModalOpen] = useState(false)
   const prevNewYearlyChargeRef = useRef<number | ''>('')
-  const prevNewPlannedTxRef = useRef(false)
 
   useEffect(() => {
-    if (newPlannedTx && !prevNewPlannedTxRef.current && newSync && newBilling === 'monthly') {
-      setTxStartMonth(budgetStartMonth)
-      setTxEndMonth(budgetEndMonth)
-    }
-    prevNewPlannedTxRef.current = newPlannedTx
+    if (!newPlannedTx || !newSync || newBilling !== 'monthly') return
+    setTxStartMonth(budgetStartMonth)
+    setTxEndMonth(budgetEndMonth)
   }, [newPlannedTx, newSync, newBilling, budgetStartMonth, budgetEndMonth])
 
   useEffect(() => {
@@ -1016,6 +1014,17 @@ function SubscriptionSharedLineOptgroups({
           <option value={AUTO_SELECT_ABONNEMENTER_VALUE}>Abonnementer (legges til)</option>
         )}
       </optgroup>
+      <optgroup label="Medlemskap">
+        {partition.medlemskap.length > 0 ? (
+          partition.medlemskap.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))
+        ) : (
+          <option value={AUTO_SELECT_MEDLEMSKAP_VALUE}>Medlemskap (legges til)</option>
+        )}
+      </optgroup>
     </>
   )
 }
@@ -1232,7 +1241,6 @@ function EditRow({
   )
   const [newRegningerLineModalOpen, setNewRegningerLineModalOpen] = useState(false)
   const prevEditYearlyChargeRef = useRef<number | ''>('')
-  const prevEditPlannedEnabledRef = useRef(false)
 
   const legacyEditSharedCategory = useMemo(
     () =>
@@ -1293,15 +1301,11 @@ function EditRow({
   }, [billing, yearlyChargeMonth, plannedTx.enabled])
 
   useEffect(() => {
-    if (
-      plannedTx.enabled &&
-      !prevEditPlannedEnabledRef.current &&
-      sync &&
-      billing === 'monthly'
-    ) {
-      setPlannedTx((p) => ({ ...p, startMonth: budgetStartMonth, endMonth: budgetEndMonth }))
-    }
-    prevEditPlannedEnabledRef.current = plannedTx.enabled
+    if (!plannedTx.enabled || !sync || billing !== 'monthly') return
+    setPlannedTx((p) => {
+      if (p.startMonth === budgetStartMonth && p.endMonth === budgetEndMonth) return p
+      return { ...p, startMonth: budgetStartMonth, endMonth: budgetEndMonth }
+    })
   }, [plannedTx.enabled, sync, billing, budgetStartMonth, budgetEndMonth])
 
   const invalidPlannedRange = sync && plannedTx.enabled && plannedTx.startMonth > plannedTx.endMonth

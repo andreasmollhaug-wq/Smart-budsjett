@@ -4,11 +4,14 @@ import {
   buildPlannedOverdueNotification,
   getCalendarMonthRange,
   inferPlannedFollowUpOnDateChange,
+  isIncompletePlannedInCalendarMonth,
   isOverduePlanFollowUp,
   isPlannedKommendeLater,
   isPlannedKommendeThisMonth,
+  isPlanOverdueFromEarlierMonths,
   isUpcomingPlannedTransaction,
   shouldShowKommendeAttentionBanner,
+  sortThisMonthPlannedByUrgency,
   transactionRequiresPlanFollowUp,
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
@@ -201,5 +204,69 @@ describe('plannedTransactions', () => {
     )
     expect(out).not.toBeNull()
     expect(out!.body).toContain('Planlagt denne måneden')
+  })
+
+  it('isIncompletePlannedInCalendarMonth includes forfalte datoer samme måned, ekskluderer eldre måneder', () => {
+    const t0 = '2026-04-15'
+    expect(
+      isIncompletePlannedInCalendarMonth(
+        tx({ id: '1', date: '2026-04-01', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      isIncompletePlannedInCalendarMonth(
+        tx({ id: '2', date: '2026-04-20', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      isIncompletePlannedInCalendarMonth(
+        tx({ id: '3', date: '2026-03-28', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(false)
+  })
+
+  it('isPlanOverdueFromEarlierMonths er true kun når dato er før inneværende måned', () => {
+    const t0 = '2026-04-15'
+    expect(
+      isPlanOverdueFromEarlierMonths(
+        tx({ id: '1', date: '2026-03-01', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(true)
+    expect(
+      isPlanOverdueFromEarlierMonths(
+        tx({ id: '2', date: '2026-04-01', type: 'expense', plannedFollowUp: true }),
+        t0,
+      ),
+    ).toBe(false)
+  })
+
+  it('de tre hovedbøttene for Kommende er disjunkte (eldre, denne mnd, senere)', () => {
+    const t0 = '2026-04-15'
+    const a = tx({ id: 'a', date: '2026-02-10', type: 'expense', plannedFollowUp: true })
+    const b = tx({ id: 'b', date: '2026-04-05', type: 'expense', plannedFollowUp: true })
+    const c = tx({ id: 'c', date: '2026-05-01', type: 'expense', plannedFollowUp: true })
+    expect(isPlanOverdueFromEarlierMonths(a, t0)).toBe(true)
+    expect(isIncompletePlannedInCalendarMonth(a, t0)).toBe(false)
+    expect(isPlannedKommendeLater(a, t0)).toBe(false)
+
+    expect(isPlanOverdueFromEarlierMonths(b, t0)).toBe(false)
+    expect(isIncompletePlannedInCalendarMonth(b, t0)).toBe(true)
+    expect(isPlannedKommendeLater(b, t0)).toBe(false)
+
+    expect(isPlanOverdueFromEarlierMonths(c, t0)).toBe(false)
+    expect(isIncompletePlannedInCalendarMonth(c, t0)).toBe(false)
+    expect(isPlannedKommendeLater(c, t0)).toBe(true)
+  })
+
+  it('sortThisMonthPlannedByUrgency plasserer forfalt dato foran kommende', () => {
+    const t0 = '2026-04-15'
+    const late = tx({ id: '1', date: '2026-04-01', type: 'expense', plannedFollowUp: true, description: 'a' })
+    const future = tx({ id: '2', date: '2026-04-20', type: 'expense', plannedFollowUp: true, description: 'b' })
+    expect(sortThisMonthPlannedByUrgency(late, future, t0)).toBeLessThan(0)
+    expect(sortThisMonthPlannedByUrgency(future, late, t0)).toBeGreaterThan(0)
   })
 })

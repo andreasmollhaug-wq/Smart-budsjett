@@ -69,6 +69,7 @@ export default function PersonSwitcher() {
           )}
           {profiles.map((p) => {
             const active = financeScope === 'profile' && p.id === activeProfileId
+            const householdTarget = financeScope === 'household' && p.id === activeProfileId
             return (
               <button
                 key={p.id}
@@ -78,11 +79,21 @@ export default function PersonSwitcher() {
                 style={{
                   background: active ? 'var(--primary-pale)' : 'var(--bg)',
                   color: active ? 'var(--primary)' : 'var(--text-muted)',
-                  border: `1px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
+                  border: `1px solid ${
+                    active ? 'var(--accent)' : householdTarget ? 'var(--primary)' : 'var(--border)'
+                  }`,
+                  boxShadow: householdTarget && !active ? '0 0 0 1px color-mix(in srgb, var(--primary) 35%, transparent)' : undefined,
                 }}
-                title={p.name}
+                title={
+                  householdTarget && !active
+                    ? `${p.name} — målprofil for nye registreringer (trykk for å se bare denne)`
+                    : p.name
+                }
               >
                 {p.name}
+                {householdTarget && !active ? (
+                  <span className="sr-only"> (målprofil for nye registreringer)</span>
+                ) : null}
               </button>
             )
           })}

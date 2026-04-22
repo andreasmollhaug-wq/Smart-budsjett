@@ -80,7 +80,7 @@ Inntekt og forenklet trekk (valgfritt)
 Transaksjoner (/transaksjoner)
 - Registrer enkelttransaksjoner: dato, beskrivelse, beløp, kategori, ev. underkategori.
 - Kobling til budsjettkategorier oppdaterer «brukt» i budsjettet.
-- Undermeny på transaksjonssidene: «Transaksjoner» (liste med filtre), «Kommende» (/transaksjoner/kommende — etter forfall, inneværende måned og senere; marker som gjennomgått eller betalt, eller slett), «Transaksjonsdashboard» med oppdeling og lenker inn til filtrert liste.
+- Undermeny på transaksjonssidene: «Transaksjoner» (liste med filtre), «Kommende» (/transaksjoner/kommende — tre seksjoner: forfalt fra tidligere måneder, så inneværende måned, så senere; marker som gjennomgått eller betalt, angre ved feil, eller slett), «Transaksjonsdashboard» med oppdeling og lenker inn til filtrert liste.
 - Fremtidig dato ved registrering eller importerte fremtidige rader kan merkes som planlagt oppfølging. Synkede planlagte trekk fra gjeld eller tjenesteabonnement følger samme flyt.
 - Varsler (klokke): innsikt når forfalte planlagte poster finnes og/eller uferdig plan i inneværende måned (ikke gjennomgått); åpne «Kommende» fra varselet eller menyen. Grensesnittet er tilpasset mobil (korte faner, store trykkflater).
 - I transaksjonslisten kan du se om en planlagt rad er «gjennomgått» (stempel). Kortene på listen viser fortsatt beløp til og med i dag; fremtidige beløp står i listen.

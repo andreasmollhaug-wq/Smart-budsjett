@@ -19,12 +19,9 @@ export default function Header({ title, subtitle, titleAddon }: HeaderProps) {
       style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
     >
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="min-w-0 flex-1 truncate text-lg font-bold sm:text-xl" style={{ color: 'var(--text)' }}>
-            {title}
-          </h1>
-          {titleAddon != null ? <span className="shrink-0 flex items-center">{titleAddon}</span> : null}
-        </div>
+        <h1 className="min-w-0 truncate text-lg font-bold sm:text-xl" style={{ color: 'var(--text)' }}>
+          {title}
+        </h1>
         <p
           className="mt-0.5 min-w-0 max-w-full text-xs sm:text-sm leading-snug break-words"
           style={{ color: 'var(--text-muted)' }}
@@ -33,6 +30,7 @@ export default function Header({ title, subtitle, titleAddon }: HeaderProps) {
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        {titleAddon != null ? <span className="shrink-0 flex items-center">{titleAddon}</span> : null}
         <NotificationBell />
         <AccountMenu />
       </div>

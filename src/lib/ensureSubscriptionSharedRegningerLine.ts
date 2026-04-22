@@ -9,12 +9,17 @@ export const SUBSCRIPTION_SHARED_AUTO_STREAMING_NAME = 'Streaming'
 /** Navn for auto-valg «Abonnementer» (matcher abonnement-filter i regningerCategoryPicker). */
 export const SUBSCRIPTION_SHARED_AUTO_ABONNEMENT_NAME = 'Abonnementer'
 
+/** Navn for auto-valg «Medlemskap» (matcher medlemskap-filter i regningerCategoryPicker). */
+export const SUBSCRIPTION_SHARED_AUTO_MEDLEMSKAP_NAME = 'Medlemskap'
+
 export const AUTO_SELECT_TV_STREAMING_VALUE = '__auto_tv_streaming__'
 export const AUTO_SELECT_ABONNEMENTER_VALUE = '__auto_abonnementer__'
+export const AUTO_SELECT_MEDLEMSKAP_VALUE = '__auto_medlemskap__'
 
 export function desiredNameForAutoSelectValue(value: string): string | undefined {
   if (value === AUTO_SELECT_TV_STREAMING_VALUE) return SUBSCRIPTION_SHARED_AUTO_STREAMING_NAME
   if (value === AUTO_SELECT_ABONNEMENTER_VALUE) return SUBSCRIPTION_SHARED_AUTO_ABONNEMENT_NAME
+  if (value === AUTO_SELECT_MEDLEMSKAP_VALUE) return SUBSCRIPTION_SHARED_AUTO_MEDLEMSKAP_NAME
   return undefined
 }
 

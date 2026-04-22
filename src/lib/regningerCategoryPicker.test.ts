@@ -46,27 +46,29 @@ describe('sortRegningerCategoriesForSubscriptionPicker', () => {
 })
 
 describe('partitionRegningerForSubscriptionSharedLine', () => {
-  it('tar med streaming og abonnement, ikke husleie/internett', () => {
+  it('tar med streaming, abonnement og medlemskap, ikke husleie/internett', () => {
     const p = partitionRegningerForSubscriptionSharedLine([
       cat({ id: '1', name: 'Husleie' }),
       cat({ id: '2', name: 'Internett' }),
       cat({ id: '3', name: 'Streaming' }),
       cat({ id: '4', name: 'Mobilabonnement' }),
+      cat({ id: '5', name: 'Trening medlemskap' }),
     ])
     expect(p.streaming.map((c) => c.name)).toEqual(['Streaming'])
     expect(p.abonnement.map((c) => c.name)).toEqual(['Mobilabonnement'])
+    expect(p.medlemskap.map((c) => c.name)).toEqual(['Trening medlemskap'])
   })
 })
 
 describe('subscriptionSharedLineLegacyCategory', () => {
   it('returnerer kategori når valgt id ikke er i partisjon', () => {
     const all = [cat({ id: 'x', name: 'Husleie' })]
-    const partition = { streaming: [], abonnement: [] }
+    const partition = { streaming: [], abonnement: [], medlemskap: [] }
     expect(subscriptionSharedLineLegacyCategory(all, partition, 'x')?.name).toBe('Husleie')
   })
   it('returnerer undefined når valgt id allerede er i partisjon', () => {
     const c = cat({ id: 's', name: 'Streaming' })
-    const partition = { streaming: [c], abonnement: [] }
+    const partition = { streaming: [c], abonnement: [], medlemskap: [] }
     expect(subscriptionSharedLineLegacyCategory([c], partition, 's')).toBeUndefined()
   })
 })

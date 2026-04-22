@@ -74,8 +74,9 @@ export function isDateInCalendarMonth(dateStr: string, start: string, end: strin
 }
 
 /**
- * Planlagt oppfølging i inneværende måned (inkl. i dag), ikke fullført.
- * Overdue (dato før i dag) håndteres av `isOverduePlanFollowUp`.
+ * Planlagt oppfølging i inneværende måned (inkl. i dag), ikke fullført, kun dato frem til månedsslutt.
+ * Datoer tidligere i måneden (f.eks. 1. når i dag er 15.) er ekskludert; bruk `isIncompletePlannedInCalendarMonth` for full månedsliste.
+ * @deprecated Prefer `isIncompletePlannedInCalendarMonth` for «Kommende»-visning.
  */
 export function isPlannedKommendeThisMonth(t: Transaction, today = todayYyyyMmDd()): boolean {
   if (!transactionRequiresPlanFollowUp(t)) return false
@@ -85,6 +86,49 @@ export function isPlannedKommendeThisMonth(t: Transaction, today = todayYyyyMmDd
   const { start, end } = getCalendarMonthRange(today)
   if (!isDateInCalendarMonth(d, start, end)) return false
   return d >= today
+}
+
+/**
+ * Plan som trenger oppfølging, ikke fullført, med dato i inneværende kalendermåned (inkl. forfalte datoer samme måned).
+ */
+export function isIncompletePlannedInCalendarMonth(
+  t: Transaction,
+  today = todayYyyyMmDd(),
+): boolean {
+  if (!transactionRequiresPlanFollowUp(t)) return false
+  if (isPlanFollowUpComplete(t)) return false
+  const d = t.date?.slice(0, 10) ?? ''
+  if (d.length < 10) return false
+  const { start, end } = getCalendarMonthRange(today)
+  return isDateInCalendarMonth(d, start, end)
+}
+
+/**
+ * Forfalt plan med dato før inneværende kalendermåned (f.eks. fjor måned) — egen høy-prioritetsliste under «Kommende».
+ */
+export function isPlanOverdueFromEarlierMonths(
+  t: Transaction,
+  today = todayYyyyMmDd(),
+): boolean {
+  if (!isOverduePlanFollowUp(t, today)) return false
+  const d = t.date?.slice(0, 10) ?? ''
+  if (d.length < 10) return false
+  const { start } = getCalendarMonthRange(today)
+  return d < start
+}
+
+/** Sorter: forfalte datoer i måneden først (eldre forfall), deretter stigende dato. */
+export function sortThisMonthPlannedByUrgency(
+  a: Transaction,
+  b: Transaction,
+  today: string,
+): number {
+  const ad = a.date?.slice(0, 10) ?? ''
+  const bd = b.date?.slice(0, 10) ?? ''
+  const aOver = ad < today
+  const bOver = bd < today
+  if (aOver !== bOver) return aOver ? -1 : 1
+  return sortTransactionsByDateAsc(a, b)
 }
 
 /**
@@ -107,7 +151,7 @@ export function shouldShowKommendeAttentionBanner(
   return transactions.some(
     (t) =>
       isOverduePlanFollowUp(t, today) ||
-      (isPlannedKommendeThisMonth(t, today) && !t.reviewedAt),
+      (isIncompletePlannedInCalendarMonth(t, today) && !t.reviewedAt),
   )
 }
 
@@ -165,8 +209,8 @@ export function buildPlannedOverdueNotification(
     .sort(sortTransactionsByDateAsc)
 
   const thisMonthNotReviewed = transactions
-    .filter((t) => isPlannedKommendeThisMonth(t, today) && !t.reviewedAt)
-    .sort(sortTransactionsByDateAsc)
+    .filter((t) => isIncompletePlannedInCalendarMonth(t, today) && !t.reviewedAt)
+    .sort((a, b) => sortThisMonthPlannedByUrgency(a, b, today))
 
   if (overdue.length === 0 && thisMonthNotReviewed.length === 0) return null
 

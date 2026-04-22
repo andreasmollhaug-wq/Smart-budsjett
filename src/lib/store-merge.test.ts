@@ -31,6 +31,24 @@ describe('mergePersistedIntoFullState', () => {
     expect(Array.isArray(merged.people['extra-profile']!.transactions)).toBe(true)
   })
 
+  it('oppgraderer subscriptionPlan til family når lagret state har flere profiler men solo', () => {
+    const slice = createDefaultPersistedSlice()
+    const inconsistent = {
+      ...slice,
+      subscriptionPlan: 'solo' as const,
+      profiles: [
+        ...slice.profiles,
+        { id: 'second', name: 'Iris' },
+      ],
+      people: {
+        ...slice.people,
+        second: createEmptyPersonData(),
+      },
+    }
+    const merged = mergePersistedIntoFullState(inconsistent, useStore.getState())
+    expect(merged.subscriptionPlan).toBe('family')
+  })
+
   it('bevarer aktiv profil når persisted matcher', () => {
     const slice = createDefaultPersistedSlice()
     expect(slice.activeProfileId).toBe(DEFAULT_PROFILE_ID)
@@ -61,6 +79,32 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.demoDataEnabled).toBe(false)
     expect(merged.people[DEFAULT_PROFILE_ID]!.budgetCategories).toHaveLength(0)
     expect(merged.peopleBeforeDemo).toBeNull()
+  })
+})
+
+describe('setActiveProfileId', () => {
+  beforeEach(() => {
+    resetStoreForLogout()
+  })
+
+  it('oppretter tom PersonData hvis profil finnes i profiles men mangler i people', () => {
+    const extraId = 'iris-1'
+    useStore.setState({
+      subscriptionPlan: 'family',
+      profiles: [
+        { id: DEFAULT_PROFILE_ID, name: 'SmartSpare' },
+        { id: extraId, name: 'Iris' },
+      ],
+      people: { [DEFAULT_PROFILE_ID]: createEmptyPersonData() },
+      activeProfileId: DEFAULT_PROFILE_ID,
+      financeScope: 'profile',
+    })
+    useStore.getState().setActiveProfileId(extraId)
+    const st = useStore.getState()
+    expect(st.activeProfileId).toBe(extraId)
+    expect(st.financeScope).toBe('profile')
+    expect(st.people[extraId]).toBeDefined()
+    expect(Array.isArray(st.people[extraId]!.transactions)).toBe(true)
   })
 })
 
