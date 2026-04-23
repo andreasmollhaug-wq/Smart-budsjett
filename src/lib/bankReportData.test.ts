@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
+import { emptyLabelLists } from './budgetCategoryCatalog'
 import {
   buildBankReportIncomeDetail,
+  buildBudgetVsActualForPeriod,
   buildCategoryBudgetYearMatrix,
   buildMonthlyBudgetActualSeries,
   buildMonthlyNetSeriesForPeriod,
@@ -83,6 +85,22 @@ describe('buildMonthlyBudgetActualSeries', () => {
     expect(series[1].actualIncome).toBe(42000)
     expect(series[1].actualExpense).toBe(4800)
     expect(series[1].label).toBe('Feb')
+  })
+
+  it('inkluderer faktisk inntekt fra kategori uten budsjettlinje', () => {
+    const transactions: Transaction[] = [
+      {
+        id: 't',
+        date: '2026-01-05',
+        description: 'Annen inntekt',
+        amount: 1000,
+        category: 'Annet (inntekt)',
+        type: 'income',
+      },
+    ]
+    const series = buildMonthlyBudgetActualSeries(transactions, 2026, [], undefined, emptyLabelLists())
+    expect(series[0].budgetedIncome).toBe(0)
+    expect(series[0].actualIncome).toBe(1000)
   })
 })
 
@@ -485,6 +503,7 @@ describe('buildBankReportIncomeDetail', () => {
       {
         id: 't',
         date: '2026-03-15',
+        description: '',
         amount: 50_000,
         category: 'Lønn',
         type: 'income',
@@ -523,6 +542,7 @@ describe('buildBankReportIncomeDetail', () => {
       {
         id: 't',
         date: '2026-01-10',
+        description: '',
         amount: 100_000,
         category: 'X',
         type: 'income',
@@ -535,6 +555,59 @@ describe('buildBankReportIncomeDetail', () => {
     expect(d!.actual.gross).toBe(100_000)
     expect(d!.actual.withholding).toBe(20_000)
     expect(d!.actual.net).toBe(80_000)
+  })
+})
+
+describe('buildBudgetVsActualForPeriod transaction-only rows', () => {
+  it('legger til inntektsrad for standardkategori uten budsjettlinje', () => {
+    const totals = new Map<string, { income: number; expense: number }>([
+      ['Annet (inntekt)', { income: 5000, expense: 0 }],
+    ])
+    const rows = buildBudgetVsActualForPeriod([], totals, 0, 11, emptyLabelLists())
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.name).toBe('Annet (inntekt)')
+    expect(rows[0]!.parentCategory).toBe('inntekter')
+    expect(rows[0]!.type).toBe('income')
+    expect(rows[0]!.budgeted).toBe(0)
+    expect(rows[0]!.actual).toBe(5000)
+    expect(rows[0]!.variance).toBe(5000)
+    expect(rows[0]!.categoryId.startsWith('tx-only:')).toBe(true)
+  })
+
+  it('unngår duplikat når budsjettlinje finnes', () => {
+    const totals = new Map([['Annet (inntekt)', { income: 3000, expense: 0 }]])
+    const budgetCategories = [
+      cat({
+        id: 'line-annet',
+        name: 'Annet (inntekt)',
+        type: 'income',
+        parentCategory: 'inntekter',
+        budgeted: Array(12).fill(1000),
+      }),
+    ]
+    const rows = buildBudgetVsActualForPeriod(budgetCategories, totals, 0, 0, emptyLabelLists())
+    const annet = rows.filter((r) => r.name === 'Annet (inntekt)')
+    expect(annet).toHaveLength(1)
+    expect(annet[0]!.categoryId).toBe('line-annet')
+    expect(annet[0]!.budgeted).toBe(1000)
+    expect(annet[0]!.actual).toBe(3000)
+  })
+
+  it('ukjent kategorinavn med kun utgift faller tilbake til utgifter', () => {
+    const totals = new Map([['TilfeldigImport', { income: 0, expense: 42 }]])
+    const rows = buildBudgetVsActualForPeriod([], totals, 0, 0, emptyLabelLists())
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.parentCategory).toBe('utgifter')
+    expect(rows[0]!.type).toBe('expense')
+    expect(rows[0]!.actual).toBe(42)
+  })
+
+  it('custom etikett klassifiseres til valgt hovedgruppe', () => {
+    const lists = emptyLabelLists()
+    lists.customBudgetLabels.inntekter = ['Prosjekt X']
+    const totals = new Map([['Prosjekt X', { income: 800, expense: 0 }]])
+    const rows = buildBudgetVsActualForPeriod([], totals, 0, 0, lists)
+    expect(rows[0]!.parentCategory).toBe('inntekter')
   })
 })
 

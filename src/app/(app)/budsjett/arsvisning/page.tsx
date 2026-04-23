@@ -47,6 +47,8 @@ export default function BudsjettArsvisningPage() {
     profiles,
     activeProfileId,
     isHouseholdAggregate,
+    customBudgetLabels,
+    hiddenBudgetLabels,
   } = useActivePersonFinance()
 
   const people = useStore((s) => s.people)
@@ -133,14 +135,19 @@ export default function BudsjettArsvisningPage() {
 
   const { start, end } = useMemo(() => periodRange(periodMode, monthIndex), [periodMode, monthIndex])
 
+  const labelLists = useMemo(
+    () => ({ customBudgetLabels, hiddenBudgetLabels }),
+    [customBudgetLabels, hiddenBudgetLabels],
+  )
+
   const monthTotals = useMemo(
     () => sumTransactionsByCategoryForMonthRange(transactions, year, start, end, people),
     [transactions, year, start, end, people],
   )
 
   const budgetVsRows = useMemo(
-    () => buildBudgetVsActualForPeriod(displayCategories, monthTotals, start, end),
-    [displayCategories, monthTotals, start, end],
+    () => buildBudgetVsActualForPeriod(displayCategories, monthTotals, start, end, labelLists),
+    [displayCategories, monthTotals, start, end, labelLists],
   )
 
   const lineFilterCategoryIds = useMemo(
@@ -182,8 +189,8 @@ export default function BudsjettArsvisningPage() {
   )
 
   const monthlyBudgetActualSeries = useMemo(
-    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories, people),
-    [transactions, year, displayCategories, people],
+    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories, people, labelLists),
+    [transactions, year, displayCategories, people, labelLists],
   )
 
   const yearOptions = useMemo(() => {
@@ -279,6 +286,7 @@ export default function BudsjettArsvisningPage() {
             year={year}
             transactions={transactions}
             displayCategories={displayCategories}
+            labelLists={labelLists}
             kpiMonthStart={start}
             kpiMonthEnd={end}
             periodMode={periodMode}

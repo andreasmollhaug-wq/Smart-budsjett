@@ -18,6 +18,7 @@ import {
   varianceTextColorForLine,
 } from '@/lib/budgetYearMatrixHelpers'
 import type { PeriodMode } from '@/lib/budgetPeriod'
+import type { LabelLists } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory, Transaction } from '@/lib/store'
 import { useStore } from '@/lib/store'
 import { formatNOK } from '@/lib/utils'
@@ -52,6 +53,7 @@ export default function BudgetArsvisningMonthlyResultPanel({
   year,
   transactions,
   displayCategories,
+  labelLists,
   kpiMonthStart,
   kpiMonthEnd,
   periodMode,
@@ -61,6 +63,7 @@ export default function BudgetArsvisningMonthlyResultPanel({
   year: number
   transactions: Transaction[]
   displayCategories: BudgetCategory[]
+  labelLists?: LabelLists
   kpiMonthStart: number
   kpiMonthEnd: number
   periodMode: PeriodMode
@@ -92,13 +95,13 @@ export default function BudgetArsvisningMonthlyResultPanel({
     const map = new Map<number, BudgetVsActualRow[]>()
     for (const m of monthsInKpiPeriod) {
       const totals = sumTransactionsByCategoryForMonthRange(transactions, year, m, m, people)
-      const rows = [...buildBudgetVsActualForPeriod(displayCategories, totals, m, m)].sort(
+      const rows = [...buildBudgetVsActualForPeriod(displayCategories, totals, m, m, labelLists)].sort(
         (a, b) => Math.abs(b.variance) - Math.abs(a.variance),
       )
       map.set(m, rows.slice(0, ARSVISNING_TOP_VARIANCE_COUNT))
     }
     return map
-  }, [showVariance, year, transactions, displayCategories, monthsInKpiPeriod, people])
+  }, [showVariance, year, transactions, displayCategories, labelLists, monthsInKpiPeriod, people])
 
   const topYearExpenseRows = useMemo(() => {
     if (!showTopYearExpenses) return null

@@ -4,7 +4,12 @@ import {
   grossWithholdingNetForBudgetMonth,
   grossWithholdingNetForIncomeTransaction,
 } from '@/lib/incomeWithholding'
-import type { ParentCategory } from './budgetCategoryCatalog'
+import {
+  emptyLabelLists,
+  resolveCategoryGroupAndType,
+  type LabelLists,
+  type ParentCategory,
+} from './budgetCategoryCatalog'
 import type { BudgetCategory, Debt, Investment, PersonData, SavingsGoal, Transaction } from './store'
 
 export const REPORT_GROUP_ORDER: ParentCategory[] = [
@@ -258,15 +263,23 @@ export interface BudgetVsActualRow {
   variance: number
 }
 
+function syntheticTxOnlyCategoryId(name: string, type: 'income' | 'expense'): string {
+  return `tx-only:${type}:${name}`
+}
+
 export function buildBudgetVsActualForPeriod(
   budgetCategories: BudgetCategory[],
   totals: CategoryMonthTotals,
   monthStartInclusive: number,
   monthEndInclusive: number,
+  labelLists?: LabelLists,
 ): BudgetVsActualRow[] {
   const rows: BudgetVsActualRow[] = []
+  const covered = new Set<string>()
+  const lists = labelLists ?? emptyLabelLists()
 
   for (const c of budgetCategories) {
+    covered.add(`${c.name}\u0000${c.type}`)
     const arr = ensureBudgetedArray(c.budgeted)
     let budgeted = 0
     if (c.parentCategory === 'inntekter' && c.type === 'income') {
@@ -292,6 +305,33 @@ export function buildBudgetVsActualForPeriod(
     })
   }
 
+  for (const [name, t] of totals) {
+    if (t.income !== 0 && !covered.has(`${name}\u0000income`)) {
+      const { parentCategory } = resolveCategoryGroupAndType(name, 'income', lists)
+      rows.push({
+        categoryId: syntheticTxOnlyCategoryId(name, 'income'),
+        name,
+        parentCategory,
+        type: 'income',
+        budgeted: 0,
+        actual: t.income,
+        variance: t.income,
+      })
+    }
+    if (t.expense !== 0 && !covered.has(`${name}\u0000expense`)) {
+      const { parentCategory } = resolveCategoryGroupAndType(name, 'expense', lists)
+      rows.push({
+        categoryId: syntheticTxOnlyCategoryId(name, 'expense'),
+        name,
+        parentCategory,
+        type: 'expense',
+        budgeted: 0,
+        actual: t.expense,
+        variance: t.expense,
+      })
+    }
+  }
+
   return rows
 }
 
@@ -300,8 +340,9 @@ export function buildBudgetVsActual(
   budgetCategories: BudgetCategory[],
   totals: CategoryMonthTotals,
   monthIndex: number,
+  labelLists?: LabelLists,
 ): BudgetVsActualRow[] {
-  return buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
+  return buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex, labelLists)
 }
 
 export function groupBudgetVsActualByParent(
@@ -397,6 +438,7 @@ export function buildMonthlyBudgetActualSeries(
   year: number,
   budgetCategories: BudgetCategory[],
   people?: Record<string, PersonData>,
+  labelLists?: LabelLists,
 ): MonthlyBudgetActualPoint[] {
   const out: MonthlyBudgetActualPoint[] = []
   for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
@@ -407,7 +449,13 @@ export function buildMonthlyBudgetActualSeries(
       monthIndex,
       people,
     )
-    const rows = buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
+    const rows = buildBudgetVsActualForPeriod(
+      budgetCategories,
+      totals,
+      monthIndex,
+      monthIndex,
+      labelLists,
+    )
     let budgetedIncome = 0
     let budgetedExpense = 0
     let actualIncome = 0
@@ -452,6 +500,7 @@ export function buildMonthlyNetSeriesForPeriod(
   monthStartInclusive: number,
   monthEndInclusive: number,
   people?: Record<string, PersonData>,
+  labelLists?: LabelLists,
 ): MonthlyNetPoint[] {
   const a = Math.min(11, Math.max(0, Math.floor(monthStartInclusive)))
   const b = Math.min(11, Math.max(0, Math.floor(monthEndInclusive)))
@@ -467,7 +516,13 @@ export function buildMonthlyNetSeriesForPeriod(
       monthIndex,
       people,
     )
-    const rows = buildBudgetVsActualForPeriod(budgetCategories, totals, monthIndex, monthIndex)
+    const rows = buildBudgetVsActualForPeriod(
+      budgetCategories,
+      totals,
+      monthIndex,
+      monthIndex,
+      labelLists,
+    )
     let budgetedIncome = 0
     let budgetedExpense = 0
     let actualIncome = 0
@@ -662,9 +717,10 @@ export function buildBankReportIncomeDetail(
   year: number,
   monthIndex: number,
   people?: Record<string, PersonData>,
+  labelLists?: LabelLists,
 ): BankReportIncomeDetail | null {
   const monthTotals = sumTransactionsByCategoryForMonth(transactions, year, monthIndex, people)
-  const rows = buildBudgetVsActual(budgetCategories, monthTotals, monthIndex)
+  const rows = buildBudgetVsActual(budgetCategories, monthTotals, monthIndex, labelLists)
   let budgetedIncome = 0
   let actualIncome = 0
   for (const r of rows) {

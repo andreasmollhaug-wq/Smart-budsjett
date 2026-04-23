@@ -103,6 +103,8 @@ export default function DashboardPage() {
     profiles,
     archivedBudgetsByYear,
     serviceSubscriptions,
+    customBudgetLabels,
+    hiddenBudgetLabels,
   } = useActivePersonFinance()
 
   const people = useStore((s) => s.people)
@@ -160,6 +162,11 @@ export default function DashboardPage() {
 
   const { start, end } = useMemo(() => periodRange(periodMode, monthIndex), [periodMode, monthIndex])
 
+  const labelLists = useMemo(
+    () => ({ customBudgetLabels, hiddenBudgetLabels }),
+    [customBudgetLabels, hiddenBudgetLabels],
+  )
+
   const periodLabel = useMemo(() => periodSubtitle(periodMode, filterYear, monthIndex), [periodMode, filterYear, monthIndex])
 
   const periodIncomeExpense = useMemo(
@@ -173,8 +180,8 @@ export default function DashboardPage() {
   )
 
   const budgetVsRows = useMemo(
-    () => buildBudgetVsActualForPeriod(displayCategories, monthTotals, start, end),
-    [displayCategories, monthTotals, start, end],
+    () => buildBudgetVsActualForPeriod(displayCategories, monthTotals, start, end, labelLists),
+    [displayCategories, monthTotals, start, end, labelLists],
   )
 
   const vsSummary = useMemo(() => summarizeBudgetVsRows(budgetVsRows), [budgetVsRows])
@@ -326,9 +333,10 @@ export default function DashboardPage() {
             start,
             end,
             people,
+            labelLists,
           )
         : [],
-    [transactions, filterYear, displayCategories, start, end, people],
+    [transactions, filterYear, displayCategories, start, end, people, labelLists],
   )
 
   const transaksjonerHref = transaksjonerPeriodHref(filterYear, periodMode, monthIndex)

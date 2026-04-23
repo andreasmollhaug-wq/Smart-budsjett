@@ -73,6 +73,8 @@ export default function RapportBankPage() {
     activeProfileId,
     profiles,
     isHouseholdAggregate,
+    customBudgetLabels,
+    hiddenBudgetLabels,
   } = useActivePersonFinance()
 
   const people = useStore((s) => s.people)
@@ -118,6 +120,8 @@ export default function RapportBankPage() {
         debts,
         savingsGoals,
         investments,
+        customBudgetLabels,
+        hiddenBudgetLabels,
       }
     }
     if (reportSubject === 'household') {
@@ -136,6 +140,8 @@ export default function RapportBankPage() {
     people,
     profiles,
     budgetYear,
+    customBudgetLabels,
+    hiddenBudgetLabels,
   ])
 
   const scopeLabel = useMemo(() => {
@@ -148,14 +154,22 @@ export default function RapportBankPage() {
     return name ?? 'Profil'
   }, [isHouseholdAggregate, profiles, activeProfileId, reportSubject])
 
+  const reportLabelLists = useMemo(
+    () => ({
+      customBudgetLabels: reportFinance.customBudgetLabels ?? {},
+      hiddenBudgetLabels: reportFinance.hiddenBudgetLabels ?? {},
+    }),
+    [reportFinance.customBudgetLabels, reportFinance.hiddenBudgetLabels],
+  )
+
   const monthTotals = useMemo(
     () => sumTransactionsByCategoryForMonth(reportFinance.transactions, year, monthIndex, people),
     [reportFinance.transactions, year, monthIndex, people],
   )
 
   const budgetVsRows = useMemo(
-    () => buildBudgetVsActual(reportFinance.budgetCategories, monthTotals, monthIndex),
-    [reportFinance.budgetCategories, monthTotals, monthIndex],
+    () => buildBudgetVsActual(reportFinance.budgetCategories, monthTotals, monthIndex, reportLabelLists),
+    [reportFinance.budgetCategories, monthTotals, monthIndex, reportLabelLists],
   )
 
   const budgetVsByParent = useMemo(() => groupBudgetVsActualByParent(budgetVsRows), [budgetVsRows])
@@ -184,8 +198,9 @@ export default function RapportBankPage() {
         year,
         monthIndex,
         people,
+        reportLabelLists,
       ),
-    [reportFinance.transactions, reportFinance.budgetCategories, year, monthIndex, people],
+    [reportFinance.transactions, reportFinance.budgetCategories, year, monthIndex, people, reportLabelLists],
   )
 
   const yearOptions = useMemo(() => {

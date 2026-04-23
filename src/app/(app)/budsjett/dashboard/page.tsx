@@ -41,6 +41,8 @@ export default function BudsjettDashboardPage() {
     profiles,
     activeProfileId,
     isHouseholdAggregate,
+    customBudgetLabels,
+    hiddenBudgetLabels,
   } = useActivePersonFinance()
 
   const people = useStore(useShallow((s) => s.people))
@@ -80,14 +82,19 @@ export default function BudsjettDashboardPage() {
 
   const { start, end } = useMemo(() => periodRange(periodMode, monthIndex), [periodMode, monthIndex])
 
+  const labelLists = useMemo(
+    () => ({ customBudgetLabels, hiddenBudgetLabels }),
+    [customBudgetLabels, hiddenBudgetLabels],
+  )
+
   const monthTotals = useMemo(
     () => sumTransactionsByCategoryForMonthRange(transactions, year, start, end, people),
     [transactions, year, start, end, people],
   )
 
   const budgetVsRows = useMemo(
-    () => buildBudgetVsActualForPeriod(displayCategories, monthTotals, start, end),
-    [displayCategories, monthTotals, start, end],
+    () => buildBudgetVsActualForPeriod(displayCategories, monthTotals, start, end, labelLists),
+    [displayCategories, monthTotals, start, end, labelLists],
   )
 
   const budgetVsRowsForTables = useMemo(() => {
@@ -133,8 +140,8 @@ export default function BudsjettDashboardPage() {
   }, [budgetVsRows])
 
   const monthlySeries = useMemo(
-    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories, people),
-    [transactions, year, displayCategories, people],
+    () => buildMonthlyBudgetActualSeries(transactions, year, displayCategories, people, labelLists),
+    [transactions, year, displayCategories, people, labelLists],
   )
 
   const yearOptions = useMemo(() => {

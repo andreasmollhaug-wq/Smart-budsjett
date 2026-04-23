@@ -117,6 +117,10 @@ export async function POST(req: Request) {
       isHouseholdAggregate,
       profileNamesById,
       people: raw.people,
+      labelLists: {
+        customBudgetLabels: person.customBudgetLabels ?? {},
+        hiddenBudgetLabels: person.hiddenBudgetLabels ?? {},
+      },
     })
   } catch (e) {
     console.error('[manedsinnsikt] buildMonthlyInsightPayload', e)

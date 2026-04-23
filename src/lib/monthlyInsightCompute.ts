@@ -1,4 +1,4 @@
-import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
+import type { LabelLists, ParentCategory } from '@/lib/budgetCategoryCatalog'
 import {
   buildBudgetVsActual,
   getMonthKey,
@@ -108,6 +108,8 @@ export type BuildMonthlyInsightPayloadOptions = {
   profileNamesById?: Record<string, string>
   /** For effektiv netto på inntektstransaksjoner (brutto/utbetalt). */
   people?: Record<string, PersonData>
+  /** Klassifisering av transaksjonskategorier uten budsjettlinje (samme som budsjett-dashboard). */
+  labelLists?: LabelLists
 }
 
 /**
@@ -128,7 +130,12 @@ export function buildMonthlyInsightPayload(
     reportMonthIndex,
     people,
   )
-  const rows = buildBudgetVsActual(budgetCategories, monthTotals, reportMonthIndex)
+  const rows = buildBudgetVsActual(
+    budgetCategories,
+    monthTotals,
+    reportMonthIndex,
+    options?.labelLists,
+  )
 
   let budgetedIncome = 0
   let budgetedExpense = 0

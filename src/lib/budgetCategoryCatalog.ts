@@ -140,3 +140,43 @@ export function getAvailableLabels(
 export function isStandardLabel(parent: ParentCategory, name: string): boolean {
   return DEFAULT_STANDARD_LABELS[parent].includes(name)
 }
+
+/** Samme rekkefølge som REPORT_GROUP_ORDER i bankReportData (unngår sirkulær import). */
+const PARENT_CATEGORY_RESOLVE_ORDER: ParentCategory[] = [
+  'inntekter',
+  'regninger',
+  'utgifter',
+  'gjeld',
+  'sparing',
+]
+
+/**
+ * Mapper kategorinavn til hovedgruppe for transaksjonsrader uten budsjettlinje.
+ * Standardnavn matches uavhengig av skjulte etiketter. Ukjente navn: inntekter eller utgifter.
+ */
+export function resolveCategoryGroupAndType(
+  name: string,
+  transactionType: 'income' | 'expense',
+  labelLists?: LabelLists,
+): { parentCategory: ParentCategory; type: 'income' | 'expense' } {
+  const lists = labelLists ?? emptyLabelLists()
+
+  for (const parent of PARENT_CATEGORY_RESOLVE_ORDER) {
+    const expectedType: 'income' | 'expense' = parent === 'inntekter' ? 'income' : 'expense'
+    if (transactionType !== expectedType) continue
+
+    if (DEFAULT_STANDARD_LABELS[parent].includes(name)) {
+      return { parentCategory: parent, type: transactionType }
+    }
+
+    const customs = lists.customBudgetLabels[parent] ?? []
+    if (customs.some((n) => n === name)) {
+      return { parentCategory: parent, type: transactionType }
+    }
+  }
+
+  return {
+    parentCategory: transactionType === 'income' ? 'inntekter' : 'utgifter',
+    type: transactionType,
+  }
+}
