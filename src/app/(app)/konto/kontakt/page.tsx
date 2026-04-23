@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Mail } from 'lucide-react'
-import { COMPANY_NAME, CONTACT_EMAIL } from '@/lib/legal'
+import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal'
 
 export default function KontoKontaktPage() {
   return (
@@ -18,6 +18,8 @@ export default function KontoKontaktPage() {
         </p>
         <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
           <span style={{ color: 'var(--text)' }}>{COMPANY_NAME}</span>
+          {' · Org.nr. '}
+          {COMPANY_ORG_NR_DISPLAY}
           {' · '}
           <a
             href={`mailto:${CONTACT_EMAIL}`}

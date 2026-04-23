@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import LegalArticle, { LegalLi, LegalP, LegalSection, LegalUl } from '@/components/legal/LegalArticle'
-import { COMPANY_NAME, CONTACT_EMAIL } from '@/lib/legal'
+import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal'
 
 export const metadata: Metadata = {
   title: 'Personvern',
@@ -12,7 +12,7 @@ export default function PersonvernPage() {
   return (
     <LegalArticle
       title="Personvernerklæring"
-      description={`Sist oppdatert: 6. april 2026 · Smart Budsjett er levert av ${COMPANY_NAME}.`}
+      description={`Sist oppdatert: 23. april 2026 · Smart Budsjett er levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
     >
       <LegalSection title="1. Innledning">
         <LegalP>
@@ -28,8 +28,8 @@ export default function PersonvernPage() {
 
       <LegalSection title="2. Behandlingsansvarlig">
         <LegalP>
-          Behandlingsansvarlig for personopplysningene knyttet til Smart Budsjett er {COMPANY_NAME}. For spørsmål om
-          personvern, kontakt oss på{' '}
+          Behandlingsansvarlig for personopplysningene knyttet til Smart Budsjett er {COMPANY_NAME}, org.nr.{' '}
+          {COMPANY_ORG_NR_DISPLAY}. For spørsmål om personvern, kontakt oss på{' '}
           <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
             {CONTACT_EMAIL}
           </a>
@@ -148,8 +148,17 @@ export default function PersonvernPage() {
       <LegalSection id="sikkerhet" title="9. Sikkerhet">
         <LegalP>
           Vi iverksetter passende tekniske og organisatoriske tiltak for å beskytte personopplysninger mot uautorisert tilgang,
-          tap og endring. Ingen overføring over internett er imidlertid hundre prosent sikker; du bruker Tjenesten på eget ansvar
-          når det gjelder sikker bruk av passord og enheter.
+          tap og endring. Dette inkluderer blant annet kryptert kommunikasjon (HTTPS), tilgangskontroll i databasen knyttet til
+          innlogget bruker (radbasert modell hos leverandør), og at hemmeligheter som API-nøkler håndteres på server — ikke i
+          nettleseren.
+        </LegalP>
+        <LegalP>
+          Ingen overføring over internett kan garanteres fullstendig risikofri. Du bruker Tjenesten på eget ansvar når det
+          gjelder sikker bruk av passord og enheter. En praktisk oversikt over sikkerhetsdesign finner du på siden{' '}
+          <Link href="/sikkerhet" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
+            Sikkerhet i Smart Budsjett
+          </Link>
+          .
         </LegalP>
       </LegalSection>
 

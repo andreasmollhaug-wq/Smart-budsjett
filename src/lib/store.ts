@@ -420,6 +420,8 @@ interface AppState {
   addSavingsGoal: (g: SavingsGoal) => void
   updateSavingsGoal: (id: string, data: Partial<SavingsGoal>) => void
   removeSavingsGoal: (id: string) => void
+  updateSavingsGoalForProfile: (profileId: string, goalId: string, data: Partial<SavingsGoal>) => void
+  removeSavingsGoalForProfile: (profileId: string, goalId: string) => void
   setIncomeSprintPlans: (plans: IncomeSprintPlan[]) => void
   upsertIncomeSprintPlan: (plan: IncomeSprintPlan) => void
   removeIncomeSprintPlan: (id: string) => void
@@ -2101,6 +2103,40 @@ export const useStore = create<AppState>()((set, get) => {
         removeSavingsGoal: (id) =>
           patchActive((d) => ({ ...d, savingsGoals: d.savingsGoals.filter((g) => g.id !== id) })),
 
+        updateSavingsGoalForProfile: (profileId, goalId, data) =>
+          set((s) => {
+            const person = s.people[profileId]
+            if (!person) return s
+            const savingsGoals = person.savingsGoals.map((g) => {
+              if (g.id !== goalId) return g
+              const merged: SavingsGoal = { ...g, ...data }
+              if (merged.linkedBudgetCategoryId) {
+                const cat = person.budgetCategories.find((c) => c.id === merged.linkedBudgetCategoryId)
+                if (!cat || cat.parentCategory !== 'sparing' || cat.type !== 'expense') {
+                  return { ...merged, linkedBudgetCategoryId: undefined, baselineAmount: undefined }
+                }
+              }
+              return merged
+            })
+            const next = syncLinkedSavingsGoalsCurrent({ ...person, savingsGoals }, profileId)
+            return { people: { ...s.people, [profileId]: next } }
+          }),
+
+        removeSavingsGoalForProfile: (profileId, goalId) =>
+          set((s) => {
+            const person = s.people[profileId]
+            if (!person) return s
+            return {
+              people: {
+                ...s.people,
+                [profileId]: {
+                  ...person,
+                  savingsGoals: person.savingsGoals.filter((g) => g.id !== goalId),
+                },
+              },
+            }
+          }),
+
         setIncomeSprintPlans: (plans) => {
           set((s) => {
             const householdReadonly =
@@ -2958,6 +2994,8 @@ export function useActivePersonFinance() {
       addSavingsGoal: s.addSavingsGoal,
       updateSavingsGoal: s.updateSavingsGoal,
       removeSavingsGoal: s.removeSavingsGoal,
+      updateSavingsGoalForProfile: s.updateSavingsGoalForProfile,
+      removeSavingsGoalForProfile: s.removeSavingsGoalForProfile,
       setIncomeSprintPlans: s.setIncomeSprintPlans,
       upsertIncomeSprintPlan: s.upsertIncomeSprintPlan,
       removeIncomeSprintPlan: s.removeIncomeSprintPlan,
@@ -3035,6 +3073,8 @@ export function useActivePersonFinance() {
     addSavingsGoal: state.addSavingsGoal,
     updateSavingsGoal: state.updateSavingsGoal,
     removeSavingsGoal: state.removeSavingsGoal,
+    updateSavingsGoalForProfile: state.updateSavingsGoalForProfile,
+    removeSavingsGoalForProfile: state.removeSavingsGoalForProfile,
     setIncomeSprintPlans: state.setIncomeSprintPlans,
     upsertIncomeSprintPlan: state.upsertIncomeSprintPlan,
     removeIncomeSprintPlan: state.removeIncomeSprintPlan,

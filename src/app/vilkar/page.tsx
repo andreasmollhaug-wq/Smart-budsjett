@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import LegalArticle, { LegalLi, LegalP, LegalSection, LegalUl } from '@/components/legal/LegalArticle'
-import { COMPANY_NAME, CONTACT_EMAIL } from '@/lib/legal'
+import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal'
 
 export const metadata: Metadata = {
   title: 'Vilkår',
@@ -12,12 +12,13 @@ export default function VilkarPage() {
   return (
     <LegalArticle
       title="Vilkår for bruk av Smart Budsjett"
-      description={`Sist oppdatert: 6. april 2026 · Tjenesten levert av ${COMPANY_NAME}.`}
+      description={`Sist oppdatert: 6. april 2026 · Tjenesten levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
     >
       <LegalSection title="1. Partene og aksept">
         <LegalP>
-          Disse vilkårene («Vilkårene») regulerer bruk av nettjenesten Smart Budsjett («Tjenesten»), levert av {COMPANY_NAME}{' '}
-          («vi», «oss»). Ved å opprette konto, registrere deg for prøveperiode eller på annen måte ta Tjenesten i bruk, erklærer du
+          Disse vilkårene («Vilkårene») regulerer bruk av nettjenesten Smart Budsjett («Tjenesten»), levert av {COMPANY_NAME},{' '}
+          org.nr. {COMPANY_ORG_NR_DISPLAY} («vi», «oss»). Ved å opprette konto, registrere deg for prøveperiode eller på annen måte
+          ta Tjenesten i bruk, erklærer du
           at du har lest og aksepterer Vilkårene. Hvis du ikke aksepterer Vilkårene, skal du ikke bruke Tjenesten.
         </LegalP>
         <LegalP>
@@ -142,7 +143,7 @@ export default function VilkarPage() {
 
       <LegalSection title="12. Kontakt">
         <LegalP>
-          Spørsmål om Vilkårene eller Tjenesten:{' '}
+          {COMPANY_NAME}, org.nr. {COMPANY_ORG_NR_DISPLAY}. Spørsmål om Vilkårene eller Tjenesten:{' '}
           <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
             {CONTACT_EMAIL}
           </a>

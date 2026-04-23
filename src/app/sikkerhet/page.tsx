@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import LegalArticle, { LegalLi, LegalP, LegalSection, LegalUl } from '@/components/legal/LegalArticle'
-import { COMPANY_NAME, CONTACT_EMAIL } from '@/lib/legal'
+import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal'
 
 export const metadata: Metadata = {
   title: 'Sikkerhet',
@@ -12,12 +12,13 @@ export default function SikkerhetPage() {
   return (
     <LegalArticle
       title="Sikkerhet i Smart Budsjett"
-      description={`Sist oppdatert: 14. april 2026 · Smart Budsjett er levert av ${COMPANY_NAME}.`}
+      description={`Sist oppdatert: 23. april 2026 · Smart Budsjett er levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
     >
       <LegalSection title="Innledning">
         <LegalP>
-          Denne siden forklarer på et overordnet nivå hvordan vi bygger og drifter Smart Budsjett med tanke på sikkerhet og
-          kontroll over egne data. Den erstatter ikke den juridiske personvernerklæringen eller vilkårene for bruk.
+          Her beskriver vi — i korte trekk — hvordan Smart Budsjett er utformet for å beskytte dataene dine og gi deg forutsigbar
+          tilgang til egen konto. Siden er ment som praktisk orientering for deg som bruker tjenesten; den erstatter ikke
+          personvernerklæringen eller vilkårene.
         </LegalP>
         <LegalP>
           For hvordan vi behandler personopplysninger, se{' '}
@@ -42,58 +43,66 @@ export default function SikkerhetPage() {
 
       <LegalSection title="Innlogging og tilgang til appen">
         <LegalP>
-          Innlogging og kontoautentisering håndteres av vår leverandør for identitet og database (Supabase). Trafikk mellom
-          nettleseren din og tjenesten skjer over kryptert tilkobling (HTTPS). Nettapplikasjonen kjører på en moderne
-          vertsplattform (som beskrevet i personvernerklæringen, typisk Vercel eller tilsvarende).
+          Innlogging og identitet håndteres av vår leverandør for autentisering og database (Supabase). All kommunikasjon mellom
+          nettleseren din og tjenesten går over kryptert tilkobling (HTTPS). Selve applikasjonen kjører på en moderne
+          vertsplattform (typisk Vercel eller tilsvarende, jf. personvernerklæringen).
         </LegalP>
         <LegalP>
-          Beskyttede deler av Smart Budsjett krever gyldig innlogging. Offentlige sider (for eksempel forsiden, guider og disse
-          juridiske sidene) er tilgjengelige uten konto. Uten gyldig økt vil du bli bedt om å logge inn for å bruke appdelen.
+          Appdelen av Smart Budsjett krever gyldig innlogging. Offentlige sider — forsiden, guider og disse juridiske sidene —
+          kan leses uten konto. Uten aktiv, gyldig økt blir du bedt om å logge inn før du kan bruke funksjoner som lagrer
+          personlig økonomidata.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="Data i databasen og tilgangskontroll">
         <LegalP>
-          Økonomidata og app-innhold du lagrer, ligger i en database hos vår leverandør. Tilgang er begrenset slik at du som
-          regel bare kan lese og endre data som hører til din egen konto — dette er teknisk håndhevet i databasen (radbasert
-          tilgangskontroll), ikke bare i brukergrensesnittet.
+          Budsjett, transaksjoner og annet du lagrer, ligger i en database hos leverandøren vår. Når du er innlogget, følger hver
+          forespørsel din autentiserte brukeridentitet inn i lagringslaget. Databasen har da egne sikkerhetsregler som avgjør
+          hvilke rader og filer som kan leses eller endres for nettopp den identiteten — såkalt radbasert tilgangskontroll,
+          slik plattformen er bygget for å støtte.
         </LegalP>
         <LegalP>
-          Noen oppgaver som krever ekstra tillatelse — for eksempel synkronisering av betalingsstatus eller teknisk drift —
-          kjøres på server med kontrollerte nøkler, slik at hemmeligheter ikke eksponeres i nettleseren din.
+          Poenget er enkelt: tilgang styres der dataene faktisk ligger, og vurderes på nytt for relevante operasjoner — ikke bare
+          ved å skjule eller vise elementer i brukergrensesnittet. Det gir et mer forutsigbart vern enn om beskyttelsen kun lå i
+          appens skjermbilder.
+        </LegalP>
+        <LegalP>
+          Oppgaver som av natur må gå utenfor en vanlig brukerøkt — for eksempel synkronisering av betalingsstatus med Stripe
+          eller nødvendig drift — kjøres i kontrollerte servermiljøer med begrensede nøkler og etter prinsippet om minst mulig
+          tilgang. Hemmeligheter som API-nøkler til underliggende tjenester eksponeres ikke i nettleseren din.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="Abonnement og økonomidata">
         <LegalP>
-          Smart Budsjett tilbys som abonnementstjeneste. For å beskytte både tjenesten og integriteten til lagrede
-          økonomidata, kan lagring av slik data i appen kreve gyldig abonnement eller annen forhåndsdefinert tilgang. Uten slik
-          tilgang vil du typisk kunne se innhold i nettleseren, men ikke få varig lagring av nye endringer — i tråd med hvordan
-          produktet er bygget.
+          Smart Budsjett er en abonnementstjeneste. For å ivareta både tjenestens integritet og vernet av lagret økonomidata, kan
+          varig lagring og synkronisering av slike data i appen forutsette gyldig abonnement eller annen tilgang vi uttrykkelig
+          har åpnet for. Uten det vil du normalt kunne bruke grensesnittet i begrenset omfang, men ikke få varige endringer
+          lagret — i tråd med hvordan produktet er satt opp.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="Betaling">
         <LegalP>
-          Betaling og abonnement håndteres av Stripe. Kortinformasjon behandles i stor grad direkte av betalingsleverandøren; vi
-          lagrer ikke fullt kortnummer på våre servere. Du kan administrere abonnement og betalingsmåte gjennom Stripe sine
-          selvbetjeningsflater der dette er aktivert fra kontoen din.
+          Betaling og abonnementsforhold håndteres av Stripe. Kort- og betalingsdata behandles i stor grad direkte hos
+          betalingsleverandøren etter bransjestandard; vi lagrer ikke fullt kortnummer på egne servere. Hvor det er aktivert,
+          kan du administrere abonnement og betalingsmåte via Stripes selvbetjeningsløsninger knyttet til kontoen din.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="EnkelExcel AI">
         <LegalP>
-          Når du bruker EnkelExcel AI, sendes forespørselen fra appen til en server hos oss. API-nøkler til underliggende
-          språkmodell ligger på server og eksponeres ikke i nettleseren. Innhold i spørsmålene dine og nødvendig kontekst kan
-          sendes videre til vår AI-leverandør (OpenAI eller tilsvarende) for å generere svar — se personvernerklæringen for
-          detaljer om behandling, informasjonskapsler og lokal lagring av samtalehistorikk der det er relevant.
+          Når du bruker EnkelExcel AI, går forespørselen fra appen til vår server. Nøkler til underliggende språkmodell ligger på
+          server og sendes ikke til nettleseren. Tekst du skriver, og den konteksten som er nødvendig for et svar, kan videreformidles
+          til vår AI-leverandør (OpenAI eller tilsvarende) for å generere svaret — se personvernerklæringen for detaljer om
+          behandling, informasjonskapsler og lokal lagring av samtalehistorikk der det er relevant.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="Eksterne leverandører">
         <LegalP>
-          Vi bruker anerkjente leverandører for blant annet database og innlogging, betaling, hosting og AI. Navn og roller er
-          beskrevet nærmere under «Databehandlere og overføring» i{' '}
+          Vi benytter etablerte leverandører for blant annet database og innlogging, betaling, hosting og AI. Hvem som gjør hva,
+          og på hvilket grunnlag, fremgår under «Databehandlere og overføring» i{' '}
           <Link href="/personvern" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
             personvernerklæringen
           </Link>
@@ -102,20 +111,20 @@ export default function SikkerhetPage() {
       </LegalSection>
 
       <LegalSection title="Din del av sikkerheten">
-        <LegalP>Du bidrar til god sikkerhet ved å:</LegalP>
+        <LegalP>Sterk sikkerhet er et samspill. Du bidrar ved å:</LegalP>
         <LegalUl>
-          <LegalLi>bruke et sterkt, unikt passord og ikke dele innloggingsinformasjon;</LegalLi>
-          <LegalLi>holde nettleser og enhet oppdatert;</LegalLi>
-          <LegalLi>logge ut på delte eller offentlige enheter når det er aktuelt.</LegalLi>
+          <LegalLi>velge et sterkt, unikt passord og aldri dele innloggingsinformasjon;</LegalLi>
+          <LegalLi>holde nettleser, operativsystem og apper oppdatert;</LegalLi>
+          <LegalLi>logge ut på delte eller offentlige enheter når det er naturlig.</LegalLi>
         </LegalUl>
         <LegalP>
-          Du er også ansvarlig for aktivitet på kontoen din i tråd med vilkårene, med mindre annet følger av gjeldende rett.
+          Du er ansvarlig for aktivitet som skjer på kontoen din etter vilkårene, med mindre annet følger av ufravikelig rett.
         </LegalP>
       </LegalSection>
 
       <LegalSection title="Kontakt og relaterte sider">
         <LegalP>
-          Spørsmål om sikkerhet eller personvern:{' '}
+          {COMPANY_NAME}, org.nr. {COMPANY_ORG_NR_DISPLAY}. Spørsmål om sikkerhet eller personvern:{' '}
           <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
             {CONTACT_EMAIL}
           </a>

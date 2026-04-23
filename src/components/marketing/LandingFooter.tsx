@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CONTACT_EMAIL } from '@/lib/legal'
+import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal'
 import { CTA_HREF, LOGIN_HREF, landingHorizontalPadding } from './constants'
 
 export default function LandingFooter() {
@@ -14,10 +14,13 @@ export default function LandingFooter() {
             Smart Budsjett
           </p>
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-            Et produkt fra EnkelExcel ·{' '}
+            Et produkt fra {COMPANY_NAME} ·{' '}
             <a href={`mailto:${CONTACT_EMAIL}`} className="underline underline-offset-2 transition-opacity hover:opacity-80">
               {CONTACT_EMAIL}
             </a>
+          </p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+            Org.nr. {COMPANY_ORG_NR_DISPLAY}
           </p>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">
@@ -45,7 +48,7 @@ export default function LandingFooter() {
         </nav>
       </div>
       <p className="mx-auto mt-8 max-w-5xl text-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        © {new Date().getFullYear()} EnkelExcel. Alle rettigheter forbeholdt.
+        © {new Date().getFullYear()} {COMPANY_NAME}. Alle rettigheter forbeholdt.
       </p>
     </footer>
   )
