@@ -2,6 +2,7 @@
 import { Suspense, useState, useMemo, useEffect, useId } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
+import StatCard from '@/components/ui/StatCard'
 import TransactionActualsYearGrid from '@/components/transactions/TransactionActualsYearGrid'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionDetailModal, { type TransactionSavePatch } from '@/components/transactions/TransactionDetailModal'
@@ -30,10 +31,17 @@ import {
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
 import { createEmptyBatchRow, validateAndBuildSameDayTransactions, type SameDayBatchRowInput } from '@/lib/transactionBatch'
+import { BUDGET_MONTH_LABELS } from '@/lib/budgetPeriod'
 import { uniqueDescriptionsForDatalist } from '@/lib/transactionDescriptionSuggestions'
+import { isIsoDateString, kpiSubForTransactionPeriod } from '@/lib/transactionPeriodFilter'
 import { useIsMinMdScreen } from '@/lib/useIsNarrowScreen'
 
 const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+
+const KPI_INCOME_HEX = '#0CA678'
+const KPI_EXPENSE_HEX = '#E03131'
+const KPI_NET_POSITIVE_HEX = '#0CA678'
+const KPI_NET_NEGATIVE_HEX = '#E03131'
 
 const DEFAULT_SAME_DAY_BATCH_ROW_COUNT = 10
 
@@ -165,6 +173,38 @@ function TransaksjonerPageInner() {
     list.sort((a, b) => mul * (new Date(a.date).getTime() - new Date(b.date).getTime()))
     return list
   }, [displayFilteredTx, dateSort, listSortMode, allCats])
+
+  const listKpiSub = useMemo(
+    () => kpiSubForTransactionPeriod(filterYear, filterMonth),
+    [filterYear, filterMonth],
+  )
+
+  const overviewKpiSub = useMemo(
+    () => `Faktisk for ${filterYear} (gjeldende filtre)`,
+    [filterYear],
+  )
+
+  const showMonthSectionHeaders = useMemo(() => {
+    if (searchQuery.trim() !== '') return false
+    if (filterMonth !== 'all' && filterMonth !== 'ytd') return false
+    return true
+  }, [searchQuery, filterMonth])
+
+  const listGroupedByMonth = useMemo(() => {
+    if (!showMonthSectionHeaders) return null
+    const byMonth = new Map<string, Transaction[]>()
+    for (const t of sortedDisplayTx) {
+      const d = t.date
+      if (typeof d !== 'string' || !isIsoDateString(d)) continue
+      const k = d.slice(0, 7)
+      if (!/^\d{4}-\d{2}$/.test(k)) continue
+      if (!byMonth.has(k)) byMonth.set(k, [])
+      byMonth.get(k)!.push(t)
+    }
+    const keys = [...byMonth.keys()].sort()
+    if (dateSort === 'desc') keys.reverse()
+    return { keys, byMonth }
+  }, [showMonthSectionHeaders, sortedDisplayTx, dateSort])
 
   const hasKommendeBanner = useMemo(
     () => shouldShowKommendeAttentionBanner(transactions),
@@ -436,6 +476,135 @@ function TransaksjonerPageInner() {
 
   const hasOverviewGridContent = filteredCategoriesForOverview.length > 0
 
+  const monthSectionTitle = (ym: string) => {
+    const m0 = parseInt(ym.slice(5, 7), 10) - 1
+    const y = ym.slice(0, 4)
+    if (m0 < 0 || m0 > 11) return ym
+    return `${BUDGET_MONTH_LABELS[m0] ?? '—'} ${y}`
+  }
+
+  const renderTransactionListRow = (tx: Transaction) => {
+    const pname = profileLabel(tx.profileId)
+    const catMeta = allCats.find((c) => c.name === tx.category && c.type === tx.type)
+    const parentLabel =
+      catMeta?.parentCategory != null ? REPORT_GROUP_LABELS[catMeta.parentCategory] : null
+    const descTrim = (tx.description ?? '').trim()
+    const showDescFallback = !descTrim
+    const titleText = [tx.category, tx.subcategory?.trim()].filter(Boolean).join(' · ')
+    const a11yLabel = [
+      titleText,
+      showDescFallback ? 'Uten beskrivelse' : descTrim,
+      parentLabel,
+      formatIsoDateDdMmYyyy(tx.date),
+      pname,
+    ]
+      .filter(Boolean)
+      .join('. ')
+    return (
+      <div
+        key={tx.id}
+        className="flex items-center justify-between gap-2 p-3 rounded-xl"
+        style={{ background: 'var(--bg)' }}
+      >
+        <button
+          type="button"
+          onClick={() => setDetailTx(tx)}
+          className="flex flex-1 min-w-0 items-center justify-between gap-3 rounded-lg text-left outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+          aria-label={a11yLabel}
+        >
+          <span className="flex min-w-0 items-center gap-3">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{
+                background: catMeta?.color || 'var(--text-muted)',
+              }}
+            />
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 items-baseline gap-1.5 sm:gap-2">
+                <span
+                  className="shrink-0 text-sm font-medium"
+                  style={{ color: 'var(--text)' }}
+                >
+                  {titleText}
+                </span>
+                <span
+                  className="shrink-0 text-sm select-none"
+                  style={{ color: 'var(--text-muted)' }}
+                  aria-hidden
+                >
+                  ·
+                </span>
+                <span
+                  className="min-w-0 flex-1 text-sm truncate"
+                  style={{ color: showDescFallback ? 'var(--text-muted)' : 'var(--text)' }}
+                >
+                  {showDescFallback ? 'Uten beskrivelse' : descTrim}
+                </span>
+              </span>
+              <span
+                className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs mt-0.5"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                {parentLabel ? (
+                  <span
+                    className="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold leading-none max-w-[min(100%,9rem)] truncate"
+                    style={{
+                      background: 'var(--primary-pale)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text)',
+                    }}
+                  >
+                    {parentLabel}
+                  </span>
+                ) : null}
+                <span className="min-w-0 shrink-0">{formatIsoDateDdMmYyyy(tx.date)}</span>
+                {pname ? (
+                  <span
+                    className="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text)',
+                    }}
+                  >
+                    {pname}
+                  </span>
+                ) : null}
+              </span>
+            </span>
+          </span>
+          <span className="flex items-center gap-2 shrink-0">
+            {tx.reviewedAt ? (
+              <CheckCircle2
+                size={18}
+                className="shrink-0"
+                style={{ color: 'var(--success)' }}
+                aria-label="Gjennomgått"
+              />
+            ) : null}
+            <span
+              className="text-sm font-semibold tabular-nums"
+              style={{ color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}
+            >
+              {tx.type === 'income' ? '+' : '-'}
+              {formatNOK(tx.amount)}
+            </span>
+          </span>
+        </button>
+        <div className="flex items-center shrink-0">
+          <button
+            type="button"
+            aria-label="Slett transaksjon"
+            onClick={() => handleDelete(tx)}
+            className="p-1 rounded-lg transition-colors hover:opacity-70"
+          >
+            <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
@@ -659,39 +828,64 @@ function TransaksjonerPageInner() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {(vis === 'liste'
-            ? [
-                { key: 'income', label: 'Inntekt', value: formatNOK(periodIncome), color: 'var(--success)', icon: ArrowUpRight },
-                { key: 'expense', label: 'Utgifter', value: formatNOK(periodExpense), color: 'var(--danger)', icon: ArrowDownLeft },
-                {
-                  key: 'net',
-                  label: 'Netto',
-                  value: formatNOK(periodIncome - periodExpense),
-                  color: periodIncome - periodExpense >= 0 ? 'var(--success)' : 'var(--danger)',
-                  icon: periodIncome - periodExpense >= 0 ? ArrowUpRight : ArrowDownLeft,
-                },
-              ]
-            : [
-                { key: 'income', label: 'Inntekt', value: formatNOK(overviewIncome), color: 'var(--success)', icon: ArrowUpRight },
-                { key: 'expense', label: 'Utgifter', value: formatNOK(overviewExpense), color: 'var(--danger)', icon: ArrowDownLeft },
-                {
-                  key: 'net',
-                  label: 'Netto',
-                  value: formatNOK(overviewIncome - overviewExpense),
-                  color: overviewIncome - overviewExpense >= 0 ? 'var(--success)' : 'var(--danger)',
-                  icon: overviewIncome - overviewExpense >= 0 ? ArrowUpRight : ArrowDownLeft,
-                },
-              ]
-          ).map(({ key, label, value, color, icon: Icon }) => (
-            <div key={key} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Icon size={16} style={{ color }} />
-                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{label}</span>
-              </div>
-              <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {vis === 'liste' ? (
+            <>
+              <StatCard
+                label="Inntekt"
+                value={formatNOK(periodIncome)}
+                sub={listKpiSub}
+                icon={ArrowUpRight}
+                color={KPI_INCOME_HEX}
+                valueNoWrap
+              />
+              <StatCard
+                label="Utgifter"
+                value={formatNOK(periodExpense)}
+                sub={listKpiSub}
+                icon={ArrowDownLeft}
+                color={KPI_EXPENSE_HEX}
+                valueNoWrap
+              />
+              <StatCard
+                label="Netto"
+                value={formatNOK(periodIncome - periodExpense)}
+                sub={listKpiSub}
+                icon={periodIncome - periodExpense >= 0 ? ArrowUpRight : ArrowDownLeft}
+                color={periodIncome - periodExpense >= 0 ? KPI_NET_POSITIVE_HEX : KPI_NET_NEGATIVE_HEX}
+                trend={periodIncome - periodExpense >= 0 ? 'up' : 'down'}
+                valueNoWrap
+              />
+            </>
+          ) : (
+            <>
+              <StatCard
+                label="Inntekt"
+                value={formatNOK(overviewIncome)}
+                sub={overviewKpiSub}
+                icon={ArrowUpRight}
+                color={KPI_INCOME_HEX}
+                valueNoWrap
+              />
+              <StatCard
+                label="Utgifter"
+                value={formatNOK(overviewExpense)}
+                sub={overviewKpiSub}
+                icon={ArrowDownLeft}
+                color={KPI_EXPENSE_HEX}
+                valueNoWrap
+              />
+              <StatCard
+                label="Netto"
+                value={formatNOK(overviewIncome - overviewExpense)}
+                sub={overviewKpiSub}
+                icon={overviewIncome - overviewExpense >= 0 ? ArrowUpRight : ArrowDownLeft}
+                color={overviewIncome - overviewExpense >= 0 ? KPI_NET_POSITIVE_HEX : KPI_NET_NEGATIVE_HEX}
+                trend={overviewIncome - overviewExpense >= 0 ? 'up' : 'down'}
+                valueNoWrap
+              />
+            </>
+          )}
         </div>
         {vis === 'liste' && hasFutureDatedInPeriod ? (
           <p className="text-xs -mt-2" style={{ color: 'var(--text-muted)' }}>
@@ -1084,102 +1278,33 @@ function TransaksjonerPageInner() {
                       Nullstill filtre
                     </button>
                   </div>
-                ) : (
-                  sortedDisplayTx.map((tx) => {
-                    const pname = profileLabel(tx.profileId)
-                    const catMeta = allCats.find((c) => c.name === tx.category && c.type === tx.type)
-                    const parentLabel =
-                      catMeta?.parentCategory != null
-                        ? REPORT_GROUP_LABELS[catMeta.parentCategory]
-                        : null
-                    return (
-                      <div
-                        key={tx.id}
-                        className="flex items-center justify-between gap-2 p-3 rounded-xl"
-                        style={{ background: 'var(--bg)' }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setDetailTx(tx)}
-                          className="flex flex-1 min-w-0 items-center justify-between gap-3 rounded-lg text-left outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                ) : listGroupedByMonth && listGroupedByMonth.keys.length > 0 ? (
+                  <div className="space-y-3 sm:space-y-4">
+                    {listGroupedByMonth.keys.map((ym) => (
+                      <section key={ym} aria-labelledby={`tx-month-${ym}`}>
+                        <div
+                          className="rounded-2xl p-2 sm:p-3"
+                          style={{
+                            background: 'var(--surface)',
+                            border: '1px solid var(--border)',
+                          }}
                         >
-                          <span className="flex min-w-0 items-center gap-3">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
-                              style={{
-                                background: catMeta?.color || 'var(--text-muted)',
-                              }}
-                            />
-                            <span className="min-w-0 flex-1">
-                              <span className="block text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-                                {tx.description}
-                              </span>
-                              <span
-                                className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
-                                style={{ color: 'var(--text-muted)' }}
-                              >
-                                {parentLabel ? (
-                                  <span
-                                    className="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-semibold leading-none max-w-[min(100%,9rem)] truncate"
-                                    style={{
-                                      background: 'var(--primary-pale)',
-                                      border: '1px solid var(--border)',
-                                      color: 'var(--text)',
-                                    }}
-                                  >
-                                    {parentLabel}
-                                  </span>
-                                ) : null}
-                                <span className="min-w-0 truncate">
-                                  {[tx.category, tx.subcategory?.trim()].filter(Boolean).join(' · ')} •{' '}
-                                  {formatIsoDateDdMmYyyy(tx.date)}
-                                </span>
-                                {pname ? (
-                                  <span
-                                    className="inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none"
-                                    style={{
-                                      background: 'var(--surface)',
-                                      border: '1px solid var(--border)',
-                                      color: 'var(--text)',
-                                    }}
-                                  >
-                                    {pname}
-                                  </span>
-                                ) : null}
-                              </span>
-                            </span>
-                          </span>
-                          <span className="flex items-center gap-2 shrink-0">
-                            {tx.reviewedAt ? (
-                              <CheckCircle2
-                                size={18}
-                                className="shrink-0"
-                                style={{ color: 'var(--success)' }}
-                                aria-label="Gjennomgått"
-                              />
-                            ) : null}
-                            <span
-                              className="text-sm font-semibold tabular-nums"
-                              style={{ color: tx.type === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                            >
-                              {tx.type === 'income' ? '+' : '-'}
-                              {formatNOK(tx.amount)}
-                            </span>
-                          </span>
-                        </button>
-                        <div className="flex items-center shrink-0">
-                          <button
-                            type="button"
-                            aria-label="Slett transaksjon"
-                            onClick={() => handleDelete(tx)}
-                            className="p-1 rounded-lg transition-colors hover:opacity-70"
+                          <h3
+                            id={`tx-month-${ym}`}
+                            className="text-sm font-semibold pb-1.5"
+                            style={{ color: 'var(--text)' }}
                           >
-                            <Trash2 size={14} style={{ color: 'var(--text-muted)' }} />
-                          </button>
+                            {monthSectionTitle(ym)}
+                          </h3>
+                          <div className="space-y-2">
+                            {(listGroupedByMonth.byMonth.get(ym) ?? []).map((tx) => renderTransactionListRow(tx))}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })
+                      </section>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2">{sortedDisplayTx.map((tx) => renderTransactionListRow(tx))}</div>
                 )}
               </div>
             </div>

@@ -1,4 +1,5 @@
 import type { Transaction } from '@/lib/store'
+import { BUDGET_MONTH_LABELS } from '@/lib/budgetPeriod'
 
 /** Periodevalg som matcher transaksjonsfiltre (måned 0–11, hele året, eller hittil i år). */
 export type TransactionPeriodMode = number | 'all' | 'ytd'
@@ -72,4 +73,11 @@ export function transactionOnOrBeforeToday(t: Transaction, todayIsoOverride?: st
   if (typeof d !== 'string' || !isIsoDateString(d)) return false
   const todayIso = todayIsoOverride ?? todayIsoLocal()
   return d <= todayIso
+}
+
+/** Undertekst til transaksjons-KPI (StatCard), alignet med periodevelger (liste/dashboard). */
+export function kpiSubForTransactionPeriod(year: number, mode: TransactionPeriodMode): string {
+  if (mode === 'all') return `Hele kalenderåret ${year}`
+  if (mode === 'ytd') return `Hittil i år ${year}`
+  return `${BUDGET_MONTH_LABELS[mode] ?? '—'} ${year}`
 }

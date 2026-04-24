@@ -95,6 +95,7 @@ Sparing (/sparing)
 
 Gjeld (/gjeld)
 - Registrer lån med navn, total/rest, rente, månedlig betaling og type (bl.a. Boliglån, Lån, Studielån, Kredittkort, Annet).
+- **Boliglånskalkulator** (/gjeld/kalkulator, underfane i Gjeld): frittstående simulering (annuitet) med rentesensitivitet, nøkkeltall (f.eks. egen kapital, renter totalt, andel rente i starten, total tilbakebetaling), lånegrad 85/90 % som forklaringshjelpe, info-ikoner for begreper og nedbetalingsplan — bruker **ikke** de registrerte lånene automatisk. Ikke lånetilbud.
 - Standard: boliglån er ofte ikke med i snøball automatisk; andre typer kan være det — overstyr med «Ta med i snøball» (også i detalj).
 - Detaljer: pause, endre felter, snøball-innstilling. Oversikt viser bl.a. total gjeld, månedlige avdrag, høyeste rente, estimat årlig rentekostnad.
 - Underfaner vises bare når **Familie-abonnement** og **minst to profiler** er på plass. Da har du «Oversikt» (/gjeld) og «Husholdning» (/gjeld/husholdning). Med Solo eller bare én profil kommer **ingen** horisontal underfane — kun gjeldssiden som i dag.

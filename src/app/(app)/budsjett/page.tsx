@@ -47,8 +47,10 @@ import {
   Copy,
   Percent,
   SlidersHorizontal,
+  Pencil,
 } from 'lucide-react'
 import BudsjettSubnav from '@/components/budget/BudsjettSubnav'
+import EditBudgetLineModal from '@/components/budget/EditBudgetLineModal'
 import BudsjettOpenArchiveModal from '@/components/budget/BudsjettOpenArchiveModal'
 import BudsjettNewYearModal from '@/components/budget/BudsjettNewYearModal'
 import BudgetLineReorderButtons from '@/components/budget/BudgetLineReorderButtons'
@@ -154,6 +156,7 @@ export default function BudsjettPage() {
     addCustomBudgetLabel,
     isHouseholdAggregate,
     serviceSubscriptions,
+    remapBudgetCategoryName,
   } = useActivePersonFinance()
 
   const people = useStore((s) => s.people)
@@ -229,6 +232,9 @@ export default function BudsjettPage() {
   useEffect(() => {
     if (readOnly) setIncomeWhBreakdownOpenId(null)
   }, [readOnly])
+  useEffect(() => {
+    if (readOnly) setEditLine(null)
+  }, [readOnly])
   const [view, setView] = useState<'month' | 'year'>('year')
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
@@ -239,6 +245,7 @@ export default function BudsjettPage() {
     sparing: false,
   })
   const [addModalGroup, setAddModalGroup] = useState<ParentCategory | null>(null)
+  const [editLine, setEditLine] = useState<{ category: BudgetCategory; parent: ParentCategory } | null>(null)
   const [modalSearch, setModalSearch] = useState('')
   const [newForm, setNewForm] = useState({
     name: '',
@@ -420,6 +427,13 @@ export default function BudsjettPage() {
       })
     : []
 
+  const editLineAvailableLabels = useMemo(() => {
+    if (!editLine) return []
+    const existingNames = getCategoriesForGroup(editLine.parent).map((c) => c.name)
+    const all = getAvailableLabels(editLine.parent, labelLists, existingNames, { omitExistingLines: false })
+    return all.filter((n) => n !== editLine.category.name)
+  }, [editLine, displayCategories, customBudgetLabels, hiddenBudgetLabels])
+
   return (
     <div className="min-w-0 flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
@@ -494,6 +508,31 @@ export default function BudsjettPage() {
             incomeWithholding: rule.apply ? { apply: true, percent: rule.percent } : undefined,
           })
         }}
+      />
+
+      <EditBudgetLineModal
+        open={editLine !== null}
+        onClose={() => setEditLine(null)}
+        category={editLine?.category ?? null}
+        parent={editLine?.parent ?? 'inntekter'}
+        groupLabel={editLine ? groupLabel(editLine.parent) : ''}
+        availableLabels={editLineAvailableLabels}
+        budgetCategories={displayCategories}
+        linkedServiceSubscriptionLabels={
+          editLine && editLine.parent === 'regninger'
+            ? serviceSubscriptions
+                .filter(
+                  (s) => s.syncToBudget && s.linkedBudgetCategoryId === editLine.category.id,
+                )
+                .map((s) => s.label)
+            : []
+        }
+        remapBudgetCategoryName={remapBudgetCategoryName}
+        onOpenIncomeWithholding={
+          editLine && editLine.parent === 'inntekter' && editLine.category.type === 'income'
+            ? () => setIncomeWithholdingModalCategoryId(editLine.category.id)
+            : undefined
+        }
       />
 
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -972,6 +1011,18 @@ export default function BudsjettPage() {
                                         <SlidersHorizontal size={14} strokeWidth={2} />
                                       </button>
                                     )}
+                                    {!readOnly && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditLine({ category: cat, parent: group.id })}
+                                        className="p-1 opacity-60 hover:opacity-100 flex-shrink-0 min-w-[28px] min-h-[28px] inline-flex items-center justify-center rounded-lg"
+                                        style={{ color: 'var(--primary)' }}
+                                        title="Rediger linje"
+                                        aria-label={`Rediger ${cat.name}`}
+                                      >
+                                        <Pencil size={14} strokeWidth={2} />
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       onClick={() => removeBudgetCategory(cat.id)}
@@ -1429,6 +1480,18 @@ export default function BudsjettPage() {
                                   >
                                     <Copy size={16} />
                                   </button>
+                                  {!readOnly && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditLine({ category: cat, parent: group.id })}
+                                      className="p-1.5 rounded-lg min-w-[36px] min-h-[36px] inline-flex items-center justify-center"
+                                      style={{ background: 'var(--surface)', color: 'var(--primary)' }}
+                                      title="Rediger linje"
+                                      aria-label={`Rediger ${cat.name}`}
+                                    >
+                                      <Pencil size={16} strokeWidth={2} />
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => removeBudgetCategory(cat.id)}
@@ -1656,6 +1719,18 @@ export default function BudsjettPage() {
                                 >
                                   <Copy size={16} />
                                 </button>
+                                {!readOnly && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditLine({ category: cat, parent: group.id })}
+                                    className="p-1.5 rounded-lg min-w-[36px] min-h-[36px] inline-flex items-center justify-center"
+                                    style={{ background: 'var(--surface)', color: 'var(--primary)' }}
+                                    title="Rediger linje"
+                                    aria-label={`Rediger ${cat.name}`}
+                                  >
+                                    <Pencil size={16} strokeWidth={2} />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => removeBudgetCategory(cat.id)}

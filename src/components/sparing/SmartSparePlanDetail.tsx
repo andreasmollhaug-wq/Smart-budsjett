@@ -214,6 +214,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   const [modalAddCustomStr, setModalAddCustomStr] = useState('')
   const [modalSelectedMonthPaidStr, setModalSelectedMonthPaidStr] = useState('')
   const [periodFilterExpanded, setPeriodFilterExpanded] = useState(false)
+  const [settingsExpanded, setSettingsExpanded] = useState(false)
   const [planTaxPercentStr, setPlanTaxPercentStr] = useState('')
 
   useEffect(() => {
@@ -402,7 +403,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   if (!planExistsSomewhere) {
     return (
       <div className="flex-1 overflow-auto min-w-0" style={{ background: 'var(--bg)' }}>
-        <Header title="smartSpare" subtitle="Plan ikke funnet" />
+        <Header title="SmartSpare" subtitle="Plan ikke funnet" />
         <SparingSubnav />
         <div
           className="p-4 sm:p-6 lg:p-8 max-w-7xl xl:max-w-[90rem] mx-auto w-full min-w-0 space-y-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
@@ -427,7 +428,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   if (!plan) {
     return (
       <div className="flex-1 overflow-auto min-w-0" style={{ background: 'var(--bg)' }}>
-        <Header title="smartSpare" subtitle="Laster …" />
+        <Header title="SmartSpare" subtitle="Laster …" />
         <SparingSubnav />
         <div
           className="p-6 text-sm pb-[max(1.25rem,env(safe-area-inset-bottom))]"
@@ -445,7 +446,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
 
   return (
     <div className="flex-1 overflow-auto min-w-0" style={{ background: 'var(--bg)' }}>
-      <Header title="smartSpare" subtitle={headerSubtitle} />
+      <Header title="SmartSpare" subtitle={headerSubtitle} />
       <SparingSubnav />
       <div
         className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl xl:max-w-[90rem] mx-auto w-full min-w-0 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
@@ -1047,10 +1048,26 @@ export default function SmartSparePlanDetail({ planId }: Props) {
               className="rounded-2xl p-4 sm:p-5 space-y-4 min-w-0"
               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
             >
-              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4 justify-between">
-                <h2 className="font-semibold w-full sm:w-auto" style={{ color: 'var(--text)' }}>
-                  Innstillinger
-                </h2>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  id={`smartspare-settings-trigger-${planId}`}
+                  aria-expanded={settingsExpanded}
+                  aria-controls={`smartspare-settings-panel-${planId}`}
+                  onClick={() => setSettingsExpanded((o) => !o)}
+                  className="flex min-h-[44px] w-full sm:w-auto sm:flex-1 sm:min-w-0 items-center justify-between gap-2 rounded-xl py-1.5 px-1 -mx-1 text-left touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] sm:justify-start"
+                  style={{ color: 'var(--text)' }}
+                >
+                  <span className="font-semibold min-w-0" style={{ color: 'var(--text)' }}>
+                    Innstillinger
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`shrink-0 transition-transform duration-200 ${settingsExpanded ? 'rotate-180' : ''}`}
+                    style={{ color: 'var(--text-muted)' }}
+                    aria-hidden
+                  />
+                </button>
                 <button
                   type="button"
                   disabled={readOnly}
@@ -1060,13 +1077,20 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                     removeIncomeSprintPlan(plan.id)
                     router.push('/sparing/smartspare')
                   }}
-                  className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium touch-manipulation disabled:opacity-50 self-start"
+                  className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium touch-manipulation disabled:opacity-50 self-start sm:self-auto"
                   style={{ border: '1px solid var(--border)', color: 'var(--danger)' }}
                 >
                   Slett plan
                 </button>
               </div>
 
+              {settingsExpanded ? (
+                <div
+                  id={`smartspare-settings-panel-${planId}`}
+                  role="region"
+                  aria-labelledby={`smartspare-settings-trigger-${planId}`}
+                  className="space-y-4 min-w-0"
+                >
               <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
                 Navn på plan (valgfritt)
                 <input
@@ -1210,6 +1234,8 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   </label>
                 )}
               </div>
+                </div>
+              ) : null}
             </div>
 
             {cellModal && plan && cellModalSource && cellModalBreakdown && (

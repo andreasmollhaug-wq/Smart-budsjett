@@ -2,6 +2,7 @@
 
 import { Suspense, useId, useMemo, useState } from 'react'
 import Header from '@/components/layout/Header'
+import StatCard from '@/components/ui/StatCard'
 import TransaksjonerSubnav from '@/components/transactions/TransaksjonerSubnav'
 import TransactionActualsBreakdown from '@/components/transactions/TransactionActualsBreakdown'
 import TransactionActualsCategoryModal from '@/components/transactions/TransactionActualsCategoryModal'
@@ -10,13 +11,18 @@ import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjo
 import { REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
-import { isIsoDateString, todayIsoLocal } from '@/lib/transactionPeriodFilter'
+import { isIsoDateString, kpiSubForTransactionPeriod, todayIsoLocal } from '@/lib/transactionPeriodFilter'
 import { uniqueDescriptionsForDatalist } from '@/lib/transactionDescriptionSuggestions'
 import { useIsMinMdScreen } from '@/lib/useIsNarrowScreen'
 import { formatNOK } from '@/lib/utils'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 
 const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
+
+const KPI_INCOME_HEX = '#0CA678'
+const KPI_EXPENSE_HEX = '#E03131'
+const KPI_NET_POSITIVE_HEX = '#0CA678'
+const KPI_NET_NEGATIVE_HEX = '#E03131'
 
 function buildTransaksjonerListeHref(
   year: number,
@@ -72,11 +78,10 @@ function TransaksjonerDashboardInner() {
     lineTotal: number
   } | null>(null)
 
-  const periodLabel = useMemo(() => {
-    if (filterMonth === 'all') return `Hele ${filterYear}`
-    if (filterMonth === 'ytd') return `Hittil i år ${filterYear}`
-    return `${MONTHS_FULL[filterMonth]} ${filterYear}`
-  }, [filterYear, filterMonth])
+  const periodLabel = useMemo(
+    () => kpiSubForTransactionPeriod(filterYear, filterMonth),
+    [filterYear, filterMonth],
+  )
 
   const categoryModalTxs = useMemo(() => {
     if (!categoryDetail) return []
@@ -226,26 +231,32 @@ function TransaksjonerDashboardInner() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { key: 'income', label: 'Inntekt', value: formatNOK(periodIncome), color: 'var(--success)', icon: ArrowUpRight },
-            { key: 'expense', label: 'Utgifter', value: formatNOK(periodExpense), color: 'var(--danger)', icon: ArrowDownLeft },
-            {
-              key: 'net',
-              label: 'Netto',
-              value: formatNOK(periodIncome - periodExpense),
-              color: periodIncome - periodExpense >= 0 ? 'var(--success)' : 'var(--danger)',
-              icon: periodIncome - periodExpense >= 0 ? ArrowUpRight : ArrowDownLeft,
-            },
-          ].map(({ key, label, value, color, icon: Icon }) => (
-            <div key={key} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Icon size={16} style={{ color }} />
-                <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{label}</span>
-              </div>
-              <p className="text-2xl font-bold" style={{ color }}>{value}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <StatCard
+            label="Inntekt"
+            value={formatNOK(periodIncome)}
+            sub={periodLabel}
+            icon={ArrowUpRight}
+            color={KPI_INCOME_HEX}
+            valueNoWrap
+          />
+          <StatCard
+            label="Utgifter"
+            value={formatNOK(periodExpense)}
+            sub={periodLabel}
+            icon={ArrowDownLeft}
+            color={KPI_EXPENSE_HEX}
+            valueNoWrap
+          />
+          <StatCard
+            label="Netto"
+            value={formatNOK(periodIncome - periodExpense)}
+            sub={periodLabel}
+            icon={periodIncome - periodExpense >= 0 ? ArrowUpRight : ArrowDownLeft}
+            color={periodIncome - periodExpense >= 0 ? KPI_NET_POSITIVE_HEX : KPI_NET_NEGATIVE_HEX}
+            trend={periodIncome - periodExpense >= 0 ? 'up' : 'down'}
+            valueNoWrap
+          />
         </div>
         {hasFutureDatedInPeriod ? (
           <p className="text-xs -mt-2" style={{ color: 'var(--text-muted)' }}>

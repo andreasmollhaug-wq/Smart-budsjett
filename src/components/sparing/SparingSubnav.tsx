@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 
 const tabs = [
   { href: '/sparing', label: 'Sparing', labelShort: 'Sparing' },
-  { href: '/sparing/smartspare', label: 'smartSpare', labelShort: 'smartSpare' },
+  { href: '/sparing/smartspare', label: 'SmartSpare', labelShort: 'SmartSpare' },
   { href: '/sparing/formuebygger', label: 'Formuebygger', labelShort: 'Formue' },
 ] as const
 
@@ -33,8 +33,12 @@ export default function SparingSubnav() {
             background: isTabActive(href) ? 'var(--primary-pale)' : 'transparent',
           }}
         >
-          <span className="sm:hidden">{labelShort}</span>
-          <span className="hidden sm:inline">{label}</span>
+          <span className="sm:hidden" style={{ textTransform: 'none' }}>
+            {labelShort}
+          </span>
+          <span className="hidden sm:inline" style={{ textTransform: 'none' }}>
+            {label}
+          </span>
         </Link>
       ))}
     </div>

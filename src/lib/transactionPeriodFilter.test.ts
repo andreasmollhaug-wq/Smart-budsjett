@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Transaction } from '@/lib/store'
 import {
   isIsoDateString,
+  kpiSubForTransactionPeriod,
   transactionInPeriod,
   transactionOnOrBeforeToday,
   ytdRangeIso,
@@ -73,5 +74,13 @@ describe('transactionOnOrBeforeToday', () => {
   })
   it('excludes future', () => {
     expect(transactionOnOrBeforeToday(tx('2026-05-01'), TODAY)).toBe(false)
+  })
+})
+
+describe('kpiSubForTransactionPeriod', () => {
+  it('forms labels for all, ytd and single month', () => {
+    expect(kpiSubForTransactionPeriod(2026, 'all')).toBe('Hele kalenderåret 2026')
+    expect(kpiSubForTransactionPeriod(2026, 'ytd')).toBe('Hittil i år 2026')
+    expect(kpiSubForTransactionPeriod(2025, 3)).toBe('April 2025')
   })
 })

@@ -47,6 +47,46 @@ export function sumSchedulePayments(rows: AmortizationRow[]): number {
   return rows.reduce((a, r) => a + r.payment, 0)
 }
 
+/** Sum av renter (etter avrunding per måned i planen). */
+export function sumScheduleInterest(rows: AmortizationRow[]): number {
+  return rows.reduce((a, r) => a + r.interest, 0)
+}
+
+const DEFAULT_RATE_FLOOR = 0
+const DEFAULT_RATE_CAP = 15
+
+/**
+ * Månedlig annuitet ved nominell rente justert med delta (prosentpoeng), avkortet til [minRate, maxRate].
+ */
+export function monthlyPaymentForNominalWithDelta(
+  principal: number,
+  nominalAnnualRatePct: number,
+  years: number,
+  deltaPercentagePoints: number,
+  minRate: number = DEFAULT_RATE_FLOOR,
+  maxRate: number = DEFAULT_RATE_CAP,
+): number {
+  const r = Math.min(maxRate, Math.max(minRate, nominalAnnualRatePct + deltaPercentagePoints))
+  return annuityMonthlyPayment(principal, r, years)
+}
+
+/**
+ * Andel av summen av de første 12 (eller færre) betalinger som gikk til renter, i prosent 0–100.
+ */
+export function firstYearInterestShareOfPayments(rows: AmortizationRow[]): number {
+  if (rows.length === 0) return 0
+  const n = Math.min(12, rows.length)
+  let interest = 0
+  let paid = 0
+  for (let i = 0; i < n; i++) {
+    const row = rows[i]!
+    interest += row.interest
+    paid += row.payment
+  }
+  if (paid <= 0) return 0
+  return (interest / paid) * 100
+}
+
 /**
  * Nedbetalingsplan med avrunding til hele kroner per måned.
  * Første n−1 terminer bruker samme avrundede annuitet; siste termin justeres (restgjeld + renter).

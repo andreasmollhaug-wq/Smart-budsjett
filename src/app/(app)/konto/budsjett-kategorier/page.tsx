@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { collectLabelUniverseForParent, type CategoryRemapErrorReason } from '@/lib/categoryRemap'
+import { collectLabelUniverseForParent } from '@/lib/categoryRemap'
+import { remapErrorNb } from '@/lib/categoryRemapMessages'
 import { DEFAULT_STANDARD_LABELS, type ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { useActivePersonFinance } from '@/lib/store'
 
@@ -10,18 +11,6 @@ const GROUP_LABELS: Record<ParentCategory, string> = {
   utgifter: 'Utgifter',
   gjeld: 'Gjeld',
   sparing: 'Sparing',
-}
-
-function remapErrorNb(reason: CategoryRemapErrorReason): string {
-  const m: Record<CategoryRemapErrorReason, string> = {
-    same_name: 'Nytt navn må være forskjellig fra det gamle.',
-    empty_name: 'Skriv inn et navn.',
-    from_unused: 'Kategorien finnes ikke lenger.',
-    to_name_used_other_group: 'Dette navnet brukes allerede i en annen hovedgruppe.',
-    merge_conflict_two_goals:
-      'Begge kategoriene har et koblet sparemål. Frakoble eller flytt ett sparemål under Sparing før du slår sammen.',
-  }
-  return m[reason]
 }
 
 type EditModal = { parent: ParentCategory; fromName: string } | null

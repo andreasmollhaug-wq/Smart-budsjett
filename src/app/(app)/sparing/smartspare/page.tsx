@@ -213,7 +213,7 @@ export default function SmartSparePage() {
   return (
     <div className="flex-1 overflow-auto min-w-0" style={{ background: 'var(--bg)' }}>
       <Header
-        title="smartSpare"
+        title="SmartSpare"
         subtitle={
           isHouseholdAggregate
             ? 'Oversikt over planer — åpne en plan for detaljer og redigering'
