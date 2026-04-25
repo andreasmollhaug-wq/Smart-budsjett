@@ -54,7 +54,7 @@ import EditBudgetLineModal from '@/components/budget/EditBudgetLineModal'
 import BudsjettOpenArchiveModal from '@/components/budget/BudsjettOpenArchiveModal'
 import BudsjettNewYearModal from '@/components/budget/BudsjettNewYearModal'
 import BudgetLineReorderButtons from '@/components/budget/BudgetLineReorderButtons'
-import HouseholdBudgetSplitSection, {
+import {
   createDefaultHouseholdSplitForm,
   type HouseholdSplitFormState,
 } from '@/components/budget/HouseholdBudgetSplitSection'

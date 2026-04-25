@@ -73,7 +73,7 @@ function percentSplitNok(total: number, weights: number[]): number[] {
   const t = roundNok(total)
   const parts = weights.map((w) => (t * w) / 100)
   const floored = parts.map((x) => Math.floor(x))
-  let s = floored.reduce((a, b) => a + b, 0)
+  const s = floored.reduce((a, b) => a + b, 0)
   const remainder = t - s
   const order = parts
     .map((x, i) => ({ i, frac: x - floored[i]! }))
@@ -95,7 +95,7 @@ function amountRatioSplitNok(
   const tt = roundNok(t)
   const raw = ids.map((id) => ((amountReferenceByProfileId[id] ?? 0) / refSum) * tt)
   const floored = raw.map((x) => Math.floor(x))
-  let s = floored.reduce((a, b) => a + b, 0)
+  const s = floored.reduce((a, b) => a + b, 0)
   const rem = tt - s
   const order = raw
     .map((x, i) => ({ i, frac: x - floored[i]! }))

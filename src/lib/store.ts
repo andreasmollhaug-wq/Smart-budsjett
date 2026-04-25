@@ -2273,7 +2273,7 @@ export const useStore = create<AppState>()((set, get) => {
         removeSharedHouseholdBudgetLineByGroupId: (groupId) => {
           set((s) => {
             const y = s.budgetYear
-            let people: Record<string, PersonData> = { ...s.people }
+            const people: Record<string, PersonData> = { ...s.people }
             const meta: HouseholdSplitMeta | undefined = (() => {
               for (const p of s.profiles) {
                 const c = people[p.id]?.budgetCategories.find(
@@ -2446,7 +2446,7 @@ export const useStore = create<AppState>()((set, get) => {
           if (fromName === t) {
             return { ok: true } as const
           }
-          let people: Record<string, PersonData> = { ...s0.people }
+          const people: Record<string, PersonData> = { ...s0.people }
           let archived = s0.archivedBudgetsByYear
           const y = s0.budgetYear
           for (const pid of meta.participantProfileIds) {
