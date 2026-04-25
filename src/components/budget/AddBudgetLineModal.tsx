@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { BudgetCategory } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
@@ -84,6 +84,9 @@ export default function AddBudgetLineModal({
   profilesForHousehold = [],
 }: Props) {
   const amountInputRef = useRef<HTMLInputElement>(null)
+  const [freqHelpOpen, setFreqHelpOpen] = useState(false)
+  const freqSelectId = useId()
+  const freqHelpPanelId = useId()
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -92,13 +95,23 @@ export default function AddBudgetLineModal({
   }, [available, search])
 
   useEffect(() => {
+    if (open) setFreqHelpOpen(false)
+  }, [open])
+
+  useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      if (freqHelpOpen) {
+        e.preventDefault()
+        setFreqHelpOpen(false)
+        return
+      }
+      onClose()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, onClose, freqHelpOpen])
 
   useEffect(() => {
     if (!open || focusAmountSignal <= 0) return
@@ -189,68 +202,71 @@ export default function AddBudgetLineModal({
               className="w-full min-h-[44px] px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
               style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
-              <input
-                ref={amountInputRef}
-                placeholder={ph}
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                value={newForm.amount}
-                onChange={amountMoney.onChange}
-                onBlur={() => {
-                  const n = parsePositiveMoneyAmount2Decimals(newForm.amount)
-                  if (Number.isFinite(n)) onNewFormChange({ ...newForm, amount: formatMoneyInputFromNumber(n) })
-                }}
-                className="min-w-0 min-h-[44px] px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
-                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-              />
-              <div className="group/freq min-w-0 flex flex-col gap-1">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <div className="min-w-0 space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0 items-start">
+                <input
+                  ref={amountInputRef}
+                  placeholder={ph}
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={newForm.amount}
+                  onChange={amountMoney.onChange}
+                  onBlur={() => {
+                    const n = parsePositiveMoneyAmount2Decimals(newForm.amount)
+                    if (Number.isFinite(n)) onNewFormChange({ ...newForm, amount: formatMoneyInputFromNumber(n) })
+                  }}
+                  className="min-w-0 h-11 min-h-[44px] max-h-11 shrink-0 px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
+                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                />
+                <div className="flex min-w-0 flex-row items-center gap-2">
+                  <label htmlFor={freqSelectId} className="sr-only">
                     Frekvens
-                  </span>
+                  </label>
+                  <select
+                    id={freqSelectId}
+                    value={newForm.freq}
+                    onChange={(e) =>
+                      onNewFormChange({ ...newForm, freq: e.target.value as BudgetCategory['frequency'] })
+                    }
+                    className="h-11 min-h-[44px] max-h-11 min-w-0 flex-1 px-3 py-2 text-sm rounded-xl touch-manipulation"
+                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  >
+                    <option value="monthly">Månedlig</option>
+                    <option value="quarterly">Kvartalsvis</option>
+                    <option value="semiAnnual">Halvårlig</option>
+                    <option value="yearly">Årlig</option>
+                    <option value="weekly">Ukentlig</option>
+                    <option value="once">Én gang</option>
+                  </select>
                   <button
                     type="button"
-                    className="min-h-[44px] min-w-[44px] -mr-2 inline-flex items-center justify-center rounded outline-none focus-visible:ring-2 focus-visible:ring-offset-1 touch-manipulation"
+                    onClick={() => setFreqHelpOpen((o) => !o)}
+                    className="inline-flex h-11 min-h-[44px] w-11 min-w-[44px] shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-offset-1 touch-manipulation"
                     style={{ color: 'var(--text-muted)' }}
                     aria-label="Forklaring av frekvens"
+                    aria-expanded={freqHelpOpen}
+                    aria-controls={freqHelpPanelId}
                   >
-                    <Info size={14} strokeWidth={2} />
+                    <Info size={16} strokeWidth={2} aria-hidden />
                   </button>
                 </div>
-                <div
-                  role="note"
-                  className="max-h-0 overflow-hidden opacity-0 transition-[max-height,opacity] duration-150 ease-out group-hover/freq:max-h-40 group-hover/freq:opacity-100 group-focus-within/freq:max-h-40 group-focus-within/freq:opacity-100"
-                >
-                  <p
-                    className="rounded-lg border px-2.5 py-2 text-xs leading-snug break-words"
-                    style={{
-                      borderColor: 'var(--border)',
-                      background: 'var(--bg)',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    Månedlig, årlig (÷12) og ukentlig (omtrent månedlig nivå) fylles jevnt. Kvartalsvis
-                    settes beløpet i jan/apr/jul/okt; halvårlig i jan og jul; én gang i én valgfri måned.
-                  </p>
-                </div>
-                <select
-                  value={newForm.freq}
-                  onChange={(e) =>
-                    onNewFormChange({ ...newForm, freq: e.target.value as BudgetCategory['frequency'] })
-                  }
-                  className="w-full min-w-0 min-h-[44px] px-3 py-2 text-sm rounded-xl touch-manipulation"
-                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                >
-                  <option value="monthly">Månedlig</option>
-                  <option value="quarterly">Kvartalsvis</option>
-                  <option value="semiAnnual">Halvårlig</option>
-                  <option value="yearly">Årlig</option>
-                  <option value="weekly">Ukentlig</option>
-                  <option value="once">Én gang</option>
-                </select>
               </div>
+              {freqHelpOpen && (
+                <div
+                  id={freqHelpPanelId}
+                  role="note"
+                  className="rounded-lg border px-2.5 py-2 text-xs leading-snug break-words"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  Månedlig, årlig (÷12) og ukentlig (omtrent månedlig nivå) fylles jevnt. Kvartalsvis settes
+                  beløpet i jan/apr/jul/okt; halvårlig i jan og jul; én gang i én valgfri måned.
+                </div>
+              )}
             </div>
             {newForm.freq === 'once' && (
               <div className="flex flex-col gap-1 min-w-0">

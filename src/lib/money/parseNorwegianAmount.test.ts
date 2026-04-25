@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { caretIndexAfterDigitCount } from '@/lib/utils'
 import {
   formatMoneyAmountWhileTyping,
   formatMoneyInputFromNumber,
+  moneyCaretIndexAfterDigitCount,
   normalizeNorwegianAmountToPlainDecimalString,
   parseNonNegativeMoneyAmount2Decimals,
   parsePositiveMoneyAmount2Decimals,
@@ -63,6 +65,30 @@ describe('formatMoneyAmountWhileTyping', () => {
 
   it('bevarer ufullstendig desimal (trailing ,)', () => {
     expect(formatMoneyAmountWhileTyping('100,')).toBe('100,')
+  })
+
+  it('tusenskille med desimal (10 000,5) — regresjon', () => {
+    const x = formatMoneyAmountWhileTyping('10 000,5').replace(/[\s\u00a0\u202f]/g, ' ')
+    expect(x).toBe('10 000,5')
+  })
+})
+
+describe('moneyCaretIndexAfterDigitCount', () => {
+  it('flytter markør forbi hengende desimalkomma (10 000,)', () => {
+    const s = formatMoneyAmountWhileTyping('10 000,').replace(/[\s\u00a0\u202f]/g, ' ')
+    expect(s.endsWith(',')).toBe(true)
+    expect(moneyCaretIndexAfterDigitCount(s, 5)).toBe(s.length)
+    expect(caretIndexAfterDigitCount(s, 5)).toBe(s.lastIndexOf(','))
+  })
+
+  it('flytter forbi 1,', () => {
+    const s = formatMoneyAmountWhileTyping('1,').replace(/[\s\u00a0\u202f]/g, ' ')
+    expect(moneyCaretIndexAfterDigitCount(s, 1)).toBe(s.length)
+  })
+
+  it('bøyer ikke ferdig desimal (52,35)', () => {
+    expect(moneyCaretIndexAfterDigitCount('52,35', 4)).toBe(5)
+    expect('52,35'.length).toBe(5)
   })
 })
 

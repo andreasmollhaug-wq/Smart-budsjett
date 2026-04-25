@@ -2110,7 +2110,9 @@ export const useStore = create<AppState>()((set, get) => {
             percentWeights: input.mode === 'percent' ? input.percentWeights : undefined,
             amountReferenceByProfileId: input.mode === 'amount' ? input.amountReferenceByProfileId : undefined,
           }
-          const v = validateHouseholdSplitMeta(meta)
+          const v = validateHouseholdSplitMeta(meta, {
+            lineAmountNok: input.mode === 'amount' ? input.amount : undefined,
+          })
           if (!v.ok) {
             return { ok: false, reason: 'validation' } as const
           }

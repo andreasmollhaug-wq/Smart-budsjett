@@ -194,8 +194,11 @@ export default function HouseholdBudgetSplitSection({ profiles, value, onChange 
                 const pr = profiles.find((x) => x.id === pid)
                 if (!pr) return null
                 return (
-                  <div key={pid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
-                    <span className="text-sm shrink-0 min-w-0" style={{ color: 'var(--text)' }}>
+                  <div
+                    key={pid}
+                    className="grid min-w-0 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(6rem,10rem)] gap-1 sm:gap-3 sm:items-center"
+                  >
+                    <span className="text-sm min-w-0 truncate" style={{ color: 'var(--text)' }}>
                       {pr.name}
                     </span>
                     <input
@@ -216,15 +219,18 @@ export default function HouseholdBudgetSplitSection({ profiles, value, onChange 
           {value.mode === 'amount' && (
             <div className="space-y-2">
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Skriv andelsbeløp (referanse) per person — andelen brukes likt hver måned; summen bør samsvare med
-                beløpet over.
+                Skriv andelsbeløp per person — fordelingen brukes likt hver måned. Summen av delbeløpene må samsvare
+                med beløpet du skrev over (samme hovedbeløp).
               </p>
               {value.participantIds.map((pid) => {
                 const pr = profiles.find((x) => x.id === pid)
                 if (!pr) return null
                 return (
-                  <div key={pid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0">
-                    <span className="text-sm shrink-0 min-w-0" style={{ color: 'var(--text)' }}>
+                  <div
+                    key={pid}
+                    className="grid min-w-0 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(6rem,10rem)] gap-1 sm:gap-3 sm:items-center"
+                  >
+                    <span className="text-sm min-w-0 truncate" style={{ color: 'var(--text)' }}>
                       {pr.name}
                     </span>
                     <HouseholdSplitAmountField

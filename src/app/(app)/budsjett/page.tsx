@@ -58,7 +58,7 @@ import {
   createDefaultHouseholdSplitForm,
   type HouseholdSplitFormState,
 } from '@/components/budget/HouseholdBudgetSplitSection'
-import { impliedNewMonthTotal } from '@/lib/householdBudgetSplit'
+import { amountReferencesSumMatchesLine, impliedNewMonthTotal } from '@/lib/householdBudgetSplit'
 
 const COLORS = ['#3B5BDB', '#4C6EF5', '#7048E8', '#AE3EC9', '#E03131', '#F08C00', '#0CA678', '#0B7285']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
@@ -453,6 +453,11 @@ export default function BudsjettPage() {
         }
         if (pids.map((id) => ref[id] ?? 0).reduce((a, b) => a + b, 0) <= 0) {
           window.alert('Fyll inn andelsbeløp (kroner) for hver deltaker.')
+          return
+        }
+        const amountLine = amountReferencesSumMatchesLine(pids, ref, raw)
+        if (!amountLine.ok) {
+          window.alert(amountLine.message)
           return
         }
         amountReferenceByProfileId = ref

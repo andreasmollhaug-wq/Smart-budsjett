@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useLayoutEffect, useRef } from 'react'
-import { formatMoneyAmountWhileTyping } from '@/lib/money/parseNorwegianAmount'
-import { caretIndexAfterDigitCount, countDigitsBeforePosition } from '@/lib/utils'
+import { formatMoneyAmountWhileTyping, moneyCaretIndexAfterDigitCount } from '@/lib/money/parseNorwegianAmount'
+import { countDigitsBeforePosition } from '@/lib/utils'
 
 /**
  * Kontrollert beløpsfelt: nb-NO-tusenskille og desimaler mens bruker skriver,
@@ -22,7 +22,7 @@ export function useFormattedMoneyInput(
       const start = el.selectionStart ?? 0
       const digitsBefore = countDigitsBeforePosition(el.value, start)
       const newVal = formatMoneyAmountWhileTyping(el.value)
-      caretRef.current = caretIndexAfterDigitCount(newVal, digitsBefore)
+      caretRef.current = moneyCaretIndexAfterDigitCount(newVal, digitsBefore)
       setValue(newVal)
     },
     [setValue],

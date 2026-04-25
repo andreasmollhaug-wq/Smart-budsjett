@@ -3,6 +3,8 @@
  * komma som desimal, punktum som tusen sammen med desimal, kr/NOK/,- bort).
  */
 
+import { caretIndexAfterDigitCount } from '@/lib/utils'
+
 export type NormalizeNorwegianAmountOptions = {
   /**
    * Når sann: tolk ufullstendig «trailing ,» (f.eks. under skriving) som «,0».
@@ -118,4 +120,17 @@ export function formatMoneyAmountWhileTyping(raw: string): string {
   const n = Number(intOnly)
   if (!Number.isFinite(n)) return ''
   return n.toLocaleString('nb-NO', { maximumFractionDigits: 0, minimumFractionDigits: 0 })
+}
+
+/**
+ * Markør etter `digitCount` siffer; ved hengende `,` (desimal følger) vil
+ * `caretIndexAfterDigitCount` ellers plassere markøren «på» komma, slik at neste
+ * siffer havner i heltallsdelen. Flytter forbi `,` når siste tegn er desimalkomma.
+ */
+export function moneyCaretIndexAfterDigitCount(formatted: string, digitCount: number): number {
+  const pos = caretIndexAfterDigitCount(formatted, digitCount)
+  if (formatted.endsWith(',') && pos === formatted.lastIndexOf(',')) {
+    return formatted.length
+  }
+  return pos
 }

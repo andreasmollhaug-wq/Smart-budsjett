@@ -42,4 +42,21 @@ describe('addSharedHouseholdBudgetLine + aggregate', () => {
       expect((line.budgeted[m] ?? 0) / 1).toBe(20_000)
     }
   })
+
+  it('avviser felles kroner-linje når andelene ikke summerer til hovedbeløpet', () => {
+    const ids = useStore.getState().profiles.map((p) => p.id)
+    const r = useStore.getState().addSharedHouseholdBudgetLine({
+      name: 'Dårlig sum',
+      parentCategory: 'regninger',
+      frequency: 'monthly',
+      amount: 15_000,
+      color: '#3B5BDB',
+      participantProfileIds: [ids[0]!, ids[1]!],
+      mode: 'amount',
+      amountReferenceByProfileId: { [ids[0]!]: 10_000, [ids[1]!]: 4000 },
+    })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.reason).toBe('validation')
+  })
 })

@@ -20,6 +20,41 @@ export type HouseholdSplitMeta = {
 
 const EPS = 1e-6
 
+/**
+ * Toleranse når andelsbeløp (kroner) skal matche hovedlinjens beløp (samme enhet som bruker skriver i skjemaet).
+ */
+export const AMOUNT_REF_LINE_MATCH_EPS_NOK = 0.5
+
+export type ValidateHouseholdSplitMetaOptions = {
+  lineAmountNok?: number
+}
+
+function formatKrForSplitMessage(n: number): string {
+  if (Number.isInteger(n) || Math.abs(n - Math.round(n)) < 1e-6) {
+    return String(Math.round(n))
+  }
+  return n.toLocaleString('nb-NO', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+/**
+ * Sjekker at summen av `amountReferenceByProfileId` for deltakerne tilsvarer `lineAmountNok`
+ * (brukes ved ny felleslinje; lagrede linjer valideres uten dette i `validateHouseholdSplitMeta`).
+ */
+export function amountReferencesSumMatchesLine(
+  participantProfileIds: string[],
+  amountReferenceByProfileId: Record<string, number>,
+  lineAmountNok: number,
+): { ok: true } | { ok: false; message: string } {
+  const s = sumArray(participantProfileIds.map((id) => amountReferenceByProfileId[id] ?? 0))
+  if (Math.abs(s - lineAmountNok) <= AMOUNT_REF_LINE_MATCH_EPS_NOK) {
+    return { ok: true }
+  }
+  return {
+    ok: false,
+    message: `Andelsbeløpene summerer til ${formatKrForSplitMessage(s)} kr, men beløpet over er ${formatKrForSplitMessage(lineAmountNok)} kr. Juster delbeløpene så de summerer likt.`,
+  }
+}
+
 export function roundNok(n: number): number {
   return Math.round(n)
 }
@@ -30,6 +65,7 @@ function sumArray(a: number[]): number {
 
 export function validateHouseholdSplitMeta(
   meta: HouseholdSplitMeta,
+  options?: ValidateHouseholdSplitMetaOptions,
 ): { ok: true } | { ok: false; message: string } {
   if (!meta.groupId) return { ok: false, message: 'Mangler gruppe.' }
   const ids = meta.participantProfileIds
@@ -54,6 +90,10 @@ export function validateHouseholdSplitMeta(
       s += v
     }
     if (s <= 0) return { ok: false, message: 'Beløp må være større enn 0 totalt.' }
+    if (options?.lineAmountNok !== undefined) {
+      const m = amountReferencesSumMatchesLine(ids, ref, options.lineAmountNok)
+      if (!m.ok) return m
+    }
   }
   return { ok: true }
 }
