@@ -276,10 +276,15 @@ export default function BudsjettPage() {
   })
   const [focusAmountSignal, setFocusAmountSignal] = useState(0)
 
-  const labelLists = { customBudgetLabels, hiddenBudgetLabels }
+  const labelLists = useMemo(
+    () => ({ customBudgetLabels, hiddenBudgetLabels }),
+    [customBudgetLabels, hiddenBudgetLabels],
+  )
 
-  const getCategoriesForGroup = (group: ParentCategory) =>
-    displayCategories.filter((c) => c.parentCategory === group)
+  const getCategoriesForGroup = useCallback(
+    (group: ParentCategory) => displayCategories.filter((c) => c.parentCategory === group),
+    [displayCategories],
+  )
 
   const getSumForMonth = (group: ParentCategory, monthIndex: number) =>
     getCategoriesForGroup(group).reduce((sum, c) => {
@@ -600,7 +605,7 @@ export default function BudsjettPage() {
     const existingNames = getCategoriesForGroup(editLine.parent).map((c) => c.name)
     const all = getAvailableLabels(editLine.parent, labelLists, existingNames, { omitExistingLines: false })
     return all.filter((n) => n !== editLine.category.name)
-  }, [editLine, displayCategories, customBudgetLabels, hiddenBudgetLabels])
+  }, [editLine, getCategoriesForGroup, labelLists])
 
   return (
     <div className="min-w-0 flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>

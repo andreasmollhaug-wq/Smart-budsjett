@@ -265,7 +265,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   useEffect(() => {
     if (!plan) return
     setPlanTaxPercentStr(plan.taxPercent === 0 ? '' : String(plan.taxPercent))
-  }, [plan?.id, plan?.taxPercent])
+  }, [plan])
 
   const cellModalBreakdown = useMemo(() => {
     if (!plan || !cellModal) return null

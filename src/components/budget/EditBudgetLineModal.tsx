@@ -74,7 +74,7 @@ export default function EditBudgetLineModal({
     setSearch('')
     setError(null)
     setMergeMode(false)
-  }, [open, category?.id, category?.name])
+  }, [open, category])
 
   useEffect(() => {
     if (!open) return

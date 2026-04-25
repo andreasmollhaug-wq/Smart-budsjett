@@ -212,7 +212,7 @@ function IncomeWithholdingDefaultsCard() {
     const r = normalizeIncomeWithholdingRule(rule)
     setApply(r.apply)
     setPct(String(r.percent > 0 ? r.percent : 32))
-  }, [activeProfileId, rule?.apply, rule?.percent])
+  }, [activeProfileId, rule])
 
   useEffect(() => {
     return () => {

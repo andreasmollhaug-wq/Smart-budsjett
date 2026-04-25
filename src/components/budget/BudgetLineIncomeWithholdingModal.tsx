@@ -37,7 +37,7 @@ export default function BudgetLineIncomeWithholdingModal({
     const r = normalizeIncomeWithholdingRule(category.incomeWithholding)
     setApply(r.apply)
     setPercentStr(r.apply && r.percent > 0 ? String(r.percent) : r.apply ? String(r.percent) : '32')
-  }, [open, category?.id, category?.incomeWithholding])
+  }, [open, category])
 
   useEffect(() => {
     if (!open) return
