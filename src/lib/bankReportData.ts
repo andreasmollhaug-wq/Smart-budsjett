@@ -722,11 +722,9 @@ export function buildBankReportIncomeDetail(
   const monthTotals = sumTransactionsByCategoryForMonth(transactions, year, monthIndex, people)
   const rows = buildBudgetVsActual(budgetCategories, monthTotals, monthIndex, labelLists)
   let budgetedIncome = 0
-  let actualIncome = 0
   for (const r of rows) {
     if (r.type !== 'income') continue
     budgetedIncome += r.budgeted
-    actualIncome += r.actual
   }
 
   let budgetedGross = 0
