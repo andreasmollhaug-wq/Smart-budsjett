@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { BudgetCategory } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { X, Pencil } from 'lucide-react'
@@ -22,6 +23,13 @@ type Props = {
   /** Etiketter fra koblede abo med `syncToBudget` til denne linjen (tom = ingen advarsel). */
   linkedServiceSubscriptionLabels: string[]
   remapBudgetCategoryName: (parent: ParentCategory, fromName: string, toName: string) => RemapResult
+  /** Når satt: navneendring oppdateres hos alle deltakere (felles husholdningslinje). */
+  sharedGroupId?: string | null
+  remapSharedHouseholdBudgetLineName?: (
+    groupId: string,
+    parent: ParentCategory,
+    toName: string,
+  ) => RemapResult
   /** Valgfri: inntektslinje – åpner eksisterende trekk-modal. */
   onOpenIncomeWithholding?: () => void
 }
@@ -36,6 +44,8 @@ export default function EditBudgetLineModal({
   budgetCategories,
   linkedServiceSubscriptionLabels,
   remapBudgetCategoryName,
+  sharedGroupId = null,
+  remapSharedHouseholdBudgetLineName,
   onOpenIncomeWithholding,
 }: Props) {
   const [name, setName] = useState('')
@@ -80,6 +90,8 @@ export default function EditBudgetLineModal({
     requestAnimationFrame(() => searchInputRef.current?.focus())
   }, [open, category?.id])
 
+  const backdropDismiss = useModalBackdropDismiss(onClose)
+
   if (!open || !category) return null
 
   const fromName = category.name
@@ -102,8 +114,26 @@ export default function EditBudgetLineModal({
       return
     }
 
+    if (sharedGroupId && wouldMerge) {
+      setError(
+        'Felles husholdningslinje kan ikke sammenslås med en annen linje her. Bruk et annet unikt navn, eller endre fordeling fra budsjettet.',
+      )
+      return
+    }
+
     if (wouldMerge && !mergeMode) {
       setMergeMode(true)
+      return
+    }
+
+    if (sharedGroupId && remapSharedHouseholdBudgetLineName) {
+      const res = remapSharedHouseholdBudgetLineName(sharedGroupId, parent, trimmed)
+      if (!res.ok) {
+        setError(remapErrorNb(res.reason))
+        setMergeMode(false)
+        return
+      }
+      onClose()
       return
     }
 
@@ -136,7 +166,7 @@ export default function EditBudgetLineModal({
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      {...backdropDismiss}
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-budget-line-title"
@@ -167,6 +197,13 @@ export default function EditBudgetLineModal({
             <X size={20} />
           </button>
         </div>
+
+        {sharedGroupId && (
+          <p className="text-sm rounded-xl p-3 mb-4" style={{ background: 'var(--primary-pale)', color: 'var(--text)' }}>
+            Denne linjen er <strong>fordelt i husholdningen</strong>. Når du lagrer et nytt navn, oppdateres det hos
+            alle valgte personer. Beløp og fordeling endres fra budsjettvisningen (ikke her).
+          </p>
+        )}
 
         {linkedServiceSubscriptionLabels.length > 0 && (
           <p className="text-sm rounded-xl p-3 mb-4" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>

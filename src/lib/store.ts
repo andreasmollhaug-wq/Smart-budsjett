@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
-import { generateId, type BudgetCategoryFrequency } from './utils'
+import { budgetedMonthsFromFrequency, generateId, type BudgetCategoryFrequency } from './utils'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
 import { applyCategoryRemap, type CategoryRemapErrorReason } from './categoryRemap'
@@ -69,8 +69,31 @@ import {
   reconcileIncomeSprintPlan,
   type IncomeSprintPlan,
 } from './incomeSprint'
+import {
+  impliedNewMonthTotal,
+  type HouseholdSplitMeta,
+  type HouseholdSplitMode,
+  pickHouseholdSplitForAggregate,
+  splitTotalBudgetBetweenParticipants,
+  validateHouseholdSplitMeta,
+} from './householdBudgetSplit'
 
 export type { BudgetYearCopySource } from './budgetActualsToBudgeted'
+export type { HouseholdSplitMeta, HouseholdSplitMode } from './householdBudgetSplit'
+
+/** Oppretting av felles husholdningslinje (utgift) — fordeles over valgte profiler. */
+export type AddSharedHouseholdBudgetLineInput = {
+  name: string
+  parentCategory: ParentCategory
+  frequency: BudgetCategoryFrequency
+  onceMonthIndex?: number
+  amount: number
+  color: string
+  participantProfileIds: string[]
+  mode: HouseholdSplitMode
+  percentWeights?: number[]
+  amountReferenceByProfileId?: Record<string, number>
+}
 export type SwitchActiveBudgetYearResult =
   | { ok: true }
   | { ok: false; reason: 'not_in_archive' | 'missing_profile_snapshot' }
@@ -151,6 +174,8 @@ export interface BudgetCategory {
    * Inntektslinje: når `apply`, er `budgeted` brutto og summeringer bruker netto etter `percent`.
    */
   incomeWithholding?: { apply: boolean; percent: number }
+  /** Felles husholdningsfordeling (utgift) — identisk kopi per deltakerrad, samme `groupId`. */
+  householdSplit?: HouseholdSplitMeta
 }
 
 export interface SavingsDeposit {
@@ -403,6 +428,16 @@ interface AppState {
   recalcBudgetSpent: (categoryName: string) => void
 
   addBudgetCategory: (c: BudgetCategory) => void
+  addSharedHouseholdBudgetLine: (
+    input: AddSharedHouseholdBudgetLineInput,
+  ) => { ok: true } | { ok: false; reason: 'not_family' | 'household_readonly' | 'validation' | 'name_conflict' }
+  resplitSharedHouseholdGroupFromTotals: (
+    groupId: string,
+    total: number[],
+    meta: HouseholdSplitMeta,
+  ) => { ok: true } | { ok: false; reason: 'not_family' | 'not_found' | 'validation' }
+  applySharedHouseholdMonthCellEdit: (categoryId: string, monthIndex: number, newPart: number) => { ok: true } | { ok: false; reason: 'not_family' | 'not_found' | 'not_shared' | 'invalid' }
+  removeSharedHouseholdBudgetLineByGroupId: (groupId: string) => void
   updateBudgetCategory: (id: string, data: Partial<BudgetCategory>) => void
   removeBudgetCategory: (id: string) => void
   reorderBudgetCategory: (parent: ParentCategory, id: string, direction: 'up' | 'down') => void
@@ -414,6 +449,12 @@ interface AppState {
   remapBudgetCategoryName: (
     parent: ParentCategory,
     fromName: string,
+    toName: string,
+  ) => { ok: true } | { ok: false; reason: CategoryRemapErrorReason }
+  /** Felles husholdningslinje: bytt navn på linjen hos alle deltakere (samme groupId). */
+  remapSharedHouseholdBudgetLineName: (
+    groupId: string,
+    parent: ParentCategory,
     toName: string,
   ) => { ok: true } | { ok: false; reason: CategoryRemapErrorReason }
 
@@ -1051,6 +1092,7 @@ function mergeBudgetCategoryAggregatePair(
       id: hid,
       spent: incoming.spent,
       budgeted: [...incoming.budgeted],
+      householdSplit: incoming.householdSplit,
     }
   }
 
@@ -1071,7 +1113,52 @@ function mergeBudgetCategoryAggregatePair(
     id: hid,
     spent: existing.spent + incoming.spent,
     budgeted: sumMonthlyArrays(existing.budgeted, incoming.budgeted),
+    householdSplit: pickHouseholdSplitForAggregate(existing.householdSplit, incoming.householdSplit),
   }
+}
+
+/** Fjerner én budsjettlinje fra en persons data (koblinger, gjeld, trekk). */
+export function removeBudgetCategoryFromPersonData(
+  d: PersonData,
+  categoryId: string,
+  profileId: string,
+): PersonData {
+  const nextCats = d.budgetCategories.filter((c) => c.id !== categoryId)
+  const nextGoals = d.savingsGoals.map((g) =>
+    g.linkedBudgetCategoryId === categoryId ? { ...g, linkedBudgetCategoryId: undefined, baselineAmount: undefined } : g,
+  )
+  const nextSubs = (d.serviceSubscriptions ?? []).map((s) =>
+    s.linkedBudgetCategoryId === categoryId
+      ? { ...s, linkedBudgetCategoryId: null, syncToBudget: false, budgetLinkMode: undefined }
+      : s,
+  )
+  let nextDebts = d.debts
+  let nextTx = d.transactions
+  for (const debt of d.debts) {
+    if (debt.linkedBudgetCategoryId !== categoryId) continue
+    nextDebts = nextDebts.map((x) =>
+      x.id === debt.id
+        ? {
+            ...x,
+            linkedBudgetCategoryId: null,
+            syncToBudget: false,
+            syncPlannedTransactions: false,
+          }
+        : x,
+    )
+    nextTx = stripAllLinkedDebtTransactions(nextTx, debt.id)
+  }
+  return syncLinkedSavingsGoalsCurrent(
+    {
+      ...d,
+      budgetCategories: nextCats,
+      savingsGoals: nextGoals,
+      serviceSubscriptions: nextSubs,
+      debts: nextDebts,
+      transactions: nextTx,
+    },
+    profileId,
+  )
 }
 
 /** Slår sammen budsjettkategorier fra arkiverte snapshots (samme nøkkel som husholdningsaggregat). */
@@ -1274,6 +1361,29 @@ function resolveTransactionOwnerProfileId(
     return profileId
   }
   return s.activeProfileId
+}
+
+function collectSharedGroupTotals(people: Record<string, PersonData>, groupId: string): {
+  meta: HouseholdSplitMeta
+  total: number[]
+} | null {
+  const m0 = (() => {
+    for (const pid of Object.keys(people)) {
+      const c = people[pid]?.budgetCategories.find((x) => x.householdSplit?.groupId === groupId)
+      if (c?.householdSplit) return c
+    }
+    return null
+  })()
+  if (!m0?.householdSplit) return null
+  const meta = m0.householdSplit
+  const total: number[] = Array(12).fill(0)
+  for (let m = 0; m < 12; m++) {
+    for (const pid of meta.participantProfileIds) {
+      const c = people[pid]?.budgetCategories.find((x) => x.householdSplit?.groupId === groupId)
+      if (c) total[m]! += c.budgeted[m] ?? 0
+    }
+  }
+  return { meta, total }
 }
 
 export const useStore = create<AppState>()((set, get) => {
@@ -1967,6 +2077,228 @@ export const useStore = create<AppState>()((set, get) => {
 
         addBudgetCategory: (c) => patchActive((d) => ({ ...d, budgetCategories: [...d.budgetCategories, c] })),
 
+        addSharedHouseholdBudgetLine: (input) => {
+          const s0 = get()
+          if (s0.financeScope === 'household') {
+            return { ok: false, reason: 'household_readonly' } as const
+          }
+          if (s0.subscriptionPlan !== 'family' || s0.profiles.length < 2) {
+            return { ok: false, reason: 'not_family' } as const
+          }
+          if (input.parentCategory === 'inntekter') {
+            return { ok: false, reason: 'validation' } as const
+          }
+          const name = input.name.trim()
+          if (!name) {
+            return { ok: false, reason: 'validation' } as const
+          }
+          const pids = [...new Set(input.participantProfileIds)]
+          pids.sort()
+          if (pids.length < 2) {
+            return { ok: false, reason: 'validation' } as const
+          }
+          for (const id of pids) {
+            if (!s0.profiles.some((p) => p.id === id)) {
+              return { ok: false, reason: 'validation' } as const
+            }
+          }
+          const groupId = generateId()
+          const meta: HouseholdSplitMeta = {
+            groupId,
+            mode: input.mode,
+            participantProfileIds: pids,
+            percentWeights: input.mode === 'percent' ? input.percentWeights : undefined,
+            amountReferenceByProfileId: input.mode === 'amount' ? input.amountReferenceByProfileId : undefined,
+          }
+          const v = validateHouseholdSplitMeta(meta)
+          if (!v.ok) {
+            return { ok: false, reason: 'validation' } as const
+          }
+          const total = budgetedMonthsFromFrequency(
+            input.amount,
+            input.frequency,
+            input.frequency === 'once' ? input.onceMonthIndex : undefined,
+          )
+          const sh = splitTotalBudgetBetweenParticipants(total, meta)
+          if (!sh.ok) {
+            return { ok: false, reason: 'validation' } as const
+          }
+          for (const pid of pids) {
+            const p = s0.people[pid]
+            if (!p) {
+              return { ok: false, reason: 'validation' } as const
+            }
+            const clash = p.budgetCategories.find(
+              (c) => c.parentCategory === input.parentCategory && c.name === name,
+            )
+            if (clash) {
+              return { ok: false, reason: 'name_conflict' } as const
+            }
+          }
+          set((s) => {
+            const y = s.budgetYear
+            const nextPeople: Record<string, PersonData> = { ...s.people }
+            for (const pid of pids) {
+              const p = nextPeople[pid]!
+              const newCat: BudgetCategory = {
+                id: generateId(),
+                name,
+                budgeted: sh.byProfileId[pid]!,
+                spent: 0,
+                type: 'expense',
+                color: input.color,
+                parentCategory: input.parentCategory,
+                frequency: input.frequency,
+                ...(input.frequency === 'once' ? { onceMonthIndex: input.onceMonthIndex } : {}),
+                householdSplit: meta,
+              }
+              const merged: PersonData = { ...p, budgetCategories: [...p.budgetCategories, newCat] }
+              nextPeople[pid] = recalcPersonBudgetSpentForYear(merged, pid, y)
+            }
+            return { people: nextPeople }
+          })
+          return { ok: true } as const
+        },
+
+        resplitSharedHouseholdGroupFromTotals: (groupId, total, meta) => {
+          const s0 = get()
+          if (s0.financeScope === 'household') {
+            return { ok: false, reason: 'validation' } as const
+          }
+          if (s0.subscriptionPlan !== 'family' || s0.profiles.length < 2) {
+            return { ok: false, reason: 'not_family' } as const
+          }
+          if (meta.groupId !== groupId) {
+            return { ok: false, reason: 'not_found' } as const
+          }
+          const v = validateHouseholdSplitMeta(meta)
+          if (!v.ok) {
+            return { ok: false, reason: 'validation' } as const
+          }
+          const sh = splitTotalBudgetBetweenParticipants(total, meta)
+          if (!sh.ok) {
+            return { ok: false, reason: 'validation' } as const
+          }
+          let found = false
+          for (const p of s0.profiles) {
+            if (s0.people[p.id]?.budgetCategories.some((c) => c.householdSplit?.groupId === groupId)) {
+              found = true
+              break
+            }
+          }
+          if (!found) {
+            return { ok: false, reason: 'not_found' } as const
+          }
+          set((s) => {
+            const y = s.budgetYear
+            const nextPeople: Record<string, PersonData> = { ...s.people }
+            for (const pid of meta.participantProfileIds) {
+              const p = nextPeople[pid]
+              if (!p) return s
+              const newCats = p.budgetCategories.map((c) => {
+                if (c.householdSplit?.groupId !== groupId) return c
+                return { ...c, budgeted: sh.byProfileId[pid] ?? c.budgeted, householdSplit: meta }
+              })
+              nextPeople[pid] = recalcPersonBudgetSpentForYear(
+                { ...p, budgetCategories: newCats },
+                pid,
+                y,
+              )
+            }
+            return { people: nextPeople }
+          })
+          return { ok: true } as const
+        },
+
+        applySharedHouseholdMonthCellEdit: (categoryId, monthIndex, newPart) => {
+          const s0 = get()
+          if (s0.financeScope === 'household') {
+            return { ok: false, reason: 'not_family' } as const
+          }
+          if (s0.subscriptionPlan !== 'family' || s0.profiles.length < 2) {
+            return { ok: false, reason: 'not_family' } as const
+          }
+          const ap = s0.activeProfileId
+          const person = s0.people[ap]
+          const cat = person?.budgetCategories.find((c) => c.id === categoryId)
+          if (!cat?.householdSplit) {
+            return { ok: false, reason: 'not_shared' } as const
+          }
+          const meta = cat.householdSplit
+          const newT = impliedNewMonthTotal(
+            meta.mode,
+            meta.participantProfileIds,
+            ap,
+            newPart,
+            meta.percentWeights,
+            meta.amountReferenceByProfileId,
+          )
+          if (newT == null) {
+            return { ok: false, reason: 'invalid' } as const
+          }
+          const g = collectSharedGroupTotals(s0.people, meta.groupId)
+          if (!g) {
+            return { ok: false, reason: 'not_found' } as const
+          }
+          g.total[monthIndex] = newT
+          const v = validateHouseholdSplitMeta(meta)
+          if (!v.ok) {
+            return { ok: false, reason: 'invalid' } as const
+          }
+          const sh = splitTotalBudgetBetweenParticipants(g.total, meta)
+          if (!sh.ok) {
+            return { ok: false, reason: 'invalid' } as const
+          }
+          set((s) => {
+            const y = s.budgetYear
+            const nextPeople: Record<string, PersonData> = { ...s.people }
+            for (const pid of meta.participantProfileIds) {
+              const p = nextPeople[pid]
+              if (!p) return s
+              const newCats = p.budgetCategories.map((c) => {
+                if (c.householdSplit?.groupId !== meta.groupId) return c
+                return { ...c, budgeted: sh.byProfileId[pid] ?? c.budgeted, householdSplit: meta }
+              })
+              nextPeople[pid] = recalcPersonBudgetSpentForYear(
+                { ...p, budgetCategories: newCats },
+                pid,
+                y,
+              )
+            }
+            return { people: nextPeople }
+          })
+          return { ok: true } as const
+        },
+
+        removeSharedHouseholdBudgetLineByGroupId: (groupId) => {
+          set((s) => {
+            const y = s.budgetYear
+            let people: Record<string, PersonData> = { ...s.people }
+            const meta: HouseholdSplitMeta | undefined = (() => {
+              for (const p of s.profiles) {
+                const c = people[p.id]?.budgetCategories.find(
+                  (x) => x.householdSplit?.groupId === groupId,
+                )
+                if (c?.householdSplit) return c.householdSplit
+              }
+              return undefined
+            })()
+            if (!meta) return s
+            for (const pid of meta.participantProfileIds) {
+              const person = people[pid]
+              if (!person) continue
+              const c = person.budgetCategories.find((x) => x.householdSplit?.groupId === groupId)
+              if (!c) continue
+              people[pid] = recalcPersonBudgetSpentForYear(
+                removeBudgetCategoryFromPersonData(person, c.id, pid),
+                pid,
+                y,
+              )
+            }
+            return { people }
+          })
+        },
+
         updateBudgetCategory: (id, data) =>
           patchActive((d) => ({
             ...d,
@@ -1974,12 +2306,23 @@ export const useStore = create<AppState>()((set, get) => {
           })),
 
         reorderBudgetCategory: (parent, id, direction) =>
-          patchActive((d) => ({
-            ...d,
-            budgetCategories: reorderBudgetCategoriesForParent(d.budgetCategories, parent, id, direction),
-          })),
+          patchActive((d) => {
+            const hit = d.budgetCategories.find((c) => c.id === id)
+            if (hit?.householdSplit) return d
+            return {
+              ...d,
+              budgetCategories: reorderBudgetCategoriesForParent(d.budgetCategories, parent, id, direction),
+            }
+          }),
 
-        removeBudgetCategory: (id) =>
+        removeBudgetCategory: (id) => {
+          const s = get()
+          const ap = s.activeProfileId
+          const cat = s.people[ap]?.budgetCategories.find((c) => c.id === id)
+          if (cat?.householdSplit?.groupId) {
+            get().removeSharedHouseholdBudgetLineByGroupId(cat.householdSplit.groupId)
+            return
+          }
           patchActive((d) => {
             const pid = get().activeProfileId
             const nextCats = d.budgetCategories.filter((c) => c.id !== id)
@@ -2018,7 +2361,8 @@ export const useStore = create<AppState>()((set, get) => {
               },
               pid,
             )
-          }),
+          })
+        },
 
         addCustomBudgetLabel: (parent, name) =>
           patchActive((d) => {
@@ -2075,6 +2419,53 @@ export const useStore = create<AppState>()((set, get) => {
             archivedBudgetsByYear: res.archivedBudgetsByYear,
           })
           return { ok: true }
+        },
+
+        remapSharedHouseholdBudgetLineName: (groupId, parent, toName) => {
+          const t = toName.trim()
+          if (!t) {
+            return { ok: false, reason: 'empty_name' } as const
+          }
+          const s0 = get()
+          if (s0.financeScope === 'household') {
+            return { ok: false, reason: 'from_unused' } as const
+          }
+          let fromName: string | undefined
+          let meta: HouseholdSplitMeta | undefined
+          for (const p of s0.profiles) {
+            const c = s0.people[p.id]?.budgetCategories.find((x) => x.householdSplit?.groupId === groupId)
+            if (c?.householdSplit) {
+              fromName = c.name
+              meta = c.householdSplit
+              break
+            }
+          }
+          if (!fromName || !meta) {
+            return { ok: false, reason: 'from_unused' } as const
+          }
+          if (fromName === t) {
+            return { ok: true } as const
+          }
+          let people: Record<string, PersonData> = { ...s0.people }
+          let archived = s0.archivedBudgetsByYear
+          const y = s0.budgetYear
+          for (const pid of meta.participantProfileIds) {
+            const person = people[pid]
+            if (!person) {
+              return { ok: false, reason: 'from_unused' } as const
+            }
+            const res = applyCategoryRemap(person, archived, pid, parent, fromName, t)
+            if (!res.ok) {
+              return res
+            }
+            let next = res.person
+            next = applySubscriptionCancellationsToBudgetForYear(next, y)
+            next = recalcPersonBudgetSpentForYear(next, pid, y)
+            people[pid] = next
+            archived = res.archivedBudgetsByYear
+          }
+          set({ people, archivedBudgetsByYear: archived })
+          return { ok: true } as const
         },
 
         addSavingsGoal: (g) =>
@@ -2983,6 +3374,10 @@ export function useActivePersonFinance() {
       updateTransaction: s.updateTransaction,
       recalcBudgetSpent: s.recalcBudgetSpent,
       addBudgetCategory: s.addBudgetCategory,
+      addSharedHouseholdBudgetLine: s.addSharedHouseholdBudgetLine,
+      resplitSharedHouseholdGroupFromTotals: s.resplitSharedHouseholdGroupFromTotals,
+      applySharedHouseholdMonthCellEdit: s.applySharedHouseholdMonthCellEdit,
+      removeSharedHouseholdBudgetLineByGroupId: s.removeSharedHouseholdBudgetLineByGroupId,
       updateBudgetCategory: s.updateBudgetCategory,
       removeBudgetCategory: s.removeBudgetCategory,
       reorderBudgetCategory: s.reorderBudgetCategory,
@@ -2991,6 +3386,7 @@ export function useActivePersonFinance() {
       hideStandardBudgetLabel: s.hideStandardBudgetLabel,
       unhideStandardBudgetLabel: s.unhideStandardBudgetLabel,
       remapBudgetCategoryName: s.remapBudgetCategoryName,
+      remapSharedHouseholdBudgetLineName: s.remapSharedHouseholdBudgetLineName,
       addSavingsGoal: s.addSavingsGoal,
       updateSavingsGoal: s.updateSavingsGoal,
       removeSavingsGoal: s.removeSavingsGoal,
@@ -3062,6 +3458,10 @@ export function useActivePersonFinance() {
     updateTransaction: state.updateTransaction,
     recalcBudgetSpent: state.recalcBudgetSpent,
     addBudgetCategory: state.addBudgetCategory,
+    addSharedHouseholdBudgetLine: state.addSharedHouseholdBudgetLine,
+    resplitSharedHouseholdGroupFromTotals: state.resplitSharedHouseholdGroupFromTotals,
+    applySharedHouseholdMonthCellEdit: state.applySharedHouseholdMonthCellEdit,
+    removeSharedHouseholdBudgetLineByGroupId: state.removeSharedHouseholdBudgetLineByGroupId,
     updateBudgetCategory: state.updateBudgetCategory,
     removeBudgetCategory: state.removeBudgetCategory,
     reorderBudgetCategory: state.reorderBudgetCategory,
@@ -3070,6 +3470,7 @@ export function useActivePersonFinance() {
     hideStandardBudgetLabel: state.hideStandardBudgetLabel,
     unhideStandardBudgetLabel: state.unhideStandardBudgetLabel,
     remapBudgetCategoryName: state.remapBudgetCategoryName,
+    remapSharedHouseholdBudgetLineName: state.remapSharedHouseholdBudgetLineName,
     addSavingsGoal: state.addSavingsGoal,
     updateSavingsGoal: state.updateSavingsGoal,
     removeSavingsGoal: state.removeSavingsGoal,

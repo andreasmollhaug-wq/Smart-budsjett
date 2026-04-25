@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory } from '@/lib/store'
 import {
@@ -74,6 +75,8 @@ export default function NewBudgetCategoryModal({
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const backdropDismiss = useModalBackdropDismiss(onClose)
+
   if (!open) return null
 
   const handleSubmit = () => {
@@ -99,7 +102,7 @@ export default function NewBudgetCategoryModal({
     <div
       className="fixed inset-0 z-[400] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      {...backdropDismiss}
       role="presentation"
     >
       <div

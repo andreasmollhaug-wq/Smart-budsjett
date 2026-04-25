@@ -1,7 +1,8 @@
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory } from '@/lib/store'
 import type { Transaction } from '@/lib/store'
-import { generateId, parseIntegerNbNo } from '@/lib/utils'
+import { parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
+import { generateId } from '@/lib/utils'
 
 export type SameDayBatchRowInput = {
   id: string
@@ -39,14 +40,14 @@ function rowHasAnyInput(row: SameDayBatchRowInput): boolean {
   if (row.description.trim()) return true
   if (row.category.trim()) return true
   if (row.subcategory.trim()) return true
-  const n = parseIntegerNbNo(row.amount)
+  const n = parsePositiveMoneyAmount2Decimals(row.amount)
   return Number.isFinite(n)
 }
 
 function rowIsComplete(row: SameDayBatchRowInput): boolean {
   if (!row.description.trim()) return false
   if (!row.category.trim()) return false
-  const n = parseIntegerNbNo(row.amount)
+  const n = parsePositiveMoneyAmount2Decimals(row.amount)
   return Number.isFinite(n)
 }
 
@@ -86,7 +87,7 @@ export function validateAndBuildSameDayTransactions(
     const row = rows[i]!
     if (!rowIsComplete(row)) continue
 
-    const amountNum = parseIntegerNbNo(row.amount)
+    const amountNum = parsePositiveMoneyAmount2Decimals(row.amount)
     if (!Number.isFinite(amountNum)) {
       return { ok: false, message: `Rad ${i + 1}: Ugyldig beløp.` }
     }

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { Debt } from '@/lib/store'
 import { useStore } from '@/lib/store'
 import { defaultSyncBudgetFromMonth1ForBudgetYear } from '@/lib/debtBudgetSync'
@@ -81,6 +82,8 @@ export default function DebtDetailModal({
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const backdropDismiss = useModalBackdropDismiss(onClose)
+
   if (!open || !debt || !draft) return null
 
   const Icon = debtIcons[draft.type]
@@ -123,10 +126,8 @@ export default function DebtDetailModal({
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onPointerDown={(e) => {
-        if (e.target === e.currentTarget && e.button === 0) onClose()
-      }}
       role="presentation"
+      {...backdropDismiss}
     >
       <div
         className="w-full max-w-lg min-w-0 rounded-2xl p-6 pt-6 shadow-xl max-h-[90vh] overflow-x-hidden overflow-y-auto pb-[max(1.5rem,calc(1rem+env(safe-area-inset-bottom)))]"

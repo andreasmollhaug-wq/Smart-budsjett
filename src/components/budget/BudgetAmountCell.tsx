@@ -1,6 +1,8 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { formatNOK, formatThousands } from '@/lib/utils'
+import { useCallback, useState, useEffect, useRef } from 'react'
+import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
+import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
+import { formatNOK } from '@/lib/utils'
 
 type Props = {
   value: number
@@ -10,15 +12,22 @@ type Props = {
   readOnly?: boolean
 }
 
+function displayForStored(value: number): string {
+  return Number.isFinite(value) && value !== 0 ? formatMoneyInputFromNumber(value) : ''
+}
+
 export default function BudgetAmountCell({ value, onChange, className = '', readOnly = false }: Props) {
   const [editing, setEditing] = useState(false)
-  const [display, setDisplay] = useState(
-    Number.isFinite(value) && value !== 0 ? formatThousands(value) : '',
-  )
+  const [display, setDisplay] = useState(displayForStored(value))
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const setDisplayStr = useCallback((v: string) => {
+    setDisplay(v)
+  }, [])
+  const displayMoney = useFormattedMoneyInput(display, setDisplayStr)
+
   useEffect(() => {
-    if (!editing) setDisplay(Number.isFinite(value) && value !== 0 ? formatThousands(value) : '')
+    if (!editing) setDisplay(displayForStored(value))
   }, [value, editing])
 
   useEffect(() => {
@@ -28,12 +37,15 @@ export default function BudgetAmountCell({ value, onChange, className = '', read
     }
   }, [editing])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\s/g, '')
-    if (!/^\d*$/.test(raw)) return
-    const formatted = raw ? Number(raw).toLocaleString('nb-NO') : ''
-    setDisplay(formatted)
-    onChange(raw ? Number(raw) : 0)
+  const applyBlur = () => {
+    const n = parsePositiveMoneyAmount2Decimals(display)
+    if (Number.isFinite(n)) {
+      onChange(n)
+      setDisplay(formatMoneyInputFromNumber(n))
+    } else {
+      setDisplay(displayForStored(value))
+    }
+    setEditing(false)
   }
 
   if (readOnly) {
@@ -68,14 +80,19 @@ export default function BudgetAmountCell({ value, onChange, className = '', read
     <input
       ref={inputRef}
       type="text"
-      inputMode="numeric"
+      inputMode="decimal"
       value={display}
-      onChange={handleChange}
+      onChange={displayMoney.onChange}
       onFocus={(e) => e.target.select()}
-      onBlur={() => setEditing(false)}
+      onBlur={applyBlur}
       onKeyDown={(e) => {
-        if (e.key === 'Escape' || e.key === 'Enter') {
+        if (e.key === 'Enter') {
           e.preventDefault()
+          void inputRef.current?.blur()
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          setDisplay(displayForStored(value))
           setEditing(false)
         }
       }}

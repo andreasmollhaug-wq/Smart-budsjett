@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { Debt } from '@/lib/store'
 import { debtColors, debtIcons, debtTypeLabels } from '@/lib/debtDisplay'
 import type { HouseholdDebtMemberRow } from '@/lib/householdDebtOverview'
@@ -27,6 +28,8 @@ export default function HouseholdMemberDebtModal({ open, onClose, member, debts 
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const backdropDismiss = useModalBackdropDismiss(onClose)
+
   const sortedDebts = useMemo(() => {
     return [...debts].sort((a, b) => b.remainingAmount - a.remainingAmount)
   }, [debts])
@@ -39,10 +42,8 @@ export default function HouseholdMemberDebtModal({ open, onClose, member, debts 
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onPointerDown={(e) => {
-        if (e.target === e.currentTarget && e.button === 0) onClose()
-      }}
       role="presentation"
+      {...backdropDismiss}
     >
       <div
         className="w-full max-w-2xl min-w-0 rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[min(92vh,900px)] flex flex-col overflow-hidden"

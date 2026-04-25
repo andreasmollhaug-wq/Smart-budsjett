@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useState, useMemo, useEffect, useId } from 'react'
+import { Suspense, useState, useMemo, useEffect, useId, useCallback } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
@@ -15,14 +15,13 @@ import { buildCategoryActualsYearMatrix, REPORT_GROUP_LABELS, REPORT_GROUP_ORDER
 import { mergeBudgetCategoriesFromSnapshots, useStore } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
+import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
+import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
 import {
   dateInMonth,
-  formatIntegerNbNo,
-  formatIntegerNbNoWhileTyping,
   formatIsoDateDdMmYyyy,
   formatNOK,
   generateId,
-  parseIntegerNbNo,
 } from '@/lib/utils'
 import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Info, CheckCircle2 } from 'lucide-react'
 import {
@@ -128,6 +127,11 @@ function TransaksjonerPageInner() {
   const [entryMode, setEntryMode] = useState<'single' | 'sameDayBatch'>('single')
   const [batchDate, setBatchDate] = useState(() => new Date().toISOString().split('T')[0])
   const [batchRows, setBatchRows] = useState<SameDayBatchRowInput[]>(() => createDefaultBatchRows())
+
+  const setFormAmountStr = useCallback((v: string) => {
+    setForm((f) => ({ ...f, amount: v }))
+  }, [])
+  const formAmountField = useFormattedMoneyInput(form.amount, setFormAmountStr)
 
   const showHouseholdProfilePicker = isHouseholdAggregate && profiles.length >= 2
 
@@ -357,7 +361,7 @@ function TransaksjonerPageInner() {
       setFormError('Ugyldig kategori.')
       return
     }
-    const amountNum = parseIntegerNbNo(form.amount)
+    const amountNum = parsePositiveMoneyAmount2Decimals(form.amount)
     if (!Number.isFinite(amountNum)) {
       setFormError('Skriv inn et gyldig beløp (større enn null).')
       return
@@ -1035,15 +1039,13 @@ function TransaksjonerPageInner() {
                   <input
                     placeholder="Beløp (NOK)"
                     type="text"
-                    inputMode="numeric"
+                    inputMode="decimal"
                     autoComplete="off"
                     value={form.amount}
-                    onChange={(e) =>
-                      setForm({ ...form, amount: formatIntegerNbNoWhileTyping(e.target.value) })
-                    }
+                    onChange={formAmountField.onChange}
                     onBlur={() => {
-                      const n = parseIntegerNbNo(form.amount)
-                      if (Number.isFinite(n)) setForm((f) => ({ ...f, amount: formatIntegerNbNo(n) }))
+                      const n = parsePositiveMoneyAmount2Decimals(form.amount)
+                      if (Number.isFinite(n)) setForm((f) => ({ ...f, amount: formatMoneyInputFromNumber(n) }))
                     }}
                     className="px-3 py-2 rounded-xl text-sm"
                     style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}

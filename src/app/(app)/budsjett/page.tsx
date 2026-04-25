@@ -13,13 +13,13 @@ import {
   type BudgetYearCopySource,
 } from '@/lib/store'
 import { budgetedArrayForCategoryName } from '@/lib/budgetYearHelpers'
+import { parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
 import {
   budgetedMonthsFromFrequency,
   formatNOK,
   formatNOKOrDash,
   formatPercent,
   generateId,
-  parseThousands,
 } from '@/lib/utils'
 import {
   budgetCategoryUsesIncomeWithholding,
@@ -54,6 +54,11 @@ import EditBudgetLineModal from '@/components/budget/EditBudgetLineModal'
 import BudsjettOpenArchiveModal from '@/components/budget/BudsjettOpenArchiveModal'
 import BudsjettNewYearModal from '@/components/budget/BudsjettNewYearModal'
 import BudgetLineReorderButtons from '@/components/budget/BudgetLineReorderButtons'
+import HouseholdBudgetSplitSection, {
+  createDefaultHouseholdSplitForm,
+  type HouseholdSplitFormState,
+} from '@/components/budget/HouseholdBudgetSplitSection'
+import { impliedNewMonthTotal } from '@/lib/householdBudgetSplit'
 
 const COLORS = ['#3B5BDB', '#4C6EF5', '#7048E8', '#AE3EC9', '#E03131', '#F08C00', '#0CA678', '#0B7285']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
@@ -157,6 +162,11 @@ export default function BudsjettPage() {
     isHouseholdAggregate,
     serviceSubscriptions,
     remapBudgetCategoryName,
+    remapSharedHouseholdBudgetLineName,
+    subscriptionPlan,
+    addSharedHouseholdBudgetLine,
+    resplitSharedHouseholdGroupFromTotals,
+    applySharedHouseholdMonthCellEdit,
   } = useActivePersonFinance()
 
   const people = useStore((s) => s.people)
@@ -247,13 +257,22 @@ export default function BudsjettPage() {
   const [addModalGroup, setAddModalGroup] = useState<ParentCategory | null>(null)
   const [editLine, setEditLine] = useState<{ category: BudgetCategory; parent: ParentCategory } | null>(null)
   const [modalSearch, setModalSearch] = useState('')
-  const [newForm, setNewForm] = useState({
+  const [newForm, setNewForm] = useState<{
+    name: string
+    amount: string
+    freq: BudgetCategory['frequency']
+    onceMonthIndex: number
+    incomeWhApply: boolean
+    incomeWhPercent: string
+    householdSplit: HouseholdSplitFormState
+  }>({
     name: '',
     amount: '',
-    freq: 'monthly' as BudgetCategory['frequency'],
+    freq: 'monthly',
     onceMonthIndex: 0,
     incomeWhApply: false,
     incomeWhPercent: '32',
+    householdSplit: createDefaultHouseholdSplitForm([]),
   })
   const [focusAmountSignal, setFocusAmountSignal] = useState(0)
 
@@ -325,6 +344,7 @@ export default function BudsjettPage() {
       onceMonthIndex: 0,
       incomeWhApply: false,
       incomeWhPercent: '32',
+      householdSplit: createDefaultHouseholdSplitForm(profiles),
     })
   }
 
@@ -339,6 +359,7 @@ export default function BudsjettPage() {
       onceMonthIndex: 0,
       incomeWhApply: group === 'inntekter' && d.apply,
       incomeWhPercent: String(d.percent > 0 ? d.percent : 32),
+      householdSplit: createDefaultHouseholdSplitForm(profiles),
     })
     setFocusAmountSignal(0)
   }
@@ -354,6 +375,7 @@ export default function BudsjettPage() {
       onceMonthIndex: 0,
       incomeWhApply: group === 'inntekter' && d.apply,
       incomeWhPercent: String(d.percent > 0 ? d.percent : 32),
+      householdSplit: createDefaultHouseholdSplitForm(profiles),
     })
     setModalSearch('')
     setFocusAmountSignal((n) => n + 1)
@@ -362,7 +384,11 @@ export default function BudsjettPage() {
   const handleAddCustom = (group: ParentCategory) => {
     if (!newForm.name || !newForm.amount) return
     const name = newForm.name.trim()
-    const raw = parseThousands(String(newForm.amount))
+    const raw = parsePositiveMoneyAmount2Decimals(String(newForm.amount))
+    if (!Number.isFinite(raw)) {
+      window.alert('Skriv inn et gyldig beløp (større enn null).')
+      return
+    }
     const budgeted = budgetedMonthsFromFrequency(
       raw,
       newForm.freq,
@@ -371,9 +397,83 @@ export default function BudsjettPage() {
 
     const existing = getCategoriesForGroup(group).find((c) => c.name === name)
     if (existing) {
+      if (
+        newForm.householdSplit.enabled &&
+        subscriptionPlan === 'family' &&
+        profiles.length >= 2 &&
+        group !== 'inntekter'
+      ) {
+        window.alert(
+          'Det finnes allerede en linje med dette navnet. Velg et annet navn for felles linje, eller rediger den eksisterende.',
+        )
+        return
+      }
       const merged = mergeBudgetCategoryValues(existing, budgeted, 0)
       updateBudgetCategory(existing.id, merged)
       closeAddModal()
+      return
+    }
+
+    const canHousehold =
+      subscriptionPlan === 'family' &&
+      profiles.length >= 2 &&
+      group !== 'inntekter' &&
+      newForm.householdSplit.enabled
+
+    if (canHousehold) {
+      const pids = newForm.householdSplit.participantIds
+      if (pids.length < 2) {
+        window.alert('Velg minst to deltakere for felles husholdning.')
+        return
+      }
+      const mode = newForm.householdSplit.mode
+      let percentWeights: number[] | undefined
+      let amountReferenceByProfileId: Record<string, number> | undefined
+      if (mode === 'percent') {
+        const w = pids.map(
+          (id) => Number(String(newForm.householdSplit.percentByProfileId[id] ?? '0').replace(',', '.')) || 0,
+        )
+        const s = w.reduce((a, b) => a + b, 0)
+        if (Math.abs(s - 100) > 0.05) {
+          window.alert('Prosentene skal sum til 100.')
+          return
+        }
+        percentWeights = w
+      }
+      if (mode === 'amount') {
+        const ref: Record<string, number> = {}
+        for (const id of pids) {
+          const v = parsePositiveMoneyAmount2Decimals(String(newForm.householdSplit.amountByProfileId[id] ?? '0'))
+          ref[id] = Number.isFinite(v) ? v : 0
+        }
+        if (pids.map((id) => ref[id] ?? 0).reduce((a, b) => a + b, 0) <= 0) {
+          window.alert('Fyll inn andelsbeløp (kroner) for hver deltaker.')
+          return
+        }
+        amountReferenceByProfileId = ref
+      }
+      if (shouldRegisterCustom(group, name)) addCustomBudgetLabel(group, name)
+      const r = addSharedHouseholdBudgetLine({
+        name,
+        parentCategory: group,
+        frequency: newForm.freq,
+        onceMonthIndex: newForm.freq === 'once' ? newForm.onceMonthIndex : undefined,
+        amount: raw,
+        color: COLORS[displayCategories.length % COLORS.length],
+        participantProfileIds: pids,
+        mode: mode === 'percent' ? 'percent' : mode === 'amount' ? 'amount' : 'equal',
+        percentWeights,
+        amountReferenceByProfileId,
+      })
+      if (r.ok) {
+        closeAddModal()
+        return
+      }
+      if (r.reason === 'name_conflict') {
+        window.alert('Navnet kolliderer med en eksisterende linje på en av profilene. Velg et annet navn.')
+        return
+      }
+      window.alert('Kunne ikke opprette felles linje. Sjekk beløp og fordeling.')
       return
     }
 
@@ -406,6 +506,41 @@ export default function BudsjettPage() {
   }
 
   const fillAllMonthsFromSelected = (cat: BudgetCategory) => {
+    if (cat.householdSplit && !isHouseholdAggregate) {
+      const m = cat.householdSplit
+      const arr = ensureArrayBudgeted(cat.budgeted)
+      if (cat.frequency === 'once') {
+        const mi = cat.onceMonthIndex ?? 0
+        const v = arr[mi] ?? 0
+        const t =
+          impliedNewMonthTotal(
+            m.mode,
+            m.participantProfileIds,
+            activeProfileId,
+            v,
+            m.percentWeights,
+            m.amountReferenceByProfileId,
+          ) ?? 0
+        const total = Array(12).fill(0)
+        total[mi] = t
+        resplitSharedHouseholdGroupFromTotals(m.groupId, total, m)
+        return
+      }
+      const v = arr[selectedMonth] ?? 0
+      const t =
+        impliedNewMonthTotal(
+          m.mode,
+          m.participantProfileIds,
+          activeProfileId,
+          v,
+          m.percentWeights,
+          m.amountReferenceByProfileId,
+        ) ?? 0
+      if (t <= 0) return
+      const total = Array(12).fill(t)
+      resplitSharedHouseholdGroupFromTotals(m.groupId, total, m)
+      return
+    }
     const arr = ensureArrayBudgeted(cat.budgeted)
     if (budgetCategoryUsesIncomeWithholding(cat)) {
       const targetNet = effectiveBudgetedIncomeMonth(cat, selectedMonth)
@@ -417,6 +552,39 @@ export default function BudsjettPage() {
     const v = arr[selectedMonth] ?? 0
     updateBudgetCategory(cat.id, { budgeted: Array(12).fill(v) })
   }
+
+  const onExpenseCellChange = useCallback(
+    (cat: BudgetCategory, monthIndex: number, n: number) => {
+      if (cat.householdSplit && !isHouseholdAggregate) {
+        const m = cat.householdSplit
+        if (cat.frequency === 'once') {
+          const t = impliedNewMonthTotal(
+            m.mode,
+            m.participantProfileIds,
+            activeProfileId,
+            n,
+            m.percentWeights,
+            m.amountReferenceByProfileId,
+          )
+          if (t == null) return
+          const total = Array(12).fill(0)
+          total[monthIndex] = t
+          resplitSharedHouseholdGroupFromTotals(m.groupId, total, m)
+        } else {
+          applySharedHouseholdMonthCellEdit(cat.id, monthIndex, n)
+        }
+        return
+      }
+      applyBudgetAmountCellChange(cat, monthIndex, n, updateBudgetCategory)
+    },
+    [
+      isHouseholdAggregate,
+      activeProfileId,
+      resplitSharedHouseholdGroupFromTotals,
+      applySharedHouseholdMonthCellEdit,
+      updateBudgetCategory,
+    ],
+  )
 
   const monthColumnIndices = view === 'month' ? [selectedMonth] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
@@ -491,6 +659,8 @@ export default function BudsjettPage() {
         onAddCustom={() => addModalGroup && handleAddCustom(addModalGroup)}
         onClose={closeAddModal}
         focusAmountSignal={focusAmountSignal}
+        showHouseholdSplitBlock={subscriptionPlan === 'family' && profiles.length >= 2}
+        profilesForHousehold={profiles}
       />
 
       <BudgetLineIncomeWithholdingModal
@@ -533,6 +703,8 @@ export default function BudsjettPage() {
             ? () => setIncomeWithholdingModalCategoryId(editLine.category.id)
             : undefined
         }
+        sharedGroupId={editLine?.category.householdSplit?.groupId ?? null}
+        remapSharedHouseholdBudgetLineName={remapSharedHouseholdBudgetLineName}
       />
 
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -546,7 +718,8 @@ export default function BudsjettPage() {
             }}
           >
             Du ser samlet husholdning — budsjett kan ikke redigeres her. Velg en person under «Viser data for» for å
-            endre linjer.
+            legge til eller endre linjer, inkludert <strong>felles fordeling</strong> (Familie-abonnement). Linjer
+            merket «Fordelt» er budsjettert per person ut fra husholdningens valg.
           </div>
         )}
         {canOpenArchiveForEdit && (
@@ -953,6 +1126,14 @@ export default function BudsjettPage() {
                                     >
                                       {cat.name}
                                     </span>
+                                    {cat.householdSplit && (
+                                      <span
+                                        className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                                        style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
+                                      >
+                                        Fordelt
+                                      </span>
+                                    )}
                                     {showHouseholdLineBreakdown && (
                                       <button
                                         type="button"
@@ -1057,7 +1238,7 @@ export default function BudsjettPage() {
                                               ),
                                               updateBudgetCategory,
                                             )
-                                          : applyBudgetAmountCellChange(cat, mi, n, updateBudgetCategory)
+                                          : onExpenseCellChange(cat, mi, n)
                                       }
                                     />
                                   </td>
@@ -1409,6 +1590,14 @@ export default function BudsjettPage() {
                                   >
                                     {cat.name}
                                   </span>
+                                  {cat.householdSplit && (
+                                    <span
+                                      className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                                      style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
+                                    >
+                                      Fordelt
+                                    </span>
+                                  )}
                                   {showHouseholdLineBreakdown && (
                                     <button
                                       type="button"
@@ -1429,7 +1618,7 @@ export default function BudsjettPage() {
                                       )}
                                     </button>
                                   )}
-                                  {incomeWhOn && (
+                                {incomeWhOn && (
                                     <button
                                       type="button"
                                       className="pointer-events-auto p-0.5 rounded flex-shrink-0 opacity-45 hover:opacity-90 transition-opacity min-h-[28px] min-w-[28px] inline-flex items-center justify-center"
@@ -1525,7 +1714,7 @@ export default function BudsjettPage() {
                                             ),
                                             updateBudgetCategory,
                                           )
-                                        : applyBudgetAmountCellChange(cat, i, n, updateBudgetCategory)
+                                        : onExpenseCellChange(cat, i, n)
                                     }
                                     className="!max-w-full !ml-0 w-full text-[11px]"
                                   />
@@ -1648,6 +1837,14 @@ export default function BudsjettPage() {
                                 >
                                   {cat.name}
                                 </span>
+                                {cat.householdSplit && (
+                                  <span
+                                    className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                                    style={{ background: 'var(--primary-pale)', color: 'var(--primary)' }}
+                                  >
+                                    Fordelt
+                                  </span>
+                                )}
                                 {showHouseholdLineBreakdown && (
                                   <button
                                     type="button"
@@ -1764,12 +1961,7 @@ export default function BudsjettPage() {
                                           ),
                                           updateBudgetCategory,
                                         )
-                                      : applyBudgetAmountCellChange(
-                                          cat,
-                                          selectedMonth,
-                                          n,
-                                          updateBudgetCategory,
-                                        )
+                                      : onExpenseCellChange(cat, selectedMonth, n)
                                   }
                                 />
                               </div>

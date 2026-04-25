@@ -9,27 +9,18 @@ import { useRenovationProjectStore } from './renovationProjectStore'
 import { computeProjectKpis } from './kpis'
 import type { RenovationProjectExpense } from './types'
 import {
-  formatIsoDateDdMmYyyy,
-  formatNOK,
-  formatThousands,
-  generateId,
-  parseIntegerNbNo,
-} from '@/lib/utils'
-import { useFormattedThousandsInput } from '@/lib/useFormattedThousandsInput'
+  formatMoneyInputFromNonNegativeNumber,
+  formatMoneyInputFromNumber,
+  parseNonNegativeMoneyAmount2Decimals,
+  parsePositiveMoneyAmount2Decimals,
+} from '@/lib/money/parseNorwegianAmount'
+import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
+import { formatIsoDateDdMmYyyy, formatNOK, generateId } from '@/lib/utils'
 import { ArrowLeft, ListChecks, Pencil, Receipt, Scale, Trash2, Wallet } from 'lucide-react'
 import {
   BUDGET_LINE_LABEL_SUGGESTIONS,
   datalistOptionsForBudgetLines,
 } from './budgetLineSuggestions'
-
-function parseNonNegativeAmount(s: string): number {
-  const cleaned = s.replace(/\s/g, '').replace(/\u00a0/g, '').replace(/\u202f/g, '')
-  if (!cleaned) return NaN
-  const digits = cleaned.replace(/[^0-9]/g, '')
-  if (!digits) return NaN
-  const n = parseInt(digits, 10)
-  return Number.isFinite(n) && n >= 0 ? n : NaN
-}
 
 function todayYyyyMmDd(): string {
   const d = new Date()
@@ -83,12 +74,13 @@ export default function InternProsjektDetailPage() {
   const [editExpDesc, setEditExpDesc] = useState('')
   const [editExpLineId, setEditExpLineId] = useState('')
 
+  const lineAmountField = useFormattedMoneyInput(lineAmount, setLineAmount)
+  const editLineAmountField = useFormattedMoneyInput(editLineAmount, setEditLineAmount)
+  const expAmountField = useFormattedMoneyInput(expAmount, setExpAmount)
+  const editExpAmountField = useFormattedMoneyInput(editExpAmount, setEditExpAmount)
+
   const kpis = project ? computeProjectKpis(project) : null
 
-  const lineAmountInput = useFormattedThousandsInput(lineAmount, setLineAmount)
-  const editLineAmountInput = useFormattedThousandsInput(editLineAmount, setEditLineAmount)
-  const expAmountInput = useFormattedThousandsInput(expAmount, setExpAmount)
-  const editExpAmountInput = useFormattedThousandsInput(editExpAmount, setEditExpAmount)
 
   const dateRangeWarning = useMemo(() => {
     const s = startDateDraft.trim()
@@ -157,7 +149,7 @@ export default function InternProsjektDetailPage() {
   const handleAddLine = (e: React.FormEvent) => {
     e.preventDefault()
     const label = lineLabel.trim()
-    const amt = parseNonNegativeAmount(lineAmount)
+    const amt = parseNonNegativeMoneyAmount2Decimals(lineAmount)
     if (!label || !Number.isFinite(amt)) return
     addBudgetLine(project.id, {
       id: generateId(),
@@ -170,7 +162,7 @@ export default function InternProsjektDetailPage() {
 
   const handleAddExpense = (e: React.FormEvent) => {
     e.preventDefault()
-    const amt = parseIntegerNbNo(expAmount)
+    const amt = parsePositiveMoneyAmount2Decimals(expAmount)
     const desc = expDesc.trim()
     if (!Number.isFinite(amt) || !desc) return
     addExpense(project.id, {
@@ -190,7 +182,7 @@ export default function InternProsjektDetailPage() {
   const startEditExpense = (ex: RenovationProjectExpense) => {
     setEditingExpenseId(ex.id)
     setEditExpDate(ex.date)
-    setEditExpAmount(formatThousands(String(ex.amountNok)))
+    setEditExpAmount(formatMoneyInputFromNumber(ex.amountNok))
     setEditExpDesc(ex.description)
     setEditExpLineId(ex.budgetLineId ?? '')
   }
@@ -205,7 +197,7 @@ export default function InternProsjektDetailPage() {
 
   const saveEditExpense = () => {
     if (!editingExpenseId) return
-    const amt = parseIntegerNbNo(editExpAmount)
+    const amt = parsePositiveMoneyAmount2Decimals(editExpAmount)
     const desc = editExpDesc.trim()
     if (!Number.isFinite(amt) || !desc) return
     updateExpense(project.id, editingExpenseId, {
@@ -232,7 +224,7 @@ export default function InternProsjektDetailPage() {
     if (!line) return
     setEditingLineId(lineId)
     setEditLineLabel(line.label)
-    setEditLineAmount(formatThousands(String(line.budgetedNok)))
+    setEditLineAmount(formatMoneyInputFromNonNegativeNumber(line.budgetedNok))
   }
 
   const cancelEditLine = () => {
@@ -244,7 +236,7 @@ export default function InternProsjektDetailPage() {
   const saveEditLine = () => {
     if (!editingLineId) return
     const label = editLineLabel.trim()
-    const amt = parseNonNegativeAmount(editLineAmount)
+    const amt = parseNonNegativeMoneyAmount2Decimals(editLineAmount)
     if (!label || !Number.isFinite(amt)) return
     updateBudgetLine(project.id, editingLineId, { label, budgetedNok: amt })
     cancelEditLine()
@@ -555,9 +547,13 @@ export default function InternProsjektDetailPage() {
                 type="text"
                 autoComplete="off"
                 value={lineAmount}
-                onChange={lineAmountInput.onChange}
+                onChange={lineAmountField.onChange}
+                onBlur={() => {
+                  const n = parseNonNegativeMoneyAmount2Decimals(lineAmount)
+                  if (Number.isFinite(n)) setLineAmount(formatMoneyInputFromNonNegativeNumber(n))
+                }}
                 placeholder="f.eks. 25 000"
-                inputMode="numeric"
+                inputMode="decimal"
                 className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base tabular-nums sm:text-sm"
                 style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               />
@@ -618,8 +614,12 @@ export default function InternProsjektDetailPage() {
                     type="text"
                     autoComplete="off"
                     value={editLineAmount}
-                    onChange={editLineAmountInput.onChange}
-                    inputMode="numeric"
+                    onChange={editLineAmountField.onChange}
+                    onBlur={() => {
+                      const n = parseNonNegativeMoneyAmount2Decimals(editLineAmount)
+                      if (Number.isFinite(n)) setEditLineAmount(formatMoneyInputFromNonNegativeNumber(n))
+                    }}
+                    inputMode="decimal"
                     placeholder="f.eks. 25 000"
                     className="min-h-[44px] w-full rounded-lg border px-3 py-2.5 text-base tabular-nums"
                     style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
@@ -761,8 +761,12 @@ export default function InternProsjektDetailPage() {
                             type="text"
                             autoComplete="off"
                             value={editLineAmount}
-                            onChange={editLineAmountInput.onChange}
-                            inputMode="numeric"
+                            onChange={editLineAmountField.onChange}
+                            onBlur={() => {
+                              const n = parseNonNegativeMoneyAmount2Decimals(editLineAmount)
+                              if (Number.isFinite(n)) setEditLineAmount(formatMoneyInputFromNonNegativeNumber(n))
+                            }}
+                            inputMode="decimal"
                             className="w-full max-w-[120px] ml-auto rounded-lg border px-2 py-1.5 text-sm tabular-nums"
                             style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                           />
@@ -855,9 +859,13 @@ export default function InternProsjektDetailPage() {
                 type="text"
                 autoComplete="off"
                 value={expAmount}
-                onChange={expAmountInput.onChange}
+                onChange={expAmountField.onChange}
+                onBlur={() => {
+                  const n = parsePositiveMoneyAmount2Decimals(expAmount)
+                  if (Number.isFinite(n)) setExpAmount(formatMoneyInputFromNumber(n))
+                }}
                 placeholder="f.eks. 5 000"
-                inputMode="numeric"
+                inputMode="decimal"
                 className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base tabular-nums sm:text-sm"
                 style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               />
@@ -958,8 +966,12 @@ export default function InternProsjektDetailPage() {
                             type="text"
                             autoComplete="off"
                             value={editExpAmount}
-                            onChange={editExpAmountInput.onChange}
-                            inputMode="numeric"
+                            onChange={editExpAmountField.onChange}
+                            onBlur={() => {
+                              const n = parsePositiveMoneyAmount2Decimals(editExpAmount)
+                              if (Number.isFinite(n)) setEditExpAmount(formatMoneyInputFromNumber(n))
+                            }}
+                            inputMode="decimal"
                             className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base tabular-nums sm:text-sm"
                             style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                           />
@@ -1122,8 +1134,12 @@ export default function InternProsjektDetailPage() {
                             type="text"
                             autoComplete="off"
                             value={editExpAmount}
-                            onChange={editExpAmountInput.onChange}
-                            inputMode="numeric"
+                            onChange={editExpAmountField.onChange}
+                            onBlur={() => {
+                              const n = parsePositiveMoneyAmount2Decimals(editExpAmount)
+                              if (Number.isFinite(n)) setEditExpAmount(formatMoneyInputFromNumber(n))
+                            }}
+                            inputMode="decimal"
                             className="w-full max-w-[8rem] ml-auto rounded-lg border px-2 py-1.5 text-sm tabular-nums"
                             style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                           />

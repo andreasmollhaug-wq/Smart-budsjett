@@ -21,6 +21,7 @@ import {
   yearOptionsTouchingPlan,
   type IncomeSprintGoalBasis,
 } from '@/lib/incomeSprint'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import { formatNOK, formatThousands, generateId, parseThousands } from '@/lib/utils'
 import { AlertTriangle, ChevronRight, CircleHelp, Clock, PiggyBank, Target, TrendingUp, Wallet, X } from 'lucide-react'
 
@@ -43,6 +44,7 @@ export default function SmartSparePage() {
   const activeProfileName = profiles.find((p) => p.id === activeProfileId)?.name ?? 'Profil'
 
   const [createPlanModalOpen, setCreatePlanModalOpen] = useState(false)
+  const createPlanBackdropDismiss = useModalBackdropDismiss(() => setCreatePlanModalOpen(false))
   const [modalStart, setModalStart] = useState('')
   const [modalEnd, setModalEnd] = useState('')
   const [modalGoalBasis, setModalGoalBasis] = useState<IncomeSprintGoalBasis>('afterTax')
@@ -235,9 +237,7 @@ export default function SmartSparePage() {
               type="button"
               className="absolute inset-0 bg-black/40"
               aria-label="Lukk"
-              onPointerDown={(e) => {
-                if (e.target === e.currentTarget) setCreatePlanModalOpen(false)
-              }}
+              {...createPlanBackdropDismiss}
             />
             <div
               className="relative flex max-h-[min(92dvh,44rem)] w-full max-w-lg flex-col rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden touch-manipulation"

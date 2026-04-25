@@ -1,17 +1,54 @@
 'use client'
 
+import { useCallback } from 'react'
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
 import type { SameDayBatchRowInput } from '@/lib/transactionBatch'
 import { createEmptyBatchRow, filterCategoryOptionsForParent } from '@/lib/transactionBatch'
 import type { BudgetCategory } from '@/lib/store'
-import { formatIntegerNbNo, formatIntegerNbNoWhileTyping, parseIntegerNbNo } from '@/lib/utils'
+import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
+import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
 import { Plus, Trash2 } from 'lucide-react'
 
 const MAX_ROWS = 30
 
 const borderColor = 'var(--border)'
+
+function SameDayBatchAmountInput({
+  id,
+  className,
+  value,
+  onUpdateAmount,
+}: {
+  id: string
+  className: string
+  value: string
+  onUpdateAmount: (next: string) => void
+}) {
+  const setVal = useCallback(
+    (v: string) => {
+      onUpdateAmount(v)
+    },
+    [onUpdateAmount],
+  )
+  const field = useFormattedMoneyInput(value, setVal)
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      value={value}
+      onChange={field.onChange}
+      onBlur={() => {
+        const n = parsePositiveMoneyAmount2Decimals(value)
+        if (Number.isFinite(n)) onUpdateAmount(formatMoneyInputFromNumber(n))
+      }}
+      className={className}
+    />
+  )
+}
 
 type Profile = { id: string; name: string }
 
@@ -316,18 +353,11 @@ function BatchTableRow({
         <label className="sr-only" htmlFor={`batch-amt-${row.id}`}>
           Beløp rad {rowNum}
         </label>
-        <input
+        <SameDayBatchAmountInput
           id={`batch-amt-${row.id}`}
-          type="text"
-          inputMode="numeric"
-          autoComplete="off"
-          value={row.amount}
-          onChange={(e) => onUpdate(row.id, { amount: formatIntegerNbNoWhileTyping(e.target.value) })}
-          onBlur={() => {
-            const n = parseIntegerNbNo(row.amount)
-            if (Number.isFinite(n)) onUpdate(row.id, { amount: formatIntegerNbNo(n) })
-          }}
           className={cellInputClass}
+          value={row.amount}
+          onUpdateAmount={(v) => onUpdate(row.id, { amount: v })}
         />
       </td>
       <td className="px-2 py-2 align-middle min-w-0">

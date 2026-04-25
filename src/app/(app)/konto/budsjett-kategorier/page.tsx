@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import { collectLabelUniverseForParent } from '@/lib/categoryRemap'
 import { remapErrorNb } from '@/lib/categoryRemapMessages'
 import { DEFAULT_STANDARD_LABELS, type ParentCategory } from '@/lib/budgetCategoryCatalog'
@@ -57,6 +58,8 @@ export default function BudsjettKategorierPage() {
     addCustomBudgetLabel(parent, name)
     setNewLabel((s) => ({ ...s, [parent]: '' }))
   }
+
+  const editModalBackdropDismiss = useModalBackdropDismiss(() => setEditModal(null))
 
   const handleRemapSubmit = () => {
     if (!editModal) return
@@ -222,9 +225,7 @@ export default function BudsjettKategorierPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0,0,0,0.45)' }}
           role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setEditModal(null)
-          }}
+          {...editModalBackdropDismiss}
         >
           <div
             className="w-full max-w-md rounded-2xl p-6 shadow-xl"

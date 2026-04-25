@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { ImportSummary } from '@/lib/transactionImport/summarizeImport'
 import { formatIsoDateDdMmYyyy, formatNOK } from '@/lib/utils'
 import { X } from 'lucide-react'
@@ -24,14 +25,15 @@ export default function TransactionImportSummaryModal({
   duplicateWarningCount,
   transactionsHref,
 }: Props) {
+  const backdropDismiss = useModalBackdropDismiss(onClose)
   if (!open || !summary) return null
 
   return (
     <div
       className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
       role="presentation"
+      {...backdropDismiss}
     >
       <div
         className="w-full max-w-lg min-w-0 rounded-t-2xl sm:rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"

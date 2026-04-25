@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import { ArrowRight, BookOpen, X } from 'lucide-react'
 
 type GuideStep = {
@@ -197,14 +198,15 @@ export default function TransactionImportGuideModal({ open, onClose }: Transacti
     }
   }, [open])
 
+  const backdropDismiss = useModalBackdropDismiss(onClose)
   if (!open) return null
 
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
       role="presentation"
+      {...backdropDismiss}
     >
       <div
         className="flex max-h-[min(90vh,840px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl shadow-xl sm:max-w-xl"

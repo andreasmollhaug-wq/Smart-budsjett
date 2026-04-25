@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
@@ -209,6 +210,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   type CellModal = { sourceId: string; monthKey: string }
   const [cellModal, setCellModal] = useState<CellModal | null>(null)
   const [cellModalHelpOpen, setCellModalHelpOpen] = useState(false)
+  const cellModalBackdropDismiss = useModalBackdropDismiss(() => setCellModal(null))
   const cellModalHelpRef = useRef<HTMLDivElement>(null)
   const [renamingSourceId, setRenamingSourceId] = useState<string | null>(null)
   const [modalAddCustomStr, setModalAddCustomStr] = useState('')
@@ -1248,9 +1250,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                   type="button"
                   className="absolute inset-0 bg-black/40"
                   aria-label="Lukk"
-                  onPointerDown={(e) => {
-                    if (e.target === e.currentTarget) setCellModal(null)
-                  }}
+                  {...cellModalBackdropDismiss}
                 />
                 <div
                   className="relative flex max-h-[min(92dvh,44rem)] w-full max-w-lg flex-col rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden touch-manipulation"

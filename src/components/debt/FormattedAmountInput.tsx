@@ -1,5 +1,7 @@
 'use client'
-import { parseThousands } from '@/lib/utils'
+import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
+import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
+import { useState, useEffect, useRef } from 'react'
 
 type Props = {
   value: number
@@ -11,7 +13,7 @@ type Props = {
   'aria-label'?: string
 }
 
-/** Beløpsfelt med nb-NO tusenskille (tekstfelt, ikke type="number"). */
+/** Beløpsfelt med nb-NO (tusenskille og inntil 2 desimaler). Oppdaterer forelder onBlur. */
 export default function FormattedAmountInput({
   value,
   onChange,
@@ -21,18 +23,38 @@ export default function FormattedAmountInput({
   id,
   'aria-label': ariaLabel,
 }: Props) {
-  const display = value > 0 ? Number(value).toLocaleString('nb-NO') : ''
+  const [text, setText] = useState(() => (value > 0 ? formatMoneyInputFromNumber(value) : ''))
+  const focusRef = useRef(false)
+  const moneyField = useFormattedMoneyInput(text, setText)
+
+  useEffect(() => {
+    if (focusRef.current) return
+    setText(value > 0 ? formatMoneyInputFromNumber(value) : '')
+  }, [value])
 
   return (
     <input
       id={id}
       type="text"
-      inputMode="numeric"
+      inputMode="decimal"
       placeholder={placeholder}
       disabled={disabled}
       aria-label={ariaLabel}
-      value={display}
-      onChange={(e) => onChange(parseThousands(e.target.value))}
+      value={text}
+      onChange={moneyField.onChange}
+      onFocus={() => {
+        focusRef.current = true
+      }}
+      onBlur={() => {
+        focusRef.current = false
+        const n = parsePositiveMoneyAmount2Decimals(text)
+        if (Number.isFinite(n)) {
+          onChange(n)
+          setText(formatMoneyInputFromNumber(n))
+        } else {
+          setText(value > 0 ? formatMoneyInputFromNumber(value) : '')
+        }
+      }}
       className={className}
       style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
     />

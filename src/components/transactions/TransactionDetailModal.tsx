@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory, Transaction } from '@/lib/store'
 import { normalizeIncomeWithholdingRule, transactionIncomeIsNet } from '@/lib/incomeWithholding'
 import { REPORT_GROUP_LABELS } from '@/lib/bankReportData'
 import { transactionRequiresPlanFollowUp } from '@/lib/plannedTransactions'
-import { formatIntegerNbNo, formatIntegerNbNoWhileTyping, parseIntegerNbNo } from '@/lib/utils'
+import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
+import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
 import BudgetCategoryPicker from '@/components/transactions/BudgetCategoryPicker'
 import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
 import { X, Trash2 } from 'lucide-react'
@@ -31,7 +33,7 @@ function txToDraft(tx: Transaction): Draft {
   return {
     date: tx.date,
     description: tx.description,
-    amount: formatIntegerNbNo(tx.amount),
+    amount: formatMoneyInputFromNumber(tx.amount),
     category: tx.category,
     subcategory: tx.subcategory ?? '',
     incomeIsNet: isNet,
@@ -115,6 +117,12 @@ export default function TransactionDetailModal({
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const setAmountStr = useCallback((v: string) => {
+    setDraft((d) => (d ? { ...d, amount: v } : d))
+  }, [])
+  const amountField = useFormattedMoneyInput(draft?.amount ?? '', setAmountStr)
+  const backdropDismiss = useModalBackdropDismiss(onClose)
+
   if (!open || !transaction || !draft) return null
 
   const selectedCat =
@@ -133,7 +141,7 @@ export default function TransactionDetailModal({
       setError('Velg en kategori.')
       return
     }
-    const amountNum = parseIntegerNbNo(draft.amount)
+    const amountNum = parsePositiveMoneyAmount2Decimals(draft.amount)
     if (!Number.isFinite(amountNum)) {
       setError('Beløp må være et positivt tall.')
       return
@@ -196,7 +204,7 @@ export default function TransactionDetailModal({
       <div
         className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
         style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-        onClick={(e) => e.target === e.currentTarget && onClose()}
+        {...backdropDismiss}
         role="presentation"
       >
         <div
@@ -264,20 +272,18 @@ export default function TransactionDetailModal({
               </label>
               <input
                 type="text"
-                inputMode="numeric"
+                inputMode="decimal"
                 autoComplete="off"
                 disabled={readOnly}
                 value={draft.amount}
-                onChange={(e) =>
-                  setDraft({ ...draft, amount: formatIntegerNbNoWhileTyping(e.target.value) })
-                }
+                onChange={amountField.onChange}
                 onBlur={() => {
                   if (readOnly) return
                   setDraft((prev) => {
                     if (!prev) return prev
-                    const n = parseIntegerNbNo(prev.amount)
+                    const n = parsePositiveMoneyAmount2Decimals(prev.amount)
                     if (!Number.isFinite(n)) return prev
-                    return { ...prev, amount: formatIntegerNbNo(n) }
+                    return { ...prev, amount: formatMoneyInputFromNumber(n) }
                   })
                 }}
                 className={inputClass}

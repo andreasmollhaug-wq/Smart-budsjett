@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { BudgetCategory } from '@/lib/store'
 import {
   budgetCategoryUsesIncomeWithholding,
@@ -47,6 +48,8 @@ export default function BudgetLineIncomeWithholdingModal({
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  const backdropDismiss = useModalBackdropDismiss(onClose)
+
   if (!open || !category) return null
 
   const rawMonth =
@@ -79,7 +82,7 @@ export default function BudgetLineIncomeWithholdingModal({
     <div
       className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      {...backdropDismiss}
       role="presentation"
     >
       <div

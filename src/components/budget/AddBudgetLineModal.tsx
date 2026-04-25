@@ -1,9 +1,16 @@
 'use client'
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { BudgetCategory } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
-import { BUDGET_MONTH_LABELS_NB, parseThousands } from '@/lib/utils'
+import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
+import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
+import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
+import { BUDGET_MONTH_LABELS_NB } from '@/lib/utils'
 import { Info, X } from 'lucide-react'
+import type { PersonProfile } from '@/lib/store'
+import HouseholdBudgetSplitSection, {
+  type HouseholdSplitFormState,
+} from '@/components/budget/HouseholdBudgetSplitSection'
 
 function amountPlaceholder(freq: BudgetCategory['frequency']): string {
   switch (freq) {
@@ -29,6 +36,14 @@ export type IncomeWithholdingNewLineFields = {
   incomeWhPercent: string
 }
 
+export type AddBudgetLineFormWithHousehold = {
+  name: string
+  amount: string
+  freq: BudgetCategory['frequency']
+  onceMonthIndex: number
+  householdSplit: HouseholdSplitFormState
+} & IncomeWithholdingNewLineFields
+
 type Props = {
   open: boolean
   group: ParentCategory | null
@@ -42,12 +57,14 @@ type Props = {
     amount: string
     freq: BudgetCategory['frequency']
     onceMonthIndex: number
-  } & IncomeWithholdingNewLineFields
+  } & IncomeWithholdingNewLineFields & { householdSplit: HouseholdSplitFormState }
   onNewFormChange: (f: Props['newForm']) => void
   onAddCustom: () => void
   onClose: () => void
   /** Økes når bruker velger et forslag; fokuserer beløpsfeltet. */
   focusAmountSignal?: number
+  showHouseholdSplitBlock?: boolean
+  profilesForHousehold?: PersonProfile[]
 }
 
 export default function AddBudgetLineModal({
@@ -63,6 +80,8 @@ export default function AddBudgetLineModal({
   onAddCustom,
   onClose,
   focusAmountSignal = 0,
+  showHouseholdSplitBlock = false,
+  profilesForHousehold = [],
 }: Props) {
   const amountInputRef = useRef<HTMLInputElement>(null)
 
@@ -88,6 +107,13 @@ export default function AddBudgetLineModal({
     })
   }, [focusAmountSignal, open])
 
+  const setAmountStr = useCallback(
+    (v: string) => onNewFormChange({ ...newForm, amount: v }),
+    [newForm, onNewFormChange],
+  )
+  const amountMoney = useFormattedMoneyInput(newForm.amount, setAmountStr)
+  const backdropDismiss = useModalBackdropDismiss(onClose)
+
   if (!open || !group) return null
 
   const ph = amountPlaceholder(newForm.freq)
@@ -97,7 +123,7 @@ export default function AddBudgetLineModal({
     <div
       className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(15, 23, 42, 0.45)' }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      {...backdropDismiss}
     >
       <div
         className="w-full max-w-md min-w-0 rounded-t-2xl sm:rounded-2xl p-6 shadow-xl max-h-[90vh] overflow-x-hidden overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"
@@ -169,10 +195,13 @@ export default function AddBudgetLineModal({
                 placeholder={ph}
                 type="text"
                 inputMode="decimal"
-                value={newForm.amount ? Number(newForm.amount).toLocaleString('nb-NO') : ''}
-                onChange={(e) =>
-                  onNewFormChange({ ...newForm, amount: parseThousands(e.target.value).toString() })
-                }
+                autoComplete="off"
+                value={newForm.amount}
+                onChange={amountMoney.onChange}
+                onBlur={() => {
+                  const n = parsePositiveMoneyAmount2Decimals(newForm.amount)
+                  if (Number.isFinite(n)) onNewFormChange({ ...newForm, amount: formatMoneyInputFromNumber(n) })
+                }}
                 className="min-w-0 min-h-[44px] px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
                 style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               />
@@ -245,6 +274,14 @@ export default function AddBudgetLineModal({
                 </select>
               </div>
             )}
+            {showHouseholdSplitBlock && group && group !== 'inntekter' && profilesForHousehold.length >= 2 && (
+              <HouseholdBudgetSplitSection
+                profiles={profilesForHousehold}
+                value={newForm.householdSplit}
+                onChange={(hs) => onNewFormChange({ ...newForm, householdSplit: hs })}
+              />
+            )}
+
             {group === 'inntekter' && (
               <div
                 className="rounded-xl px-3 py-3 space-y-3"
