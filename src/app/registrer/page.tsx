@@ -58,7 +58,7 @@ export default function RegistrerPage() {
         return
       }
       setSuccess(
-        'Konto opprettet. Sjekk e-posten din for bekreftelseslenke, eller logg inn hvis bekreftelse ikke er påkrevd.',
+        'Konto opprettet. Vi har sendt en bekreftelseslenke til e-posten din. Det kan ta 1–5 minutter før den kommer. Sjekk innboksen og søppelpost (evt. «Reklame»/promotions). Du kan også logge inn hvis bekreftelse ikke er påkrevd.',
       )
       router.refresh()
     } finally {

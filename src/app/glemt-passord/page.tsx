@@ -48,7 +48,7 @@ export default function GlemtPassordPage() {
       }
       setFeedback({
         variant: 'success',
-        text: 'Hvis det finnes en konto med denne e-posten, har vi sendt en lenke for å sette nytt passord. Sjekk innboksen (og søppelpost).',
+        text: 'Hvis det finnes en konto med denne e-posten, har vi sendt en lenke for å sette nytt passord. Det kan ta 1–5 minutter før den kommer. Sjekk innboksen og søppelpost (evt. «Reklame»/promotions).',
       })
     } finally {
       setLoading(false)
