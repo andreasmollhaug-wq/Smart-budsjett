@@ -22,10 +22,12 @@ import {
   type IncomeSprintGoalBasis,
 } from '@/lib/incomeSprint'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
-import { formatNOK, formatThousands, generateId, parseThousands } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatThousands, generateId, parseThousands } from '@/lib/utils'
 import { AlertTriangle, ChevronRight, CircleHelp, Clock, PiggyBank, Target, TrendingUp, Wallet, X } from 'lucide-react'
 
 export default function SmartSparePage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     upsertIncomeSprintPlan,
     isHouseholdAggregate,

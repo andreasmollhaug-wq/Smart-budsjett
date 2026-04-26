@@ -20,7 +20,8 @@ import {
   todayYyyyMmDd,
 } from '@/lib/plannedTransactions'
 import { REPORT_GROUP_LABELS } from '@/lib/bankReportData'
-import { formatIsoDateDdMmYyyy, formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { AlertTriangle, CalendarDays, CheckCircle2, type LucideIcon, Timer } from 'lucide-react'
 
 type RowScope = 'earlierMonth' | 'inMonth' | 'later'
@@ -57,6 +58,7 @@ function KommendeKpiCard({
 }
 
 function KommendePageInner() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     transactions,
     expenseCategories,

@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from '@/components/layout/Header'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { useActivePersonFinance, Investment } from '@/lib/store'
-import { formatNOK, generateId } from '@/lib/utils'
+import { generateId } from '@/lib/utils'
 import { fetchRateToNok, valueInNok } from '@/lib/fxToNok'
 import {
   Plus,
@@ -72,6 +73,7 @@ function isoDateLocal(date = new Date()) {
 }
 
 export default function InvesteringPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const { investments, addInvestment, removeInvestment, updateInvestment, addInvestmentHistoryValue, removeInvestmentHistoryValue } = useActivePersonFinance()
   const investmentsRef = useRef(investments)
   investmentsRef.current = investments

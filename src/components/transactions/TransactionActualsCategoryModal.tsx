@@ -4,7 +4,8 @@ import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import type { PersonProfile, Transaction } from '@/lib/store'
 import { isIsoDateString, todayIsoLocal } from '@/lib/transactionPeriodFilter'
-import { formatIsoDateDdMmYyyy, formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -51,6 +52,7 @@ export default function TransactionActualsCategoryModal({
   isHouseholdAggregate,
   ytdPerspective = false,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {

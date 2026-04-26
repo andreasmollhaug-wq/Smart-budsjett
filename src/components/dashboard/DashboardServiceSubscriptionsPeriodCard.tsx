@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Info, Repeat } from 'lucide-react'
 import type { ServiceSubscriptionMonthPoint } from '@/lib/serviceSubscriptionPeriodRollup'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const INFO_TEXT =
   'Kostnaden følger datofilteret over (år og periode). For hver måned summeres månedlig ekvivalent for aktive tjenesteabonnement (årlige abo deles på 12 for hver måned de er aktive). Totalen er summen over alle måneder i perioden. Antall er unike abonnement med minst én aktiv måned i perioden.'
@@ -22,6 +22,7 @@ export default function DashboardServiceSubscriptionsPeriodCard({
   uniqueCount,
   monthly,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const [infoOpen, setInfoOpen] = useState(false)
   const infoWrapRef = useRef<HTMLDivElement>(null)
 

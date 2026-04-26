@@ -16,11 +16,12 @@ import {
 } from '@/lib/budgetPeriod'
 import { buildHouseholdPeriodData } from '@/lib/householdDashboardData'
 import { useActivePersonFinance, useStore } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { Home, Percent, PiggyBank, Scale, Wallet } from 'lucide-react'
 import type { CSSProperties } from 'react'
 
 export default function BudsjettHusholdningPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const router = useRouter()
   const {
     transactions,

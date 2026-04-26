@@ -7,7 +7,7 @@ import {
   sumActualsByMonthForType,
   sumBudgetedByMonthForType,
 } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -21,13 +21,6 @@ type Props = {
   focusMonthRange?: { start: number; end: number }
 }
 
-function signedNOK(n: number): string {
-  const abs = formatNOK(Math.abs(n))
-  if (n > 0) return `+${abs}`
-  if (n < 0) return `−${abs}`
-  return abs
-}
-
 export default function DashboardIncomeExpenseMonthlyModal({
   open,
   onClose,
@@ -37,6 +30,13 @@ export default function DashboardIncomeExpenseMonthlyModal({
   budgetCategories,
   focusMonthRange,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
+  const signedNOK = (n: number) => {
+    const abs = formatNOK(Math.abs(n))
+    if (n > 0) return `+${abs}`
+    if (n < 0) return `−${abs}`
+    return abs
+  }
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {

@@ -16,7 +16,7 @@ import {
 } from '@/lib/formuebyggerPro'
 import { useStore } from '@/lib/store'
 import { exportBankReportPdf } from '@/lib/exportBankReportPdf'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { ChevronDown, Download, ArrowLeft } from 'lucide-react'
 
 function clampInput(input: FormuebyggerInput): FormuebyggerInput {
@@ -26,6 +26,7 @@ function clampInput(input: FormuebyggerInput): FormuebyggerInput {
 }
 
 export default function FormuebyggerPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const formuebyggerPro = useStore((s) => s.formuebyggerPro)
   const setFormuebyggerPro = useStore((s) => s.setFormuebyggerPro)
 

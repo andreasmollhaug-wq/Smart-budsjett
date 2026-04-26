@@ -10,7 +10,7 @@ import {
   sumBudgetedFixedMonthlyExpensesForMonth,
   sumBudgetedIncomeForMonth,
 } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -21,6 +21,7 @@ type Props = {
 }
 
 export default function DashboardFixedExpensesModal({ open, onClose, budgetYear, budgetCategories }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const refMonth = useMemo(() => referenceMonthIndexForBudgetYear(budgetYear), [budgetYear])
   const monthLabel = MONTH_LABELS_SHORT_NB[refMonth] ?? ''
 

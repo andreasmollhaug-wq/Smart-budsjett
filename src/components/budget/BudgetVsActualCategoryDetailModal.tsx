@@ -6,7 +6,7 @@ import VariancePctLine from '@/components/budget/VariancePctLine'
 import type { BudgetVsActualRow } from '@/lib/bankReportData'
 import { buildCategoryBudgetActualVarianceByProfile } from '@/lib/householdDashboardData'
 import type { ArchivedBudgetsByYear, PersonData, PersonProfile, Transaction } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 function varianceColor(r: BudgetVsActualRow): string {
@@ -93,6 +93,7 @@ export default function BudgetVsActualCategoryDetailModal({
   isHouseholdAggregate,
   transactionsHref,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {

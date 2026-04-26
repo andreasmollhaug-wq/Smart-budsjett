@@ -9,7 +9,7 @@ import {
   normalizeIncomeWithholdingRule,
   withholdingPercentForBudgetCategory,
 } from '@/lib/incomeWithholding'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -29,6 +29,7 @@ export default function BudgetLineIncomeWithholdingModal({
   onClose,
   onSave,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const [apply, setApply] = useState(false)
   const [percentStr, setPercentStr] = useState('32')
 

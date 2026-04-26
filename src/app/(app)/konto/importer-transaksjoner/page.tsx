@@ -20,7 +20,8 @@ import { summarizeImportedTransactions } from '@/lib/transactionImport/summarize
 import { IMPORT_FORMAT_V1 } from '@/lib/transactionImport/transactionImport.constants'
 import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
 import { useStore } from '@/lib/store'
-import { formatIsoDateDdMmYyyy, formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { ArrowLeft, BookOpen, ChevronRight, RotateCcw } from 'lucide-react'
 
 type Step = 'upload' | 'unknowns' | 'preview'
@@ -48,6 +49,7 @@ function labelListsForPerson(person: {
 }
 
 export default function ImporterTransaksjonerPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const profiles = useStore((s) => s.profiles)
   const people = useStore((s) => s.people)
   const activeProfileId = useStore((s) => s.activeProfileId)

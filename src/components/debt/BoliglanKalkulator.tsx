@@ -18,7 +18,9 @@ import {
   sumSchedulePayments,
   type AmortizationRow,
 } from '@/lib/mortgageCalculator'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
+import { useStore } from '@/lib/store'
 
 const MAX_LTV = 0.9
 /** Referansemal for maks lån til verdi (vanlige retningslinjer) — kalkulatoren bruker 90 % som tak. */
@@ -49,9 +51,10 @@ function formatRateNb(value: number): string {
 }
 
 function formatDeltaNOK(diff: number): string {
-  if (diff === 0) return formatNOK(0)
+  const show = useStore.getState().showAmountDecimals
+  if (diff === 0) return formatNokCurrencyDisplay(0, show)
   const sign = diff > 0 ? '+' : '−'
-  return `${sign} ${formatNOK(Math.abs(diff))}`
+  return `${sign} ${formatNokCurrencyDisplay(Math.abs(diff), show)}`
 }
 
 function IconStepButton({
@@ -98,6 +101,7 @@ const scheduleGrid =
   'grid gap-0 items-center min-w-[28rem] grid-cols-[2.5rem_1fr_1fr_1fr_1fr] sm:min-w-[36rem]'
 
 function ScheduleRow({ row }: { row: AmortizationRow }) {
+  const { formatNOK } = useNokDisplayFormatters()
   return (
     <>
       <span style={{ color: 'var(--text)' }}>{row.monthIndex}</span>
@@ -179,6 +183,7 @@ function ScheduleTableVirtual({ rows }: { rows: AmortizationRow[] }) {
 }
 
 export default function BoliglanKalkulator() {
+  const { formatNOK } = useNokDisplayFormatters()
   const [propertyPrice, setPropertyPrice] = useState(6_000_000)
   const [nominalRate, setNominalRate] = useState(4.79)
   const [years, setYears] = useState(30)

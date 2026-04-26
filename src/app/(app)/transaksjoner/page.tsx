@@ -15,14 +15,10 @@ import { buildCategoryActualsYearMatrix, REPORT_GROUP_LABELS, REPORT_GROUP_ORDER
 import { mergeBudgetCategoriesFromSnapshots, useStore } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
 import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
-import {
-  dateInMonth,
-  formatIsoDateDdMmYyyy,
-  formatNOK,
-  generateId,
-} from '@/lib/utils'
+import { dateInMonth, formatIsoDateDdMmYyyy, generateId } from '@/lib/utils'
 import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Info, CheckCircle2 } from 'lucide-react'
 import {
   inferPlannedFollowUpOnDateChange,
@@ -89,6 +85,7 @@ function TransaksjonerPageInner() {
     archivedBudgetsByYear,
   } = useTransaksjonerFilters()
 
+  const { formatNOK } = useNokDisplayFormatters()
   const people = useStore((s) => s.people)
 
   const { vis, setVis, setYearInUrl } = useTransaksjonPageQuery()

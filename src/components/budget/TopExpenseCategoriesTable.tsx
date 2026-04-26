@@ -1,7 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import VariancePctLine from '@/components/budget/VariancePctLine'
 import { REPORT_GROUP_LABELS, type BudgetVsActualRow } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const tableClass = 'w-full text-sm border-collapse'
 const thClass = 'text-left py-2 px-3 font-semibold border-b'
@@ -16,6 +18,7 @@ export default function TopExpenseCategoriesTable({
   linkHrefForCategory?: (categoryName: string) => string
   onCategorySelect?: (row: BudgetVsActualRow) => void
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const sorted = [...rows]
     .filter((r) => r.type === 'expense')
     .sort((a, b) => b.actual - a.actual)

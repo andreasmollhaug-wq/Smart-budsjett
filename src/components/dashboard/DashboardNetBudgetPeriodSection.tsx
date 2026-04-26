@@ -19,7 +19,7 @@ import type { BudgetVsSummary } from '@/lib/dashboardOverviewHelpers'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import { transactionsListeHrefForCategory } from '@/lib/budgetDashboardLinks'
 import { netVariancePct, variancePctVsBudget } from '@/lib/budgetVariancePct'
-import { formatIntegerNbNo, formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const INFO_TEXT =
   'Netto er inntekt minus utgifter (alle budsjettkategorier i perioden, inkl. regninger, gjeld og sparing som i resten av budsjettet). Avvik er faktisk netto minus budsjettert netto: positivt betyr at du sitter igjen mer enn planlagt. Grafen viser samme netto per måned innenfor valgt periode. Avvik i prosent er avvik i kroner dividert med budsjettert beløp for linjen (unntatt netto, der nevneren er budsjettert netto).'
@@ -109,6 +109,7 @@ export default function DashboardNetBudgetPeriodSection({
   monthIndex,
   onSelectExpenseCategory,
 }: Props) {
+  const { formatNOK, formatNokAxisNoCurrency } = useNokDisplayFormatters()
   const [infoOpen, setInfoOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailSort, setDetailSort] = useState<DetailCategorySort>('variance_abs')
@@ -273,7 +274,7 @@ export default function DashboardNetBudgetPeriodSection({
                 />
                 <YAxis
                   domain={domain}
-                  tickFormatter={(v) => formatIntegerNbNo(Number(v))}
+                  tickFormatter={(v) => formatNokAxisNoCurrency(Number(v))}
                   tick={{ fill: '#6B7A99', fontSize: 10 }}
                   width={56}
                 />

@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import Header from '@/components/layout/Header'
 import { useActivePersonFinance } from '@/lib/store'
-import { formatNOK, generateId } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { generateId } from '@/lib/utils'
 import { debtTypeLabels, debtIcons, debtColors } from '@/lib/debtDisplay'
 import { isDebtPauseActive, annualInterestCost } from '@/lib/debtHelpers'
 import { effectiveIncludeInSnowball } from '@/lib/snowball'
@@ -36,7 +37,15 @@ type BarRow = {
   total: number
 }
 
-function DebtBarTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload }) {
+function DebtBarTooltip({
+  active,
+  payload,
+  formatNok,
+}: {
+  active?: boolean
+  payload?: TooltipPayload
+  formatNok: (n: number) => string
+}) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload as BarRow | undefined
   const title = row?.fullName ?? row?.name ?? ''
@@ -52,7 +61,7 @@ function DebtBarTooltip({ active, payload }: { active?: boolean; payload?: Toolt
         <p key={String(p.dataKey)} className="flex justify-between gap-4" style={{ color: 'var(--text-muted)' }}>
           <span>{p.name}</span>
           <span className="tabular-nums" style={{ color: 'var(--text)' }}>
-            {formatNOK(p.value == null ? 0 : Number(p.value))}
+            {formatNok(p.value == null ? 0 : Number(p.value))}
           </span>
         </p>
       ))}
@@ -61,6 +70,7 @@ function DebtBarTooltip({ active, payload }: { active?: boolean; payload?: Toolt
 }
 
 export default function GjeldPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     debts,
     addDebt,
@@ -359,7 +369,7 @@ export default function GjeldPage() {
                       tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                       width={104}
                     />
-                    <Tooltip content={<DebtBarTooltip />} />
+                    <Tooltip content={<DebtBarTooltip formatNok={formatNOK} />} />
                     <Legend
                       verticalAlign="bottom"
                       height={28}

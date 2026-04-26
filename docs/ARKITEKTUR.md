@@ -62,6 +62,10 @@
 
 **EnkelExcel AI — produkthjelp for modellen:** Kurert bruksveiledning (`AI_APP_HELP_TEXT`) ligger i [`src/lib/aiAppHelp.ts`](../src/lib/aiAppHelp.ts) og skal holdes i tråd med appen når menyer, ruter eller viktige flyter endres; systeminstruks (`SYSTEM_PROMPT_BASE`) i [`src/app/api/enkelexcel-ai/route.ts`](../src/app/api/enkelexcel-ai/route.ts) justeres ved behov i samme sleng.
 
+**Svarprinsipper (chat):** Modellen instrueres til å være datagrunnlagt (kun faktapåstander om brukerens økonomi fra tallblokken bygget i [`src/lib/aiUserContext.ts`](../src/lib/aiUserContext.ts)), løsningsorientert med nummererte neste steg hentet fra bruksveiledningen, og pyramideformat der det passer: først `Sammendrag:` (kulepunkter), deretter `Detaljer:` — unntak for rene navigasjonsspørsmål og svært korte svar. Ren tekst uten Markdown i chat-UI.
+
+**Parametere:** Standard `temperature` er 0,12 (overstyr med `OPENAI_TEMPERATURE` i miljø). Maks ut-token per svar er 1100 for chat (rom til sammendrag + detaljer + steg). Modell velges med `OPENAI_MODEL` (default `gpt-4o-mini`). **Månedsinnsikt** ([`api/rapporter/manedsinnsikt`](../src/app/api/rapporter/manedsinnsikt/route.ts)) bruker egen systemprompt med samme sammendrag-først-idé og `temperature` 0,15.
+
 ## Supabase — databaselag (migrasjoner)
 
 Migrasjoner ligger i [`supabase/migrations/`](../supabase/migrations/):

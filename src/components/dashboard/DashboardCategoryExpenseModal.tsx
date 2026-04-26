@@ -8,7 +8,9 @@ import { MONTH_LABELS_SHORT_NB } from '@/lib/bankReportData'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import { transactionsListeHrefForCategory } from '@/lib/budgetDashboardLinks'
 import { transactionInMonthRange } from '@/lib/dashboardOverviewHelpers'
-import { formatNOK } from '@/lib/utils'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
+import { useStore } from '@/lib/store'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -35,7 +37,8 @@ function findExpenseCategoryByName(cats: BudgetCategory[], name: string): Budget
 }
 
 function signedNOK(n: number): string {
-  const abs = formatNOK(Math.abs(n))
+  const show = useStore.getState().showAmountDecimals
+  const abs = formatNokCurrencyDisplay(Math.abs(n), show)
   if (n > 0) return `+${abs}`
   if (n < 0) return `−${abs}`
   return abs
@@ -56,6 +59,7 @@ export default function DashboardCategoryExpenseModal({
   periodMode,
   monthIndex = 0,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {

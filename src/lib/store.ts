@@ -9,9 +9,11 @@ import type { ParentCategory } from './budgetCategoryCatalog'
 import { reorderBudgetCategoriesForParent } from './budgetYearHelpers'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
 import { computeInsightDeltas } from './insightNotifications'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
 import {
   PLANNED_OVERDUE_NOTIFICATION_ID,
   buildPlannedOverdueNotification,
+  plannedOverdueContentSignature,
 } from './plannedTransactions'
 import {
   buildBudgetCategoryForSubscription,
@@ -52,6 +54,21 @@ import {
   normalizeFormuebyggerPersistedState,
   type FormuebyggerPersistedState,
 } from '@/lib/formuebyggerPro/persistedState'
+import { createEmptyHjemFlytState, normalizeHjemFlytState } from '@/features/hjemflyt/normalize'
+import { normalizeHjemflytProfileMeta } from '@/features/hjemflyt/profileMeta'
+import {
+  canProfileActOnTask,
+  nextRoundRobinIndex,
+  periodKeyForRecurrence,
+  poolForTask,
+} from '@/features/hjemflyt/hjemflytLogic'
+import type {
+  HjemflytAssignMode,
+  HjemflytRecurrence,
+  HjemFlytState,
+  HjemflytProfileMeta,
+  HjemflytSettings,
+} from '@/features/hjemflyt/types'
 import {
   buildDemoServiceSubscriptions,
   buildDemoSubscriptionPlannedTransactionsForYear,
@@ -122,6 +139,8 @@ export interface AppNotification {
   kind: AppNotificationKind
   createdAt: string
   read: boolean
+  /** Stabil sammenligningsnøkkel for innhold (f.eks. innsikt «Kommende») når kroppen kan endre form uavhengig av data. */
+  contentSignature?: string
   /** Valgfri primærhandling (f.eks. lenke til «Kommende»). */
   actionHref?: string
   actionLabel?: string
@@ -320,6 +339,8 @@ export type UpdateServiceSubscriptionPatch = Partial<
 export interface PersonProfile {
   id: string
   name: string
+  /** HjemFlyt: barn vs voksen, valgfri emoji for barne-profiler. */
+  hjemflyt?: HjemflytProfileMeta
 }
 
 /** Snøball: minste restgjeld først. Avalanche: høyeste rente først. */
@@ -395,9 +416,10 @@ interface AppState {
   setSubscriptionPlan: (plan: SubscriptionPlan) => { ok: true } | { ok: false; reason: 'solo_requires_one_profile' }
   setActiveProfileId: (id: string) => void
   setFinanceScope: (scope: FinanceScope) => void
-  addProfile: (name: string) =>
-    | { ok: true; id: string }
-    | { ok: false; reason: 'solo_limit' | 'max_profiles' | 'invalid_name' }
+  addProfile: (
+    name: string,
+    options?: { hjemflyt?: { kind: 'adult' | 'child'; childEmoji?: string | null } },
+  ) => { ok: true; id: string } | { ok: false; reason: 'solo_limit' | 'max_profiles' | 'invalid_name' }
   renameProfile: (id: string, name: string) => void
   removeProfile: (id: string) =>
     | { ok: true }
@@ -519,10 +541,51 @@ interface AppState {
   skipOnboarding: () => void
   openOnboardingAgain: () => void
 
+  /** HjemFlyt: husholdningsoppgaver; ingen kobling til transaksjoner. */
+  hjemflyt: HjemFlytState
+  setHjemflytSettings: (patch: Partial<Pick<HjemflytSettings, 'showRewardForChildren' | 'weeklyGoalPoints'>>) => void
+  setProfileHjemflytMeta: (
+    profileId: string,
+    meta: { kind: 'adult' | 'child'; childEmoji?: string | null } | null,
+  ) => { ok: true } | { ok: false; reason: 'forbidden' | 'invalid' }
+  hjemflytAddTask: (input: {
+    title: string
+    rewardPoints: number | null
+    recurrence: HjemflytRecurrence
+    assignMode: HjemflytAssignMode
+    assigneeProfileIds: string[]
+  }) => { ok: true; id: string } | { ok: false; reason: 'forbidden' | 'invalid' }
+  hjemflytUpdateTask: (
+    id: string,
+    patch: Partial<{
+      title: string
+      rewardPoints: number | null
+      recurrence: HjemflytRecurrence
+      assignMode: HjemflytAssignMode
+      assigneeProfileIds: string[]
+    }>,
+  ) => { ok: true } | { ok: false; reason: 'forbidden' | 'not_found' }
+  hjemflytRemoveTask: (id: string) => { ok: true } | { ok: false; reason: 'forbidden' | 'not_found' }
+  hjemflytCompleteTask: (taskId: string) =>
+    | { ok: true }
+    | { ok: false; reason: 'forbidden' | 'not_found' | 'not_assigned' | 'already_done' | 'duplicate_pending' }
+  hjemflytApproveCompletion: (completionId: string) =>
+    | { ok: true }
+    | { ok: false; reason: 'forbidden' | 'not_found' | 'bad_status' }
+  hjemflytRejectCompletion: (completionId: string) =>
+    | { ok: true }
+    | { ok: false; reason: 'forbidden' | 'not_found' | 'bad_status' }
+
   /** Eksempeldata på tvers av budsjett, transaksjoner, sparing, investeringer og lån; ekte data i `peopleBeforeDemo`. */
   demoDataEnabled: boolean
   peopleBeforeDemo: Record<string, PersonData> | null
   setDemoDataEnabled: (enabled: boolean) => void
+  /**
+   * Vis NOK-beløp med inntil 2 desimaler (øre) i lister, KPI, diagrammer, osv.
+   * Påvirker ikke inntasting; standard er av (hele kroner i visning).
+   */
+  showAmountDecimals: boolean
+  setShowAmountDecimals: (show: boolean) => void
 }
 
 /** Ytre nøkkel årstall som string, indre er profilId. */
@@ -544,8 +607,10 @@ export type PersistedAppSlice = Pick<
   | 'archivedBudgetsByYear'
   | 'onboarding'
   | 'formuebyggerPro'
+  | 'hjemflyt'
   | 'demoDataEnabled'
   | 'peopleBeforeDemo'
+  | 'showAmountDecimals'
 >
 
 /** Tidligere nøkkel for Zustand persist (brukes til engangsmigrering til Supabase). */
@@ -566,8 +631,10 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     archivedBudgetsByYear: {},
     onboarding: { status: 'pending' },
     formuebyggerPro: createDefaultFormuebyggerPersistedState(),
+    hjemflyt: createEmptyHjemFlytState(),
     demoDataEnabled: false,
     peopleBeforeDemo: null,
+    showAmountDecimals: false,
     deliveredInsightIds: [],
     dismissedDuplicateSubscriptionPresetKeys: [],
   }
@@ -586,8 +653,10 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     archivedBudgetsByYear: state.archivedBudgetsByYear,
     onboarding: state.onboarding,
     formuebyggerPro: state.formuebyggerPro,
+    hjemflyt: state.hjemflyt,
     demoDataEnabled: state.demoDataEnabled,
     peopleBeforeDemo: state.peopleBeforeDemo,
+    showAmountDecimals: state.showAmountDecimals,
     deliveredInsightIds: state.deliveredInsightIds,
     dismissedDuplicateSubscriptionPresetKeys: state.dismissedDuplicateSubscriptionPresetKeys,
   }
@@ -725,7 +794,18 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
   const rawFp = (p as Partial<AppState>).formuebyggerPro
   base.formuebyggerPro = normalizeFormuebyggerPersistedState(rawFp)
 
+  const rawHf = (p as Partial<AppState>).hjemflyt
+  base.hjemflyt = rawHf != null ? normalizeHjemFlytState(rawHf) : createEmptyHjemFlytState()
+
+  base.profiles = base.profiles.map((pr) => {
+    const h = normalizeHjemflytProfileMeta(pr.id, pr.hjemflyt)
+    if (h) return { ...pr, hjemflyt: h }
+    const { hjemflyt: _drop, ...rest } = pr
+    return { ...rest }
+  })
+
   if (typeof base.demoDataEnabled !== 'boolean') base.demoDataEnabled = false
+  if (typeof base.showAmountDecimals !== 'boolean') base.showAmountDecimals = false
   if (base.peopleBeforeDemo === undefined) base.peopleBeforeDemo = null
   const pbd = base.peopleBeforeDemo
   if (pbd != null && (typeof pbd !== 'object' || Array.isArray(pbd))) base.peopleBeforeDemo = null
@@ -1416,8 +1496,14 @@ export const useStore = create<AppState>()((set, get) => {
         archivedBudgetsByYear: {} as ArchivedBudgetsByYear,
         onboarding: { status: 'pending' } as OnboardingState,
         formuebyggerPro: createDefaultFormuebyggerPersistedState(),
+        hjemflyt: createEmptyHjemFlytState(),
         demoDataEnabled: false,
         peopleBeforeDemo: null as Record<string, PersonData> | null,
+        showAmountDecimals: false,
+
+        setShowAmountDecimals: (show) => {
+          set((s) => (show === s.showAmountDecimals ? s : { showAmountDecimals: show }))
+        },
 
         setDemoDataEnabled: (enabled) => {
           set((s) => {
@@ -1568,18 +1654,28 @@ export const useStore = create<AppState>()((set, get) => {
               s.subscriptionPlan === 'family' &&
               s.profiles.length >= 2
             const person = s.people[s.activeProfileId]
+            const txList = person?.transactions ?? []
+            const showDec = s.showAmountDecimals
+            const formatNok = (n: number) => formatNokCurrencyDisplay(n, showDec)
             const overdueContent =
-              !householdBlocked && person
-                ? buildPlannedOverdueNotification(person.transactions ?? [])
-                : null
+              !householdBlocked && person ? buildPlannedOverdueNotification(txList, undefined, formatNok) : null
+            const overdueSig = !householdBlocked && person ? plannedOverdueContentSignature(txList) : 'none'
             const prevPlanned = s.notifications.find((n) => n.id === PLANNED_OVERDUE_NOTIFICATION_ID)
 
             let merged: AppNotification[] = [...toAdd, ...base]
             if (overdueContent) {
+              const signatureMatch =
+                prevPlanned != null &&
+                prevPlanned.contentSignature != null &&
+                prevPlanned.contentSignature === overdueSig
+              const legacyBodyMatch =
+                prevPlanned != null &&
+                prevPlanned.contentSignature == null &&
+                prevPlanned.body === overdueContent.body
               const unchanged =
                 prevPlanned != null &&
                 prevPlanned.title === overdueContent.title &&
-                prevPlanned.body === overdueContent.body
+                (signatureMatch || legacyBodyMatch)
               merged = [
                 {
                   id: PLANNED_OVERDUE_NOTIFICATION_ID,
@@ -1588,6 +1684,7 @@ export const useStore = create<AppState>()((set, get) => {
                   kind: 'insight',
                   createdAt: prevPlanned?.createdAt ?? new Date().toISOString(),
                   read: unchanged && prevPlanned ? prevPlanned.read : false,
+                  contentSignature: overdueSig,
                   actionHref: '/transaksjoner/kommende',
                   actionLabel: 'Åpne Kommende',
                 },
@@ -1690,7 +1787,7 @@ export const useStore = create<AppState>()((set, get) => {
           set({ financeScope: scope })
         },
 
-        addProfile: (name) => {
+        addProfile: (name, options) => {
           const s = get()
           const trimmed = name.trim()
           if (!trimmed) return { ok: false as const, reason: 'invalid_name' }
@@ -1712,7 +1809,15 @@ export const useStore = create<AppState>()((set, get) => {
                 )
               : createEmptyPersonData()
           const nextPeople = { ...s.people, [id]: initialPerson }
-          const nextProfiles = [...s.profiles, { id, name: trimmed }]
+          let nextRow: PersonProfile = { id, name: trimmed }
+          if (options?.hjemflyt) {
+            const m = normalizeHjemflytProfileMeta(id, {
+              kind: options.hjemflyt.kind,
+              childEmoji: options.hjemflyt.childEmoji ?? undefined,
+            })
+            if (m) nextRow = { ...nextRow, hjemflyt: m }
+          }
+          const nextProfiles = [...s.profiles, nextRow]
           set({
             people: nextPeople,
             profiles: nextProfiles,
@@ -1763,6 +1868,14 @@ export const useStore = create<AppState>()((set, get) => {
             financeScope = 'profile'
           }
 
+          const h = s.hjemflyt
+          const hfPointBalances = { ...h.pointBalances }
+          delete hfPointBalances[id]
+          const hfTasks = h.tasks.map((t) => ({
+            ...t,
+            assigneeProfileIds: t.assigneeProfileIds.filter((x) => x !== id),
+          }))
+
           set({
             profiles: nextProfiles,
             people: restPeople,
@@ -1770,7 +1883,269 @@ export const useStore = create<AppState>()((set, get) => {
             peopleBeforeDemo: nextPeopleBeforeDemo,
             activeProfileId,
             financeScope,
+            hjemflyt: { ...h, pointBalances: hfPointBalances, tasks: hfTasks },
           })
+          return { ok: true as const }
+        },
+
+        setHjemflytSettings: (patch) => {
+          set((s) => ({
+            hjemflyt: {
+              ...s.hjemflyt,
+              settings: { ...s.hjemflyt.settings, ...patch },
+            },
+          }))
+        },
+
+        setProfileHjemflytMeta: (profileId, meta) => {
+          const s = get()
+          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          if (profileId === DEFAULT_PROFILE_ID) {
+            return { ok: true as const }
+          }
+          if (meta === null) {
+            set((st) => ({
+              profiles: st.profiles.map((p) =>
+                p.id === profileId
+                  ? (() => {
+                      const { hjemflyt: _h, ...rest } = p
+                      return { ...rest }
+                    })()
+                  : p,
+              ),
+            }))
+            return { ok: true as const }
+          }
+          const m = normalizeHjemflytProfileMeta(profileId, { kind: meta.kind, childEmoji: meta.childEmoji ?? undefined })
+          if (!m) return { ok: false as const, reason: 'invalid' }
+          set((st) => ({
+            profiles: st.profiles.map((p) => (p.id === profileId ? { ...p, hjemflyt: m } : p)),
+          }))
+          return { ok: true as const }
+        },
+
+        hjemflytAddTask: (input) => {
+          const s = get()
+          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          const t = input.title.trim()
+          if (!t) return { ok: false as const, reason: 'invalid' }
+          const id = generateId()
+          const now = new Date().toISOString()
+          let reward: number | null = null
+          if (input.rewardPoints != null) {
+            const v = input.rewardPoints
+            if (Number.isFinite(v) && v > 0) reward = Math.min(1_000_000, Math.max(0, Math.round(v)))
+            else if (v === 0) reward = 0
+            else reward = null
+          }
+          const allIds = s.profiles.map((p) => p.id)
+          const assigneeProfileIds = input.assigneeProfileIds.filter((x) => allIds.includes(x))
+          const task: import('@/features/hjemflyt/types').HjemflytTask = {
+            id,
+            title: t.slice(0, 200),
+            rewardPoints: reward,
+            recurrence: input.recurrence,
+            assignMode: input.assignMode,
+            assigneeProfileIds,
+            roundRobinIndex: 0,
+            lastCompletedAt: null,
+            lastCompletedPeriodKey: null,
+            createdAt: now,
+            createdByProfileId: s.activeProfileId,
+          }
+          set((st) => ({ hjemflyt: { ...st.hjemflyt, tasks: [...st.hjemflyt.tasks, task] } }))
+          return { ok: true as const, id }
+        },
+
+        hjemflytUpdateTask: (taskId, patch) => {
+          const s = get()
+          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          const i = s.hjemflyt.tasks.findIndex((x) => x.id === taskId)
+          if (i < 0) return { ok: false as const, reason: 'not_found' }
+          const allIds = s.profiles.map((p) => p.id)
+          set((st) => {
+            const list = st.hjemflyt.tasks
+            const prev = list[i]!
+            const next: typeof prev = { ...prev }
+            if (patch.title != null) {
+              const x = patch.title.trim()
+              if (x) next.title = x.slice(0, 200)
+            }
+            if (patch.rewardPoints !== undefined) {
+              if (patch.rewardPoints == null) next.rewardPoints = null
+              else {
+                const v = patch.rewardPoints
+                if (Number.isFinite(v) && v > 0) next.rewardPoints = Math.min(1_000_000, Math.round(v))
+                else if (v === 0) next.rewardPoints = 0
+                else next.rewardPoints = null
+              }
+            }
+            if (patch.recurrence != null) next.recurrence = patch.recurrence
+            if (patch.assignMode != null) next.assignMode = patch.assignMode
+            if (patch.assigneeProfileIds != null) {
+              next.assigneeProfileIds = patch.assigneeProfileIds.filter((x) => allIds.includes(x))
+            }
+            const nextList = [...list]
+            nextList[i] = next
+            return { hjemflyt: { ...st.hjemflyt, tasks: nextList } }
+          })
+          return { ok: true as const }
+        },
+
+        hjemflytRemoveTask: (taskId) => {
+          const s = get()
+          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          if (!s.hjemflyt.tasks.some((t) => t.id === taskId)) return { ok: false as const, reason: 'not_found' }
+          set((st) => ({
+            hjemflyt: {
+              ...st.hjemflyt,
+              tasks: st.hjemflyt.tasks.filter((t) => t.id !== taskId),
+              completions: st.hjemflyt.completions.filter((c) => c.taskId !== taskId),
+            },
+          }))
+          return { ok: true as const }
+        },
+
+        hjemflytCompleteTask: (taskId) => {
+          const s = get()
+          const h = s.hjemflyt
+          const task = h.tasks.find((t) => t.id === taskId)
+          if (!task) return { ok: false as const, reason: 'not_found' }
+          const allIds = s.profiles.map((p) => p.id)
+          if (!canProfileActOnTask(task, s.activeProfileId, allIds)) {
+            return { ok: false as const, reason: 'not_assigned' }
+          }
+          if (task.recurrence.type === 'none' && task.lastCompletedAt != null) {
+            return { ok: false as const, reason: 'already_done' }
+          }
+          const at = new Date()
+          const periodKey = periodKeyForRecurrence(task.recurrence, at, task.id)
+          if (h.completions.some((c) => c.taskId === taskId && c.status === 'pending_approval')) {
+            return { ok: false as const, reason: 'duplicate_pending' }
+          }
+          if (
+            h.completions.some(
+              (c) =>
+                c.taskId === taskId &&
+                c.periodKey === periodKey &&
+                (c.status === 'approved' || c.status === 'done'),
+            )
+          ) {
+            return { ok: false as const, reason: 'already_done' }
+          }
+          const rewardPoints = task.rewardPoints
+          const hasReward = rewardPoints != null && rewardPoints > 0
+          const completionId = generateId()
+          if (hasReward) {
+            const completion: import('@/features/hjemflyt/types').HjemflytCompletion = {
+              id: completionId,
+              taskId,
+              completedAt: at.toISOString(),
+              completedByProfileId: s.activeProfileId,
+              status: 'pending_approval',
+              periodKey,
+              rewardPointsSnapshot: rewardPoints,
+            }
+            set((st) => ({
+              hjemflyt: { ...st.hjemflyt, completions: [...st.hjemflyt.completions, completion] },
+            }))
+            return { ok: true as const }
+          }
+          const completion: import('@/features/hjemflyt/types').HjemflytCompletion = {
+            id: completionId,
+            taskId,
+            completedAt: at.toISOString(),
+            completedByProfileId: s.activeProfileId,
+            status: 'approved',
+            periodKey,
+            rewardPointsSnapshot: null,
+          }
+          set((st) => {
+            const th = st.hjemflyt
+            const ti = th.tasks.findIndex((x) => x.id === taskId)
+            if (ti < 0) return st
+            const t = th.tasks[ti]!
+            const pl = poolForTask(t, allIds)
+            let roundRobinIndex = t.roundRobinIndex
+            if (t.assignMode === 'round_robin' && pl.length > 0) {
+              roundRobinIndex = nextRoundRobinIndex(t, pl)
+            }
+            const nextTask: typeof t = {
+              ...t,
+              lastCompletedAt: at.toISOString(),
+              lastCompletedPeriodKey: periodKey,
+              roundRobinIndex,
+            }
+            const ntasks = [...th.tasks]
+            ntasks[ti] = nextTask
+            return {
+              hjemflyt: {
+                ...th,
+                tasks: ntasks,
+                completions: [...th.completions, { ...completion, status: 'done' as const }],
+              },
+            }
+          })
+          return { ok: true as const }
+        },
+
+        hjemflytApproveCompletion: (completionId) => {
+          const s = get()
+          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          const c = s.hjemflyt.completions.find((x) => x.id === completionId)
+          if (!c) return { ok: false as const, reason: 'not_found' }
+          if (c.status !== 'pending_approval') return { ok: false as const, reason: 'bad_status' }
+          const at = new Date()
+          const allIds = s.profiles.map((p) => p.id)
+          set((st) => {
+            const h = st.hjemflyt
+            const comp = h.completions.map((x) =>
+              x.id === completionId
+                ? { ...x, status: 'approved' as const, completedAt: at.toISOString() }
+                : x,
+            )
+            const task = h.tasks.find((t) => t.id === c.taskId)
+            if (!task) return { hjemflyt: { ...h, completions: comp } }
+            const ti = h.tasks.findIndex((x) => x.id === c.taskId)
+            const pl = poolForTask(task, allIds)
+            let roundRobinIndex = task.roundRobinIndex
+            if (task.assignMode === 'round_robin' && pl.length > 0) {
+              roundRobinIndex = nextRoundRobinIndex(task, pl)
+            }
+            const periodKey = c.periodKey
+            const nextTask = {
+              ...task,
+              lastCompletedAt: at.toISOString(),
+              lastCompletedPeriodKey: periodKey,
+              roundRobinIndex,
+            }
+            const ntasks = [...h.tasks]
+            ntasks[ti] = nextTask
+            const reward = c.rewardPointsSnapshot ?? 0
+            const pointBalances = { ...h.pointBalances }
+            if (reward > 0) {
+              const pid = c.completedByProfileId
+              pointBalances[pid] = (pointBalances[pid] ?? 0) + reward
+            }
+            return { hjemflyt: { ...h, tasks: ntasks, completions: comp, pointBalances } }
+          })
+          return { ok: true as const }
+        },
+
+        hjemflytRejectCompletion: (completionId) => {
+          const s = get()
+          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          const c = s.hjemflyt.completions.find((x) => x.id === completionId)
+          if (!c) return { ok: false as const, reason: 'not_found' }
+          if (c.status !== 'pending_approval') return { ok: false as const, reason: 'bad_status' }
+          set((st) => ({
+            hjemflyt: {
+              ...st.hjemflyt,
+              completions: st.hjemflyt.completions.map((x) =>
+                x.id === completionId ? { ...x, status: 'rejected' as const } : x,
+              ),
+            },
+          }))
           return { ok: true as const }
         },
 
@@ -2199,7 +2574,24 @@ export const useStore = create<AppState>()((set, get) => {
               if (!p) return s
               const newCats = p.budgetCategories.map((c) => {
                 if (c.householdSplit?.groupId !== groupId) return c
-                return { ...c, budgeted: sh.byProfileId[pid] ?? c.budgeted, householdSplit: meta }
+                const nextBudgeted = sh.byProfileId[pid] ?? c.budgeted
+                const onceIdx =
+                  c.frequency === 'once'
+                    ? (() => {
+                        for (let i = 0; i < 12; i++) {
+                          if (total[i] > 0) return i
+                        }
+                        return c.onceMonthIndex
+                      })()
+                    : c.onceMonthIndex
+                return {
+                  ...c,
+                  budgeted: nextBudgeted,
+                  householdSplit: meta,
+                  ...(c.frequency === 'once' && onceIdx != null && onceIdx >= 0 && onceIdx <= 11
+                    ? { onceMonthIndex: onceIdx }
+                    : {}),
+                }
               })
               nextPeople[pid] = recalcPersonBudgetSpentForYear(
                 { ...p, budgetCategories: newCats },
@@ -3351,8 +3743,10 @@ export function resetStoreForLogout() {
     archivedBudgetsByYear: {},
     onboarding: { status: 'pending' },
     formuebyggerPro: createDefaultFormuebyggerPersistedState(),
+    hjemflyt: createEmptyHjemFlytState(),
     demoDataEnabled: false,
     peopleBeforeDemo: null,
+    showAmountDecimals: false,
   })
   clearLegacyLocalStorage()
 }
@@ -3418,6 +3812,15 @@ export function useActivePersonFinance() {
       addProfile: s.addProfile,
       renameProfile: s.renameProfile,
       removeProfile: s.removeProfile,
+      hjemflyt: s.hjemflyt,
+      setHjemflytSettings: s.setHjemflytSettings,
+      setProfileHjemflytMeta: s.setProfileHjemflytMeta,
+      hjemflytAddTask: s.hjemflytAddTask,
+      hjemflytUpdateTask: s.hjemflytUpdateTask,
+      hjemflytRemoveTask: s.hjemflytRemoveTask,
+      hjemflytCompleteTask: s.hjemflytCompleteTask,
+      hjemflytApproveCompletion: s.hjemflytApproveCompletion,
+      hjemflytRejectCompletion: s.hjemflytRejectCompletion,
     })),
   )
 
@@ -3502,6 +3905,15 @@ export function useActivePersonFinance() {
     addProfile: state.addProfile,
     renameProfile: state.renameProfile,
     removeProfile: state.removeProfile,
+    hjemflyt: state.hjemflyt,
+    setHjemflytSettings: state.setHjemflytSettings,
+    setProfileHjemflytMeta: state.setProfileHjemflytMeta,
+    hjemflytAddTask: state.hjemflytAddTask,
+    hjemflytUpdateTask: state.hjemflytUpdateTask,
+    hjemflytRemoveTask: state.hjemflytRemoveTask,
+    hjemflytCompleteTask: state.hjemflytCompleteTask,
+    hjemflytApproveCompletion: state.hjemflytApproveCompletion,
+    hjemflytRejectCompletion: state.hjemflytRejectCompletion,
     budgetYear: state.budgetYear,
     archivedBudgetsByYear: state.archivedBudgetsByYear,
     startNewBudgetYear: state.startNewBudgetYear,

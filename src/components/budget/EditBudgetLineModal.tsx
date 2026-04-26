@@ -7,6 +7,8 @@ import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { X, Pencil } from 'lucide-react'
 import type { CategoryRemapErrorReason } from '@/lib/categoryRemap'
 import { remapErrorNb, willMergeWithExistingLineInParent } from '@/lib/categoryRemapMessages'
+import { BUDGET_MONTH_LABELS_NB } from '@/lib/utils'
+import { getOnceLineDisplayMonthIndex } from '@/lib/budget/applyOnceMonthIndexChange'
 
 type RemapResult = { ok: true } | { ok: false; reason: CategoryRemapErrorReason }
 
@@ -32,6 +34,12 @@ type Props = {
   ) => RemapResult
   /** Valgfri: inntektslinje – åpner eksisterende trekk-modal. */
   onOpenIncomeWithholding?: () => void
+  /** Engang + ikke abo-låst rad: bruker kan velge måned. */
+  allowOnceMonthEdit?: boolean
+  /** Brukes i tilgjengelig/ledetekst, f.eks. engang i budsjettåret. */
+  viewingYear?: number
+  /** Kalles når bruker lagrer (etter vellykket navnemap om aktuelt) med ny måned for engang. */
+  onApplyOnceMonth?: (newMonthIndex: number) => void
 }
 
 export default function EditBudgetLineModal({
@@ -47,11 +55,15 @@ export default function EditBudgetLineModal({
   sharedGroupId = null,
   remapSharedHouseholdBudgetLineName,
   onOpenIncomeWithholding,
+  allowOnceMonthEdit = false,
+  viewingYear,
+  onApplyOnceMonth,
 }: Props) {
   const [name, setName] = useState('')
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [mergeMode, setMergeMode] = useState(false)
+  const [onceMonthIndexDraft, setOnceMonthIndexDraft] = useState(0)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const customNameInputRef = useRef<HTMLInputElement>(null)
 
@@ -74,6 +86,11 @@ export default function EditBudgetLineModal({
     setSearch('')
     setError(null)
     setMergeMode(false)
+    if (category.frequency === 'once') {
+      setOnceMonthIndexDraft(getOnceLineDisplayMonthIndex(category))
+    } else {
+      setOnceMonthIndexDraft(0)
+    }
   }, [open, category])
 
   useEffect(() => {
@@ -101,11 +118,18 @@ export default function EditBudgetLineModal({
     fromName !== trimmed &&
     willMergeWithExistingLineInParent(budgetCategories, parent, category.id, trimmed)
 
+  const applyOnceIfNeeded = () => {
+    if (!allowOnceMonthEdit || !onApplyOnceMonth || category.frequency !== 'once') return
+    if (getOnceLineDisplayMonthIndex(category) === onceMonthIndexDraft) return
+    onApplyOnceMonth(onceMonthIndexDraft)
+  }
+
   const handleSubmit: React.FormEventHandler = (e) => {
     e.preventDefault()
     setError(null)
 
     if (trimmed === fromName) {
+      applyOnceIfNeeded()
       onClose()
       return
     }
@@ -133,6 +157,7 @@ export default function EditBudgetLineModal({
         setMergeMode(false)
         return
       }
+      applyOnceIfNeeded()
       onClose()
       return
     }
@@ -143,6 +168,7 @@ export default function EditBudgetLineModal({
       setMergeMode(false)
       return
     }
+    applyOnceIfNeeded()
     onClose()
   }
 
@@ -201,7 +227,15 @@ export default function EditBudgetLineModal({
         {sharedGroupId && (
           <p className="text-sm rounded-xl p-3 mb-4" style={{ background: 'var(--primary-pale)', color: 'var(--text)' }}>
             Denne linjen er <strong>fordelt i husholdningen</strong>. Når du lagrer et nytt navn, oppdateres det hos
-            alle valgte personer. Beløp og fordeling endres fra budsjettvisningen (ikke her).
+            alle valgte personer.{' '}
+            {allowOnceMonthEdit ? (
+              <>
+                Beløp og forhold mellom personer justeres fortsatt i tabellen. For engangslinjer kan du her flytte hvilken
+                måned engangsposten ligger i.
+              </>
+            ) : (
+              <>Beløp og fordeling endres fra budsjettvisningen (ikke her).</>
+            )}
           </p>
         )}
 
@@ -317,6 +351,32 @@ export default function EditBudgetLineModal({
               autoComplete="off"
             />
           </div>
+
+          {allowOnceMonthEdit && category.frequency === 'once' && (
+            <div className="flex flex-col gap-1 min-w-0">
+              <label
+                htmlFor="edit-budget-line-once-month"
+                className="text-xs font-medium"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Hvilken måned?{viewingYear != null ? ` (budsjettår ${viewingYear})` : ''}
+              </label>
+              <select
+                id="edit-budget-line-once-month"
+                value={onceMonthIndexDraft}
+                onChange={(e) => setOnceMonthIndexDraft(Number(e.target.value))}
+                className="w-full min-w-0 min-h-[44px] px-3 py-2 text-sm rounded-xl font-sans touch-manipulation"
+                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                aria-label="Måned for engangsbudsjett"
+              >
+                {BUDGET_MONTH_LABELS_NB.map((label, i) => (
+                  <option key={label} value={i}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {error && (
             <p className="text-sm" style={{ color: 'var(--danger, #C92A2A)' }} role="alert">

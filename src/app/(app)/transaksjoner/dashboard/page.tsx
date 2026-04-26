@@ -14,7 +14,7 @@ import type { Transaction } from '@/lib/store'
 import { isIsoDateString, kpiSubForTransactionPeriod, todayIsoLocal } from '@/lib/transactionPeriodFilter'
 import { uniqueDescriptionsForDatalist } from '@/lib/transactionDescriptionSuggestions'
 import { useIsMinMdScreen } from '@/lib/useIsNarrowScreen'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 
 const MONTHS_FULL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
@@ -37,6 +37,7 @@ function buildTransaksjonerListeHref(
 }
 
 function TransaksjonerDashboardInner() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     filterYear,
     setFilterYear,

@@ -11,11 +11,12 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 export type DashboardIncomeExpensePoint = { month: string; inntekt: number; utgift: number; netto: number }
 
 export default function DashboardIncomeExpenseChart({ data }: { data: DashboardIncomeExpensePoint[] }) {
+  const { formatNOK } = useNokDisplayFormatters()
   if (data.length === 0) {
     return (
       <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>

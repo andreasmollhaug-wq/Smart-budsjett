@@ -350,16 +350,23 @@ export type AiFinanceContextMeta = {
   budgetYear: number
   scopeLabel: string
   isHouseholdAggregate: boolean
+  /** Når sann: bruker har valgt desimaler i NOK-beløp i app-UI. Påvirker ikke råtall i denne konteksten. */
+  showAmountDecimals: boolean
   profileNamesById: Record<string, string>
   peopleById: Record<string, PersonData>
 }
 
 export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceContextMeta): string {
-  const { budgetYear, scopeLabel, isHouseholdAggregate, profileNamesById } = meta
+  const { budgetYear, scopeLabel, isHouseholdAggregate, showAmountDecimals, profileNamesById } = meta
   const lines: string[] = []
   lines.push('--- Brukerens data fra appen (kun lesing) ---')
   lines.push(`Budsjettår: ${budgetYear}`)
   lines.push(`Visningsmodus: ${scopeLabel}`)
+  lines.push(
+    showAmountDecimals
+      ? 'Beløp i app-UI: brukeren har slått på visning med desimaler (0–2 der det trengs). Tallene nedenfor er nøyaktige beløp i kroner uavhengig av typografi i appen.'
+      : 'Beløp i app-UI: hele kroner (standard) i lister og oversikter. Tallene nedenfor er nøyaktige beløp i kroner; små avvik mot skjerm skyldes avrundet visning.',
+  )
   lines.push(
     'Inntekt i budsjett og transaksjoner: der brukeren har valgt forenklet trekk, er planlagte budsjettbeløp og lister vist som netto i summeringer (beløp i cellen kan fortsatt være brutto). Dette er ikke offisiell skatt.',
   )
@@ -502,6 +509,7 @@ export function buildAiUserContextFromPersistedState(state: unknown): string {
     budgetYear: state.budgetYear,
     scopeLabel,
     isHouseholdAggregate,
+    showAmountDecimals: state.showAmountDecimals === true,
     profileNamesById,
     peopleById,
   })

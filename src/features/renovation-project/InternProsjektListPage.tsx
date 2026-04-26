@@ -7,7 +7,8 @@ import StatCard from '@/components/ui/StatCard'
 import { useRenovationProjectStore, buildNewProjectFromTemplate } from './renovationProjectStore'
 import { buildChecklistFromTemplate } from './templates'
 import type { RenovationProject, RenovationTemplateKey } from './types'
-import { formatIsoDateDdMmYyyy, formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { computePortfolioKpisForProjects, computeProjectKpis } from './kpis'
 import { FolderKanban, Hammer, ListChecks, Plus, Receipt, Wallet } from 'lucide-react'
 
@@ -37,6 +38,7 @@ const TEMPLATE_OPTIONS: { key: RenovationTemplateKey; label: string }[] = [
 ]
 
 export default function InternProsjektListPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const projects = useRenovationProjectStore((s) => s.projects)
   const addProject = useRenovationProjectStore((s) => s.addProject)
 

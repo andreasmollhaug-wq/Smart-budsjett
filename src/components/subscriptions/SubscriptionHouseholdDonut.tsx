@@ -1,7 +1,7 @@
 'use client'
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 /** Premium palett med tydelig kontrast (blå, grønn, bær, gull …), fortsatt dempet metning. */
 const COLORS = [
@@ -31,6 +31,7 @@ export default function SubscriptionHouseholdDonut({
   rows: SubscriptionDonutRow[]
   totalMonthly: number
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   if (totalMonthly <= 0) {
     return (
       <p className="text-sm py-6 text-center rounded-2xl border px-4" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>

@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ChildEmojiPicker } from '@/features/hjemflyt/ChildEmojiPicker'
 import { DEFAULT_PROFILE_ID, useStore } from '@/lib/store'
+import type { HjemflytProfileMeta } from '@/features/hjemflyt/types'
 
 export default function KontoProfilerPage() {
   const router = useRouter()
@@ -12,6 +14,8 @@ export default function KontoProfilerPage() {
   const profiles = useStore((s) => s.profiles)
   const renameProfile = useStore((s) => s.renameProfile)
   const removeProfile = useStore((s) => s.removeProfile)
+  const activeProfileId = useStore((s) => s.activeProfileId)
+  const setProfileHjemflytMeta = useStore((s) => s.setProfileHjemflytMeta)
 
   useEffect(() => {
     if (subscriptionPlan !== 'family') {
@@ -46,6 +50,9 @@ export default function KontoProfilerPage() {
               id={p.id}
               name={p.name}
               isPrimary={p.id === DEFAULT_PROFILE_ID}
+              hjemflyt={p.hjemflyt}
+              isHjemflytAdmin={activeProfileId === DEFAULT_PROFILE_ID}
+              setProfileHjemflytMeta={setProfileHjemflytMeta}
               renameProfile={renameProfile}
               removeProfile={removeProfile}
             />
@@ -70,16 +77,33 @@ function ProfileRow({
   id,
   name,
   isPrimary,
+  hjemflyt,
+  isHjemflytAdmin,
+  setProfileHjemflytMeta,
   renameProfile,
   removeProfile,
 }: {
   id: string
   name: string
   isPrimary: boolean
+  hjemflyt?: HjemflytProfileMeta
+  isHjemflytAdmin: boolean
+  setProfileHjemflytMeta: (
+    profileId: string,
+    meta: { kind: 'adult' | 'child'; childEmoji?: string | null } | null,
+  ) => { ok: true } | { ok: false; reason: 'forbidden' | 'invalid' }
   renameProfile: (id: string, name: string) => void
   removeProfile: (id: string) => { ok: true } | { ok: false; reason: string }
 }) {
   const [removeModalOpen, setRemoveModalOpen] = useState(false)
+  const isChild = hjemflyt?.kind === 'child'
+  const [editChild, setEditChild] = useState(isChild)
+  const [editEmoji, setEditEmoji] = useState<string | null>(hjemflyt?.childEmoji ?? null)
+
+  useEffect(() => {
+    setEditChild(hjemflyt?.kind === 'child')
+    setEditEmoji(hjemflyt?.childEmoji ?? null)
+  }, [hjemflyt?.kind, hjemflyt?.childEmoji])
 
   const confirmRemove = () => {
     const res = removeProfile(id)
@@ -105,6 +129,44 @@ function ProfileRow({
         <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
           Hovedprofilen kan ikke slettes.
         </p>
+      )}
+
+      {isHjemflytAdmin && !isPrimary && (
+        <div
+          className="mt-3 p-3 rounded-xl space-y-2"
+          style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
+        >
+          <p className="text-xs font-medium" style={{ color: 'var(--text)' }}>
+            HjemFlyt
+          </p>
+          <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
+            <input
+              type="checkbox"
+              checked={editChild}
+              onChange={(e) => {
+                setEditChild(e.target.checked)
+                if (e.target.checked) {
+                  setProfileHjemflytMeta(id, { kind: 'child', childEmoji: editEmoji })
+                } else {
+                  setProfileHjemflytMeta(id, null)
+                  setEditEmoji(null)
+                }
+              }}
+            />
+            <span style={{ color: 'var(--text)' }}>Barneprofil (leken HjemFlyt-visning)</span>
+          </label>
+          {editChild && (
+            <div className="max-h-48 overflow-y-auto -mx-1 px-1">
+              <ChildEmojiPicker
+                value={editEmoji}
+                onChange={(emo) => {
+                  setEditEmoji(emo)
+                  setProfileHjemflytMeta(id, { kind: 'child', childEmoji: emo })
+                }}
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {!isPrimary && (

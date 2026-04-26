@@ -4,7 +4,7 @@ import Link from 'next/link'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import type { BudgetVsSummary } from '@/lib/dashboardOverviewHelpers'
 import { transactionsHrefForCategory } from '@/lib/budgetDashboardLinks'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { ChevronRight } from 'lucide-react'
 
 export type DashboardYoYCompare = {
@@ -35,6 +35,7 @@ export default function DashboardVsBudgetCard({
   coverage,
   yoy,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const lowCoverage =
     coverage.total > 0 && (coverage.withTx / coverage.total < 0.5 || coverage.total - coverage.withTx >= 2)
 

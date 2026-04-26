@@ -2,13 +2,14 @@
 
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { HouseholdMemberPeriodTotals } from '@/lib/householdDashboardData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#7048E8', '#E03131']
 
 type Row = { name: string; value: number; fill: string }
 
 export default function HouseholdIncomeSplit({ members }: { members: HouseholdMemberPeriodTotals[] }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const data: Row[] = members
     .filter((m) => m.budgetedIncome > 0)
     .map((m, i) => ({

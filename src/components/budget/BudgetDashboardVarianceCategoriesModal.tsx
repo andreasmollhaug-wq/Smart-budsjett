@@ -3,11 +3,14 @@
 import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import type { BudgetVsActualRow } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
+import { useStore } from '@/lib/store'
 import { X } from 'lucide-react'
 
 function signedNOK(n: number): string {
-  const abs = formatNOK(Math.abs(n))
+  const show = useStore.getState().showAmountDecimals
+  const abs = formatNokCurrencyDisplay(Math.abs(n), show)
   if (n > 0) return `+${abs}`
   if (n < 0) return `−${abs}`
   return abs
@@ -33,6 +36,7 @@ export default function BudgetDashboardVarianceCategoriesModal({
   rows,
   linkHrefForCategory,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {

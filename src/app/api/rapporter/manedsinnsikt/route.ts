@@ -55,9 +55,8 @@ export async function GET() {
 const SYSTEM_PROMPT = [
   'Du skriver et kort månedsinnsikt for Smart Budsjett på norsk.',
   'Du får strukturerte tall og transaksjoner nedenfor — de er sannhetskilde. Ikke finn opp beløp, prosenter eller transaksjoner som ikke står der.',
-  'Forklar kort hovedtrekkene: inntekt og kostnader mot budsjett, netto, og om faktiske kostnader i måneden er over eller under snittet hittil i år når det er oppgitt.',
-  'Nevn de viktigste avvikene (over/under budsjett) og om noen store enkelttransaksjoner kan forklare utslag (f.eks. vedlikehold, ikke gjett utover det som står i listen).',
-  'Hold deg til 4–8 korte avsnitt eller punktlister med bindestrek. Ingen Markdown: ikke **, _, # eller kodeblokker.',
+  'Struktur (uten Markdown): start med overskriftslinjen Sammendrag: etterfulgt av 2–4 kulepunkter med bindestrek eller nummer — de viktigste tallene og konklusjonene fra dataene. Deretter en tom linje og overskriftslinjen Detaljer: med forklaring av inntekt og kostnader mot budsjett, netto, om faktiske kostnader i måneden er over eller under snittet hittil i år når det er oppgitt, de viktigste avvikene (over/under budsjett), og om store enkelttransaksjoner i listen kan forklare utslag (ikke gjett utover det som står i listen).',
+  'Hold detaljdelen til omtrent 3–6 korte avsnitt eller punktlister; unngå repetisjon. Ingen Markdown: ikke **, _, # eller kodeblokker.',
   'Avslutt med én setning om at dette er automatisert hjelp i appen, ikke personlig økonomisk rådgivning.',
 ].join('\n')
 
@@ -176,7 +175,7 @@ export async function POST(req: Request) {
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userContent },
         ],
-        temperature: 0.25,
+        temperature: 0.15,
         ...(useCompletionTokenLimit ? { max_completion_tokens: 1200 } : { max_tokens: 1200 }),
       }),
     })

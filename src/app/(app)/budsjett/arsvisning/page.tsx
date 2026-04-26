@@ -35,10 +35,11 @@ import {
 } from '@/lib/budgetYearMatrixHelpers'
 import { buildArsvisningDataInsights, summarizeBudgetVsRows } from '@/lib/dashboardOverviewHelpers'
 import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { AlertTriangle, ChevronDown, Scale, TrendingDown, Wallet } from 'lucide-react'
 
 export default function BudsjettArsvisningPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     transactions,
     budgetCategories,

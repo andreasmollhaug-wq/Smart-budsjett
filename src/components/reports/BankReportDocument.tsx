@@ -12,7 +12,8 @@ import {
 } from '@/lib/bankReportData'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Debt, Investment, SavingsGoal } from '@/lib/store'
-import { calcProgress, formatNOK, formatPercent } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { calcProgress, formatPercent } from '@/lib/utils'
 
 const MONTHS_FULL = [
   'Januar',
@@ -112,6 +113,7 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
     },
     ref,
   ) {
+    const { formatNOK } = useNokDisplayFormatters()
     const sec = { ...DEFAULT_SECTIONS, ...sectionsProp }
     const periodLabel = `${MONTHS_FULL[monthIndex]} ${year}`
     const dateStr = generatedAt.toLocaleString('nb-NO', {

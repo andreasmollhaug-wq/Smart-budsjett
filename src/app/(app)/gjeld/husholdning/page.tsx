@@ -7,7 +7,7 @@ import Header from '@/components/layout/Header'
 import GjeldSubnav from '@/components/debt/GjeldSubnav'
 import { useStore } from '@/lib/store'
 import { buildHouseholdDebtOverview, householdDebtTypeOrder } from '@/lib/householdDebtOverview'
-import { formatNOK, formatNOKChartLabel } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { debtColors, debtTypeLabels } from '@/lib/debtDisplay'
 import type { Debt } from '@/lib/store'
 import {
@@ -45,7 +45,15 @@ type ChartMemberRow = {
   manedlig?: number
 }
 
-function StackedTooltip({ active, payload }: { active?: boolean; payload?: TooltipPayload }) {
+function StackedTooltip({
+  active,
+  payload,
+  formatNok,
+}: {
+  active?: boolean
+  payload?: TooltipPayload
+  formatNok: (n: number) => string
+}) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload as StackRow | undefined
   const title = row?.fullName ?? ''
@@ -63,7 +71,7 @@ function StackedTooltip({ active, payload }: { active?: boolean; payload?: Toolt
           <p key={String(p.dataKey)} className="flex justify-between gap-4" style={{ color: 'var(--text-muted)' }}>
             <span>{p.name}</span>
             <span className="tabular-nums" style={{ color: 'var(--text)' }}>
-              {formatNOK(p.value == null ? 0 : Number(p.value))}
+              {formatNok(p.value == null ? 0 : Number(p.value))}
             </span>
           </p>
         ))}
@@ -72,6 +80,7 @@ function StackedTooltip({ active, payload }: { active?: boolean; payload?: Toolt
 }
 
 export default function GjeldHusholdningPage() {
+  const { formatNOK, formatNOKChartLabel } = useNokDisplayFormatters()
   const router = useRouter()
   const subscriptionPlan = useStore((s) => s.subscriptionPlan)
   const profiles = useStore((s) => s.profiles)
@@ -512,7 +521,7 @@ export default function GjeldHusholdningPage() {
                         tickFormatter={(v) => `${Math.round(Number(v) / 1000)}k`}
                         tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
                       />
-                      <Tooltip content={<StackedTooltip />} />
+                      <Tooltip content={<StackedTooltip formatNok={formatNOK} />} />
                       <Legend
                         wrapperStyle={{ fontSize: 11, color: 'var(--text-muted)' }}
                         formatter={(value) => <span style={{ color: 'var(--text-muted)' }}>{value}</span>}

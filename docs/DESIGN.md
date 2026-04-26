@@ -32,6 +32,7 @@ Bruk disse variablene for bakgrunn, tekst og kort — ikke introduser nye hovedf
 
 ## Komponenter og mønstre
 
+- **Budsjett · rediger linje (penn):** [`src/components/budget/EditBudgetLineModal.tsx`](../src/components/budget/EditBudgetLineModal.tsx) — navn/etikett; for **engang** (`frequency === 'once'`) og uaborad kan bruker sette **måned** her; logikk gjenbruker [`applyOnceMonthIndexChange`](../src/lib/budget/applyOnceMonthIndexChange.ts) (samme som celle i matrisa). Se [`.cursor/rules/budget-rediger-linje-engang.mdc`](../.cursor/rules/budget-rediger-linje-engang.mdc).
 - **Kort:** Ofte `rounded-2xl`, `background: var(--surface)`, `border: 1px solid var(--border)`.
 - **Primærknapp / CTA:** Gradient `linear-gradient(135deg, #3B5BDB, #4C6EF5)` med hvit tekst — samme som «SB»-badge i sidebar.
 - **Sekundærknapp:** Lys bakgrunn (`--surface` eller `--bg`) + border, som i [`Header`](../src/components/layout/Header.tsx).

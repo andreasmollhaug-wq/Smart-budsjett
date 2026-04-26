@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import {
   REPORT_GROUP_LABELS,
@@ -6,7 +8,7 @@ import {
 } from '@/lib/bankReportData'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import VariancePctLine from '@/components/budget/VariancePctLine'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const tableClass = 'w-full text-sm border-collapse'
 const thClass = 'text-left py-2 px-3 font-semibold border-b'
@@ -33,6 +35,7 @@ export default function BudgetVsActualTables({
   /** actual-only: kun kategori + faktisk (transaksjonsoversikt uten budsjett). */
   variant?: 'default' | 'actual-only'
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const actualOnly = variant === 'actual-only'
 
   return (

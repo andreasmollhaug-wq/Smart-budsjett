@@ -14,17 +14,22 @@ import { Lightbulb, Trash2 } from 'lucide-react'
 
 /** Første forslag bygges i komponenten med inneværende måned fra enhetens klokke. */
 const SUGGESTED_QUESTIONS_REST = [
+  'Oppsummer de viktigste tallene mine i korte punkter, deretter litt mer utfyllende — hva bør jeg merke meg?',
   'Hva koster tjenesteabonnementene mine omtrent per måned til sammen?',
   'Hvordan kan jeg dele en felles utgift mellom to profiler?',
-  'Gi meg konkrete tips ut fra tallene mine nå — hva bør jeg se på først?',
-  'Hvordan bør jeg prioritere nedbetaling av gjeld?',
-  'Hvor skiller faktiske utgifter seg mest fra budsjettet mitt nå?',
+  'Gi meg tre konkrete grep ut fra tallene mine nå, med nummererte neste steg i appen.',
+  'Hvor er de største avvikene mellom faktiske utgifter og budsjettet mitt nå? Start med et kort sammendrag.',
+  'Hvordan bør jeg prioritere nedbetaling av gjeld ut fra det som står registrert?',
 ] as const
 
 function suggestedQuestionCurrentMonthSummary(): string {
   const now = new Date()
   const period = now.toLocaleDateString('nb-NO', { month: 'long', year: 'numeric' })
   return `Oppsummer utgiftene mine i ${period} (inneværende måned).`
+}
+
+function enkelExcelAiAssistantWelcome(assistantName: string): string {
+  return `Hei! Jeg er ${assistantName}. Jeg svarer ut fra tallene for valgt profil eller husholdning: først et kort sammendrag når det passer, deretter mer detaljer og konkrete neste steg i appen — automatisert hjelp, ikke personlig rådgivning.`
 }
 
 type ChatRole = 'user' | 'assistant'
@@ -68,8 +73,7 @@ export default function EnkelExcelAiPage() {
       {
         id: generateId(),
         role: 'assistant',
-        content:
-          `Hei! Jeg er ${assistantName}. Jeg kan hjelpe deg med budsjett, sparing og gjeld.`,
+        content: enkelExcelAiAssistantWelcome(assistantName),
       },
     ],
     [assistantName],
@@ -218,7 +222,7 @@ export default function EnkelExcelAiPage() {
       {
         id: generateId(),
         role: 'assistant',
-        content: `Hei! Jeg er ${assistantName}. Jeg kan hjelpe deg med budsjett, sparing og gjeld.`,
+        content: enkelExcelAiAssistantWelcome(assistantName),
       },
     ])
   }, [assistantName])

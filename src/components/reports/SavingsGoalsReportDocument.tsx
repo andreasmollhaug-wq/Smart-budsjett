@@ -2,7 +2,8 @@
 
 import { forwardRef } from 'react'
 import type { SavingsReportData } from '@/lib/savingsReportData'
-import { formatNOK, formatPercent } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatPercent } from '@/lib/utils'
 
 export interface SavingsGoalsReportDocumentProps {
   generatedAt: Date
@@ -40,6 +41,7 @@ function formatActivityDate(isoDate: string): string {
 
 const SavingsGoalsReportDocument = forwardRef<HTMLDivElement, SavingsGoalsReportDocumentProps>(
   function SavingsGoalsReportDocument({ generatedAt, scopeLabel, data }, ref) {
+    const { formatNOK } = useNokDisplayFormatters()
     const dateStr = generatedAt.toLocaleString('nb-NO', {
       dateStyle: 'long',
       timeStyle: 'short',

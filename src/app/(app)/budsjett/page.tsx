@@ -13,14 +13,9 @@ import {
   type BudgetYearCopySource,
 } from '@/lib/store'
 import { budgetedArrayForCategoryName } from '@/lib/budgetYearHelpers'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
-import {
-  budgetedMonthsFromFrequency,
-  formatNOK,
-  formatNOKOrDash,
-  formatPercent,
-  generateId,
-} from '@/lib/utils'
+import { budgetedMonthsFromFrequency, formatPercent, generateId } from '@/lib/utils'
 import {
   budgetCategoryUsesIncomeWithholding,
   effectiveBudgetedIncomeMonth,
@@ -59,6 +54,7 @@ import {
   type HouseholdSplitFormState,
 } from '@/components/budget/HouseholdBudgetSplitSection'
 import { amountReferencesSumMatchesLine, impliedNewMonthTotal } from '@/lib/householdBudgetSplit'
+import { applyOnceMonthIndexChange } from '@/lib/budget/applyOnceMonthIndexChange'
 
 const COLORS = ['#3B5BDB', '#4C6EF5', '#7048E8', '#AE3EC9', '#E03131', '#F08C00', '#0CA678', '#0B7285']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
@@ -169,6 +165,7 @@ export default function BudsjettPage() {
     applySharedHouseholdMonthCellEdit,
   } = useActivePersonFinance()
 
+  const { formatNOK, formatNOKOrDash } = useNokDisplayFormatters()
   const people = useStore((s) => s.people)
   /** Husholdning: hvilken budsjettlinje (aggregat-id) som viser bidrag per person. */
   const [householdLineBreakdownOpen, setHouseholdLineBreakdownOpen] = useState<string | null>(null)
@@ -255,7 +252,11 @@ export default function BudsjettPage() {
     sparing: false,
   })
   const [addModalGroup, setAddModalGroup] = useState<ParentCategory | null>(null)
-  const [editLine, setEditLine] = useState<{ category: BudgetCategory; parent: ParentCategory } | null>(null)
+  const [editLine, setEditLine] = useState<{
+    category: BudgetCategory
+    parent: ParentCategory
+    allowOnceMonthEdit: boolean
+  } | null>(null)
   const [modalSearch, setModalSearch] = useState('')
   const [newForm, setNewForm] = useState<{
     name: string
@@ -612,6 +613,31 @@ export default function BudsjettPage() {
     return all.filter((n) => n !== editLine.category.name)
   }, [editLine, getCategoriesForGroup, labelLists])
 
+  const handleApplyOnceMonthFromModal = useCallback(
+    (newMonth: number) => {
+      if (!editLine) return
+      const id = editLine.category.id
+      const s = useStore.getState()
+      const pid = s.activeProfileId
+      const fresh = s.people[pid]?.budgetCategories.find((c) => c.id === id)
+      if (!fresh || fresh.frequency !== 'once') return
+      const parent = editLine.parent
+      const useWh =
+        parent === 'inntekter' && fresh.type === 'income' && budgetCategoryUsesIncomeWithholding(fresh)
+      applyOnceMonthIndexChange(
+        {
+          category: fresh,
+          newMonthIndex: newMonth,
+          isHouseholdAggregate,
+          activeProfileId: pid,
+          useIncomeWithholding: useWh,
+        },
+        { updateBudgetCategory, resplitSharedHouseholdGroupFromTotals },
+      )
+    },
+    [editLine, isHouseholdAggregate, updateBudgetCategory, resplitSharedHouseholdGroupFromTotals],
+  )
+
   return (
     <div className="min-w-0 flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
@@ -715,6 +741,9 @@ export default function BudsjettPage() {
         }
         sharedGroupId={editLine?.category.householdSplit?.groupId ?? null}
         remapSharedHouseholdBudgetLineName={remapSharedHouseholdBudgetLineName}
+        allowOnceMonthEdit={editLine?.allowOnceMonthEdit ?? false}
+        viewingYear={viewingYear}
+        onApplyOnceMonth={handleApplyOnceMonthFromModal}
       />
 
       <div className="space-y-6 p-4 md:p-6 lg:p-8">
@@ -1205,7 +1234,13 @@ export default function BudsjettPage() {
                                     {!readOnly && (
                                       <button
                                         type="button"
-                                        onClick={() => setEditLine({ category: cat, parent: group.id })}
+                                        onClick={() =>
+                                          setEditLine({
+                                            category: cat,
+                                            parent: group.id,
+                                            allowOnceMonthEdit: cat.frequency === 'once' && !subBudgetLocked,
+                                          })
+                                        }
                                         className="p-1 opacity-60 hover:opacity-100 flex-shrink-0 min-w-[28px] min-h-[28px] inline-flex items-center justify-center rounded-lg"
                                         style={{ color: 'var(--primary)' }}
                                         title="Rediger linje"
@@ -1682,7 +1717,13 @@ export default function BudsjettPage() {
                                   {!readOnly && (
                                     <button
                                       type="button"
-                                      onClick={() => setEditLine({ category: cat, parent: group.id })}
+                                      onClick={() =>
+                                        setEditLine({
+                                          category: cat,
+                                          parent: group.id,
+                                          allowOnceMonthEdit: cat.frequency === 'once' && !subBudgetLocked,
+                                        })
+                                      }
                                       className="p-1.5 rounded-lg min-w-[36px] min-h-[36px] inline-flex items-center justify-center"
                                       style={{ background: 'var(--surface)', color: 'var(--primary)' }}
                                       title="Rediger linje"
@@ -1929,7 +1970,13 @@ export default function BudsjettPage() {
                                 {!readOnly && (
                                   <button
                                     type="button"
-                                    onClick={() => setEditLine({ category: cat, parent: group.id })}
+                                    onClick={() =>
+                                      setEditLine({
+                                        category: cat,
+                                        parent: group.id,
+                                        allowOnceMonthEdit: cat.frequency === 'once' && !subBudgetLocked,
+                                      })
+                                    }
                                     className="p-1.5 rounded-lg min-w-[36px] min-h-[36px] inline-flex items-center justify-center"
                                     style={{ background: 'var(--surface)', color: 'var(--primary)' }}
                                     title="Rediger linje"

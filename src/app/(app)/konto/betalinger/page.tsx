@@ -3,7 +3,8 @@
 import { Suspense, useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CreditCard, Check, ExternalLink, Loader2 } from 'lucide-react'
-import { useActivePersonFinance } from '@/lib/store'
+import { useActivePersonFinance, useStore } from '@/lib/store'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
 import { hasSubscriptionAccess } from '@/lib/stripe/subscriptionAccess'
 import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
@@ -36,7 +37,7 @@ type StripeInvoiceRow = {
   description: string | null
 }
 
-function formatStripeInvoiceAmount(amountPaid: number, currency: string): string {
+function formatStripeInvoiceAmount(amountPaid: number, currency: string, showNokDecimals: boolean): string {
   const c = currency.toUpperCase()
   const zeroDecimal = new Set([
     'BIF',
@@ -57,7 +58,9 @@ function formatStripeInvoiceAmount(amountPaid: number, currency: string): string
     'XPF',
   ])
   const divisor = zeroDecimal.has(c) ? 1 : 100
-  return new Intl.NumberFormat('nb-NO', { style: 'currency', currency: c }).format(amountPaid / divisor)
+  const n = amountPaid / divisor
+  if (c === 'NOK') return formatNokCurrencyDisplay(n, showNokDecimals)
+  return new Intl.NumberFormat('nb-NO', { style: 'currency', currency: c }).format(n)
 }
 
 function statusLabel(status: string): string {
@@ -93,6 +96,7 @@ function BetalingerContent() {
   const [trialModalOpen, setTrialModalOpen] = useState(false)
 
   const { subscriptionPlan, setSubscriptionPlan } = useActivePersonFinance()
+  const showAmountDecimals = useStore((s) => s.showAmountDecimals)
   const [downgradeError, setDowngradeError] = useState(false)
   const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
   const [checkoutLoading, setCheckoutLoading] = useState<'solo' | 'family' | null>(null)
@@ -586,7 +590,7 @@ function BetalingerContent() {
                           year: 'numeric',
                         })}
                       </td>
-                      <td className="px-4 py-3">{formatStripeInvoiceAmount(inv.amount_paid, inv.currency)}</td>
+                      <td className="px-4 py-3">{formatStripeInvoiceAmount(inv.amount_paid, inv.currency, showAmountDecimals)}</td>
                       <td className="px-4 py-3">
                         {inv.hosted_invoice_url ? (
                           <a

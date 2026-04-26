@@ -1,6 +1,6 @@
 'use client'
 
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import type { HouseholdMemberPeriodTotals } from '@/lib/householdDashboardData'
 
 type Props = {
@@ -10,6 +10,7 @@ type Props = {
 }
 
 export default function HouseholdActualsTable({ members, compact }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const cell = compact ? 'py-1.5' : 'py-2'
   const text = compact ? 'text-xs' : 'text-xs sm:text-sm'
   return (

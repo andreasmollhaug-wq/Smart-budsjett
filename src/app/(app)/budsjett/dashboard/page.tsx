@@ -29,10 +29,11 @@ import {
 } from '@/lib/budgetPeriod'
 import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
 import { useShallow } from 'zustand/react/shallow'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { AlertTriangle, Download, Scale, TrendingDown, Wallet } from 'lucide-react'
 
 export default function BudsjettDashboardPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     transactions,
     budgetCategories,

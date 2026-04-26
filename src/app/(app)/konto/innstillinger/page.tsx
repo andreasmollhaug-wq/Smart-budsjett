@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { User, Bell, Sparkles, FlaskConical } from 'lucide-react'
+import { User, Bell, Sparkles, FlaskConical, CircleDollarSign } from 'lucide-react'
 import { useStore, type BudgetCategory } from '@/lib/store'
 import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
@@ -143,6 +143,78 @@ function ProfileSettingsForm() {
         {saving ? 'Lagrer…' : 'Lagre endringer'}
       </button>
     </form>
+  )
+}
+
+function ShowAmountDecimalsCard() {
+  const showAmountDecimals = useStore((s) => s.showAmountDecimals)
+  const setShowAmountDecimals = useStore((s) => s.setShowAmountDecimals)
+  const syncInsightNotifications = useStore((s) => s.syncInsightNotifications)
+  const [justSaved, setJustSaved] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [])
+
+  return (
+    <div
+      className="rounded-2xl p-6 scroll-mt-24"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <h2
+        className="font-semibold mb-2 flex items-center gap-2"
+        id="innstillinger-vis-desimaler-heading"
+        style={{ color: 'var(--text)' }}
+      >
+        <CircleDollarSign size={16} style={{ color: 'var(--primary)' }} />
+        Vis desimaler i beløp
+      </h2>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+        Gjelder lister, oversikter og KPI. Du kan fortsatt skrive inn kroner og øre uansett innstilling.
+      </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <button
+          type="button"
+          id="innstillinger-vis-desimaler-switch"
+          role="switch"
+          aria-checked={showAmountDecimals}
+          aria-labelledby="innstillinger-vis-desimaler-heading"
+          onClick={() => {
+            const next = !showAmountDecimals
+            setShowAmountDecimals(next)
+            syncInsightNotifications()
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+            setJustSaved(true)
+            saveTimerRef.current = setTimeout(() => {
+              setJustSaved(false)
+              saveTimerRef.current = null
+            }, 2800)
+          }}
+          className="inline-flex w-full sm:w-auto items-center gap-3 text-left min-h-[44px] touch-manipulation rounded-xl -mx-1 px-1 py-1"
+        >
+          <span
+            className="relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors"
+            style={{ background: showAmountDecimals ? 'var(--primary)' : 'var(--border)' }}
+          >
+            <span
+              className="inline-block h-5 w-5 rounded-full bg-white shadow mt-1 transition-transform"
+              style={{ transform: showAmountDecimals ? 'translateX(1.5rem)' : 'translateX(0.25rem)' }}
+            />
+          </span>
+          <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+            {showAmountDecimals ? 'Viser kroner og øre' : 'Viser hele kroner'}
+          </span>
+        </button>
+        {justSaved && (
+          <p role="status" aria-live="polite" className="text-sm font-medium" style={{ color: 'var(--success)' }}>
+            Visning lagret
+          </p>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -353,6 +425,8 @@ export default function KontoInnstillingerPage() {
         </h2>
         <ProfileSettingsForm />
       </div>
+
+      <ShowAmountDecimalsCard />
 
       <DemoDataCard />
 

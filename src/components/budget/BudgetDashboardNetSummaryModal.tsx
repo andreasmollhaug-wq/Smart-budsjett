@@ -3,7 +3,9 @@
 import { useEffect, useMemo } from 'react'
 import type { PersonData, PersonProfile, Transaction } from '@/lib/store'
 import { sumIncomeExpenseNetByProfileForMonthRange } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
+import { useStore } from '@/lib/store'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 export type BudgetDashboardNetSummaryVariant = 'actual' | 'budget' | 'variance'
@@ -34,7 +36,8 @@ type Props = {
 }
 
 function signedNOK(n: number): string {
-  const abs = formatNOK(Math.abs(n))
+  const show = useStore.getState().showAmountDecimals
+  const abs = formatNokCurrencyDisplay(Math.abs(n), show)
   if (n > 0) return `+${abs}`
   if (n < 0) return `−${abs}`
   return abs
@@ -60,6 +63,7 @@ export default function BudgetDashboardNetSummaryModal({
   isHouseholdAggregate,
   people,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {

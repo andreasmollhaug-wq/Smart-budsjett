@@ -5,7 +5,9 @@ import type { BudgetVsActualRow } from '@/lib/bankReportData'
 import { REPORT_GROUP_LABELS, REPORT_GROUP_ORDER, sumBudgetVsActualByParent } from '@/lib/bankReportData'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { BudgetVsSummary } from '@/lib/dashboardOverviewHelpers'
-import { formatNOK } from '@/lib/utils'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
+import { useStore } from '@/lib/store'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 type Props = {
   periodLabel: string
@@ -34,45 +36,50 @@ function groupRowVisual(
 }
 
 function rightCaptionIncome(budgeted: number, actual: number): { amount: string; sub: string; color: string } {
+  const show = useStore.getState().showAmountDecimals
+  const fmt = (n: number) => formatNokCurrencyDisplay(n, show)
   if (budgeted <= 0) {
     return { amount: '–', sub: 'Ingen plan', color: 'var(--text-muted)' }
   }
   if (actual < budgeted) {
     return {
-      amount: formatNOK(budgeted - actual),
+      amount: fmt(budgeted - actual),
       sub: 'gjenstående',
       color: 'var(--success)',
     }
   }
   if (actual > budgeted) {
     return {
-      amount: formatNOK(actual - budgeted),
+      amount: fmt(actual - budgeted),
       sub: 'over plan',
       color: 'var(--success)',
     }
   }
-  return { amount: formatNOK(0), sub: 'gjenstående', color: 'var(--text-muted)' }
+  return { amount: fmt(0), sub: 'gjenstående', color: 'var(--text-muted)' }
 }
 
 function rightCaptionExpense(budgeted: number, actual: number): { amount: string; sub: string; color: string } {
+  const show = useStore.getState().showAmountDecimals
+  const fmt = (n: number) => formatNokCurrencyDisplay(n, show)
   if (budgeted <= 0) {
     return { amount: '–', sub: 'Ingen plan', color: 'var(--text-muted)' }
   }
   if (actual <= budgeted) {
     return {
-      amount: formatNOK(budgeted - actual),
+      amount: fmt(budgeted - actual),
       sub: 'gjenstående',
       color: 'var(--success)',
     }
   }
   return {
-    amount: formatNOK(actual - budgeted),
+    amount: fmt(actual - budgeted),
     sub: 'over budsjett',
     color: 'var(--danger)',
   }
 }
 
 export default function DashboardParentBudgetProgressCard({ periodLabel, budgetVsRows, summary }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const byParent = useMemo(() => sumBudgetVsActualByParent(budgetVsRows), [budgetVsRows])
 
   return (

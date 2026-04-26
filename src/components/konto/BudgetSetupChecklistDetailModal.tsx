@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import type { BudgetSetupChecklistItem } from '@/lib/budgetSetupChecklist'
 
 type Props = {
@@ -19,6 +19,7 @@ export default function BudgetSetupChecklistDetailModal({
   onClose,
   onToggleOverride,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   if (!open || !item) return null
 
   const whyHeading = item.done ? 'Hvorfor dette er ferdig' : 'Hva som gjenstår'

@@ -29,7 +29,7 @@ import {
   rollupServiceSubscriptionsCostForPeriod,
 } from '@/lib/serviceSubscriptionPeriodRollup'
 import { getTotalEffectiveSaved } from '@/lib/savingsDerived'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import StatCard from '@/components/ui/StatCard'
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, CreditCard, ChevronRight } from 'lucide-react'
 import DashboardInvestmentsModal from '@/components/dashboard/DashboardInvestmentsModal'
@@ -90,6 +90,7 @@ function transaksjonerPeriodHref(year: number, mode: PeriodMode, monthIndex: num
 }
 
 export default function DashboardPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const { displayName, isFirstAppState } = useAppUser()
   const {
     budgetCategories,

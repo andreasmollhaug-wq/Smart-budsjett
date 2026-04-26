@@ -3,7 +3,7 @@
 import { useMemo, type KeyboardEvent } from 'react'
 import type { BudgetCategory, Transaction } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const PARENT_LABEL: Record<ParentCategory, string> = {
   inntekter: 'Inntekter',
@@ -93,6 +93,7 @@ type Props = {
 }
 
 export default function TransactionActualsBreakdown({ transactions, budgetCategories, onPickCategory }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const lines = useMemo(
     () => aggregateLines(transactions, budgetCategories),
     [transactions, budgetCategories],

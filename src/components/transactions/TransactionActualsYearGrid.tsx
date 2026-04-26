@@ -7,7 +7,7 @@ import { buildCategoryActualsYearMatrix } from '@/lib/bankReportData'
 import { transactionsListeHrefForCategory } from '@/lib/budgetDashboardLinks'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory, PersonData, Transaction } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 const MONTH_INDEXES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const
@@ -39,6 +39,7 @@ type Props = {
 }
 
 export default function TransactionActualsYearGrid({ year, categories, transactions, people }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const matrix = useMemo(
     () => buildCategoryActualsYearMatrix(transactions, year, categories, people),
     [transactions, year, categories, people],

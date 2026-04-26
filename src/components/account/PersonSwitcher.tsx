@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useActivePersonFinance, MAX_FAMILY_PROFILES } from '@/lib/store'
+import { ChildEmojiPicker } from '@/features/hjemflyt/ChildEmojiPicker'
 import UpgradeSubscriptionModal from './UpgradeSubscriptionModal'
 
 export default function PersonSwitcher() {
@@ -20,6 +21,8 @@ export default function PersonSwitcher() {
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [nameOpen, setNameOpen] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newProfileAsChild, setNewProfileAsChild] = useState(false)
+  const [childEmoji, setChildEmoji] = useState<string | null>(null)
 
   const showAddButton = profiles.length < MAX_FAMILY_PROFILES
 
@@ -29,14 +32,23 @@ export default function PersonSwitcher() {
       return
     }
     setNewName('')
+    setNewProfileAsChild(false)
+    setChildEmoji(null)
     setNameOpen(true)
   }
 
   const submitNewProfile = () => {
-    const res = addProfile(newName)
+    const res = addProfile(newName, {
+      hjemflyt:
+        newProfileAsChild
+          ? { kind: 'child' as const, childEmoji: childEmoji ?? null }
+          : undefined,
+    })
     if (res.ok) {
       setNameOpen(false)
       setNewName('')
+      setNewProfileAsChild(false)
+      setChildEmoji(null)
       return
     }
     if (res.reason === 'solo_limit') {
@@ -90,6 +102,7 @@ export default function PersonSwitcher() {
                     : p.name
                 }
               >
+                {p.hjemflyt?.childEmoji ? `${p.hjemflyt.childEmoji} ` : null}
                 {p.name}
                 {householdTarget && !active ? (
                   <span className="sr-only"> (målprofil for nye registreringer)</span>
@@ -129,7 +142,7 @@ export default function PersonSwitcher() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <button type="button" className="absolute inset-0 bg-black/40" aria-label="Lukk" onClick={() => setNameOpen(false)} />
           <div
-            className="relative max-w-sm w-full rounded-2xl p-5 shadow-xl"
+            className="relative max-w-sm w-full max-h-[min(90dvh,32rem)] overflow-y-auto rounded-2xl p-5 shadow-xl"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
           >
             <h3 className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
@@ -143,15 +156,33 @@ export default function PersonSwitcher() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submitNewProfile()}
-              className="mt-1 w-full px-3 py-2 rounded-xl text-sm"
+              className="mt-1 w-full min-h-[44px] px-3 py-2 rounded-xl text-sm"
               style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               placeholder="F.eks. partner"
             />
-            <div className="mt-4 flex justify-end gap-2">
+            {subscriptionPlan === 'family' && (
+              <label className="mt-3 flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={newProfileAsChild}
+                  onChange={(e) => {
+                    setNewProfileAsChild(e.target.checked)
+                    if (!e.target.checked) setChildEmoji(null)
+                  }}
+                />
+                <span style={{ color: 'var(--text)' }}>Barn (HjemFlyt barnevisning + valgfri emoji)</span>
+              </label>
+            )}
+            {subscriptionPlan === 'family' && newProfileAsChild && (
+              <div className="mt-3 max-h-48 overflow-y-auto">
+                <ChildEmojiPicker value={childEmoji} onChange={setChildEmoji} />
+              </div>
+            )}
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setNameOpen(false)}
-                className="px-3 py-1.5 rounded-xl text-sm"
+                className="min-h-[44px] min-w-[44px] px-4 rounded-xl text-sm touch-manipulation"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Avbryt
@@ -159,7 +190,7 @@ export default function PersonSwitcher() {
               <button
                 type="button"
                 onClick={submitNewProfile}
-                className="px-3 py-1.5 rounded-xl text-sm font-medium text-white"
+                className="min-h-[44px] px-5 rounded-xl text-sm font-medium text-white touch-manipulation"
                 style={{ background: 'var(--primary)' }}
               >
                 Legg til

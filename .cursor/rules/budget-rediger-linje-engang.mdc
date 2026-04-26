@@ -1,0 +1,28 @@
+---
+description: Budsjett «Rediger linje» (penn) – engangsmåned og delt logikk med cellen
+globs:
+  - "**/EditBudgetLineModal.tsx"
+  - "**/applyOnceMonthIndexChange.ts"
+  - "**/budsjett/page.tsx"
+alwaysApply: false
+---
+
+# Budsjett: Rediger linje og engangsmåned
+
+## Hva
+
+- **Penn-ikonet** på en budsjettlinje åpner `EditBudgetLineModal` (navn / kategorinavn, forslag, sammenslåing).
+- For **`frequency === 'once'`** og når raden **ikke** er abo-låst (`!subBudgetLocked`), kan bruker også velge **hvilken måned** (0–11) engangsposten ligger i – samme regler som når man «flytter» beløp via **cellen** i budsjettmatrisa.
+- Selve flytting av måned: [`src/lib/budget/applyOnceMonthIndexChange.ts`](../../src/lib/budget/applyOnceMonthIndexChange.ts) (`applyOnceMonthIndexChange`, `getOnceLineDisplayMonthIndex`).
+- Forelder kaller `onApplyOnceMonth` etter vellykket navnemap; **fersk kategori** hentes med `useStore.getState()` (ikke bare closure fra åpne modal) slik at remappede navn fortsatt har riktig `id` og `budgeted`.
+- **Inntekt med forenklet trekk:** bruk `useIncomeWithholding` = samme som cellen (netto i UI → brutto i `budgeted` via `grossFromDesiredNet`).
+- **Delt husholdning, engang:** `impliedNewMonthTotal` + `resplitSharedHouseholdGroupFromTotals` – som `onExpenseCellChange` for engang i `budsjett/page.tsx`.
+- I [`store.ts`](../../src/lib/store.ts) oppdateres `onceMonthIndex` sammen med `resplit` når `frequency === 'once'`.
+
+## Ikke
+
+- Ikke vis månedsvelger når abo synker til rad (`subBudgetLocked` / `allowOnceMonthEdit: false`).
+
+## Tester
+
+- [`src/lib/budget/applyOnceMonthIndexChange.test.ts`](../../src/lib/budget/applyOnceMonthIndexChange.test.ts)

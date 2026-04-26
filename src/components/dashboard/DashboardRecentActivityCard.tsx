@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import type { Transaction } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { isIsoDateString, transactionOnOrBeforeToday } from '@/lib/transactionPeriodFilter'
 import { ChevronRight } from 'lucide-react'
 
@@ -30,6 +30,7 @@ export default function DashboardRecentActivityCard({
   isHouseholdAggregate,
   transaksjonerHref,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const rows = [...transactions]
     .filter((t) => typeof t.date === 'string' && isIsoDateString(t.date) && transactionOnOrBeforeToday(t))
     .sort((a, b) => {

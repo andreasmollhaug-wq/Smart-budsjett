@@ -3,7 +3,8 @@
 import { forwardRef } from 'react'
 import { REPORT_GROUP_LABELS } from '@/lib/bankReportData'
 import type { MonthlyInsightPayload } from '@/lib/monthlyInsightCompute'
-import { formatNOK, formatPercent } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatPercent } from '@/lib/utils'
 
 export interface MonthlyInsightDocumentProps {
   generatedAt: Date
@@ -58,6 +59,7 @@ function pctLine(pct: number | null): string {
 
 const MonthlyInsightDocument = forwardRef<HTMLDivElement, MonthlyInsightDocumentProps>(
   function MonthlyInsightDocument({ generatedAt, payload, summary }, ref) {
+    const { formatNOK } = useNokDisplayFormatters()
     const dateStr = generatedAt.toLocaleString('nb-NO', {
       dateStyle: 'long',
       timeStyle: 'short',

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { BudgetVsActualRow } from '@/lib/bankReportData'
 import { variancePctVsBudget } from '@/lib/budgetVariancePct'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 type Props = {
   periodLabel: string
@@ -27,6 +27,7 @@ export default function DashboardTopBudgetedExpenseCategoriesCard({
   rows,
   onSelectCategory,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const [allOpen, setAllOpen] = useState(false)
   const allPanelId = 'top-budgeted-see-all-panel'
   const toggleId = 'top-budgeted-see-all-toggle'

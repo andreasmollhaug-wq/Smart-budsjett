@@ -49,6 +49,13 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.subscriptionPlan).toBe('family')
   })
 
+  it('setter showAmountDecimals til false når nøkkel mangler i lagret state', () => {
+    const slice = createDefaultPersistedSlice()
+    const { showAmountDecimals: _drop, ...withoutKey } = slice
+    const merged = mergePersistedIntoFullState(withoutKey, useStore.getState())
+    expect(merged.showAmountDecimals).toBe(false)
+  })
+
   it('bevarer aktiv profil når persisted matcher', () => {
     const slice = createDefaultPersistedSlice()
     expect(slice.activeProfileId).toBe(DEFAULT_PROFILE_ID)

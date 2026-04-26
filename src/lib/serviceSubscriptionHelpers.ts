@@ -81,13 +81,16 @@ export function yearlyEquivalentNok(sub: { amountNok: number; billing: 'monthly'
 }
 
 /** Én linje: oppgitt beløp og periode, deretter ekvivalent mnd/år (månedlig: vis år; årlig: vis mnd). */
-export function subscriptionPriceSummaryLine(sub: { amountNok: number; billing: 'monthly' | 'yearly' }): string {
+export function subscriptionPriceSummaryLine(
+  sub: { amountNok: number; billing: 'monthly' | 'yearly' },
+  formatNok: (n: number) => string = formatNOK,
+): string {
   const m = monthlyEquivalentNok(sub)
   const y = yearlyEquivalentNok(sub)
   if (sub.billing === 'monthly') {
-    return `${formatNOK(sub.amountNok)} / mnd · ${formatNOK(y)} / år`
+    return `${formatNok(sub.amountNok)} / mnd · ${formatNok(y)} / år`
   }
-  return `${formatNOK(sub.amountNok)} / år · ${formatNOK(m)} / mnd`
+  return `${formatNok(sub.amountNok)} / år · ${formatNok(m)} / mnd`
 }
 
 export function budgetedTwelveFromMonthly(monthly: number): number[] {

@@ -5,7 +5,8 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
 import { useActivePersonFinance, type DebtPayoffStrategy } from '@/lib/store'
-import { formatNOK, generateId } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { generateId } from '@/lib/utils'
 import { debtTypeLabels, debtIcons, debtColors } from '@/lib/debtDisplay'
 import { isDebtPauseActive } from '@/lib/debtHelpers'
 import {
@@ -49,6 +50,7 @@ function debtFreeLabel(monthIndex: number | null, incomplete: boolean): string {
 }
 
 export default function SnoballPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     debts,
     addDebt,

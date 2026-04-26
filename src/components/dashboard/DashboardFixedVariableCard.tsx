@@ -1,6 +1,6 @@
 'use client'
 
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
 type Props = {
@@ -10,6 +10,7 @@ type Props = {
 }
 
 export default function DashboardFixedVariableCard({ fixed, variable, periodLabel }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const total = fixed + variable
   const data = [
     { name: 'Fest', value: fixed, fill: '#4C6EF5' },

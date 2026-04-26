@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { MonthlyBudgetActualPoint } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 export default function BudgetDashboardMonthlyChart({
   series,
@@ -20,6 +20,7 @@ export default function BudgetDashboardMonthlyChart({
   series: MonthlyBudgetActualPoint[]
   year: number
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const data = series.map((p) => {
     const netBudgeted = p.budgetedIncome - p.budgetedExpense
     const netActual = p.actualIncome - p.actualExpense

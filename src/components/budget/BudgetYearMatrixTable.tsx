@@ -20,6 +20,7 @@ import {
   type ArsvisningRowVisibility,
 } from '@/lib/budgetYearMatrixHelpers'
 import type { BudgetCategory } from '@/lib/store'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 function isMonthInKpiRange(m: number, start: number, end: number): boolean {
   return m >= start && m <= end
@@ -42,6 +43,7 @@ export default function BudgetYearMatrixTable({
   rowVisibility: ArsvisningRowVisibility
   year: number
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const cellBase = 'py-2 px-1.5 sm:px-2 text-right text-xs sm:text-sm whitespace-nowrap border-b tabular-nums'
   /** Første kolonne: alltid venstrejustert (ikke arv `text-right` fra tallceller). */
   const stickyLineCol =
@@ -157,7 +159,7 @@ export default function BudgetYearMatrixTable({
                       <Fragment key={c.id}>
                         {activeRows.map((kind) => {
                           const isVarianceKind = kind === 'variance' || kind === 'variancePct'
-                          const summary = formatMatrixSummary(kind, type, actual, budget)
+                          const summary = formatMatrixSummary(kind, type, actual, budget, formatNOK)
                           return (
                             <tr key={`${c.id}-${kind}`}>
                               <td
@@ -181,7 +183,7 @@ export default function BudgetYearMatrixTable({
                                 const kpiDim =
                                   !isMonthInKpiRange(mi, kpiMonthStart, kpiMonthEnd) ? dimClass : ''
                                 const future = isCalendarFutureMonth(year, mi)
-                                const cell = formatMatrixCell(kind, type, actual, budget, mi)
+                                const cell = formatMatrixCell(kind, type, actual, budget, mi, formatNOK)
                                 const tone = cell.tone
                                 const textColor = tone ? varianceCssColor(tone) : undefined
                                 const varBg =
@@ -248,7 +250,7 @@ export default function BudgetYearMatrixTable({
                   })}
                   {activeRows.map((kind) => {
                     const isVarianceKind = kind === 'variance' || kind === 'variancePct'
-                    const summary = formatMatrixSummary(kind, aggLineType, aggActual, aggBudget)
+                    const summary = formatMatrixSummary(kind, aggLineType, aggActual, aggBudget, formatNOK)
                     return (
                       <tr key={`sum-${group}-${kind}`} style={{ color: 'var(--text-muted)' }}>
                         <td
@@ -271,7 +273,7 @@ export default function BudgetYearMatrixTable({
                           const kpiDim =
                             !isMonthInKpiRange(mi, kpiMonthStart, kpiMonthEnd) ? dimClass : ''
                           const future = isCalendarFutureMonth(year, mi)
-                          const cell = formatMatrixCell(kind, aggLineType, aggActual, aggBudget, mi)
+                          const cell = formatMatrixCell(kind, aggLineType, aggActual, aggBudget, mi, formatNOK)
                           const tone = cell.tone
                           const textColor = tone ? varianceCssColor(tone) : undefined
                           const varBg =

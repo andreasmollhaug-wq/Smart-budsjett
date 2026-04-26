@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import type { PayoffSimResult } from '@/lib/payoffSimulation'
 
 type RepaymentPlanPanelProps = {
@@ -16,6 +16,7 @@ export default function RepaymentPlanPanel({
   debtFreeLabel,
   queueLoanCount,
 }: RepaymentPlanPanelProps) {
+  const { formatNOK } = useNokDisplayFormatters()
   const [open, setOpen] = useState(false)
   const contentId = useId()
   const { monthly, loanPayoffs, monthsToDebtFree, incomplete } = strategy

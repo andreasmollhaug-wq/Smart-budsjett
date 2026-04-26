@@ -197,17 +197,18 @@ export function formatMatrixCell(
   actual: number[] | undefined,
   budget: number[] | undefined,
   mi: number,
+  formatNok: (n: number) => string = formatNOK,
 ): { text: string; tone?: 'muted' | 'good' | 'bad' } {
   if (kind === 'actual') {
-    return { text: formatNOK(actual?.[mi] ?? 0) }
+    return { text: formatNok(actual?.[mi] ?? 0) }
   }
   if (kind === 'budget') {
-    return { text: formatNOK(budget?.[mi] ?? 0) }
+    return { text: formatNok(budget?.[mi] ?? 0) }
   }
   if (kind === 'variance') {
     const v = monthVariance(actual, budget, mi)
     const tone = varianceTextColorForLine(type, v)
-    return { text: formatNOK(v), tone }
+    return { text: formatNok(v), tone }
   }
   return formatVariancePctCell(type, actual, budget, mi)
 }
@@ -217,21 +218,22 @@ export function formatMatrixSummary(
   type: 'income' | 'expense',
   actual: number[] | undefined,
   budget: number[] | undefined,
+  formatNok: (n: number) => string = formatNOK,
 ): { sumText: string; avgText: string; sumTone?: 'muted' | 'good' | 'bad'; avgTone?: 'muted' | 'good' | 'bad' } {
   const sumA = sumTwelve(actual)
   const sumB = sumTwelve(budget)
   if (kind === 'actual') {
-    return { sumText: formatNOK(sumA), avgText: formatNOK(sumA / 12) }
+    return { sumText: formatNok(sumA), avgText: formatNok(sumA / 12) }
   }
   if (kind === 'budget') {
-    return { sumText: formatNOK(sumB), avgText: formatNOK(sumB / 12) }
+    return { sumText: formatNok(sumB), avgText: formatNok(sumB / 12) }
   }
   if (kind === 'variance') {
     const sv = sumA - sumB
     const tone = varianceTextColorForLine(type, sv)
     return {
-      sumText: formatNOK(sv),
-      avgText: formatNOK(sv / 12),
+      sumText: formatNok(sv),
+      avgText: formatNok(sv / 12),
       sumTone: tone,
       avgTone: tone,
     }

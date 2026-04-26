@@ -34,7 +34,7 @@ import {
   type Transaction,
   type UpdateServiceSubscriptionPatch,
 } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { Info, Pencil, Plus, Trash2, X } from 'lucide-react'
 
 const MONTH_OPTIONS = [
@@ -97,6 +97,7 @@ function plannedTxEditDefaults(
 }
 
 export default function AbonnementerPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     serviceSubscriptions,
     transactions,
@@ -563,6 +564,7 @@ export default function AbonnementerPage() {
                           s={s}
                           isHouseholdAggregate={isHouseholdAggregate}
                           profileName={profileName}
+                          formatNok={formatNOK}
                         />
                       </div>
                     ) : (
@@ -577,6 +579,7 @@ export default function AbonnementerPage() {
                           s={s}
                           isHouseholdAggregate={isHouseholdAggregate}
                           profileName={profileName}
+                          formatNok={formatNOK}
                         />
                         <span className="sr-only">. Åpner redigering.</span>
                       </button>
@@ -1038,10 +1041,12 @@ function SubscriptionRowContent({
   s,
   isHouseholdAggregate,
   profileName,
+  formatNok,
 }: {
   s: ServiceSubscription
   isHouseholdAggregate: boolean
   profileName: (id?: string) => string
+  formatNok: (n: number) => string
 }) {
   return (
     <>
@@ -1059,7 +1064,7 @@ function SubscriptionRowContent({
         </p>
       )}
       <p className="mt-1 text-sm tabular-nums" style={{ color: 'var(--text-muted)' }}>
-        {subscriptionPriceSummaryLine(s)}
+        {subscriptionPriceSummaryLine(s, formatNok)}
       </p>
       {s.syncToBudget && s.active && !s.cancelledFrom && (
         <p className="mt-1 text-xs" style={{ color: 'var(--primary)' }}>

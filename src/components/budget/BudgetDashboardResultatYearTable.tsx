@@ -1,7 +1,7 @@
 'use client'
 
 import type { MonthlyBudgetActualPoint } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 function netBudgeted(p: MonthlyBudgetActualPoint): number {
   return p.budgetedIncome - p.budgetedExpense
@@ -34,6 +34,7 @@ export default function BudgetDashboardResultatYearTable({
   series: MonthlyBudgetActualPoint[]
   year: number
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const sumB = series.reduce((s, p) => s + netBudgeted(p), 0)
   const sumA = series.reduce((s, p) => s + netActual(p), 0)
   const sumV = sumA - sumB

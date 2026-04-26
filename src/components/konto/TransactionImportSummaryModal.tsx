@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { ImportSummary } from '@/lib/transactionImport/summarizeImport'
-import { formatIsoDateDdMmYyyy, formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -25,6 +26,7 @@ export default function TransactionImportSummaryModal({
   duplicateWarningCount,
   transactionsHref,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const backdropDismiss = useModalBackdropDismiss(onClose)
   if (!open || !summary) return null
 

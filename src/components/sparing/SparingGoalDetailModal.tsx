@@ -1,7 +1,8 @@
 'use client'
 
 import type { BudgetCategory, SavingsGoal, Transaction } from '@/lib/store'
-import { calcProgress, formatNOK, formatThousands, parseThousands } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { calcProgress, formatThousands, parseThousands } from '@/lib/utils'
 import {
   buildSavingsGoalPaceSummary,
   getEffectiveCurrentAmount,
@@ -64,6 +65,7 @@ export default function SparingGoalDetailModal({
   onEditUnlinkedDeposit,
   onDeleteUnlinkedDeposit,
 }: SparingGoalDetailModalProps) {
+  const { formatNOK } = useNokDisplayFormatters()
   const [newDepAmount, setNewDepAmount] = useState('')
   const { onChange: onNewDepAmountChange } = useFormattedThousandsInput(newDepAmount, setNewDepAmount)
   const [newDepNote, setNewDepNote] = useState('')

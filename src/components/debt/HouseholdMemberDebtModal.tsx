@@ -8,7 +8,7 @@ import type { HouseholdDebtMemberRow } from '@/lib/householdDebtOverview'
 import { effectiveDebtMonthlyPayment } from '@/lib/householdDebtOverview'
 import { annualInterestCost, isDebtPauseActive } from '@/lib/debtHelpers'
 import { effectiveIncludeInSnowball } from '@/lib/snowball'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X, PauseCircle } from 'lucide-react'
 
 type Props = {
@@ -19,6 +19,7 @@ type Props = {
 }
 
 export default function HouseholdMemberDebtModal({ open, onClose, member, debts }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -160,6 +161,7 @@ export default function HouseholdMemberDebtModal({ open, onClose, member, debts 
 }
 
 function DebtDetailCard({ debt }: { debt: Debt }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const Icon = debtIcons[debt.type]
   const color = debtColors[debt.type]
   const pause = isDebtPauseActive(debt)

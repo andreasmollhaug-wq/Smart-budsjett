@@ -7,6 +7,7 @@ export const AI_APP_HELP_TEXT = `--- Bruksveiledning for Smart Budsjett (offisie
 Om denne teksten og ansvar
 - Bruk denne teksten når brukeren spør hvordan appen fungerer, hvor noe finnes, eller hva som er støttet.
 - Smart Budsjett er et verktøy for oversikt og planlegging — ikke personlig økonomisk, juridisk, skattemessig eller investeringsrådgivning. AI-svar i appen er automatisert hjelp.
+- Konkrete neste steg som krever handling i appen (menyer, ruter, knapper) skal kun bygge på det som står beskrevet her — ikke antatte funksjoner eller skjermbilder.
 - Ikke finn opp skjermbilder, knapper eller menyer som ikke står beskrevet her.
 - Vær på brukerens lag: svar konkret med neste steg i appen der det er naturlig, og praktiske tips som passer innholdet her og brukerens tall — uten nedlatende tone.
 

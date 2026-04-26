@@ -2,7 +2,7 @@
 import { useCallback, useState, useEffect, useRef } from 'react'
 import { formatMoneyInputFromNumber, parsePositiveMoneyAmount2Decimals } from '@/lib/money/parseNorwegianAmount'
 import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 type Props = {
   value: number
@@ -17,6 +17,7 @@ function displayForStored(value: number): string {
 }
 
 export default function BudgetAmountCell({ value, onChange, className = '', readOnly = false }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const [editing, setEditing] = useState(false)
   const [display, setDisplay] = useState(displayForStored(value))
   const inputRef = useRef<HTMLInputElement>(null)

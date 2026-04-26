@@ -1,9 +1,9 @@
 'use client'
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import Header from '@/components/layout/Header'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { useActivePersonFinance, type SavingsGoal } from '@/lib/store'
 import {
-  formatNOK,
   calcProgress,
   generateId,
   mixHexWithBlack,
@@ -37,6 +37,7 @@ import StatCard from '@/components/ui/StatCard'
 const COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#0B7285']
 
 export default function SparingPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const {
     savingsGoals,
     addSavingsGoal,

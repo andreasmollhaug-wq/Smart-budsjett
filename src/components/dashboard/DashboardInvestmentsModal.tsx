@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import type { Investment } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -13,6 +13,7 @@ type Props = {
 }
 
 export default function DashboardInvestmentsModal({ open, onClose, investments }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const ordered = investments.slice().sort((a, b) => b.currentValue - a.currentValue)
 
   useEffect(() => {

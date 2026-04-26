@@ -44,10 +44,12 @@ describe('buildAiFinanceContextText', () => {
       budgetYear: 2026,
       scopeLabel: 'Jenny',
       isHouseholdAggregate: false,
+      showAmountDecimals: false,
       profileNamesById: { p1: 'Jenny' },
       peopleById: { p1: basePerson() },
     })
     expect(text).toContain('Visningsmodus: Jenny')
+    expect(text).toContain('hele kroner (standard)')
     expect(text).toContain('tallene under gjelder kun den valgte profilen')
     expect(text).toContain('dato | beskrivelse | beløp (kr) | kategori | underkategori | type')
     expect(text).not.toContain('dato | beskrivelse | beløp (kr) | kategori | underkategori | type | profil')
@@ -91,6 +93,7 @@ describe('buildAiFinanceContextText', () => {
       budgetYear: 2026,
       scopeLabel: 'Husholdning (alle profiler)',
       isHouseholdAggregate: true,
+      showAmountDecimals: false,
       profileNamesById: { meg: 'Meg', vetle: 'Vetle' },
       peopleById: { meg: basePerson(), vetle: basePerson() },
     })
@@ -107,5 +110,18 @@ describe('buildAiFinanceContextText', () => {
     expect(text).toContain('[Meg]')
     expect(text).toContain('- Spotify [Meg]:')
     expect(text).toContain('- Netflix [Vetle]:')
+  })
+
+  it('nevner desimalvisning når brukeren har slått det på', () => {
+    const person = basePerson()
+    const text = buildAiFinanceContextText(person, {
+      budgetYear: 2026,
+      scopeLabel: 'Test',
+      isHouseholdAggregate: false,
+      showAmountDecimals: true,
+      profileNamesById: { p1: 'Test' },
+      peopleById: { p1: person },
+    })
+    expect(text).toContain('visning med desimaler')
   })
 })

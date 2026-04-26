@@ -27,7 +27,8 @@ import {
   yearOptionsTouchingPlan,
   type IncomeSprintPlan,
 } from '@/lib/incomeSprint'
-import { formatNOK, formatNOKChartLabel, formatThousands, generateId, parseThousands } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatThousands, generateId, parseThousands } from '@/lib/utils'
 import {
   AlertTriangle,
   Calendar,
@@ -63,6 +64,7 @@ const SOURCE_COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#
 type GoalDonutSlice = { name: string; value: number; fill: string }
 
 function SmartSpareGoalDonutBlock({ pieData, centerPercent }: { pieData: GoalDonutSlice[]; centerPercent: number }) {
+  const { formatNOK } = useNokDisplayFormatters()
   if (pieData.length === 0) return null
   const label = `${Math.round(centerPercent)} %`
   return (
@@ -127,6 +129,7 @@ function SmartSpareGoalDonutBlock({ pieData, centerPercent }: { pieData: GoalDon
 type Props = { planId: string }
 
 export default function SmartSparePlanDetail({ planId }: Props) {
+  const { formatNOK, formatNOKChartLabel } = useNokDisplayFormatters()
   const router = useRouter()
   const people = useStore((s) => s.people)
   const profiles = useStore((s) => s.profiles)

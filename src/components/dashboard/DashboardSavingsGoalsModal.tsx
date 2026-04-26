@@ -4,7 +4,8 @@ import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import type { BudgetCategory, SavingsGoal, Transaction } from '@/lib/store'
 import { getEffectiveCurrentAmount } from '@/lib/savingsDerived'
-import { formatNOK, calcProgress } from '@/lib/utils'
+import { calcProgress } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { X } from 'lucide-react'
 
 type Props = {
@@ -24,6 +25,7 @@ export default function DashboardSavingsGoalsModal({
   budgetCategories,
   activeProfileId,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const sortedGoals = useMemo(
     () =>
       [...savingsGoals].sort((a, b) => {

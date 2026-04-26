@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import type { BudgetCategory } from '@/lib/store'
 import { listBudgetedFixedMonthlyExpensesForMonth } from '@/lib/bankReportData'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { ChevronRight } from 'lucide-react'
 
 type Props = {
@@ -19,6 +19,7 @@ export default function DashboardFixedOutgoingCard({
   onOpenDetails,
   serviceSubscriptionLine,
 }: Props) {
+  const { formatNOK } = useNokDisplayFormatters()
   const rows = listBudgetedFixedMonthlyExpensesForMonth(budgetCategories, endMonthIndex).slice(0, 6)
 
   return (

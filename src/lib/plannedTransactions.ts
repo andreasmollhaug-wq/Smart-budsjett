@@ -1,6 +1,11 @@
 import type { Transaction } from '@/lib/store'
 import { formatNOK, formatTransactionDateNbNo } from '@/lib/utils'
 
+type PlannedOverdueTxGroups = {
+  overdue: Transaction[]
+  thisMonthNotReviewed: Transaction[]
+}
+
 /** Dagens dato som YYYY-MM-DD (lokal kalender). */
 export function todayYyyyMmDd(d = new Date()): string {
   const y = d.getFullYear()
@@ -180,14 +185,40 @@ export function inferPlannedFollowUpOnDateChange(
 
 export const PLANNED_OVERDUE_NOTIFICATION_ID = 'insight:planned-tx-overdue:active'
 
-function appendNotificationBullets(lines: string[], items: Transaction[], max: number): number {
+function collectPlannedOverdueGroups(transactions: Transaction[], today: string): PlannedOverdueTxGroups {
+  const overdue = transactions
+    .filter((t) => isOverduePlanFollowUp(t, today))
+    .sort(sortTransactionsByDateAsc)
+  const thisMonthNotReviewed = transactions
+    .filter((t) => isIncompletePlannedInCalendarMonth(t, today) && !t.reviewedAt)
+    .sort((a, b) => sortThisMonthPlannedByUrgency(a, b, today))
+  return { overdue, thisMonthNotReviewed }
+}
+
+/**
+ * Stabil signatur uavhengig av beløpsformatering i brødtekst (for les/u lest ved toggle «desimaler»).
+ */
+export function plannedOverdueContentSignature(transactions: Transaction[], today = todayYyyyMmDd()): string {
+  const { overdue, thisMonthNotReviewed } = collectPlannedOverdueGroups(transactions, today)
+  if (overdue.length === 0 && thisMonthNotReviewed.length === 0) return 'none'
+  return JSON.stringify({
+    o: overdue.map((t) => t.id),
+    m: thisMonthNotReviewed.map((t) => t.id),
+  })
+}
+
+function appendNotificationBullets(
+  lines: string[],
+  items: Transaction[],
+  max: number,
+  formatNok: (n: number) => string,
+): number {
   const n = Math.min(max, items.length)
   for (let i = 0; i < n; i++) {
     const t = items[i]!
     const dateShow = formatTransactionDateNbNo(t.date) ?? t.date
     const desc = (t.description ?? '').trim() || 'Uten beskrivelse'
-    const amt =
-      typeof t.amount === 'number' && Number.isFinite(t.amount) ? formatNOK(t.amount) : '—'
+    const amt = typeof t.amount === 'number' && Number.isFinite(t.amount) ? formatNok(t.amount) : '—'
     lines.push(`• ${dateShow}: ${desc} (${amt})`)
   }
   return n
@@ -199,18 +230,14 @@ const MAX_TOTAL_NOTIFICATION_BULLETS = 10
 
 /**
  * Innsikt når forfalte planlagte poster finnes og/eller uferdig plan i inneværende måned (ikke gjennomgått).
+ * `formatNok` styrer visning; standard er hele kroner.
  */
 export function buildPlannedOverdueNotification(
   transactions: Transaction[],
   today = todayYyyyMmDd(),
+  formatNok: (n: number) => string = (n) => formatNOK(n),
 ): { title: string; body: string } | null {
-  const overdue = transactions
-    .filter((t) => isOverduePlanFollowUp(t, today))
-    .sort(sortTransactionsByDateAsc)
-
-  const thisMonthNotReviewed = transactions
-    .filter((t) => isIncompletePlannedInCalendarMonth(t, today) && !t.reviewedAt)
-    .sort((a, b) => sortThisMonthPlannedByUrgency(a, b, today))
+  const { overdue, thisMonthNotReviewed } = collectPlannedOverdueGroups(transactions, today)
 
   if (overdue.length === 0 && thisMonthNotReviewed.length === 0) return null
 
@@ -223,7 +250,7 @@ export function buildPlannedOverdueNotification(
     )
     lines.push('')
     const cap = Math.min(MAX_OVERDUE_NOTIFICATION_LINES, MAX_TOTAL_NOTIFICATION_BULLETS - bulletsUsed)
-    const shown = appendNotificationBullets(lines, overdue, cap)
+    const shown = appendNotificationBullets(lines, overdue, cap, formatNok)
     bulletsUsed += shown
     if (overdue.length > shown) {
       lines.push(`… og ${overdue.length - shown} til.`)
@@ -238,7 +265,7 @@ export function buildPlannedOverdueNotification(
       MAX_THIS_MONTH_NOTIFICATION_LINES,
       Math.max(0, MAX_TOTAL_NOTIFICATION_BULLETS - bulletsUsed),
     )
-    const shown = appendNotificationBullets(lines, thisMonthNotReviewed, cap)
+    const shown = appendNotificationBullets(lines, thisMonthNotReviewed, cap, formatNok)
     if (thisMonthNotReviewed.length > shown) {
       lines.push(`… og ${thisMonthNotReviewed.length - shown} til.`)
     }

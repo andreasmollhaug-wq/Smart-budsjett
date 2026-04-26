@@ -13,6 +13,7 @@ Sjekkliste per skjerm:
   [ ] Sticky/fixed header overlapper ikke innhold uten mulighet til å scrolle til det.
   [ ] Mobilmeny (hamburger): åpner drawer, lukk med X, Escape, tap utenfor, eller etter navigasjon.
   [ ] Budsjett: horisontell scroll i tabellområde fungerer; innhold bruker full viewport-bredde (ikke smalt pga. dobbel meny).
+  [ ] Budsjett → Rediger linje (modal): søk, navn, evt. «Hvilken måned?» (engang), Lagre/Avbryt — trykkflater, ingen klipping; bottom-sheet-aktig layout på smal skjerm (modal har safe-area padding).
   [ ] Min konto: sekundærnavigasjon (faner) synlig og brukbar uten to sidekolonner.
 
 Chrome DevTools: Responsive mode, samme bredder som over.

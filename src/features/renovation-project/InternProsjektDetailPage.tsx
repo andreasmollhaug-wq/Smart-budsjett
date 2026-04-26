@@ -15,7 +15,8 @@ import {
   parsePositiveMoneyAmount2Decimals,
 } from '@/lib/money/parseNorwegianAmount'
 import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
-import { formatIsoDateDdMmYyyy, formatNOK, generateId } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatIsoDateDdMmYyyy, generateId } from '@/lib/utils'
 import { ArrowLeft, ListChecks, Pencil, Receipt, Scale, Trash2, Wallet } from 'lucide-react'
 import {
   BUDGET_LINE_LABEL_SUGGESTIONS,
@@ -31,6 +32,7 @@ function todayYyyyMmDd(): string {
 }
 
 export default function InternProsjektDetailPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const params = useParams()
   const router = useRouter()
   const projectId = typeof params.projectId === 'string' ? params.projectId : ''

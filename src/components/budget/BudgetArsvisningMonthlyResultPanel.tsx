@@ -21,7 +21,7 @@ import type { PeriodMode } from '@/lib/budgetPeriod'
 import type { LabelLists } from '@/lib/budgetCategoryCatalog'
 import type { BudgetCategory, Transaction } from '@/lib/store'
 import { useStore } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 function isMonthInKpiRange(m: number, start: number, end: number): boolean {
   return m >= start && m <= end
@@ -69,6 +69,7 @@ export default function BudgetArsvisningMonthlyResultPanel({
   periodMode: PeriodMode
   periodSubtitle: string
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   const people = useStore((s) => s.people)
   const [moreInfoExpanded, setMoreInfoExpanded] = useState(false)
   const [showBudgetBreakdown, setShowBudgetBreakdown] = useState(false)

@@ -5,7 +5,7 @@ import Header from '@/components/layout/Header'
 import AbonnementerSubnav from '@/components/subscriptions/AbonnementerSubnav'
 import { subscriptionPriceSummaryLine } from '@/lib/serviceSubscriptionHelpers'
 import { useActivePersonFinance, type ServiceSubscription } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const MONTH_OPTIONS = [
   { v: 1, label: 'Januar' },
@@ -32,6 +32,7 @@ export default function AbonnementerAvsluttetPage() {
     profiles,
     activeProfileId,
   } = useActivePersonFinance()
+  const { formatNOK } = useNokDisplayFormatters()
 
   const readonly = isHouseholdAggregate
   const profileName = profiles.find((p) => p.id === activeProfileId)?.name ?? 'Meg'
@@ -127,7 +128,7 @@ export default function AbonnementerAvsluttetPage() {
                           {s.label}
                         </p>
                         <p className="mt-1 text-sm tabular-nums m-0" style={{ color: 'var(--text-muted)' }}>
-                          {subscriptionPriceSummaryLine(s)}
+                          {subscriptionPriceSummaryLine(s, formatNOK)}
                         </p>
                       </div>
                       {cancelOpenId === s.id ? (
@@ -229,7 +230,7 @@ export default function AbonnementerAvsluttetPage() {
                     </strong>
                   </p>
                   <p className="mt-1 text-sm tabular-nums m-0" style={{ color: 'var(--text-muted)' }}>
-                    Pris før avslutning: {subscriptionPriceSummaryLine(s)}
+                    Pris før avslutning: {subscriptionPriceSummaryLine(s, formatNOK)}
                     {typeof s.monthlyEquivalentNokSnapshot === 'number' && (
                       <span className="ml-1">
                         (ca. {formatNOK(s.monthlyEquivalentNokSnapshot)} / mnd)

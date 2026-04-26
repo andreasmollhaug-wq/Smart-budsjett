@@ -3,7 +3,7 @@
 import { useRef } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import type { MonthRow } from '@/lib/formuebyggerPro'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 const ROW_H = 40
 const VIRTUAL_THRESHOLD = 120
@@ -18,6 +18,7 @@ function RowCells({
   row: MonthRow
   onExtraChange: (globalMonthIndex: number, value: number) => void
 }) {
+  const { formatNOK } = useNokDisplayFormatters()
   return (
     <>
       <span style={{ color: 'var(--text)' }}>{row.globalMonthIndex + 1}</span>

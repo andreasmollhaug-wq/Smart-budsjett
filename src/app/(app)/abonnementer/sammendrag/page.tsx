@@ -7,13 +7,14 @@ import AbonnementerSubnav from '@/components/subscriptions/AbonnementerSubnav'
 import SubscriptionHouseholdDonut from '@/components/subscriptions/SubscriptionHouseholdDonut'
 import { monthlyEquivalentNok, yearlyEquivalentNok } from '@/lib/serviceSubscriptionHelpers'
 import { useActivePersonFinance, useStore, type ServiceSubscription } from '@/lib/store'
-import { formatNOK } from '@/lib/utils'
+import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 
 function normLabel(s: string): string {
   return s.trim().toLowerCase()
 }
 
 export default function AbonnementerSammendragPage() {
+  const { formatNOK } = useNokDisplayFormatters()
   const { profiles } = useActivePersonFinance()
   const people = useStore((s) => s.people)
 
