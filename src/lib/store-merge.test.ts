@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { createEmptyMatHandlelisteState } from '@/features/matHandleliste/normalize'
 import {
   createDefaultPersistedSlice,
   createDemoPersonDataForProfile,
@@ -64,6 +65,17 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.people[DEFAULT_PROFILE_ID]).toBeDefined()
   })
 
+  it('normaliserer ledgerImport-felter når lagret verdi er ugyldig', () => {
+    const slice = createDefaultPersistedSlice()
+    const merged = mergePersistedIntoFullState(
+      { ...slice, ledgerAccountMappings: null as unknown as undefined, ledgerImportHistory: null as unknown as undefined },
+      useStore.getState(),
+    )
+    expect(merged.ledgerAccountMappings).toEqual({})
+    expect(Array.isArray(merged.ledgerImportHistory)).toBe(true)
+    expect(merged.ledgerImportHistory.length).toBe(0)
+  })
+
   it('bevarer dismissedDuplicateSubscriptionPresetKeys fra lagret slice', () => {
     const slice = createDefaultPersistedSlice()
     const merged = mergePersistedIntoFullState(
@@ -86,6 +98,37 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.demoDataEnabled).toBe(false)
     expect(merged.people[DEFAULT_PROFILE_ID]!.budgetCategories).toHaveLength(0)
     expect(merged.peopleBeforeDemo).toBeNull()
+  })
+
+  it('fyller mat-demodata når demo er på og matHandleliste er tom (eldre lagring uten modul)', () => {
+    const slice = createDefaultPersistedSlice()
+    const withDemo = {
+      ...slice,
+      demoDataEnabled: true,
+      people: { [DEFAULT_PROFILE_ID]: createDemoPersonDataForProfile(DEFAULT_PROFILE_ID, slice.budgetYear) },
+      matHandleliste: createEmptyMatHandlelisteState(),
+    }
+    const merged = mergePersistedIntoFullState(withDemo, useStore.getState())
+    expect(merged.demoDataEnabled).toBe(true)
+    expect(merged.matHandleliste.meals.length).toBeGreaterThan(0)
+    expect(Object.keys(merged.matHandleliste.planByDate).length).toBeGreaterThan(0)
+  })
+
+  it('nullstiller matHandleliste når demo er av men lagret state fortsatt har demo-måltider', () => {
+    const slice = createDefaultPersistedSlice()
+    const inconsistent = {
+      ...slice,
+      demoDataEnabled: false,
+      matHandleliste: {
+        ...slice.matHandleliste,
+        meals: [{ id: 'demo-mh-meal-x', title: 'X', defaultServings: 2, ingredients: [], createdAt: 't', updatedAt: 't' }],
+      },
+      matHandlelisteBeforeDemo: null,
+    }
+    const merged = mergePersistedIntoFullState(inconsistent, useStore.getState())
+    expect(merged.demoDataEnabled).toBe(false)
+    expect(merged.matHandleliste.meals).toHaveLength(0)
+    expect(merged.matHandlelisteBeforeDemo).toBeNull()
   })
 })
 

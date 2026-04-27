@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { matSnapshotContainsDemoMarkers } from './demoMatHandleliste'
 import {
   createDemoPersonDataForProfile,
   DEFAULT_PROFILE_ID,
@@ -20,8 +21,9 @@ describe('setDemoDataEnabled', () => {
     useStore.getState().setDemoDataEnabled(true)
     expect(useStore.getState().demoDataEnabled).toBe(true)
     expect(useStore.getState().people[DEFAULT_PROFILE_ID]!.budgetCategories.length).toBeGreaterThan(0)
+    expect(matSnapshotContainsDemoMarkers(useStore.getState().matHandleliste)).toBe(true)
 
-    useStore.setState({ peopleBeforeDemo: null })
+    useStore.setState({ peopleBeforeDemo: null, matHandlelisteBeforeDemo: null })
 
     useStore.getState().setDemoDataEnabled(false)
     expect(useStore.getState().demoDataEnabled).toBe(false)
@@ -31,6 +33,8 @@ describe('setDemoDataEnabled', () => {
     expect(person.savingsGoals).toHaveLength(0)
     expect(person.debts).toHaveLength(0)
     expect(person.investments).toHaveLength(0)
+    expect(useStore.getState().matHandleliste.meals).toHaveLength(0)
+    expect(useStore.getState().matHandleliste.list).toHaveLength(0)
   })
 
   it('fjerner demodata når backup kun inneholder demo (ugyldig gjenoppretting)', () => {
@@ -47,6 +51,22 @@ describe('setDemoDataEnabled', () => {
     const person = useStore.getState().people[DEFAULT_PROFILE_ID]!
     expect(person.budgetCategories).toHaveLength(0)
     expect(person.transactions).toHaveLength(0)
+  })
+
+  it('gjenoppretter matHandleliste når demodata slås av med gyldig backup', () => {
+    useStore.getState().mhAddMeal({
+      title: 'Egen rett',
+      defaultServings: 2,
+      ingredients: [{ name: 'Test', quantity: 1, unit: 'stk' }],
+    })
+    expect(useStore.getState().matHandleliste.meals.some((m) => m.title === 'Egen rett')).toBe(true)
+
+    useStore.getState().setDemoDataEnabled(true)
+    expect(matSnapshotContainsDemoMarkers(useStore.getState().matHandleliste)).toBe(true)
+
+    useStore.getState().setDemoDataEnabled(false)
+    expect(useStore.getState().matHandleliste.meals.some((m) => m.title === 'Egen rett')).toBe(true)
+    expect(matSnapshotContainsDemoMarkers(useStore.getState().matHandleliste)).toBe(false)
   })
 })
 

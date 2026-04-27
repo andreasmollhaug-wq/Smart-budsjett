@@ -71,3 +71,18 @@ export function canProfileActOnTask(
   }
   return false
 }
+
+/** Deler oppgaver i det valgte profilen kan fullføre nå vs resten (f.eks. barnevisning). */
+export function partitionTasksForProfile(
+  tasks: HjemflytTask[],
+  profileId: string,
+  allProfileIds: string[],
+): { actionable: HjemflytTask[]; notActionable: HjemflytTask[] } {
+  const actionable: HjemflytTask[] = []
+  const notActionable: HjemflytTask[] = []
+  for (const t of tasks) {
+    if (canProfileActOnTask(t, profileId, allProfileIds)) actionable.push(t)
+    else notActionable.push(t)
+  }
+  return { actionable, notActionable }
+}

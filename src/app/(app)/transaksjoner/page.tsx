@@ -712,10 +712,17 @@ function TransaksjonerPageInner() {
         <div className="flex flex-wrap items-center gap-3">
           <Link
             href="/konto/importer-transaksjoner"
-            className="text-sm font-medium"
+            className="text-sm font-medium min-h-[44px] inline-flex items-center touch-manipulation"
             style={{ color: 'var(--primary)' }}
           >
             Importer fra CSV
+          </Link>
+          <Link
+            href="/konto/importer-fra-regnskap"
+            className="text-sm font-medium min-h-[44px] inline-flex items-center touch-manipulation"
+            style={{ color: 'var(--primary)' }}
+          >
+            Import fra regnskap
           </Link>
           {vis === 'liste' ? (
             <>

@@ -32,7 +32,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /enkelexcel-ai — EnkelExcel AI
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
-- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, **Profiler** (kun synlig med Familie-abonnement — se egen seksjon), Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; beløp støtter norsk tallformat med tusenskille og komma som desimal, avrundet til hele kroner; nederst i menyen)
+- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, **Profiler** (kun synlig med Familie-abonnement — se egen seksjon), Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; beløp støtter norsk tallformat med tusenskille og komma som desimal, avrundet til hele kroner), **Import fra regnskap** (/konto/importer-fra-regnskap — CSV hovedbok fra bl.a. Conta/Tripletex; kartlegg regnskapskonto til budsjettkategori, valg huskes; sammendrag før bekreftelse), nederst i menyen
 
 Profiler, abonnement og «Viser data for»
 - Solo-abonnement: én profil i appen.
@@ -153,7 +153,7 @@ EnkelExcel AI (/enkelexcel-ai)
 - Erstatter ikke menneskelig rådgivning.
 
 Min konto — oversikt
-- Header «Min konto» med undertittel om administrasjon. Venstre undermeny: Innstillinger, (med Familie også Profiler rett etter Innstillinger), Kom i gang, Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner.
+- Header «Min konto» med undertittel om administrasjon. Venstre undermeny: Innstillinger, (med Familie også Profiler rett etter Innstillinger), Kom i gang, Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner, Import fra regnskap.
 
 Profiler (/konto/profiler) — kun med Familie-abonnement
 - Menypunktet «Profiler» vises bare når appen er satt til Familie-plan (samme som for flere profiler i husholdningen). Med Solo-abonnement finnes ikke dette menypunktet; direkte besøk på /konto/profiler sender til Innstillinger.
@@ -182,12 +182,15 @@ Sikkerhet (/konto/sikkerhet)
 - Aktive økter: viser blant annet «Denne enheten» (forenklet liste).
 
 Roadmap (/konto/roadmap)
-- Funksjonsønsker: opprett forslag (tittel/beskrivelse), stem, se statuskolonner (venter, godkjent, under arbeid, ferdig, avvist). Ved demodata kan eksempelønsker vises.
+- Funksjonsønsker: opprett forslag (tittel/beskrivelse), valgfritt bilde eller skjermbilde (PNG/JPEG/WebP/GIF, maks 2 MB), stem, se statuskolonner (venter, godkjent, under arbeid, ferdig, avvist). Ved demodata kan eksempelønsker vises.
 
 Importer transaksjoner (/konto/importer-transaksjoner)
 - Last opp CSV (Excel-mal fra siden eller egen fil i støttet format). Beløp kan bruke norsk tallformat (tusenskille og komma som desimal) og avrundes til hele kroner.
 - Flyt: last opp → eventuelt kartlegg ukjente kategorinavn mot appens kategorier → forhåndsvis og bekreft import. Du kan laste ned mal fra importsiden.
 - Importerte rader blir transaksjoner på aktiv profil (bytt profil i menyen før import hvis du vil legge inn på en bestemt profil).
+
+Import fra regnskap (/konto/importer-fra-regnskap)
+- CSV fra regnskapssystem (hovedbok med dato, konto, debet/kredit eller beløp med fortegn). Velg leverandør/profil, kartlegg hver regnskapskonto til en budsjettkategori (huskes neste gang), se sammendrag, bekreft. Endelig inntekt/utgift på transaksjonen følger kategoritypen i appen.
 
 Intern prosjekt — oppussing (/intern/prosjekt)
 - Valgfri intern modul for prosjekt/oppussing med egne poster; ikke fullt synkronisert med hovedbudsjettet som resten av appen. Bruk hovedbudsjett og transaksjoner for ordinær husholdningsøkonomi.

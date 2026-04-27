@@ -295,7 +295,11 @@ export default function ImporterTransaksjonerPage() {
           Last opp en fil eksportert fra Excel (CSV UTF-8). Kolonnene skal tilsvare malen: DATO, TRANSAKSJON (ignoreres i
           appen), KATEGORI, BELØP, valgfri beskrivelse. Format {IMPORT_FORMAT_V1}. BELØP kan ha tusenskille og komma som
           desimal (f.eks. 1&nbsp;050,66) — appen avrunder til hele kroner. Har du flere profiler i husholdningen, velg
-          riktig profil over før du laster opp.
+          riktig profil over før du laster opp. Har du hovedbok fra regnskapssystem, bruk{' '}
+          <Link href="/konto/importer-fra-regnskap" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
+            Import fra regnskap
+          </Link>
+          .
         </p>
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <button
@@ -375,7 +379,7 @@ export default function ImporterTransaksjonerPage() {
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Fil: <strong style={{ color: 'var(--text)' }}>{fileLabel}</strong> — {parsedRows.length} gyldige rader.
-            Disse kategorinavnene finnes ikke i budsjettet ditt ennå. Type (inntekt/utgift) er utledet fra
+            Disse kategorinavnene finnes ikke i listen din ennå. Type (inntekt/utgift) er utledet fra
             TRANSAKSJON-kolonnen i filen. Velg om de skal opprettes.
           </p>
           <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>

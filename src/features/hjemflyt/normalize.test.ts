@@ -62,6 +62,29 @@ describe('normalizeHjemFlytState', () => {
     expect(s.completions[0]!.rewardPointsSnapshot).toBe(15)
     expect(s.pointBalances.p1).toBe(15)
     expect(s.settings.weeklyGoalPoints).toBe(50)
+    expect(s.settings.participantProfileIds).toBe(null)
+  })
+
+  it('normaliserer participantProfileIds', () => {
+    const s = normalizeHjemFlytState({
+      tasks: [],
+      completions: [],
+      settings: {
+        showRewardForChildren: true,
+        weeklyGoalPoints: null,
+        participantProfileIds: ['p1', '', 'p2', 3 as unknown as string, 'p1'],
+      },
+    })
+    expect(s.settings.participantProfileIds).toEqual(['p1', 'p2', 'p1'])
+  })
+
+  it('participantProfileIds tom array blir null', () => {
+    const s = normalizeHjemFlytState({
+      tasks: [],
+      completions: [],
+      settings: { participantProfileIds: [] },
+    })
+    expect(s.settings.participantProfileIds).toBe(null)
   })
 
   it('migrates completion rewardNokSnapshot to rewardPointsSnapshot', () => {

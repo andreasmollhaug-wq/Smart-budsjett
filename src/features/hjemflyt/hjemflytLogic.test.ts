@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { canProfileActOnTask, periodKeyForRecurrence, poolForTask, nextRoundRobinIndex } from './hjemflytLogic'
+import {
+  canProfileActOnTask,
+  partitionTasksForProfile,
+  periodKeyForRecurrence,
+  poolForTask,
+  nextRoundRobinIndex,
+} from './hjemflytLogic'
 import type { HjemflytTask } from './types'
 
 const baseTask = (o: Partial<HjemflytTask>): HjemflytTask => ({
@@ -50,5 +56,50 @@ describe('canProfileActOnTask', () => {
     })
     const pl = poolForTask(t, pids)
     expect(nextRoundRobinIndex(t, pl)).toBe(1)
+  })
+})
+
+describe('partitionTasksForProfile', () => {
+  const pids = ['default', 'p2', 'p3']
+
+  it('everyone: alle oppgaver er actionable for alle profiler', () => {
+    const tasks = [baseTask({ id: '1' }), baseTask({ id: '2' })]
+    for (const pid of pids) {
+      const { actionable, notActionable } = partitionTasksForProfile(tasks, pid, pids)
+      expect(actionable).toHaveLength(2)
+      expect(notActionable).toHaveLength(0)
+    }
+  })
+
+  it('round_robin: kun nåværende tur i actionable', () => {
+    const tasks = [
+      baseTask({
+        id: 'rr',
+        assignMode: 'round_robin',
+        assigneeProfileIds: ['p2', 'p3'],
+        roundRobinIndex: 0,
+      }),
+    ]
+    const forP2 = partitionTasksForProfile(tasks, 'p2', pids)
+    expect(forP2.actionable).toHaveLength(1)
+    expect(forP2.notActionable).toHaveLength(0)
+    const forP3 = partitionTasksForProfile(tasks, 'p3', pids)
+    expect(forP3.actionable).toHaveLength(0)
+    expect(forP3.notActionable).toHaveLength(1)
+  })
+
+  it('fixed: profil utenfor utvalg får oppgaven i notActionable', () => {
+    const tasks = [
+      baseTask({
+        id: 'fx',
+        assignMode: 'fixed',
+        assigneeProfileIds: ['p2'],
+      }),
+    ]
+    const forP2 = partitionTasksForProfile(tasks, 'p2', pids)
+    expect(forP2.actionable).toHaveLength(1)
+    const forP3 = partitionTasksForProfile(tasks, 'p3', pids)
+    expect(forP3.actionable).toHaveLength(0)
+    expect(forP3.notActionable).toHaveLength(1)
   })
 })

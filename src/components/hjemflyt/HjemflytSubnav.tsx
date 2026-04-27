@@ -4,9 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const tabs = [
+  { href: '/hjemflyt/start', label: 'Start', labelShort: 'Start' },
   { href: '/hjemflyt', label: 'Oversikt', labelShort: 'Oversikt' },
   { href: '/hjemflyt/barn', label: 'Barnevisning', labelShort: 'Barn' },
 ] as const
+
+function tabIsActive(pathname: string, href: string): boolean {
+  if (href === '/hjemflyt') return pathname === '/hjemflyt'
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
 
 export default function HjemflytSubnav() {
   const pathname = usePathname()
@@ -17,7 +23,7 @@ export default function HjemflytSubnav() {
       style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
     >
       {tabs.map(({ href, label, labelShort }) => {
-        const isActive = pathname === href
+        const isActive = tabIsActive(pathname, href)
         return (
           <Link
             key={href}

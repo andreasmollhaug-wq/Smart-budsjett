@@ -28,7 +28,7 @@ export function createEmptyHjemFlytState(): HjemFlytState {
     tasks: [],
     completions: [],
     pointBalances: {},
-    settings: { showRewardForChildren: true, weeklyGoalPoints: null },
+    settings: { showRewardForChildren: true, weeklyGoalPoints: null, participantProfileIds: null },
   }
 }
 
@@ -141,11 +141,19 @@ export function normalizeHjemFlytState(raw: unknown): HjemFlytState {
     const n = typeof wg === 'number' ? wg : Number(wg)
     if (Number.isFinite(n) && n > 0) weeklyGoalPoints = Math.min(1_000_000, Math.round(n))
   }
+  let participantProfileIds: string[] | null = null
+  const pp = settingsRaw?.participantProfileIds
+  if (Array.isArray(pp)) {
+    const ids = pp
+      .filter((x): x is string => typeof x === 'string' && x.length > 0)
+      .map((x) => x.slice(0, 64))
+    participantProfileIds = ids.length > 0 ? ids.slice(0, 32) : null
+  }
   return {
     version: HJEMFLYT_STATE_VERSION,
     tasks,
     completions,
     pointBalances,
-    settings: { showRewardForChildren, weeklyGoalPoints },
+    settings: { showRewardForChildren, weeklyGoalPoints, participantProfileIds },
   }
 }

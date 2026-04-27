@@ -56,12 +56,22 @@ import {
 } from '@/lib/formuebyggerPro/persistedState'
 import { createEmptyHjemFlytState, normalizeHjemFlytState } from '@/features/hjemflyt/normalize'
 import { normalizeHjemflytProfileMeta } from '@/features/hjemflyt/profileMeta'
+import { canAdministerHjemflyt } from '@/features/hjemflyt/hjemflytPermissions'
+import { effectiveHjemflytProfileIds } from '@/features/hjemflyt/hjemflytParticipants'
 import {
   canProfileActOnTask,
   nextRoundRobinIndex,
   periodKeyForRecurrence,
   poolForTask,
 } from '@/features/hjemflyt/hjemflytLogic'
+import { LEDGER_IMPORT_HISTORY_MAX } from '@/lib/ledgerImport/ledgerImport.constants'
+import { normalizeLedgerAccountCode } from '@/lib/ledgerImport/parseLedgerCsv'
+import type {
+  LedgerAccountMappingRule,
+  LedgerAccountMappingsState,
+  LedgerImportRun,
+  LedgerSourceId,
+} from '@/lib/ledgerImport/types'
 import type {
   HjemflytAssignMode,
   HjemflytRecurrence,
@@ -69,6 +79,33 @@ import type {
   HjemflytProfileMeta,
   HjemflytSettings,
 } from '@/features/hjemflyt/types'
+import { pushMatActivity } from '@/features/matHandleliste/activity'
+import {
+  appendIngredientsToShoppingList,
+  appendManualItemToShoppingList,
+  mealIngredientToLines,
+  portionFactorForMeal,
+} from '@/features/matHandleliste/mergeIngredients'
+import {
+  clampMealSlotTags,
+  createEmptyMatHandlelisteState,
+  normalizeMatHandlelisteState,
+  normalizePlanVisibleSlots,
+  normalizePlanWeekLayout,
+} from '@/features/matHandleliste/normalize'
+import { collectIngredientLinesFromPlanRange, listDateKeysInRange } from '@/features/matHandleliste/planHelpers'
+import { clampShoppingListQuantity } from '@/features/matHandleliste/ingredientUnitOptions'
+import {
+  MEAL_SLOT_ORDER,
+  type IngredientUnit,
+  type Meal,
+  type MealIngredient,
+  type MealSlotId,
+  type MatHandlelisteState,
+  type PlannedSlot,
+  type PlanWeekLayout,
+  type ShoppingListItem,
+} from '@/features/matHandleliste/types'
 import {
   buildDemoServiceSubscriptions,
   buildDemoSubscriptionPlannedTransactionsForYear,
@@ -80,6 +117,11 @@ import {
   getDemoSubscriptionMonthlyAmountsForVariant,
   getDemoVariantIndexForProfile,
 } from './demoPersonVariants'
+import {
+  createDemoMatHandlelisteState,
+  isMatHandlelisteShellEmpty,
+  matSnapshotContainsDemoMarkers,
+} from './demoMatHandleliste'
 import { effectiveBudgetedIncomeMonth, normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import {
   ensureIncomeSprintPlanId,
@@ -174,6 +216,8 @@ export interface Transaction {
    * Synkede trekk bruker linkedDebtId / linkedServiceSubscriptionId i stedet.
    */
   plannedFollowUp?: boolean
+  /** Knytning til rad i `ledgerImportHistory` (regnskapsimport) for detaljvisning i historikk. */
+  ledgerImportRunId?: string
 }
 
 export interface BudgetCategory {
@@ -543,7 +587,11 @@ interface AppState {
 
   /** HjemFlyt: husholdningsoppgaver; ingen kobling til transaksjoner. */
   hjemflyt: HjemFlytState
-  setHjemflytSettings: (patch: Partial<Pick<HjemflytSettings, 'showRewardForChildren' | 'weeklyGoalPoints'>>) => void
+  setHjemflytSettings: (
+    patch: Partial<
+      Pick<HjemflytSettings, 'showRewardForChildren' | 'weeklyGoalPoints' | 'participantProfileIds'>
+    >,
+  ) => { ok: true } | { ok: false; reason: 'forbidden' }
   setProfileHjemflytMeta: (
     profileId: string,
     meta: { kind: 'adult' | 'child'; childEmoji?: string | null } | null,
@@ -576,9 +624,74 @@ interface AppState {
     | { ok: true }
     | { ok: false; reason: 'forbidden' | 'not_found' | 'bad_status' }
 
+  /** Mat og handleliste (intern modul) */
+  matHandleliste: MatHandlelisteState
+  mhAddMeal: (input: {
+    title: string
+    description?: string
+    defaultServings: number
+    ingredients: Omit<MealIngredient, 'id'>[]
+    tags?: MealSlotId[]
+  }) => { ok: true; id: string } | { ok: false; reason: 'invalid' }
+  mhUpdateMeal: (
+    id: string,
+    patch: Partial<{
+      title: string
+      description: string | null
+      defaultServings: number
+      ingredients: MealIngredient[]
+      tags: MealSlotId[] | null
+    }>,
+  ) => { ok: true } | { ok: false; reason: 'not_found' }
+  mhRemoveMeal: (id: string) => { ok: true } | { ok: false; reason: 'not_found' }
+  mhDuplicateMeal: (id: string) => { ok: true; id: string } | { ok: false; reason: 'not_found' }
+  mhSetPlanSlot: (dateKey: string, slot: MealSlotId, planned: PlannedSlot | null) => void
+  mhAddManualListItem: (input: {
+    name: string
+    categoryId?: string
+    note?: string
+    unitPriceNok?: number | null
+    quantity?: number | null
+    unit?: IngredientUnit
+    unitLabel?: string | null
+  }) => void
+  mhToggleListItem: (id: string) => void
+  mhUpdateListItemCategory: (id: string, categoryId: string) => void
+  mhUpdateListItemNote: (id: string, note: string | null) => void
+  mhPatchListItem: (
+    id: string,
+    patch: {
+      unitPriceNok?: number | null
+      note?: string | null
+      categoryId?: string
+      quantity?: number | null
+      unit?: IngredientUnit
+      unitLabel?: string | null
+    },
+  ) => void
+  mhRemoveListItem: (id: string) => void
+  mhReorderShoppingCategories: (categoryOrder: string[]) => void
+  mhSetStaplesNormalizedKeys: (keys: string[]) => void
+  mhAppendMealToList: (input: {
+    mealId: string
+    effectiveServings: number
+    excludeIngredientIds: string[]
+  }) => { ok: true } | { ok: false; reason: 'not_found' }
+  mhAppendDateRangeToList: (input: {
+    fromKey: string
+    toKey: string
+    excludeNormalizedKeys: string[]
+  }) => { ok: true; count: number } | { ok: false; reason: 'invalid_range' }
+  mhClearCheckedListItems: () => void
+  mhSetGroceryBudgetCategoryName: (name: string | null) => void
+  mhSetPlanVisibleSlots: (slots: MealSlotId[]) => void
+  mhSetPlanWeekLayout: (mode: PlanWeekLayout) => void
+
   /** Eksempeldata på tvers av budsjett, transaksjoner, sparing, investeringer og lån; ekte data i `peopleBeforeDemo`. */
   demoDataEnabled: boolean
   peopleBeforeDemo: Record<string, PersonData> | null
+  /** Ekte mat/handleliste før demodata (samme mønster som `peopleBeforeDemo`). */
+  matHandlelisteBeforeDemo: MatHandlelisteState | null
   setDemoDataEnabled: (enabled: boolean) => void
   /**
    * Vis NOK-beløp med inntil 2 desimaler (øre) i lister, KPI, diagrammer, osv.
@@ -586,6 +699,19 @@ interface AppState {
    */
   showAmountDecimals: boolean
   setShowAmountDecimals: (show: boolean) => void
+
+  /** Regnskap CSV: lagrede konto → budsjettkategori per kilde (conta, tripletex, …). */
+  ledgerAccountMappings: LedgerAccountMappingsState
+  /** Siste import-kjøringer (metadata). */
+  ledgerImportHistory: LedgerImportRun[]
+  setLedgerAccountMapping: (
+    sourceId: LedgerSourceId,
+    accountCode: string,
+    rule: LedgerAccountMappingRule | null,
+  ) => void
+  appendLedgerImportRun: (run: LedgerImportRun) => void
+  /** Fjerner import fra historikk og alle transaksjoner med samme ledgerImportRunId på målprofilen. */
+  removeLedgerImportRun: (runId: string) => void
 }
 
 /** Ytre nøkkel årstall som string, indre er profilId. */
@@ -608,9 +734,13 @@ export type PersistedAppSlice = Pick<
   | 'onboarding'
   | 'formuebyggerPro'
   | 'hjemflyt'
+  | 'matHandleliste'
   | 'demoDataEnabled'
   | 'peopleBeforeDemo'
+  | 'matHandlelisteBeforeDemo'
   | 'showAmountDecimals'
+  | 'ledgerAccountMappings'
+  | 'ledgerImportHistory'
 >
 
 /** Tidligere nøkkel for Zustand persist (brukes til engangsmigrering til Supabase). */
@@ -632,11 +762,15 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     onboarding: { status: 'pending' },
     formuebyggerPro: createDefaultFormuebyggerPersistedState(),
     hjemflyt: createEmptyHjemFlytState(),
+    matHandleliste: createEmptyMatHandlelisteState(),
     demoDataEnabled: false,
     peopleBeforeDemo: null,
+    matHandlelisteBeforeDemo: null,
     showAmountDecimals: false,
     deliveredInsightIds: [],
     dismissedDuplicateSubscriptionPresetKeys: [],
+    ledgerAccountMappings: {},
+    ledgerImportHistory: [],
   }
 }
 
@@ -654,11 +788,15 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     onboarding: state.onboarding,
     formuebyggerPro: state.formuebyggerPro,
     hjemflyt: state.hjemflyt,
+    matHandleliste: state.matHandleliste,
     demoDataEnabled: state.demoDataEnabled,
     peopleBeforeDemo: state.peopleBeforeDemo,
+    matHandlelisteBeforeDemo: state.matHandlelisteBeforeDemo,
     showAmountDecimals: state.showAmountDecimals,
     deliveredInsightIds: state.deliveredInsightIds,
     dismissedDuplicateSubscriptionPresetKeys: state.dismissedDuplicateSubscriptionPresetKeys,
+    ledgerAccountMappings: state.ledgerAccountMappings,
+    ledgerImportHistory: state.ledgerImportHistory,
   }
 }
 
@@ -797,6 +935,18 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
   const rawHf = (p as Partial<AppState>).hjemflyt
   base.hjemflyt = rawHf != null ? normalizeHjemFlytState(rawHf) : createEmptyHjemFlytState()
 
+  const rawMh = (p as Partial<AppState>).matHandleliste
+  base.matHandleliste =
+    rawMh != null ? normalizeMatHandlelisteState(rawMh) : createEmptyMatHandlelisteState()
+
+  if (base.matHandlelisteBeforeDemo === undefined) base.matHandlelisteBeforeDemo = null
+  const rawMhBd = (p as Partial<AppState>).matHandlelisteBeforeDemo
+  if (rawMhBd != null && typeof rawMhBd === 'object' && !Array.isArray(rawMhBd)) {
+    base.matHandlelisteBeforeDemo = normalizeMatHandlelisteState(rawMhBd)
+  } else if (rawMhBd != null) {
+    base.matHandlelisteBeforeDemo = null
+  }
+
   base.profiles = base.profiles.map((pr) => {
     const h = normalizeHjemflytProfileMeta(pr.id, pr.hjemflyt)
     if (h) return { ...pr, hjemflyt: h }
@@ -806,6 +956,10 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
 
   if (typeof base.demoDataEnabled !== 'boolean') base.demoDataEnabled = false
   if (typeof base.showAmountDecimals !== 'boolean') base.showAmountDecimals = false
+  if (!base.ledgerAccountMappings || typeof base.ledgerAccountMappings !== 'object') {
+    base.ledgerAccountMappings = {}
+  }
+  if (!Array.isArray(base.ledgerImportHistory)) base.ledgerImportHistory = []
   if (base.peopleBeforeDemo === undefined) base.peopleBeforeDemo = null
   const pbd = base.peopleBeforeDemo
   if (pbd != null && (typeof pbd !== 'object' || Array.isArray(pbd))) base.peopleBeforeDemo = null
@@ -816,6 +970,23 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
       base.people[pr.id] = createEmptyPersonData()
     }
     base.peopleBeforeDemo = null
+  }
+
+  if (!base.demoDataEnabled && matSnapshotContainsDemoMarkers(base.matHandleliste)) {
+    base.matHandleliste = createEmptyMatHandlelisteState()
+    base.matHandlelisteBeforeDemo = null
+  }
+
+  /**
+   * Demodata var ofte slått på før «mat og handleliste» ble persistert — da ligger matHandleliste tom i lagringen.
+   * Fyll eksempel innhold når demo er aktiv og brukeren ikke har noe i modulen ennå.
+   */
+  if (
+    base.demoDataEnabled &&
+    !matSnapshotContainsDemoMarkers(base.matHandleliste) &&
+    isMatHandlelisteShellEmpty(base.matHandleliste)
+  ) {
+    base.matHandleliste = createDemoMatHandlelisteState(base.activeProfileId, new Date())
   }
 
   delete (base as unknown as Record<string, unknown>).earlyStepsChecklist
@@ -1497,9 +1668,69 @@ export const useStore = create<AppState>()((set, get) => {
         onboarding: { status: 'pending' } as OnboardingState,
         formuebyggerPro: createDefaultFormuebyggerPersistedState(),
         hjemflyt: createEmptyHjemFlytState(),
+        matHandleliste: createEmptyMatHandlelisteState(),
         demoDataEnabled: false,
         peopleBeforeDemo: null as Record<string, PersonData> | null,
+        matHandlelisteBeforeDemo: null as MatHandlelisteState | null,
         showAmountDecimals: false,
+        ledgerAccountMappings: {} as LedgerAccountMappingsState,
+        ledgerImportHistory: [] as LedgerImportRun[],
+
+        setLedgerAccountMapping: (sourceId, accountCode, rule) => {
+          const code = normalizeLedgerAccountCode(accountCode)
+          if (!code) return
+          set((s) => {
+            const next: LedgerAccountMappingsState = { ...s.ledgerAccountMappings }
+            const inner = { ...(next[sourceId] ?? {}) }
+            if (rule == null) {
+              delete inner[code]
+            } else {
+              const n = rule.categoryName.trim()
+              if (!n) {
+                delete inner[code]
+              } else {
+                inner[code] = { categoryName: n }
+              }
+            }
+            if (Object.keys(inner).length === 0) {
+              delete next[sourceId]
+            } else {
+              next[sourceId] = inner
+            }
+            return { ledgerAccountMappings: next }
+          })
+        },
+
+        appendLedgerImportRun: (run) => {
+          set((s) => ({
+            ledgerImportHistory: [run, ...s.ledgerImportHistory].slice(0, LEDGER_IMPORT_HISTORY_MAX),
+          }))
+        },
+
+        removeLedgerImportRun: (runId) => {
+          set((s) => {
+            const run = s.ledgerImportHistory.find((r) => r.id === runId)
+            if (!run) return s
+            const nextHistory = s.ledgerImportHistory.filter((r) => r.id !== runId)
+            const person = s.people[run.profileId]
+            if (!person) {
+              return { ledgerImportHistory: nextHistory }
+            }
+            const nextTx = person.transactions.filter((t) => t.ledgerImportRunId !== runId)
+            if (nextTx.length === person.transactions.length) {
+              return { ledgerImportHistory: nextHistory }
+            }
+            const merged = syncLinkedSavingsGoalsCurrent({ ...person, transactions: nextTx }, run.profileId)
+            return {
+              people: {
+                ...s.people,
+                [run.profileId]: recalcPersonBudgetSpentForYear(merged, run.profileId, s.budgetYear),
+              },
+              ledgerImportHistory: nextHistory,
+            }
+          })
+          get().syncInsightNotifications()
+        },
 
         setShowAmountDecimals: (show) => {
           set((s) => (show === s.showAmountDecimals ? s : { showAmountDecimals: show }))
@@ -1522,21 +1753,36 @@ export const useStore = create<AppState>()((set, get) => {
                 }
                 backup = emptyBackup
               }
+              let mhBackup: MatHandlelisteState
+              try {
+                mhBackup = JSON.parse(JSON.stringify(s.matHandleliste)) as MatHandlelisteState
+              } catch {
+                return s
+              }
+              if (matSnapshotContainsDemoMarkers(mhBackup)) {
+                mhBackup = createEmptyMatHandlelisteState()
+              }
               const nextPeople: Record<string, PersonData> = {}
               for (let i = 0; i < s.profiles.length; i++) {
                 const pr = s.profiles[i]!
                 const vi = getDemoVariantIndexForProfile(s.subscriptionPlan, s.profiles.length, i)
                 nextPeople[pr.id] = createDemoPersonDataForProfile(pr.id, s.budgetYear, vi)
               }
+              const nextMat = createDemoMatHandlelisteState(s.activeProfileId, new Date())
               return {
                 demoDataEnabled: true,
                 peopleBeforeDemo: backup,
                 people: nextPeople,
+                matHandlelisteBeforeDemo: normalizeMatHandlelisteState(mhBackup),
+                matHandleliste: nextMat,
               }
             }
             const restored = s.peopleBeforeDemo
             const restoredIsInvalidDemoCopy =
               restored != null && peopleSnapshotContainsDemoMarkers(restored)
+            const restoredMat = s.matHandlelisteBeforeDemo
+            const restoredMatIsInvalid =
+              restoredMat != null && matSnapshotContainsDemoMarkers(restoredMat)
             if (!restored || restoredIsInvalidDemoCopy) {
               const cleared: Record<string, PersonData> = {}
               for (const pr of s.profiles) {
@@ -1546,12 +1792,22 @@ export const useStore = create<AppState>()((set, get) => {
                 demoDataEnabled: false,
                 peopleBeforeDemo: null,
                 people: cleared,
+                matHandlelisteBeforeDemo: null,
+                matHandleliste:
+                  !restoredMat || restoredMatIsInvalid
+                    ? createEmptyMatHandlelisteState()
+                    : normalizeMatHandlelisteState(restoredMat),
               }
             }
             return {
               demoDataEnabled: false,
               peopleBeforeDemo: null,
               people: restored,
+              matHandlelisteBeforeDemo: null,
+              matHandleliste:
+                !restoredMat || restoredMatIsInvalid
+                  ? createEmptyMatHandlelisteState()
+                  : normalizeMatHandlelisteState(restoredMat),
             }
           })
         },
@@ -1889,12 +2145,17 @@ export const useStore = create<AppState>()((set, get) => {
         },
 
         setHjemflytSettings: (patch) => {
-          set((s) => ({
+          const s = get()
+          if (!canAdministerHjemflyt(s.activeProfileId, s.profiles)) {
+            return { ok: false as const, reason: 'forbidden' as const }
+          }
+          set((st) => ({
             hjemflyt: {
-              ...s.hjemflyt,
-              settings: { ...s.hjemflyt.settings, ...patch },
+              ...st.hjemflyt,
+              settings: { ...st.hjemflyt.settings, ...patch },
             },
           }))
+          return { ok: true as const }
         },
 
         setProfileHjemflytMeta: (profileId, meta) => {
@@ -1926,7 +2187,7 @@ export const useStore = create<AppState>()((set, get) => {
 
         hjemflytAddTask: (input) => {
           const s = get()
-          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          if (!canAdministerHjemflyt(s.activeProfileId, s.profiles)) return { ok: false as const, reason: 'forbidden' }
           const t = input.title.trim()
           if (!t) return { ok: false as const, reason: 'invalid' }
           const id = generateId()
@@ -1939,7 +2200,8 @@ export const useStore = create<AppState>()((set, get) => {
             else reward = null
           }
           const allIds = s.profiles.map((p) => p.id)
-          const assigneeProfileIds = input.assigneeProfileIds.filter((x) => allIds.includes(x))
+          const hfIds = effectiveHjemflytProfileIds(allIds, s.hjemflyt.settings)
+          const assigneeProfileIds = input.assigneeProfileIds.filter((x) => allIds.includes(x) && hfIds.includes(x))
           const task: import('@/features/hjemflyt/types').HjemflytTask = {
             id,
             title: t.slice(0, 200),
@@ -1959,11 +2221,12 @@ export const useStore = create<AppState>()((set, get) => {
 
         hjemflytUpdateTask: (taskId, patch) => {
           const s = get()
-          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          if (!canAdministerHjemflyt(s.activeProfileId, s.profiles)) return { ok: false as const, reason: 'forbidden' }
           const i = s.hjemflyt.tasks.findIndex((x) => x.id === taskId)
           if (i < 0) return { ok: false as const, reason: 'not_found' }
-          const allIds = s.profiles.map((p) => p.id)
           set((st) => {
+            const allIds = st.profiles.map((p) => p.id)
+            const hfIds = effectiveHjemflytProfileIds(allIds, st.hjemflyt.settings)
             const list = st.hjemflyt.tasks
             const prev = list[i]!
             const next: typeof prev = { ...prev }
@@ -1983,7 +2246,7 @@ export const useStore = create<AppState>()((set, get) => {
             if (patch.recurrence != null) next.recurrence = patch.recurrence
             if (patch.assignMode != null) next.assignMode = patch.assignMode
             if (patch.assigneeProfileIds != null) {
-              next.assigneeProfileIds = patch.assigneeProfileIds.filter((x) => allIds.includes(x))
+              next.assigneeProfileIds = patch.assigneeProfileIds.filter((x) => allIds.includes(x) && hfIds.includes(x))
             }
             const nextList = [...list]
             nextList[i] = next
@@ -1994,7 +2257,7 @@ export const useStore = create<AppState>()((set, get) => {
 
         hjemflytRemoveTask: (taskId) => {
           const s = get()
-          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          if (!canAdministerHjemflyt(s.activeProfileId, s.profiles)) return { ok: false as const, reason: 'forbidden' }
           if (!s.hjemflyt.tasks.some((t) => t.id === taskId)) return { ok: false as const, reason: 'not_found' }
           set((st) => ({
             hjemflyt: {
@@ -2012,7 +2275,8 @@ export const useStore = create<AppState>()((set, get) => {
           const task = h.tasks.find((t) => t.id === taskId)
           if (!task) return { ok: false as const, reason: 'not_found' }
           const allIds = s.profiles.map((p) => p.id)
-          if (!canProfileActOnTask(task, s.activeProfileId, allIds)) {
+          const hfIds = effectiveHjemflytProfileIds(allIds, h.settings)
+          if (!canProfileActOnTask(task, s.activeProfileId, hfIds)) {
             return { ok: false as const, reason: 'not_assigned' }
           }
           if (task.recurrence.type === 'none' && task.lastCompletedAt != null) {
@@ -2065,7 +2329,11 @@ export const useStore = create<AppState>()((set, get) => {
             const ti = th.tasks.findIndex((x) => x.id === taskId)
             if (ti < 0) return st
             const t = th.tasks[ti]!
-            const pl = poolForTask(t, allIds)
+            const effIds = effectiveHjemflytProfileIds(
+              st.profiles.map((p) => p.id),
+              th.settings,
+            )
+            const pl = poolForTask(t, effIds)
             let roundRobinIndex = t.roundRobinIndex
             if (t.assignMode === 'round_robin' && pl.length > 0) {
               roundRobinIndex = nextRoundRobinIndex(t, pl)
@@ -2091,14 +2359,17 @@ export const useStore = create<AppState>()((set, get) => {
 
         hjemflytApproveCompletion: (completionId) => {
           const s = get()
-          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          if (!canAdministerHjemflyt(s.activeProfileId, s.profiles)) return { ok: false as const, reason: 'forbidden' }
           const c = s.hjemflyt.completions.find((x) => x.id === completionId)
           if (!c) return { ok: false as const, reason: 'not_found' }
           if (c.status !== 'pending_approval') return { ok: false as const, reason: 'bad_status' }
           const at = new Date()
-          const allIds = s.profiles.map((p) => p.id)
           set((st) => {
             const h = st.hjemflyt
+            const effIds = effectiveHjemflytProfileIds(
+              st.profiles.map((p) => p.id),
+              h.settings,
+            )
             const comp = h.completions.map((x) =>
               x.id === completionId
                 ? { ...x, status: 'approved' as const, completedAt: at.toISOString() }
@@ -2107,7 +2378,7 @@ export const useStore = create<AppState>()((set, get) => {
             const task = h.tasks.find((t) => t.id === c.taskId)
             if (!task) return { hjemflyt: { ...h, completions: comp } }
             const ti = h.tasks.findIndex((x) => x.id === c.taskId)
-            const pl = poolForTask(task, allIds)
+            const pl = poolForTask(task, effIds)
             let roundRobinIndex = task.roundRobinIndex
             if (task.assignMode === 'round_robin' && pl.length > 0) {
               roundRobinIndex = nextRoundRobinIndex(task, pl)
@@ -2134,7 +2405,7 @@ export const useStore = create<AppState>()((set, get) => {
 
         hjemflytRejectCompletion: (completionId) => {
           const s = get()
-          if (s.activeProfileId !== DEFAULT_PROFILE_ID) return { ok: false as const, reason: 'forbidden' }
+          if (!canAdministerHjemflyt(s.activeProfileId, s.profiles)) return { ok: false as const, reason: 'forbidden' }
           const c = s.hjemflyt.completions.find((x) => x.id === completionId)
           if (!c) return { ok: false as const, reason: 'not_found' }
           if (c.status !== 'pending_approval') return { ok: false as const, reason: 'bad_status' }
@@ -3724,6 +3995,414 @@ export const useStore = create<AppState>()((set, get) => {
           }))
           return { ok: true as const }
         },
+
+        mhAddMeal: (input) => {
+          const title = input.title.trim()
+          if (!title) return { ok: false as const, reason: 'invalid' as const }
+          let ds = input.defaultServings
+          if (!Number.isFinite(ds) || ds <= 0) ds = 4
+          ds = Math.min(50, Math.max(1, Math.round(ds)))
+          const now = new Date().toISOString()
+          const id = generateId()
+          const ingredients: MealIngredient[] = input.ingredients
+            .map((ing) => {
+              const name = ing.name.trim()
+              if (!name) return null
+              return {
+                id: generateId(),
+                name: name.slice(0, 200),
+                quantity: ing.quantity,
+                unit: ing.unit,
+                ...(ing.unitLabel ? { unitLabel: ing.unitLabel } : {}),
+                ...(ing.note ? { note: ing.note } : {}),
+                ...(ing.section ? { section: ing.section } : {}),
+                ...(ing.isStaple ? { isStaple: true } : {}),
+              } satisfies MealIngredient
+            })
+            .filter(Boolean) as MealIngredient[]
+          const tagsIn = clampMealSlotTags(input.tags)
+          const meal: Meal = {
+            id,
+            title: title.slice(0, 200),
+            ...(input.description?.trim()
+              ? { description: input.description.trim().slice(0, 500) }
+              : {}),
+            defaultServings: ds,
+            ingredients,
+            ...(tagsIn?.length ? { tags: tagsIn } : {}),
+            createdByProfileId: get().activeProfileId,
+            createdAt: now,
+            updatedAt: now,
+          }
+          set((s) => {
+            let mh = s.matHandleliste
+            mh = pushMatActivity(mh, s.activeProfileId, 'meal_created', `La til måltid: ${meal.title}`)
+            return { matHandleliste: { ...mh, meals: [...mh.meals, meal] } }
+          })
+          return { ok: true as const, id }
+        },
+
+        mhUpdateMeal: (mealId, patch) => {
+          let found = false
+          set((s) => {
+            const i = s.matHandleliste.meals.findIndex((m) => m.id === mealId)
+            if (i < 0) return s
+            found = true
+            const prev = s.matHandleliste.meals[i]!
+            const now = new Date().toISOString()
+            let nextMeal: Meal = { ...prev, updatedAt: now }
+            if (patch.title != null) nextMeal = { ...nextMeal, title: patch.title.trim().slice(0, 200) }
+            if (patch.description !== undefined) {
+              if (patch.description === null || !patch.description.trim()) {
+                const { description: _d, ...rest } = nextMeal
+                nextMeal = rest as Meal
+              } else {
+                nextMeal = { ...nextMeal, description: patch.description.trim().slice(0, 500) }
+              }
+            }
+            if (
+              patch.defaultServings != null &&
+              Number.isFinite(patch.defaultServings) &&
+              patch.defaultServings > 0
+            ) {
+              nextMeal = {
+                ...nextMeal,
+                defaultServings: Math.min(50, Math.max(1, Math.round(patch.defaultServings))),
+              }
+            }
+            if (patch.ingredients != null) nextMeal = { ...nextMeal, ingredients: patch.ingredients }
+            if (patch.tags !== undefined) {
+              const t = clampMealSlotTags(patch.tags ?? undefined)
+              if (t?.length) nextMeal = { ...nextMeal, tags: t }
+              else {
+                const { tags: _omit, ...rest } = nextMeal
+                nextMeal = rest as Meal
+              }
+            }
+            const list = [...s.matHandleliste.meals]
+            list[i] = nextMeal
+            let mh = { ...s.matHandleliste, meals: list }
+            mh = pushMatActivity(mh, s.activeProfileId, 'plan_changed', `Oppdaterte måltid: ${nextMeal.title}`)
+            return { matHandleliste: mh }
+          })
+          return found ? { ok: true as const } : { ok: false as const, reason: 'not_found' as const }
+        },
+
+        mhRemoveMeal: (mealId) => {
+          let found = false
+          set((s) => {
+            if (!s.matHandleliste.meals.some((m) => m.id === mealId)) return s
+            found = true
+            const planByDate = { ...s.matHandleliste.planByDate }
+            for (const key of Object.keys(planByDate)) {
+              const day = planByDate[key]
+              if (!day?.slots) continue
+              const slots = { ...day.slots }
+              let touched = false
+              for (const sl of MEAL_SLOT_ORDER) {
+                if (slots[sl]?.mealId === mealId) {
+                  delete slots[sl]
+                  touched = true
+                }
+              }
+              if (touched) {
+                if (Object.keys(slots).length === 0) delete planByDate[key]
+                else planByDate[key] = { slots }
+              }
+            }
+            let mh: MatHandlelisteState = {
+              ...s.matHandleliste,
+              meals: s.matHandleliste.meals.filter((m) => m.id !== mealId),
+              planByDate,
+            }
+            mh = pushMatActivity(mh, s.activeProfileId, 'plan_changed', 'Fjernet et måltid')
+            return { matHandleliste: mh }
+          })
+          return found ? { ok: true as const } : { ok: false as const, reason: 'not_found' as const }
+        },
+
+        mhDuplicateMeal: (mealId) => {
+          const s = get()
+          const src = s.matHandleliste.meals.find((m) => m.id === mealId)
+          if (!src) return { ok: false as const, reason: 'not_found' as const }
+          const now = new Date().toISOString()
+          const id = generateId()
+          const meal: Meal = {
+            ...src,
+            id,
+            title: `${src.title} (kopi)`.slice(0, 200),
+            ingredients: src.ingredients.map((ing) => ({
+              ...ing,
+              id: generateId(),
+            })),
+            createdByProfileId: s.activeProfileId,
+            createdAt: now,
+            updatedAt: now,
+          }
+          set((st) => {
+            let mh = { ...st.matHandleliste, meals: [...st.matHandleliste.meals, meal] }
+            mh = pushMatActivity(mh, st.activeProfileId, 'meal_created', `Dupliserte måltid: ${meal.title}`)
+            return { matHandleliste: mh }
+          })
+          return { ok: true as const, id }
+        },
+
+        mhSetPlanSlot: (dateKey, slot, planned) => {
+          set((s) => {
+            const mh0 = s.matHandleliste
+            const planByDate = { ...mh0.planByDate }
+            const prev = planByDate[dateKey] ?? { slots: {} }
+            const slots = { ...prev.slots }
+            if (planned == null) delete slots[slot]
+            else slots[slot] = planned
+            if (Object.keys(slots).length === 0) delete planByDate[dateKey]
+            else planByDate[dateKey] = { slots }
+            let mh: MatHandlelisteState = { ...mh0, planByDate }
+            mh = pushMatActivity(mh, s.activeProfileId, 'plan_changed', 'Oppdaterte plan for en dag')
+            return { matHandleliste: mh }
+          })
+        },
+
+        mhAddManualListItem: (input) => {
+          const name = input.name.trim()
+          if (!name) return
+          const now = new Date().toISOString()
+          set((s) => {
+            const list = appendManualItemToShoppingList(
+              s.matHandleliste.list,
+              name,
+              s.activeProfileId,
+              now,
+              input.categoryId,
+              input.note,
+              input.unitPriceNok,
+              {
+                quantity: input.quantity,
+                unit: input.unit,
+                unitLabel: input.unitLabel,
+              },
+            )
+            let mh = { ...s.matHandleliste, list }
+            mh = pushMatActivity(mh, s.activeProfileId, 'item_added', `La til: ${name}`)
+            return { matHandleliste: mh }
+          })
+        },
+
+        mhToggleListItem: (itemId) => {
+          const now = new Date().toISOString()
+          set((s) => {
+            const it0 = s.matHandleliste.list.find((x) => x.id === itemId)
+            const list = s.matHandleliste.list.map((it) => {
+              if (it.id !== itemId) return it
+              const checked = !it.checked
+              return { ...it, checked, updatedAt: now }
+            })
+            let mh = { ...s.matHandleliste, list }
+            if (it0) {
+              const checked = !it0.checked
+              const msg = checked ? `Krysset av: ${it0.displayName}` : `Angret avkrysning: ${it0.displayName}`
+              mh = pushMatActivity(
+                mh,
+                s.activeProfileId,
+                checked ? 'item_checked' : 'item_unchecked',
+                msg,
+              )
+            }
+            return { matHandleliste: mh }
+          })
+        },
+
+        mhUpdateListItemCategory: (itemId, categoryId) => {
+          const now = new Date().toISOString()
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              list: s.matHandleliste.list.map((it) =>
+                it.id === itemId ? { ...it, categoryId: categoryId.slice(0, 32), updatedAt: now } : it,
+              ),
+            },
+          }))
+        },
+
+        mhUpdateListItemNote: (itemId, note) => {
+          const now = new Date().toISOString()
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              list: s.matHandleliste.list.map((it) => {
+                if (it.id !== itemId) return it
+                const n = note?.trim() ?? ''
+                if (n) return { ...it, note: n.slice(0, 200), updatedAt: now }
+                const { note: _rm, ...rest } = it
+                return { ...rest, updatedAt: now }
+              }),
+            },
+          }))
+        },
+
+        mhPatchListItem: (itemId, patch) => {
+          const now = new Date().toISOString()
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              list: s.matHandleliste.list.map((it) => {
+                if (it.id !== itemId) return it
+                let next: ShoppingListItem = { ...it, updatedAt: now }
+                if (patch.categoryId !== undefined) {
+                  next = { ...next, categoryId: patch.categoryId.slice(0, 32) }
+                }
+                if (patch.note !== undefined) {
+                  const n = patch.note?.trim() ?? ''
+                  if (n) next = { ...next, note: n.slice(0, 200) }
+                  else {
+                    const { note: _drop, ...rest } = next
+                    next = rest as ShoppingListItem
+                  }
+                }
+                if (patch.unitPriceNok !== undefined) {
+                  if (patch.unitPriceNok === null) {
+                    next = { ...next, unitPriceNok: null }
+                  } else {
+                    const p = Math.max(0, Math.min(50_000, Math.round(patch.unitPriceNok)))
+                    next = { ...next, unitPriceNok: p }
+                  }
+                }
+                if (patch.quantity !== undefined) {
+                  if (patch.quantity === null) {
+                    next = { ...next, quantity: null }
+                  } else {
+                    next = { ...next, quantity: clampShoppingListQuantity(patch.quantity) }
+                  }
+                }
+                if (patch.unit !== undefined) {
+                  next = { ...next, unit: patch.unit }
+                  if (patch.unit !== 'other') {
+                    const { unitLabel: _u, ...rest } = next
+                    next = rest as ShoppingListItem
+                  }
+                }
+                if (patch.unitLabel !== undefined && next.unit === 'other') {
+                  const lab = patch.unitLabel?.trim() ?? ''
+                  if (lab) next = { ...next, unitLabel: lab.slice(0, 64) }
+                  else {
+                    const { unitLabel: _u, ...rest } = next
+                    next = rest as ShoppingListItem
+                  }
+                }
+                return next
+              }),
+            },
+          }))
+        },
+
+        mhRemoveListItem: (itemId) => {
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              list: s.matHandleliste.list.filter((it) => it.id !== itemId),
+            },
+          }))
+        },
+
+        mhReorderShoppingCategories: (categoryOrder) => {
+          set((s) => ({
+            matHandleliste: { ...s.matHandleliste, categoryOrder: [...categoryOrder] },
+          }))
+        },
+
+        mhSetStaplesNormalizedKeys: (keys) => {
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              staples: [...new Set(keys.map((k) => k.trim().toLowerCase()).filter(Boolean))].slice(0, 200),
+            },
+          }))
+        },
+
+        mhAppendMealToList: (input) => {
+          const s = get()
+          const meal = s.matHandleliste.meals.find((m) => m.id === input.mealId)
+          if (!meal) return { ok: false as const, reason: 'not_found' as const }
+          const factor = portionFactorForMeal(meal.defaultServings, input.effectiveServings)
+          const filtered = meal.ingredients.filter((ing) => !input.excludeIngredientIds.includes(ing.id))
+          const now = new Date().toISOString()
+          const source = { mealId: meal.id, mealTitle: meal.title }
+          const lines = mealIngredientToLines(filtered, factor, source)
+          set((st) => {
+            const list = appendIngredientsToShoppingList(st.matHandleliste.list, lines, st.activeProfileId, now)
+            let mh = { ...st.matHandleliste, list }
+            mh = pushMatActivity(mh, st.activeProfileId, 'item_added', `La til ingredienser fra ${meal.title}`)
+            return { matHandleliste: mh }
+          })
+          return { ok: true as const }
+        },
+
+        mhAppendDateRangeToList: (input) => {
+          const keys = listDateKeysInRange(input.fromKey, input.toKey)
+          if (keys.length === 0) return { ok: false as const, reason: 'invalid_range' as const }
+          const s = get()
+          const mealMap = new Map(s.matHandleliste.meals.map((m) => [m.id, m]))
+          let lines = collectIngredientLinesFromPlanRange(s.matHandleliste, keys, mealMap, {
+            slots: s.matHandleliste.settings.planVisibleSlots,
+          })
+          const ex = new Set(input.excludeNormalizedKeys.map((k) => k.trim().toLowerCase()))
+          lines = lines.filter((l) => !ex.has(l.normalizedKey))
+          const now = new Date().toISOString()
+          set((st) => {
+            const list = appendIngredientsToShoppingList(st.matHandleliste.list, lines, st.activeProfileId, now)
+            let mh = { ...st.matHandleliste, list }
+            mh = pushMatActivity(
+              mh,
+              st.activeProfileId,
+              'item_added',
+              `La til varer fra plan (${input.fromKey}–${input.toKey})`,
+            )
+            return { matHandleliste: mh }
+          })
+          return { ok: true as const, count: lines.length }
+        },
+
+        mhClearCheckedListItems: () => {
+          set((s) => {
+            const list = s.matHandleliste.list.filter((it) => !it.checked)
+            let mh = { ...s.matHandleliste, list }
+            mh = pushMatActivity(mh, s.activeProfileId, 'cleared_checked', 'Fjernet avkryssede varer fra listen')
+            return { matHandleliste: mh }
+          })
+        },
+
+        mhSetGroceryBudgetCategoryName: (name) => {
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              settings: {
+                ...s.matHandleliste.settings,
+                groceryBudgetCategoryName: name?.trim() ? name.trim().slice(0, 120) : null,
+              },
+            },
+          }))
+        },
+
+        mhSetPlanVisibleSlots: (slots) => {
+          set((s) => {
+            const planVisibleSlots = normalizePlanVisibleSlots(slots)
+            let mh: MatHandlelisteState = {
+              ...s.matHandleliste,
+              settings: { ...s.matHandleliste.settings, planVisibleSlots },
+            }
+            mh = pushMatActivity(mh, s.activeProfileId, 'plan_changed', 'Oppdaterte hvilke tidsrom som vises i plan')
+            return { matHandleliste: mh }
+          })
+        },
+
+        mhSetPlanWeekLayout: (mode) => {
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              settings: { ...s.matHandleliste.settings, planWeekLayout: normalizePlanWeekLayout(mode) },
+            },
+          }))
+        },
       }
 })
 
@@ -3744,9 +4423,13 @@ export function resetStoreForLogout() {
     onboarding: { status: 'pending' },
     formuebyggerPro: createDefaultFormuebyggerPersistedState(),
     hjemflyt: createEmptyHjemFlytState(),
+    matHandleliste: createEmptyMatHandlelisteState(),
     demoDataEnabled: false,
     peopleBeforeDemo: null,
+    matHandlelisteBeforeDemo: null,
     showAmountDecimals: false,
+    ledgerAccountMappings: {},
+    ledgerImportHistory: [],
   })
   clearLegacyLocalStorage()
 }

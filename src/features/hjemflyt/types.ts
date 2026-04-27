@@ -46,6 +46,11 @@ export interface HjemflytSettings {
   showRewardForChildren: boolean
   /** Felles ukemål i poeng (mandag–søndag); null = ikke satt. */
   weeklyGoalPoints: number | null
+  /**
+   * Hvilke profiler som deltar i HjemFlyt-poolen.
+   * `null` = alle profiler i husholdningen (standard).
+   */
+  participantProfileIds: string[] | null
 }
 
 export interface HjemFlytState {

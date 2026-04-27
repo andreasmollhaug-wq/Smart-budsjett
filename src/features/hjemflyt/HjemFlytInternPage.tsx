@@ -1,6 +1,6 @@
 'use client'
 
-import { useStore, DEFAULT_PROFILE_ID } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { HjemflytAdultDashboard } from './HjemflytAdultDashboard'
 import { HjemflytBarnDashboard } from './HjemflytBarnDashboard'
 
@@ -23,7 +23,7 @@ export function HjemFlytInternPage() {
       {isChild ? (
         <HjemflytBarnDashboard viewProfileId={activeProfileId} isPreviewMode={false} />
       ) : (
-        <HjemflytAdultDashboard isPrimary={activeProfileId === DEFAULT_PROFILE_ID} />
+        <HjemflytAdultDashboard />
       )}
     </div>
   )

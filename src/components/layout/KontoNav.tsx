@@ -1,7 +1,19 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings, CreditCard, Shield, ChevronRight, Tags, Map, BookOpen, Upload, Users, Mail } from 'lucide-react'
+import {
+  Settings,
+  CreditCard,
+  Shield,
+  ChevronRight,
+  Tags,
+  Map,
+  BookOpen,
+  Upload,
+  FileSpreadsheet,
+  Users,
+  Mail,
+} from 'lucide-react'
 import { useStore } from '@/lib/store'
 
 const baseLinks = [
@@ -12,6 +24,12 @@ const baseLinks = [
   { href: '/konto/sikkerhet', label: 'Sikkerhet', labelShort: 'Sikkerhet', icon: Shield },
   { href: '/konto/roadmap', label: 'Roadmap', labelShort: 'Roadmap', icon: Map },
   { href: '/konto/importer-transaksjoner', label: 'Importer transaksjoner', labelShort: 'Import', icon: Upload },
+  {
+    href: '/konto/importer-fra-regnskap',
+    label: 'Import fra regnskap',
+    labelShort: 'Regnskap',
+    icon: FileSpreadsheet,
+  },
   { href: '/konto/kontakt', label: 'Kontakt oss', labelShort: 'Kontakt', icon: Mail },
 ] as const
 

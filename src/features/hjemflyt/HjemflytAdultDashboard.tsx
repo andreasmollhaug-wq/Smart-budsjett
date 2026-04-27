@@ -1,10 +1,14 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@/lib/store'
+import { canAdministerHjemflyt } from './hjemflytPermissions'
 import type { HjemflytAssignMode, HjemflytRecurrence } from './types'
 import { poolForTask } from './hjemflytLogic'
+import { effectiveHjemflytProfileIds } from './hjemflytParticipants'
 import { HjemflytMemberSummaryCard } from './HjemflytMemberSummaryCard'
+import { HjemflytPresetSection } from './HjemflytPresetSection'
 import { buildHjemflytMemberSummaryRows } from './hjemflytSummaryRows'
 import { periodLabelForWeek } from './hjemflytStats'
 
@@ -18,11 +22,10 @@ const NO_WEEKDAYS: { v: number; label: string }[] = [
   { v: 6, label: 'Lørdag' },
 ]
 
-type Props = { isPrimary: boolean }
-
-export function HjemflytAdultDashboard({ isPrimary }: Props) {
+export function HjemflytAdultDashboard() {
   const hjemflyt = useStore((s) => s.hjemflyt)
   const profiles = useStore((s) => s.profiles)
+  const activeProfileId = useStore((s) => s.activeProfileId)
   const hjemflytAddTask = useStore((s) => s.hjemflytAddTask)
   const hjemflytRemoveTask = useStore((s) => s.hjemflytRemoveTask)
   const hjemflytCompleteTask = useStore((s) => s.hjemflytCompleteTask)
@@ -38,7 +41,21 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
   const [msg, setMsg] = useState<string | null>(null)
   const [weeklyGoalDraft, setWeeklyGoalDraft] = useState('')
 
-  const allIds = profiles.map((p) => p.id)
+  const allIds = useMemo(() => profiles.map((p) => p.id), [profiles])
+  const participantProfileIds = hjemflyt.settings.participantProfileIds
+  const hfIds = useMemo(
+    () => effectiveHjemflytProfileIds(allIds, hjemflyt.settings),
+    // Kun deltakerlisten påvirker poolen; unngå ny `hfIds` ved andre hjemflyt-oppdateringer (ny array → useEffect-loop).
+    [allIds, participantProfileIds],
+  )
+  const profilesInHjemflyt = useMemo(
+    () => profiles.filter((p) => hfIds.includes(p.id)),
+    [profiles, hfIds],
+  )
+  const canAdminister = useMemo(
+    () => canAdministerHjemflyt(activeProfileId, profiles),
+    [activeProfileId, profiles],
+  )
   const pending = hjemflyt.completions.filter((c) => c.status === 'pending_approval')
   const nTasks = hjemflyt.tasks.length
 
@@ -49,6 +66,32 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
   useEffect(() => {
     setWeeklyGoalDraft(weeklyGoalStored == null ? '' : String(weeklyGoalStored))
   }, [weeklyGoalStored])
+
+  useEffect(() => {
+    setAssignees((prev) => {
+      const next = prev.filter((id) => hfIds.includes(id))
+      if (prev.length === next.length && next.every((id, i) => id === prev[i])) return prev
+      return next
+    })
+  }, [hfIds])
+
+  function commitParticipantSelection(profileId: string, checked: boolean) {
+    const all = allIds
+    const cur = hjemflyt.settings.participantProfileIds
+    const base = cur === null ? all.slice() : cur.filter((id) => all.includes(id))
+    const next = checked
+      ? [...new Set([...base, profileId])].filter((id) => all.includes(id))
+      : base.filter((id) => id !== profileId)
+    if (next.length === 0 || next.length >= all.length) {
+      const r = setHjemflytSettings({ participantProfileIds: null })
+      if (!r.ok) setMsg('Kun voksne kan endre innstillinger.')
+      else setMsg(null)
+    } else {
+      const r = setHjemflytSettings({ participantProfileIds: next })
+      if (!r.ok) setMsg('Kun voksne kan endre innstillinger.')
+      else setMsg(null)
+    }
+  }
 
   function onAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -64,22 +107,25 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
     if (res.ok) {
       setTitle('')
       setReward('')
-    } else setMsg('Kunne ikke legge til (sjekk at du er hovedprofil).')
+    } else setMsg('Kunne ikke legge til (sjekk at du er voksen profil).')
   }
 
   function commitWeeklyGoal() {
     const t = weeklyGoalDraft.trim()
     if (t === '') {
-      setHjemflytSettings({ weeklyGoalPoints: null })
+      const r = setHjemflytSettings({ weeklyGoalPoints: null })
+      if (!r.ok) setMsg('Kun voksne kan endre innstillinger.')
       return
     }
     const n = Math.round(Number(t.replace(',', '.')) || 0)
     if (!Number.isFinite(n) || n <= 0) {
-      setHjemflytSettings({ weeklyGoalPoints: null })
+      const r = setHjemflytSettings({ weeklyGoalPoints: null })
+      if (!r.ok) setMsg('Kun voksne kan endre innstillinger.')
       setWeeklyGoalDraft('')
       return
     }
-    setHjemflytSettings({ weeklyGoalPoints: Math.min(1_000_000, n) })
+    const r = setHjemflytSettings({ weeklyGoalPoints: Math.min(1_000_000, n) })
+    if (!r.ok) setMsg('Kun voksne kan endre innstillinger.')
   }
 
   return (
@@ -101,14 +147,25 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
             : nTasks === 1
               ? '1 oppgave i listen'
               : `${nTasks} oppgaver i listen`}
-          {isPrimary && pending.length > 0
+          {canAdminister && pending.length > 0
             ? ` · ${pending.length} ${pending.length === 1 ? 'oppgave' : 'oppgaver'} venter på godkjenning`
             : null}
         </p>
+        {nTasks === 0 && canAdminister && (
+          <p className="text-sm mt-2">
+            <Link
+              href="/hjemflyt/start"
+              className="font-medium underline underline-offset-2 min-h-[44px] inline-flex items-center touch-manipulation"
+              style={{ color: 'var(--primary)' }}
+            >
+              Slik kommer du i gang
+            </Link>
+          </p>
+        )}
       </header>
 
       <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0">
-        {profiles.map((p) => {
+        {profilesInHjemflyt.map((p) => {
           const emoji = p.hjemflyt?.kind === 'child' ? p.hjemflyt.childEmoji : null
           const rows = buildHjemflytMemberSummaryRows(
             p.id,
@@ -130,7 +187,7 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
         })}
       </section>
 
-      {isPrimary && pending.length > 0 && (
+      {canAdminister && pending.length > 0 && (
         <section
           className="rounded-2xl p-4 space-y-3"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
@@ -184,7 +241,7 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
         </section>
       )}
 
-      {isPrimary && (
+      {canAdminister && (
         <section
           className="rounded-2xl p-4 space-y-4"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
@@ -223,16 +280,64 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
             <input
               type="checkbox"
               checked={hjemflyt.settings.showRewardForChildren}
-              onChange={() =>
-                setHjemflytSettings({ showRewardForChildren: !hjemflyt.settings.showRewardForChildren })
-              }
+              onChange={() => {
+                const r = setHjemflytSettings({
+                  showRewardForChildren: !hjemflyt.settings.showRewardForChildren,
+                })
+                if (!r.ok) setMsg('Kun voksne kan endre innstillinger.')
+                else setMsg(null)
+              }}
             />
             <span style={{ color: 'var(--text)' }}>Vis poeng i HjemFlyt for barn</span>
           </label>
+          <div className="pt-2 border-t space-y-2" style={{ borderColor: 'var(--border)' }}>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              Deltar i HjemFlyt
+            </p>
+            <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
+              Styrer hvem som er med i «Alle kan ta den»-poolen og hvem som vises i poengoversikten over. Profiler som
+              ikke deltar kan fortsatt administrere oppgaver som voksen.
+            </p>
+            <ul className="space-y-2">
+              {profiles.map((p) => {
+                const checked =
+                  hjemflyt.settings.participantProfileIds === null ||
+                  hjemflyt.settings.participantProfileIds.includes(p.id)
+                return (
+                  <li key={p.id}>
+                    <label className="flex items-center gap-2 text-sm min-h-[44px] cursor-pointer touch-manipulation">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => commitParticipantSelection(p.id, !checked)}
+                      />
+                      <span className="min-w-0 break-words" style={{ color: 'var(--text)' }}>
+                        {p.name}
+                      </span>
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+          <HjemflytPresetSection
+            tasks={hjemflyt.tasks}
+            onAddPreset={(presetTitle, rewardPoints) => {
+              const r = hjemflytAddTask({
+                title: presetTitle.slice(0, 200),
+                rewardPoints,
+                recurrence: { type: 'none' },
+                assignMode: 'everyone',
+                assigneeProfileIds: [],
+              })
+              return { ok: r.ok }
+            }}
+            onFeedback={setMsg}
+          />
         </section>
       )}
 
-      {isPrimary && (
+      {canAdminister && (
         <section
           className="rounded-2xl p-4 space-y-4"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
@@ -345,10 +450,14 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
                 <option value="fixed">Kun valgte</option>
                 <option value="round_robin">Ruller mellom valgte</option>
               </select>
+              <p className="text-xs mt-2 leading-snug" style={{ color: 'var(--text-muted)' }}>
+                «Alle kan ta den» betyr alle som er markert som deltakere under Innstillinger. Velg «Kun valgte» eller
+                «Ruller» når bare noen få skal gjøre jobben, og kryss av dem under.
+              </p>
             </div>
             {assignMode !== 'everyone' && (
               <div className="flex flex-wrap gap-2">
-                {profiles.map((p) => (
+                {profilesInHjemflyt.map((p) => (
                   <label key={p.id} className="inline-flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
                     <input
                       type="checkbox"
@@ -386,12 +495,12 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
         {hjemflyt.tasks.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Ingen oppgaver ennå.
-            {isPrimary ? ' Legg til over.' : ' Hovedprofilen kan legge til oppgaver.'}
+            {canAdminister ? ' Legg til over.' : ' En voksen profil kan legge til oppgaver.'}
           </p>
         ) : (
           <ul className="space-y-2">
             {hjemflyt.tasks.map((task) => {
-              const pool = poolForTask(task, allIds)
+              const pool = poolForTask(task, hfIds)
               const poolLen = pool.length
               const rr =
                 task.assignMode === 'round_robin' && poolLen > 0
@@ -414,7 +523,7 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium" style={{ color: 'var(--text)' }}>
+                    <p className="font-medium break-words" style={{ color: 'var(--text)' }}>
                       {task.title}
                     </p>
                     <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
@@ -445,7 +554,7 @@ export function HjemflytAdultDashboard({ isPrimary }: Props) {
                     >
                       Marker fullført
                     </button>
-                    {isPrimary && (
+                    {canAdminister && (
                       <button
                         type="button"
                         onClick={() => hjemflytRemoveTask(task.id)}

@@ -28,6 +28,12 @@ type Props = {
   /** Når satt ved åpning: forhåndsvelg type / utgift-hovedgruppe (f.eks. fra transaksjonsskjema). */
   initialKind?: 'income' | 'expense'
   initialExpenseParent?: ParentCategory
+  /** Standard: «Ny budsjettkategori». Bruk f.eks. «Ny kategori» ved import. */
+  dialogTitle?: string
+  /** Standard: kort hjelpetekst om 0 kr budsjett. */
+  dialogDescription?: string
+  /** Knappetekst (standard «Opprett og velg»). */
+  submitLabel?: string
 }
 
 export default function NewBudgetCategoryModal({
@@ -40,6 +46,9 @@ export default function NewBudgetCategoryModal({
   addBudgetCategory,
   initialKind,
   initialExpenseParent,
+  dialogTitle = 'Ny budsjettkategori',
+  dialogDescription = 'Opprettes med 0 kr budsjett for alle måneder. Du kan justere budsjettet under Budsjett.',
+  submitLabel = 'Opprett og velg',
 }: Props) {
   const [name, setName] = useState('')
   const [kind, setKind] = useState<'income' | 'expense'>('expense')
@@ -115,7 +124,7 @@ export default function NewBudgetCategoryModal({
       >
         <div className="flex items-start justify-between gap-3 mb-4 min-w-0">
           <h3 id="new-cat-title" className="font-semibold text-lg min-w-0 pr-2" style={{ color: 'var(--text)' }}>
-            Ny budsjettkategori
+            {dialogTitle}
           </h3>
           <button
             type="button"
@@ -128,7 +137,7 @@ export default function NewBudgetCategoryModal({
           </button>
         </div>
         <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-          Opprettes med 0 kr budsjett for alle måneder. Du kan justere budsjettet under Budsjett.
+          {dialogDescription}
         </p>
         <div className="space-y-3">
           <div>
@@ -212,7 +221,7 @@ export default function NewBudgetCategoryModal({
             className="min-h-[44px] px-4 py-2 rounded-xl text-sm font-medium text-white w-full sm:w-auto touch-manipulation"
             style={{ background: 'var(--primary)' }}
           >
-            Opprett og velg
+            {submitLabel}
           </button>
         </div>
       </div>
