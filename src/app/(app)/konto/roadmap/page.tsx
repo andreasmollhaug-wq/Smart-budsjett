@@ -8,6 +8,14 @@ import { ChevronUp, Loader2, Search, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useStore } from '@/lib/store'
 import { DEMO_FEATURE_REQUESTS, isDemoRoadmapId } from '@/lib/demoRoadmap'
+import { RoadmapRequestAttachmentImage } from '@/components/roadmap/RoadmapRequestAttachmentImage'
+import {
+  buildFeatureRequestImagePath,
+  FEATURE_REQUEST_IMAGES_BUCKET,
+  sanitizeImageFileName,
+  validateRoadmapImageFile,
+  ROADMAP_IMAGE_ACCEPT,
+} from '@/lib/roadmap/attachmentPath'
 
 const STATUS_ORDER = ['pending', 'approved', 'in_progress', 'done', 'rejected'] as const
 type FeatureStatus = (typeof STATUS_ORDER)[number]
@@ -35,6 +43,8 @@ interface FeatureRequestRow {
   id: string
   title: string
   body: string | null
+  /** Sti i bucket feature_request_images; null når ingen bilde. */
+  image_path: string | null
   status: FeatureStatus
   vote_count: number
   created_by: string
@@ -91,11 +101,13 @@ function RequestCardBodyPreview({ body }: { body: string }) {
 
 function RoadmapRequestDetailModal({
   request,
+  imagePublicUrl,
   onClose,
   votedIds,
   onToggleVote,
 }: {
   request: FeatureRequestRow | null
+  imagePublicUrl: string | null
   onClose: () => void
   votedIds: Set<string>
   onToggleVote: (id: string) => void
@@ -167,8 +179,15 @@ function RoadmapRequestDetailModal({
             </p>
           ) : (
             <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
-              Ingen beskrivelse lagt ved.
+              {imagePublicUrl ? 'Ingen tekst — kun bilde er lagt ved.' : 'Ingen beskrivelse lagt ved.'}
             </p>
+          )}
+          {imagePublicUrl && (
+            <RoadmapRequestAttachmentImage
+              publicUrl={imagePublicUrl}
+              layout="modal"
+              alt="Skjermbilde eller bilde knyttet til forslaget"
+            />
           )}
         </div>
 
@@ -210,6 +229,10 @@ export default function KontoRoadmapPage() {
   const [sortBy, setSortBy] = useState<'votes' | 'newest'>('votes')
   const [searchQuery, setSearchQuery] = useState('')
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null)
+  const [fileInputKey, setFileInputKey] = useState(0)
+  const [submitImageWarning, setSubmitImageWarning] = useState<string | null>(null)
 
   const {
     register,
@@ -226,6 +249,20 @@ export default function KontoRoadmapPage() {
     const t = window.setTimeout(() => setSubmitSuccess(false), 6000)
     return () => window.clearTimeout(t)
   }, [submitSuccess])
+
+  useEffect(() => {
+    if (!pendingFile) {
+      setAttachmentPreviewUrl(null)
+      return
+    }
+    const u = URL.createObjectURL(pendingFile)
+    setAttachmentPreviewUrl(u)
+    return () => {
+      URL.revokeObjectURL(u)
+    }
+  }, [pendingFile])
+
+  const supabaseForUrls = useMemo(() => createClient(), [])
 
   const loadData = useCallback(async () => {
     setLoadError(null)
@@ -258,7 +295,10 @@ export default function KontoRoadmapPage() {
       console.error('[roadmap] votes', voteRes.error)
     }
 
-    const list = (reqRes.data ?? []) as FeatureRequestRow[]
+    const list: FeatureRequestRow[] = (reqRes.data ?? []).map((row) => {
+      const r = row as { image_path?: string | null } & FeatureRequestRow
+      return { ...r, image_path: r.image_path ?? null }
+    })
     setRows(list)
     const vs = new Set<string>()
     for (const v of voteRes.data ?? []) {
@@ -287,6 +327,12 @@ export default function KontoRoadmapPage() {
     () => (detailRequestId ? rowsForUi.find((r) => r.id === detailRequestId) ?? null : null),
     [detailRequestId, rowsForUi],
   )
+
+  const detailImagePublicUrl = useMemo(() => {
+    const r = detailRequest
+    if (!r?.image_path || isDemoRoadmapId(r.id)) return null
+    return supabaseForUrls.storage.from(FEATURE_REQUEST_IMAGES_BUCKET).getPublicUrl(r.image_path).data.publicUrl
+  }, [detailRequest, supabaseForUrls])
 
   useEffect(() => {
     if (detailRequestId && !detailRequest) setDetailRequestId(null)
@@ -321,8 +367,15 @@ export default function KontoRoadmapPage() {
     return map
   }, [filteredRows, sortBy])
 
+  function resetWithAttachment() {
+    reset({ title: '', body: '' })
+    setPendingFile(null)
+    setFileInputKey((k) => k + 1)
+  }
+
   async function onSubmit(values: FormValues) {
     setSubmitError(null)
+    setSubmitImageWarning(null)
     setSubmitSuccess(false)
     const supabase = createClient()
     const {
@@ -331,6 +384,14 @@ export default function KontoRoadmapPage() {
     if (!user) {
       setSubmitError('Du må være innlogget.')
       return
+    }
+
+    if (pendingFile) {
+      const check = validateRoadmapImageFile(pendingFile)
+      if (!check.ok) {
+        setSubmitError(check.message)
+        return
+      }
     }
 
     const body = values.body?.trim() || null
@@ -350,8 +411,53 @@ export default function KontoRoadmapPage() {
       return
     }
 
-    reset({ title: '', body: '' })
-    setRows((prev) => [data as FeatureRequestRow, ...prev])
+    const baseRow: FeatureRequestRow = {
+      ...(data as FeatureRequestRow),
+      image_path: (data as { image_path?: string | null }).image_path ?? null,
+    }
+    let nextRow: FeatureRequestRow = baseRow
+
+    if (pendingFile) {
+      const safe = sanitizeImageFileName(pendingFile.name)
+      let objectPath: string
+      try {
+        objectPath = buildFeatureRequestImagePath(user.id, data.id, safe)
+      } catch (e) {
+        console.error('[roadmap] path', e)
+        setSubmitImageWarning('Forslaget er sendt inn, men vi kunne ikke forberede filnavnet for bildet.')
+        nextRow = baseRow
+        resetWithAttachment()
+        setRows((prev) => [nextRow, ...prev])
+        setSubmitSuccess(true)
+        return
+      }
+
+      const { error: upErr } = await supabase.storage
+        .from(FEATURE_REQUEST_IMAGES_BUCKET)
+        .upload(objectPath, pendingFile, { contentType: pendingFile.type, upsert: false })
+      if (upErr) {
+        console.error('[roadmap] storage upload', upErr)
+        setSubmitImageWarning(
+          'Forslaget er sendt inn, men bildet kunne ikke lastes opp. Prøv et mindre bilde (maks 2 MB) eller et annet format (PNG, JPEG, WebP, GIF).',
+        )
+      } else {
+        const { error: rpcErr } = await supabase.rpc('set_feature_request_image', {
+          p_request_id: data.id,
+          p_path: objectPath,
+        })
+        if (rpcErr) {
+          console.error('[roadmap] set_feature_request_image', rpcErr)
+          setSubmitImageWarning(
+            'Forslaget er sendt inn, men vi kunne ikke knytte bildet til forslaget. Ta kontakt om det vedvarer.',
+          )
+        } else {
+          nextRow = { ...baseRow, image_path: objectPath }
+        }
+      }
+    }
+
+    resetWithAttachment()
+    setRows((prev) => [nextRow, ...prev])
     setSubmitSuccess(true)
   }
 
@@ -439,6 +545,9 @@ export default function KontoRoadmapPage() {
           Forslag og stemmer er synlige for alle innloggede brukere i appen — ikke send inn sensitive
           personopplysninger.
         </p>
+        <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+          Skjermbilder kan vise mer enn du tror — beskjær eller slett sensitivt innhold før du laster opp.
+        </p>
       </div>
 
       <section className="space-y-3">
@@ -448,7 +557,7 @@ export default function KontoRoadmapPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 max-w-xl">
           {submitSuccess && (
             <div
-              className="rounded-xl px-3 py-2.5 text-sm"
+              className="rounded-xl px-3 py-2.5 text-sm space-y-2"
               style={{
                 background: '#f0fdf4',
                 border: '1px solid #86efac',
@@ -456,7 +565,19 @@ export default function KontoRoadmapPage() {
               }}
               role="status"
             >
-              Takk — forslaget er sendt inn. Vi leser det sammen med de andre.
+              <p>Takk — forslaget er sendt inn. Vi leser det sammen med de andre.</p>
+              {submitImageWarning && (
+                <p
+                  className="rounded-lg px-2.5 py-2 text-sm"
+                  style={{
+                    background: '#fffbeb',
+                    border: '1px solid #fcd34d',
+                    color: 'var(--text)',
+                  }}
+                >
+                  {submitImageWarning}
+                </p>
+              )}
             </div>
           )}
           <div>
@@ -493,6 +614,68 @@ export default function KontoRoadmapPage() {
               <p className="text-xs mt-1" style={{ color: 'var(--danger, #c92a2a)' }}>
                 {errors.body.message}
               </p>
+            )}
+          </div>
+          <div>
+            <label
+              htmlFor={`roadmap-attachment-${fileInputKey}`}
+              className="text-xs font-medium mb-1 block"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Vedlegg skjermbilde (valgfritt)
+            </label>
+            <input
+              key={fileInputKey}
+              id={`roadmap-attachment-${fileInputKey}`}
+              type="file"
+              accept={ROADMAP_IMAGE_ACCEPT}
+              className="w-full min-h-[44px] text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border file:text-sm file:font-medium"
+              style={{ color: 'var(--text)' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null
+                if (!f) {
+                  setPendingFile(null)
+                  return
+                }
+                const check = validateRoadmapImageFile(f)
+                if (!check.ok) {
+                  setSubmitError(check.message)
+                  setPendingFile(null)
+                  setFileInputKey((k) => k + 1)
+                  return
+                }
+                setSubmitError(null)
+                setPendingFile(f)
+              }}
+            />
+            <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+              PNG, JPEG, WebP eller GIF — maks 2 MB.
+            </p>
+            {attachmentPreviewUrl && (
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+                <div
+                  className="rounded-lg overflow-hidden border max-w-[200px] shrink-0"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- blob-URL for forhåndsvisning */}
+                  <img
+                    src={attachmentPreviewUrl}
+                    alt="Forhåndsvisning av valgt bilde"
+                    className="w-full max-h-32 object-contain"
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="min-h-[44px] px-3 py-2 rounded-xl text-sm border self-start"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+                  onClick={() => {
+                    setPendingFile(null)
+                    setFileInputKey((k) => k + 1)
+                  }}
+                >
+                  Fjern bilde
+                </button>
+              </div>
             )}
           </div>
           {submitError && (
@@ -603,6 +786,12 @@ export default function KontoRoadmapPage() {
                     ) : (
                       items.map((r) => {
                         const dateLabel = formatCardDate(r.created_at)
+                        const cardImageUrl =
+                          r.image_path && !isDemoRoadmapId(r.id)
+                            ? supabaseForUrls.storage
+                                .from(FEATURE_REQUEST_IMAGES_BUCKET)
+                                .getPublicUrl(r.image_path).data.publicUrl
+                            : null
                         return (
                           <article
                             key={r.id}
@@ -627,6 +816,13 @@ export default function KontoRoadmapPage() {
                                   <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
                                     {dateLabel}
                                   </p>
+                                )}
+                                {cardImageUrl && (
+                                  <RoadmapRequestAttachmentImage
+                                    publicUrl={cardImageUrl}
+                                    layout="card"
+                                    alt="Vedlegg til forslaget"
+                                  />
                                 )}
                                 {r.body && <RequestCardBodyPreview body={r.body} />}
                                 <span className="text-[11px] mt-1.5 font-medium" style={{ color: 'var(--primary)' }}>
@@ -664,6 +860,7 @@ export default function KontoRoadmapPage() {
 
       <RoadmapRequestDetailModal
         request={detailRequest}
+        imagePublicUrl={detailImagePublicUrl}
         onClose={() => setDetailRequestId(null)}
         votedIds={votedIds}
         onToggleVote={toggleVote}
