@@ -114,18 +114,18 @@ describe('planHelpers', () => {
     expect(formatDateKeyNb('2026-04-27')).toBe('27.04.2026')
   })
 
-  it('isoWeekAndYearFromMonday: kjent mandag april 2026', () => {
+  it('isoWeekAndYearFromMonday: kjent mandag april 2026 (ISO-uke 18)', () => {
     const mon = new Date(2026, 3, 27)
     expect(mon.getDay()).toBe(1)
     const { week, isoYear } = isoWeekAndYearFromMonday(mon)
     expect(isoYear).toBe(2026)
-    expect(week).toBe(17)
+    expect(week).toBe(18)
   })
 
   it('formatWeekRangeLabelNb inneholder uke og norske datoer', () => {
     const mon = new Date(2026, 3, 27)
     const s = formatWeekRangeLabelNb(mon)
-    expect(s).toMatch(/Uke 17 \(2026\)/)
+    expect(s).toMatch(/Uke 18 \(2026\)/)
     expect(s).toContain('27.04.2026')
     expect(s).toContain('03.05.2026')
   })

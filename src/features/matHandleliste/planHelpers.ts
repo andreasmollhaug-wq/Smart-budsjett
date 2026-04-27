@@ -42,6 +42,13 @@ function mondayOfIsoWeekOne(isoYear: number): Date {
   return new Date(isoYear, 0, 4 - dow)
 }
 
+/** Heltallsdager mellom to *lokale* kalenderdatoer (unngår feil ved sommertid vs. rå ms / 7 døgn). */
+function localCivilDaysBetween(earlier: Date, later: Date): number {
+  const t0 = Date.UTC(earlier.getFullYear(), earlier.getMonth(), earlier.getDate())
+  const t1 = Date.UTC(later.getFullYear(), later.getMonth(), later.getDate())
+  return Math.round((t1 - t0) / 86400000)
+}
+
 /** ISO-uke og ISO-år for uken som inneholder `weekStartMonday` (lokal mandag). */
 export function isoWeekAndYearFromMonday(weekStartMonday: Date): { week: number; isoYear: number } {
   const mon = new Date(weekStartMonday.getFullYear(), weekStartMonday.getMonth(), weekStartMonday.getDate())
@@ -52,13 +59,13 @@ export function isoWeekAndYearFromMonday(weekStartMonday: Date): { week: number;
     isoYear -= 1
     w1 = mondayOfIsoWeekOne(isoYear)
   }
-  const week = Math.floor((mon.getTime() - w1.getTime()) / 604800000) + 1
+  const week = Math.floor(localCivilDaysBetween(w1, mon) / 7) + 1
   return { week, isoYear }
 }
 
 /**
  * Menneskelesbar uke-linje, norsk dato (dag først).
- * Eksempel: `Uke 17 (2026) · 21.–27. april 2026` når alt er i samme måned.
+ * Eksempel: `Uke 18 (2026) · 27.04.2026 – 03.05.2026` når uken krysser månedsskifte.
  */
 export function formatWeekRangeLabelNb(weekStart: Date): string {
   const sunday = addDays(weekStart, 6)

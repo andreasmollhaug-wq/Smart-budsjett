@@ -2200,7 +2200,7 @@ export const useStore = create<AppState>()((set, get) => {
             else reward = null
           }
           const allIds = s.profiles.map((p) => p.id)
-          const hfIds = effectiveHjemflytProfileIds(allIds, s.hjemflyt.settings)
+          const hfIds = effectiveHjemflytProfileIds(allIds, s.hjemflyt.settings.participantProfileIds)
           const assigneeProfileIds = input.assigneeProfileIds.filter((x) => allIds.includes(x) && hfIds.includes(x))
           const task: import('@/features/hjemflyt/types').HjemflytTask = {
             id,
@@ -2226,7 +2226,7 @@ export const useStore = create<AppState>()((set, get) => {
           if (i < 0) return { ok: false as const, reason: 'not_found' }
           set((st) => {
             const allIds = st.profiles.map((p) => p.id)
-            const hfIds = effectiveHjemflytProfileIds(allIds, st.hjemflyt.settings)
+            const hfIds = effectiveHjemflytProfileIds(allIds, st.hjemflyt.settings.participantProfileIds)
             const list = st.hjemflyt.tasks
             const prev = list[i]!
             const next: typeof prev = { ...prev }
@@ -2275,7 +2275,7 @@ export const useStore = create<AppState>()((set, get) => {
           const task = h.tasks.find((t) => t.id === taskId)
           if (!task) return { ok: false as const, reason: 'not_found' }
           const allIds = s.profiles.map((p) => p.id)
-          const hfIds = effectiveHjemflytProfileIds(allIds, h.settings)
+          const hfIds = effectiveHjemflytProfileIds(allIds, h.settings.participantProfileIds)
           if (!canProfileActOnTask(task, s.activeProfileId, hfIds)) {
             return { ok: false as const, reason: 'not_assigned' }
           }
@@ -2331,7 +2331,7 @@ export const useStore = create<AppState>()((set, get) => {
             const t = th.tasks[ti]!
             const effIds = effectiveHjemflytProfileIds(
               st.profiles.map((p) => p.id),
-              th.settings,
+              th.settings.participantProfileIds,
             )
             const pl = poolForTask(t, effIds)
             let roundRobinIndex = t.roundRobinIndex
@@ -2368,7 +2368,7 @@ export const useStore = create<AppState>()((set, get) => {
             const h = st.hjemflyt
             const effIds = effectiveHjemflytProfileIds(
               st.profiles.map((p) => p.id),
-              h.settings,
+              h.settings.participantProfileIds,
             )
             const comp = h.completions.map((x) =>
               x.id === completionId

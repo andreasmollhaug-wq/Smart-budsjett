@@ -49,7 +49,7 @@ export function HjemflytBarnDashboard({ viewProfileId, isPreviewMode = false }: 
   const allIds = useMemo(() => profiles.map((p) => p.id), [profiles])
   const participantProfileIds = hjemflyt.settings.participantProfileIds
   const hfIds = useMemo(
-    () => effectiveHjemflytProfileIds(allIds, hjemflyt.settings),
+    () => effectiveHjemflytProfileIds(allIds, participantProfileIds),
     [allIds, participantProfileIds],
   )
   const myTotal = hjemflyt.pointBalances[viewProfileId] ?? 0

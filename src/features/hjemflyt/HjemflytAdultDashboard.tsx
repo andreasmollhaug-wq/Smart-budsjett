@@ -44,8 +44,7 @@ export function HjemflytAdultDashboard() {
   const allIds = useMemo(() => profiles.map((p) => p.id), [profiles])
   const participantProfileIds = hjemflyt.settings.participantProfileIds
   const hfIds = useMemo(
-    () => effectiveHjemflytProfileIds(allIds, hjemflyt.settings),
-    // Kun deltakerlisten påvirker poolen; unngå ny `hfIds` ved andre hjemflyt-oppdateringer (ny array → useEffect-loop).
+    () => effectiveHjemflytProfileIds(allIds, participantProfileIds),
     [allIds, participantProfileIds],
   )
   const profilesInHjemflyt = useMemo(
