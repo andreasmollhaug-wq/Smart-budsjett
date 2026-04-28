@@ -49,10 +49,12 @@ function LayoutCheckbox({
 }) {
   return (
     <label
+      htmlFor={id}
       className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 touch-manipulation ${disabled ? 'opacity-50' : ''}`}
       style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
     >
       <input
+        id={id}
         type="checkbox"
         className="mt-1 h-5 w-5 min-h-[44px] min-w-[44px] shrink-0 cursor-pointer accent-[var(--primary)] sm:mt-1 sm:min-h-0 sm:min-w-0 sm:h-5 sm:w-5"
         checked={checked}

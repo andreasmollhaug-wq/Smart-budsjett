@@ -23,6 +23,8 @@ export default function BudgetDashboardMonthlyChart({
   year: number
 }) {
   const { formatNOK } = useNokDisplayFormatters()
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const { primary: budgetedNetStroke } = chartColorsForUiPalette(uiColorPalette)
   const data = series.map((p) => {
     const netBudgeted = p.budgetedIncome - p.budgetedExpense
     const netActual = p.actualIncome - p.actualExpense
