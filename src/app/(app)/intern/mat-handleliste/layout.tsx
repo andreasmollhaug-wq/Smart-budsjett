@@ -1,7 +1,7 @@
 import MatHandlelisteSubnav from '@/components/matHandleliste/MatHandlelisteSubnav'
 
 export const metadata = {
-  title: 'Mat og handleliste (intern)',
+  title: 'Mat og handleliste',
 }
 
 export default function InternMatHandlelisteLayout({ children }: { children: React.ReactNode }) {

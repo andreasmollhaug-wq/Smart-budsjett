@@ -19,7 +19,7 @@ export function MatHandlelisteStartPage() {
 
   return (
     <>
-      <Header title="Mat og handleliste" subtitle="Intern modul — kun direkte URL" />
+      <Header title="Mat og handleliste" subtitle="Ukeplan, måltider og samlet handleliste" />
       <MatHandlelistePageShell>
         <div className="mx-auto max-w-lg space-y-6 pb-8">
           <p className="text-sm leading-relaxed" style={{ color: 'var(--text)' }}>

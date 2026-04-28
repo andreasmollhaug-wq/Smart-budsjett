@@ -10,6 +10,8 @@ import {
   FileText,
   Snowflake,
   Repeat,
+  ClipboardList,
+  ShoppingCart,
 } from 'lucide-react'
 
 export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = [
@@ -23,6 +25,8 @@ export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = 
   { href: '/investering', label: 'Investering', icon: TrendingUp },
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
   { href: '/enkelexcel-ai', label: 'EnkelExcel AI', icon: MessageSquare },
+  { href: '/hjemflyt/start', label: 'Hjemflyt', icon: ClipboardList },
+  { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
 ]
 
 export function isSidebarNavActive(pathname: string, href: string): boolean {
@@ -30,5 +34,7 @@ export function isSidebarNavActive(pathname: string, href: string): boolean {
   if (href === '/budsjett') return pathname.startsWith('/budsjett')
   if (href === '/abonnementer') return pathname.startsWith('/abonnementer')
   if (href === '/transaksjoner') return pathname.startsWith('/transaksjoner')
+  if (href === '/hjemflyt/start') return pathname.startsWith('/hjemflyt')
+  if (href === '/intern/mat-handleliste/handleliste') return pathname.startsWith('/intern/mat-handleliste')
   return pathname === href
 }

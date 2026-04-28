@@ -185,7 +185,7 @@ export function MatHandlelisteListPage() {
 
   return (
     <>
-      <Header title="Handleliste" subtitle="Intern test · mat og handleliste" />
+      <Header title="Handleliste" subtitle="Mat og handleliste" />
       <MatHandlelistePageShell>
         <div className="mx-auto w-full max-w-lg space-y-4 pb-8">
           <MatHandlelisteBudgetCard showHandlelisteEstimates />
