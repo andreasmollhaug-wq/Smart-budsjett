@@ -358,6 +358,7 @@ export function createDemoMatHandlelisteState(
     meals,
     planByDate,
     list,
+    savedShoppingLists: [],
     categoryOrder: normalizeMatHandlelisteState({}).categoryOrder,
     staples,
     activity,
@@ -365,6 +366,8 @@ export function createDemoMatHandlelisteState(
       groceryBudgetCategoryName: 'Mat & dagligvarer',
       planVisibleSlots: [...MEAL_SLOT_ORDER],
       planWeekLayout: 'auto',
+      shoppingListPdfTemplates: [],
+      shoppingListPdfLastTemplateId: null,
     },
   }
   return normalizeMatHandlelisteState(raw)

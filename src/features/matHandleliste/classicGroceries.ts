@@ -1,5 +1,5 @@
 /**
- * Klassiske norske dagligvarer med veiledende testpriser (NOK per enhet).
+ * Klassiske norske dagligvarer med veiledende testpriser (typisk NOK per kg eller per liter, jf. butikkhyller).
  * Kun demo / inntil API — ikke markedspriser.
  * Generert av scripts/generateClassicGroceries.mjs
  */

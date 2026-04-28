@@ -101,6 +101,19 @@ import {
 import { collectIngredientLinesFromPlanRange, listDateKeysInRange } from '@/features/matHandleliste/planHelpers'
 import { clampShoppingListQuantity } from '@/features/matHandleliste/ingredientUnitOptions'
 import {
+  MAX_SHOPPING_LIST_PDF_TEMPLATE_NAME_LEN,
+  MAX_SHOPPING_LIST_PDF_TEMPLATES,
+  mergeShoppingListPdfLayout,
+  type ShoppingListPdfLayoutOptions,
+} from '@/features/matHandleliste/printPdfLayout'
+import {
+  applySavedLinesToShoppingList,
+  MAX_SAVED_SHOPPING_LIST_NAME_LEN,
+  MAX_SAVED_SHOPPING_LISTS,
+  newSavedShoppingList,
+  snapshotLinesFromShoppingList,
+} from '@/features/matHandleliste/savedShoppingLists'
+import {
   MEAL_SLOT_ORDER,
   type IngredientUnit,
   type Meal,
@@ -705,6 +718,18 @@ interface AppState {
   mhSetGroceryBudgetCategoryName: (name: string | null) => void
   mhSetPlanVisibleSlots: (slots: MealSlotId[]) => void
   mhSetPlanWeekLayout: (mode: PlanWeekLayout) => void
+  mhAddShoppingListPdfTemplate: (name: string, options: ShoppingListPdfLayoutOptions) => void
+  mhRemoveShoppingListPdfTemplate: (id: string) => void
+  mhSetShoppingListPdfLastTemplateId: (id: string | null) => void
+  /** Lagrer nåværende handleliste som navngitt forhåndsdefinert liste (mal). */
+  mhSaveShoppingListPreset: (
+    name: string,
+  ) =>
+    | { ok: true }
+    | { ok: false; reason: 'empty' | 'no_items' | 'limit' }
+  mhRemoveSavedShoppingList: (id: string) => void
+  mhRenameSavedShoppingList: (id: string, name: string) => void
+  mhApplySavedShoppingList: (id: string, mode: 'merge' | 'replace') => void
 
   /** Eksempeldata på tvers av budsjett, transaksjoner, sparing, investeringer og lån; ekte data i `peopleBeforeDemo`. */
   demoDataEnabled: boolean
@@ -4523,6 +4548,148 @@ export const useStore = create<AppState>()((set, get) => {
               settings: { ...s.matHandleliste.settings, planWeekLayout: normalizePlanWeekLayout(mode) },
             },
           }))
+        },
+
+        mhAddShoppingListPdfTemplate: (name, options) => {
+          const trimmed = name.trim().slice(0, MAX_SHOPPING_LIST_PDF_TEMPLATE_NAME_LEN) || 'Mal'
+          const mergedOpt = mergeShoppingListPdfLayout(options)
+          const id = generateId()
+          set((s) => {
+            const prev = s.matHandleliste.settings.shoppingListPdfTemplates ?? []
+            const next = [
+              { id, name: trimmed, createdAt: new Date().toISOString(), options: mergedOpt },
+              ...prev.filter((t) => t.id !== id),
+            ].slice(0, MAX_SHOPPING_LIST_PDF_TEMPLATES)
+            return {
+              matHandleliste: {
+                ...s.matHandleliste,
+                settings: {
+                  ...s.matHandleliste.settings,
+                  shoppingListPdfTemplates: next,
+                  shoppingListPdfLastTemplateId: id,
+                },
+              },
+            }
+          })
+        },
+
+        mhRemoveShoppingListPdfTemplate: (id) => {
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              settings: {
+                ...s.matHandleliste.settings,
+                shoppingListPdfTemplates: s.matHandleliste.settings.shoppingListPdfTemplates.filter(
+                  (t) => t.id !== id,
+                ),
+                shoppingListPdfLastTemplateId:
+                  s.matHandleliste.settings.shoppingListPdfLastTemplateId === id
+                    ? null
+                    : s.matHandleliste.settings.shoppingListPdfLastTemplateId,
+              },
+            },
+          }))
+        },
+
+        mhSetShoppingListPdfLastTemplateId: (id) => {
+          set((s) => {
+            if (id == null) {
+              return {
+                matHandleliste: {
+                  ...s.matHandleliste,
+                  settings: { ...s.matHandleliste.settings, shoppingListPdfLastTemplateId: null },
+                },
+              }
+            }
+            const ok =
+              id.trim() &&
+              s.matHandleliste.settings.shoppingListPdfTemplates.some((t) => t.id === id.trim())
+            return {
+              matHandleliste: {
+                ...s.matHandleliste,
+                settings: {
+                  ...s.matHandleliste.settings,
+                  shoppingListPdfLastTemplateId: ok ? id.trim() : s.matHandleliste.settings.shoppingListPdfLastTemplateId,
+                },
+              },
+            }
+          })
+        },
+
+        mhSaveShoppingListPreset: (name) => {
+          const trimmed = name.trim().slice(0, MAX_SAVED_SHOPPING_LIST_NAME_LEN)
+          if (!trimmed) return { ok: false as const, reason: 'empty' as const }
+          const st = get()
+          const lines = snapshotLinesFromShoppingList(st.matHandleliste.list)
+          if (lines.length === 0) return { ok: false as const, reason: 'no_items' as const }
+          if (st.matHandleliste.savedShoppingLists.length >= MAX_SAVED_SHOPPING_LISTS) {
+            return { ok: false as const, reason: 'limit' as const }
+          }
+          const entry = newSavedShoppingList(trimmed, lines)
+          set((s) => {
+            let mh = {
+              ...s.matHandleliste,
+              savedShoppingLists: [entry, ...s.matHandleliste.savedShoppingLists],
+            }
+            mh = pushMatActivity(
+              mh,
+              s.activeProfileId,
+              'item_added',
+              `Lagret forhåndsdefinert handleliste «${entry.name}»`,
+            )
+            return { matHandleliste: mh }
+          })
+          return { ok: true as const }
+        },
+
+        mhRemoveSavedShoppingList: (id) => {
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              savedShoppingLists: s.matHandleliste.savedShoppingLists.filter((x) => x.id !== id),
+            },
+          }))
+        },
+
+        mhRenameSavedShoppingList: (id, name) => {
+          const trimmed = name.trim().slice(0, MAX_SAVED_SHOPPING_LIST_NAME_LEN)
+          if (!trimmed) return
+          const now = new Date().toISOString()
+          set((s) => ({
+            matHandleliste: {
+              ...s.matHandleliste,
+              savedShoppingLists: s.matHandleliste.savedShoppingLists.map((x) =>
+                x.id === id ? { ...x, name: trimmed, updatedAt: now } : x,
+              ),
+            },
+          }))
+        },
+
+        mhApplySavedShoppingList: (id, mode) => {
+          set((s) => {
+            const saved = s.matHandleliste.savedShoppingLists.find((x) => x.id === id)
+            if (!saved) return s
+            if (saved.lines.length === 0 && mode === 'merge') return s
+            const now = new Date().toISOString()
+            const list = applySavedLinesToShoppingList(
+              s.matHandleliste.list,
+              saved.lines,
+              s.activeProfileId,
+              now,
+              mode,
+            )
+            let mh = { ...s.matHandleliste, list }
+            let msg: string
+            if (mode === 'merge') {
+              msg = `La til varer fra «${saved.name}»`
+            } else if (saved.lines.length === 0) {
+              msg = 'Tømte listen'
+            } else {
+              msg = `Erstattet listen med «${saved.name}»`
+            }
+            mh = pushMatActivity(mh, s.activeProfileId, 'item_added', msg)
+            return { matHandleliste: mh }
+          })
         },
       }
 })

@@ -14,15 +14,82 @@ import {
   type MealSlotId,
   type MatHandlelisteSettings,
   type PlanWeekLayout,
+  type SavedShoppingList,
+  type SavedShoppingListLine,
 } from './types'
 import { DEFAULT_CATEGORY_ORDER } from './categoryMap'
 import { normalizeIngredientKey } from './ingredientKey'
+import {
+  DEFAULT_SHOPPING_LIST_PDF_LAYOUT,
+  MAX_SHOPPING_LIST_PDF_TEMPLATE_NAME_LEN,
+  MAX_SHOPPING_LIST_PDF_TEMPLATES,
+  mergeShoppingListPdfLayout,
+  type ShoppingListPdfLayoutOptions,
+  type ShoppingListPdfTemplate,
+} from './printPdfLayout'
+import {
+  MAX_LINES_PER_SAVED_SHOPPING_LIST,
+  MAX_SAVED_SHOPPING_LIST_NAME_LEN,
+  MAX_SAVED_SHOPPING_LISTS,
+} from './savedShoppingLists'
 
 const MEAL_SLOT_SET = new Set<MealSlotId>(MEAL_SLOT_ORDER)
 
 const DEFAULT_PLAN_SETTINGS: Pick<MatHandlelisteSettings, 'planVisibleSlots' | 'planWeekLayout'> = {
   planVisibleSlots: [...MEAL_SLOT_ORDER],
   planWeekLayout: 'auto',
+}
+
+const EMPTY_PDF_TEMPLATE_SETTINGS: Pick<
+  MatHandlelisteSettings,
+  'shoppingListPdfTemplates' | 'shoppingListPdfLastTemplateId'
+> = {
+  shoppingListPdfTemplates: [],
+  shoppingListPdfLastTemplateId: null,
+}
+
+function bool(x: unknown, d: boolean): boolean {
+  return typeof x === 'boolean' ? x : d
+}
+
+function normalizeShoppingListPdfLayout(raw: unknown): ShoppingListPdfLayoutOptions {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_SHOPPING_LIST_PDF_LAYOUT }
+  const o = raw as Record<string, unknown>
+  const partial = {
+    showBrand: bool(o.showBrand, DEFAULT_SHOPPING_LIST_PDF_LAYOUT.showBrand),
+    showDisclaimer: bool(o.showDisclaimer, DEFAULT_SHOPPING_LIST_PDF_LAYOUT.showDisclaimer),
+    showPrintDate: bool(o.showPrintDate, DEFAULT_SHOPPING_LIST_PDF_LAYOUT.showPrintDate),
+    showPriceColumns: bool(o.showPriceColumns, DEFAULT_SHOPPING_LIST_PDF_LAYOUT.showPriceColumns),
+    showCheckboxColumn: bool(o.showCheckboxColumn, DEFAULT_SHOPPING_LIST_PDF_LAYOUT.showCheckboxColumn),
+    showLineCountFooter: bool(o.showLineCountFooter, DEFAULT_SHOPPING_LIST_PDF_LAYOUT.showLineCountFooter),
+    showEstimatedSumFooter: bool(o.showEstimatedSumFooter, DEFAULT_SHOPPING_LIST_PDF_LAYOUT.showEstimatedSumFooter),
+  }
+  return mergeShoppingListPdfLayout(partial)
+}
+
+function normalizeShoppingListPdfTemplates(raw: unknown): ShoppingListPdfTemplate[] {
+  if (!Array.isArray(raw)) return []
+  const seenIds = new Set<string>()
+  const out: ShoppingListPdfTemplate[] = []
+  for (const item of raw) {
+    if (out.length >= MAX_SHOPPING_LIST_PDF_TEMPLATES) break
+    if (!item || typeof item !== 'object') continue
+    const o = item as Partial<ShoppingListPdfTemplate>
+    const id = typeof o.id === 'string' && o.id.trim() ? o.id.trim().slice(0, 64) : ''
+    if (!id || seenIds.has(id)) continue
+    const nameRaw = typeof o.name === 'string' ? o.name.trim() : ''
+    const name = nameRaw ? nameRaw.slice(0, MAX_SHOPPING_LIST_PDF_TEMPLATE_NAME_LEN) : 'Mal'
+    const createdAt =
+      typeof o.createdAt === 'string' && o.createdAt.trim() ? o.createdAt.trim().slice(0, 40) : new Date().toISOString()
+    seenIds.add(id)
+    out.push({
+      id,
+      name,
+      createdAt,
+      options: normalizeShoppingListPdfLayout(o.options),
+    })
+  }
+  return out
 }
 
 /** Normaliserer og sorterer synlige plan-slots; minst ett tidsrom (full liste ved tom input). */
@@ -246,6 +313,81 @@ function normalizeListItem(raw: unknown): ShoppingListItem | null {
   }
 }
 
+function normalizeSavedShoppingListLine(raw: unknown): SavedShoppingListLine | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Partial<SavedShoppingListLine>
+  const displayName = typeof o.displayName === 'string' ? o.displayName.trim().slice(0, 200) : ''
+  if (!displayName) return null
+  const normalizedKey =
+    typeof o.normalizedKey === 'string' && o.normalizedKey.trim()
+      ? o.normalizedKey.trim().slice(0, 200)
+      : normalizeIngredientKey(displayName)
+  let quantity: number | null = null
+  if (o.quantity != null) {
+    const q = typeof o.quantity === 'number' ? o.quantity : Number(o.quantity)
+    quantity = Number.isFinite(q) ? q : null
+  }
+  const unit = clampIngredientUnit(o.unit)
+  const unitLabel =
+    typeof o.unitLabel === 'string' && o.unitLabel.trim() ? o.unitLabel.trim().slice(0, 32) : undefined
+  const knownCat = new Set(DEFAULT_CATEGORY_ORDER)
+  let categoryId = typeof o.categoryId === 'string' && o.categoryId ? o.categoryId.slice(0, 32) : 'annet'
+  if (!knownCat.has(categoryId)) categoryId = 'annet'
+  const note = typeof o.note === 'string' && o.note.trim() ? o.note.trim().slice(0, 200) : null
+  let unitPriceNok: number | null = null
+  if (o.unitPriceNok != null) {
+    const p = typeof o.unitPriceNok === 'number' ? o.unitPriceNok : Number(o.unitPriceNok)
+    if (Number.isFinite(p)) unitPriceNok = Math.max(0, Math.min(50_000, Math.round(p)))
+  }
+  return {
+    displayName,
+    normalizedKey,
+    quantity,
+    unit,
+    ...(unitLabel ? { unitLabel } : {}),
+    categoryId,
+    ...(note ? { note } : {}),
+    ...(unitPriceNok != null ? { unitPriceNok } : {}),
+  }
+}
+
+function normalizeSavedShoppingList(raw: unknown): SavedShoppingList | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Partial<SavedShoppingList>
+  if (typeof o.id !== 'string' || !o.id.trim()) return null
+  const id = o.id.trim().slice(0, 64)
+  const nameRaw = typeof o.name === 'string' ? o.name.trim() : ''
+  const name = nameRaw ? nameRaw.slice(0, MAX_SAVED_SHOPPING_LIST_NAME_LEN) : 'Liste'
+  const createdAt =
+    typeof o.createdAt === 'string' && o.createdAt.trim() ? o.createdAt.trim().slice(0, 40) : new Date().toISOString()
+  const updatedAt =
+    typeof o.updatedAt === 'string' && o.updatedAt.trim() ? o.updatedAt.trim().slice(0, 40) : createdAt
+  const linesIn = o.lines
+  const lines: SavedShoppingListLine[] = []
+  if (Array.isArray(linesIn)) {
+    for (const ln of linesIn) {
+      if (lines.length >= MAX_LINES_PER_SAVED_SHOPPING_LIST) break
+      const n = normalizeSavedShoppingListLine(ln)
+      if (n) lines.push(n)
+    }
+  }
+  return { id, name, createdAt, updatedAt, lines }
+}
+
+function normalizeSavedShoppingLists(raw: unknown): SavedShoppingList[] {
+  if (!Array.isArray(raw)) return []
+  const seenIds = new Set<string>()
+  const out: SavedShoppingList[] = []
+  for (const item of raw) {
+    if (out.length >= MAX_SAVED_SHOPPING_LISTS) break
+    const sl = normalizeSavedShoppingList(item)
+    if (!sl || seenIds.has(sl.id)) continue
+    seenIds.add(sl.id)
+    out.push(sl)
+  }
+  return out
+}
+
 function normalizeActivity(raw: unknown): MatActivityEvent | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Partial<MatActivityEvent>
@@ -277,12 +419,14 @@ export function createEmptyMatHandlelisteState(): MatHandlelisteState {
     meals: [],
     planByDate: {},
     list: [],
+    savedShoppingLists: [],
     categoryOrder: [...DEFAULT_CATEGORY_ORDER],
     staples: [],
     activity: [],
     settings: {
       groceryBudgetCategoryName: null,
       ...DEFAULT_PLAN_SETTINGS,
+      ...EMPTY_PDF_TEMPLATE_SETTINGS,
     },
   }
 }
@@ -307,6 +451,7 @@ export function normalizeMatHandlelisteState(raw: unknown): MatHandlelisteState 
   const list: ShoppingListItem[] = Array.isArray(listIn)
     ? (listIn.map(normalizeListItem).filter(Boolean) as ShoppingListItem[])
     : []
+  const savedShoppingLists = normalizeSavedShoppingLists(r.savedShoppingLists)
   let categoryOrder: string[] = Array.isArray(r.categoryOrder)
     ? r.categoryOrder.filter((x): x is string => typeof x === 'string' && x.length > 0).map((x) => x.slice(0, 32))
     : [...DEFAULT_CATEGORY_ORDER]
@@ -332,22 +477,40 @@ export function normalizeMatHandlelisteState(raw: unknown): MatHandlelisteState 
   let groceryBudgetCategoryName: string | null = null
   let planVisibleSlotsIn: unknown
   let planWeekLayoutIn: unknown
+  let templatesIn: unknown
+  let lastTemplateIdIn: unknown
   if (settingsRaw && typeof settingsRaw === 'object') {
     const g = (settingsRaw as { groceryBudgetCategoryName?: unknown }).groceryBudgetCategoryName
     if (typeof g === 'string' && g.trim()) groceryBudgetCategoryName = g.trim().slice(0, 120)
     planVisibleSlotsIn = (settingsRaw as { planVisibleSlots?: unknown }).planVisibleSlots
     planWeekLayoutIn = (settingsRaw as { planWeekLayout?: unknown }).planWeekLayout
+    templatesIn = (settingsRaw as { shoppingListPdfTemplates?: unknown }).shoppingListPdfTemplates
+    lastTemplateIdIn = (settingsRaw as { shoppingListPdfLastTemplateId?: unknown })
+      .shoppingListPdfLastTemplateId
   }
   const planVisibleSlots = normalizePlanVisibleSlots(planVisibleSlotsIn ?? DEFAULT_PLAN_SETTINGS.planVisibleSlots)
   const planWeekLayout = normalizePlanWeekLayout(planWeekLayoutIn ?? DEFAULT_PLAN_SETTINGS.planWeekLayout)
+  const shoppingListPdfTemplates = normalizeShoppingListPdfTemplates(templatesIn)
+  let shoppingListPdfLastTemplateId: string | null = null
+  if (typeof lastTemplateIdIn === 'string' && lastTemplateIdIn.trim()) {
+    const tid = lastTemplateIdIn.trim().slice(0, 64)
+    if (shoppingListPdfTemplates.some((t) => t.id === tid)) shoppingListPdfLastTemplateId = tid
+  }
   return {
     version: MAT_HANDLELISTE_VERSION,
     meals,
     planByDate,
     list,
+    savedShoppingLists,
     categoryOrder,
     staples,
     activity: activity.slice(-MAT_HANDLELISTE_ACTIVITY_MAX),
-    settings: { groceryBudgetCategoryName, planVisibleSlots, planWeekLayout },
+    settings: {
+      groceryBudgetCategoryName,
+      planVisibleSlots,
+      planWeekLayout,
+      shoppingListPdfTemplates,
+      shoppingListPdfLastTemplateId,
+    },
   }
 }

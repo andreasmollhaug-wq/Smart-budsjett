@@ -10,7 +10,7 @@ const KPI_PRIMARY = '#3B5BDB'
 const KPI_NEUTRAL = '#0CA678'
 
 const kpiInfo =
-  'Gjelder kun varer du ikke har krysset av ennå. Total pris summerer bare linjer med satt pris. Beløp er veiledende testdata — ikke markedspriser.'
+  'Gjelder kun varer du ikke har krysset av ennå. Total pris summerer bare linjer med satt pris. Katalogtall er typisk kr per kg eller per liter; mengden i oppskriften omregnes (f.eks. gram → kg). Beløp er veiledende testdata — ikke markedspriser.'
 
 export function MatHandlelisteListKpi({ list }: { list: ShoppingListItem[] }) {
   const { formatNOK } = useNokDisplayFormatters()

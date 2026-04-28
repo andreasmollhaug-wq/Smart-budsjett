@@ -86,6 +86,8 @@ describe('normalizeMatHandlelisteState mat-migrering', () => {
         groceryBudgetCategoryName: null,
         planVisibleSlots: ['dinner', 'bogus', 'breakfast'] as unknown as MatHandlelisteState['settings']['planVisibleSlots'],
         planWeekLayout: 'grid',
+        shoppingListPdfTemplates: [],
+        shoppingListPdfLastTemplateId: null,
       },
     }
     const s = normalizeMatHandlelisteState(raw)
@@ -95,5 +97,76 @@ describe('normalizeMatHandlelisteState mat-migrering', () => {
 
   it('normalizePlanVisibleSlots: tom liste gir alle tidsrom', () => {
     expect(normalizePlanVisibleSlots([])).toEqual([...MEAL_SLOT_ORDER])
+  })
+
+  it('shoppingListPdfTemplates: klemmer antall og duplikate id-er', () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      id: `t${i}`,
+      name: `Mal ${i}`,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      options: {
+        showBrand: false,
+        showDisclaimer: true,
+        showPrintDate: true,
+        showPriceColumns: true,
+        showCheckboxColumn: true,
+        showLineCountFooter: true,
+        showEstimatedSumFooter: true,
+      },
+    }))
+    const s = normalizeMatHandlelisteState({
+      settings: {
+        groceryBudgetCategoryName: null,
+        shoppingListPdfTemplates: many,
+        shoppingListPdfLastTemplateId: 't14',
+      },
+    })
+    expect(s.settings.shoppingListPdfTemplates.length).toBe(15)
+    expect(s.settings.shoppingListPdfTemplates[14]!.id).toBe('t14')
+    expect(s.settings.shoppingListPdfLastTemplateId).toBe('t14')
+    const dup = normalizeMatHandlelisteState({
+      settings: {
+        groceryBudgetCategoryName: null,
+        shoppingListPdfTemplates: [
+          { id: 'x', name: 'A', createdAt: 't', options: many[0]!.options },
+          { id: 'x', name: 'B', createdAt: 't', options: many[1]!.options },
+        ],
+        shoppingListPdfLastTemplateId: 'x',
+      },
+    })
+    expect(dup.settings.shoppingListPdfTemplates.length).toBe(1)
+  })
+
+  it('savedShoppingLists: normaliserer linjer og knebler antall lister', () => {
+    const many = Array.from({ length: 25 }, (_, i) => ({
+      id: `s${i}`,
+      name: `L${i}`,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      lines: [{ displayName: 'Melk', normalizedKey: 'melk', quantity: 1, unit: 'l' as const, categoryId: 'meieri' }],
+    }))
+    const s = normalizeMatHandlelisteState({ savedShoppingLists: many })
+    expect(s.savedShoppingLists.length).toBe(20)
+    expect(s.savedShoppingLists[0]!.lines[0]!.displayName).toBe('Melk')
+    const dup = normalizeMatHandlelisteState({
+      savedShoppingLists: [
+        {
+          id: 'x',
+          name: 'A',
+          createdAt: 't',
+          updatedAt: 't',
+          lines: [],
+        },
+        {
+          id: 'x',
+          name: 'B',
+          createdAt: 't',
+          updatedAt: 't',
+          lines: [],
+        },
+      ],
+    })
+    expect(dup.savedShoppingLists.length).toBe(1)
+    expect(dup.savedShoppingLists[0]!.name).toBe('A')
   })
 })

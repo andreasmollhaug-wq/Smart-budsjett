@@ -2,6 +2,7 @@
 
 import Header from '@/components/layout/Header'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
+import { MatHandlelisteExportPdfModal } from '@/components/matHandleliste/MatHandlelisteExportPdfModal'
 import { MatHandlelisteShoppingListPrint } from '@/components/matHandleliste/MatHandlelisteShoppingListPrint'
 import { ShoppingListPdfPortalShell } from '@/components/matHandleliste/ShoppingListPdfPortalShell'
 import { MatHandlelisteCollapsiblePanel } from '@/components/matHandleliste/MatHandlelisteCollapsiblePanel'
@@ -25,6 +26,11 @@ import {
 } from '@/features/matHandleliste/planHelpers'
 import { MatHandlelistePageShell } from '@/features/matHandleliste/MatHandlelistePageShell'
 import { MEAL_SLOT_LABELS } from '@/features/matHandleliste/slotLabels'
+import {
+  DEFAULT_SHOPPING_LIST_PDF_LAYOUT,
+  mergeShoppingListPdfLayout,
+  type ShoppingListPdfLayoutOptions,
+} from '@/features/matHandleliste/printPdfLayout'
 import type { MealSlotId, PlanWeekLayout, ShoppingListItem } from '@/features/matHandleliste/types'
 import { exportShoppingListPdf } from '@/lib/exportShoppingListPdf'
 import { useStore } from '@/lib/store'
@@ -70,14 +76,18 @@ function planLayoutListClass(layout: PlanWeekLayout): string {
 export function MatHandlelistePlanPage() {
   const searchParams = useSearchParams()
   const activeProfileId = useStore((s) => s.activeProfileId)
-  const meals = useStore((s) => s.matHandleliste.meals)
-  const categoryOrder = useStore((s) => s.matHandleliste.categoryOrder)
-  const planByDate = useStore((s) => s.matHandleliste.planByDate)
-  const planVisibleSlots = useStore((s) => s.matHandleliste.settings.planVisibleSlots)
-  const planWeekLayout = useStore((s) => s.matHandleliste.settings.planWeekLayout)
+  const mat = useStore((s) => s.matHandleliste)
+  const meals = mat.meals
+  const categoryOrder = mat.categoryOrder
+  const planByDate = mat.planByDate
+  const planVisibleSlots = mat.settings.planVisibleSlots
+  const planWeekLayout = mat.settings.planWeekLayout
   const mhSetPlanSlot = useStore((s) => s.mhSetPlanSlot)
   const mhSetPlanVisibleSlots = useStore((s) => s.mhSetPlanVisibleSlots)
   const mhSetPlanWeekLayout = useStore((s) => s.mhSetPlanWeekLayout)
+  const mhAddShoppingListPdfTemplate = useStore((s) => s.mhAddShoppingListPdfTemplate)
+  const mhRemoveShoppingListPdfTemplate = useStore((s) => s.mhRemoveShoppingListPdfTemplate)
+  const mhSetShoppingListPdfLastTemplateId = useStore((s) => s.mhSetShoppingListPdfLastTemplateId)
 
   const [weekStart, setWeekStart] = useState(() => startOfWeekMonday(new Date()))
 
@@ -100,6 +110,10 @@ export function MatHandlelistePlanPage() {
   const mealCreateRef = useRef<MealCreateModalState>(null)
 
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false)
+  const [pdfLayoutOptions, setPdfLayoutOptions] = useState<ShoppingListPdfLayoutOptions>(() =>
+    mergeShoppingListPdfLayout({ showBrand: true }),
+  )
   const [pdfExportItems, setPdfExportItems] = useState<ShoppingListItem[] | null>(null)
   const [pdfPortalReady, setPdfPortalReady] = useState(false)
   const pdfRef = useRef<HTMLDivElement>(null)
@@ -148,7 +162,7 @@ export function MatHandlelistePlanPage() {
 
   const planSettingsTitle = `Planinnstillinger · ${planVisibleSlots.length} tidsrom, ${planWeekLayoutNb(planWeekLayout)}`
 
-  const exportPlanPdf = useCallback(async () => {
+  const openPlanPdfModal = useCallback(() => {
     const st = useStore.getState().matHandleliste
     const lines = collectIngredientLinesFromPlanRange(st, dayKeys, mealMap, {
       slots: st.settings.planVisibleSlots,
@@ -162,12 +176,27 @@ export function MatHandlelistePlanPage() {
       )
       return
     }
+    const lastId = st.settings.shoppingListPdfLastTemplateId
+    let layoutInit = mergeShoppingListPdfLayout({
+      ...DEFAULT_SHOPPING_LIST_PDF_LAYOUT,
+      showBrand: true,
+    })
+    if (lastId) {
+      const t = st.settings.shoppingListPdfTemplates.find((x) => x.id === lastId)
+      if (t) {
+        layoutInit = mergeShoppingListPdfLayout({ ...t.options, showBrand: t.options.showBrand })
+      }
+    }
+    flushSync(() => {
+      setPdfExportItems(toShow)
+      setPdfLayoutOptions(layoutInit)
+      setPdfExportModalOpen(true)
+    })
+  }, [activeProfileId, dayKeys, mealMap])
 
+  const runPlanPdfExport = useCallback(async () => {
     setPdfBusy(true)
     try {
-      flushSync(() => {
-        setPdfExportItems(toShow)
-      })
       await new Promise<void>((resolve) => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => resolve())
@@ -181,8 +210,10 @@ export function MatHandlelistePlanPage() {
       const { week, isoYear } = isoWeekAndYearFromMonday(weekStart)
       const fn = `maltidsplan-uke-${week}-${isoYear}.pdf`
       await exportShoppingListPdf(el, fn)
+      setPdfExportModalOpen(false)
+      setPdfExportItems(null)
     } catch (e) {
-      console.error('exportPlanPdf', e)
+      console.error('runPlanPdfExport', e)
       const detail = e instanceof Error ? e.message : String(e)
       window.alert(
         process.env.NODE_ENV === 'development'
@@ -191,9 +222,13 @@ export function MatHandlelistePlanPage() {
       )
     } finally {
       setPdfBusy(false)
-      setPdfExportItems(null)
     }
-  }, [activeProfileId, dayKeys, mealMap, weekStart])
+  }, [weekStart])
+
+  function closePlanPdfModal() {
+    setPdfExportModalOpen(false)
+    setPdfExportItems(null)
+  }
 
   function openAppendWeek() {
     const st = useStore.getState().matHandleliste
@@ -295,7 +330,7 @@ export function MatHandlelistePlanPage() {
                   <button
                     type="button"
                     disabled={pdfBusy}
-                    onClick={() => void exportPlanPdf()}
+                    onClick={openPlanPdfModal}
                     className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-semibold touch-manipulation disabled:opacity-50 sm:max-w-xs"
                     style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                   >
@@ -412,6 +447,33 @@ export function MatHandlelistePlanPage() {
         onCreated={onMealCreatedFromPlan}
       />
 
+      <MatHandlelisteExportPdfModal
+        open={pdfExportModalOpen}
+        onClose={closePlanPdfModal}
+        list={pdfExportItems ?? []}
+        categoryOrder={categoryOrder}
+        title="Måltidsplanlegger"
+        subtitle={weekLabel}
+        intro={PLAN_WEEK_PDF_INTRO}
+        variant="plan"
+        layout={pdfLayoutOptions}
+        onLayoutChange={setPdfLayoutOptions}
+        templates={mat.settings.shoppingListPdfTemplates}
+        lastTemplateId={mat.settings.shoppingListPdfLastTemplateId}
+        onSelectTemplate={(id) => {
+          const t = mat.settings.shoppingListPdfTemplates.find((x) => x.id === id)
+          if (t) {
+            setPdfLayoutOptions(mergeShoppingListPdfLayout(t.options))
+            mhSetShoppingListPdfLastTemplateId(id)
+          }
+        }}
+        onSetLastTemplateId={(id) => mhSetShoppingListPdfLastTemplateId(id)}
+        onSaveTemplate={(name) => mhAddShoppingListPdfTemplate(name, pdfLayoutOptions)}
+        onRemoveTemplate={(id) => mhRemoveShoppingListPdfTemplate(id)}
+        onDownload={runPlanPdfExport}
+        downloading={pdfBusy}
+      />
+
       {pdfPortalReady && pdfExportItems !== null
         ? createPortal(
             <ShoppingListPdfPortalShell>
@@ -422,8 +484,8 @@ export function MatHandlelistePlanPage() {
                 title="Måltidsplanlegger"
                 subtitle={weekLabel}
                 intro={PLAN_WEEK_PDF_INTRO}
-                showBrand
                 variant="plan"
+                layout={pdfLayoutOptions}
               />
             </ShoppingListPdfPortalShell>,
             document.body,

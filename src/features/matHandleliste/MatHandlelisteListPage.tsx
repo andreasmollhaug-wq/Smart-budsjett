@@ -6,16 +6,28 @@ import Header from '@/components/layout/Header'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
 import { MatHandlelisteAddListItemModal } from '@/components/matHandleliste/MatHandlelisteAddListItemModal'
 import { MatHandlelisteEditListItemModal } from '@/components/matHandleliste/MatHandlelisteEditListItemModal'
+import { MatHandlelisteSavedShoppingListsCard } from '@/components/matHandleliste/MatHandlelisteSavedShoppingListsCard'
 import { MatHandlelisteListKpi } from '@/components/matHandleliste/MatHandlelisteListKpi'
+import { MatHandlelisteButikkmodusPanel } from '@/components/matHandleliste/MatHandlelisteButikkmodusPanel'
+import { MatHandlelisteExportPdfModal } from '@/components/matHandleliste/MatHandlelisteExportPdfModal'
 import { MatHandlelisteShoppingListPrint } from '@/components/matHandleliste/MatHandlelisteShoppingListPrint'
 import { ShoppingListPdfPortalShell } from '@/components/matHandleliste/ShoppingListPdfPortalShell'
+import {
+  catalogPriceBasisSuffix,
+  estimatedShoppingListLineTotalNok,
+} from '@/features/matHandleliste/estimateShoppingListPrice'
 import { categoryLabel } from '@/features/matHandleliste/categoryMap'
+import {
+  DEFAULT_SHOPPING_LIST_PDF_LAYOUT,
+  mergeShoppingListPdfLayout,
+  type ShoppingListPdfLayoutOptions,
+} from '@/features/matHandleliste/printPdfLayout'
 import { MatHandlelistePageShell } from '@/features/matHandleliste/MatHandlelistePageShell'
 import type { IngredientUnit, ShoppingListItem } from '@/features/matHandleliste/types'
 import { exportShoppingListPdf } from '@/lib/exportShoppingListPdf'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { useStore } from '@/lib/store'
-import { Check, ChevronDown, ChevronUp, FileDown, Pencil, Trash2 } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp, FileDown, Pencil, ShoppingBag, Trash2 } from 'lucide-react'
 
 const UNIT_SHORT: Record<IngredientUnit, string> = {
   stk: 'stk',
@@ -44,8 +56,7 @@ function sourceSummary(sources: ShoppingListItem['sources']): string | null {
 }
 
 function linePriceSubtotal(it: ShoppingListItem): number | null {
-  if (it.unitPriceNok == null) return null
-  return (it.quantity ?? 1) * it.unitPriceNok
+  return estimatedShoppingListLineTotalNok(it)
 }
 
 function CollapsibleCategorySection({
@@ -104,6 +115,9 @@ export function MatHandlelisteListPage() {
   const mhRemoveListItem = useStore((s) => s.mhRemoveListItem)
   const mhClearCheckedListItems = useStore((s) => s.mhClearCheckedListItems)
   const mhReorderShoppingCategories = useStore((s) => s.mhReorderShoppingCategories)
+  const mhAddShoppingListPdfTemplate = useStore((s) => s.mhAddShoppingListPdfTemplate)
+  const mhRemoveShoppingListPdfTemplate = useStore((s) => s.mhRemoveShoppingListPdfTemplate)
+  const mhSetShoppingListPdfLastTemplateId = useStore((s) => s.mhSetShoppingListPdfLastTemplateId)
   const { formatNOK } = useNokDisplayFormatters()
 
   const [activityOpen, setActivityOpen] = useState(false)
@@ -111,6 +125,11 @@ export function MatHandlelisteListPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [editItem, setEditItem] = useState<ShoppingListItem | null>(null)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [pdfExportModalOpen, setPdfExportModalOpen] = useState(false)
+  const [pdfLayoutOptions, setPdfLayoutOptions] = useState<ShoppingListPdfLayoutOptions>(() =>
+    mergeShoppingListPdfLayout({}),
+  )
+  const [butikkmodusOpen, setButikkmodusOpen] = useState(false)
   const [pdfPortalReady, setPdfPortalReady] = useState(false)
   const pdfRef = useRef<HTMLDivElement>(null)
 
@@ -149,7 +168,7 @@ export function MatHandlelisteListPage() {
     mhReorderShoppingCategories(o)
   }
 
-  const exportPdf = useCallback(async () => {
+  const runPdfDownload = useCallback(async () => {
     await new Promise<void>((resolve) => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => resolve())
@@ -184,6 +203,27 @@ export function MatHandlelisteListPage() {
     }
   }, [uncheckedExportCount])
 
+  const openPdfExportModal = useCallback(() => {
+    if (uncheckedExportCount === 0) {
+      window.alert(
+        'Ingen varer å eksportere. Enten er listen tom, eller alle varer er krysset av. Fjern noen avkrysninger eller legg til varer.',
+      )
+      return
+    }
+    const lastId = mat.settings.shoppingListPdfLastTemplateId
+    if (lastId) {
+      const t = mat.settings.shoppingListPdfTemplates.find((x) => x.id === lastId)
+      if (t) {
+        setPdfLayoutOptions(mergeShoppingListPdfLayout(t.options))
+      } else {
+        setPdfLayoutOptions(mergeShoppingListPdfLayout({ ...DEFAULT_SHOPPING_LIST_PDF_LAYOUT }))
+      }
+    } else {
+      setPdfLayoutOptions(mergeShoppingListPdfLayout({ ...DEFAULT_SHOPPING_LIST_PDF_LAYOUT }))
+    }
+    setPdfExportModalOpen(true)
+  }, [uncheckedExportCount, mat.settings.shoppingListPdfLastTemplateId, mat.settings.shoppingListPdfTemplates])
+
   return (
     <>
       <Header title="Handleliste" subtitle="Mat og handleliste" />
@@ -192,6 +232,8 @@ export function MatHandlelisteListPage() {
           <MatHandlelisteBudgetCard showHandlelisteEstimates />
 
           <MatHandlelisteListKpi list={mat.list} />
+
+          <MatHandlelisteSavedShoppingListsCard />
 
           {mat.activity.length > 0 && (
             <div className="rounded-xl border" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
@@ -251,10 +293,19 @@ export function MatHandlelisteListPage() {
               }
               className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-3 text-sm font-medium touch-manipulation disabled:opacity-50"
               style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-              onClick={() => void exportPdf()}
+              onClick={openPdfExportModal}
             >
               <FileDown size={18} aria-hidden />
               {pdfBusy ? 'Eksporterer…' : 'Eksporter PDF'}
+            </button>
+            <button
+              type="button"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-3 text-sm font-medium touch-manipulation md:hidden"
+              style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
+              onClick={() => setButikkmodusOpen(true)}
+            >
+              <ShoppingBag size={18} aria-hidden />
+              Butikkmodus
             </button>
             <button
               type="button"
@@ -351,8 +402,8 @@ export function MatHandlelisteListPage() {
                                 </div>
                                 {it.unitPriceNok != null ? (
                                   <p className="mt-0.5 text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
-                                    {formatNOK(it.unitPriceNok)} per enhet
-                                    {sub != null ? ` · ca. ${formatNOK(sub)}` : null}
+                                    Ca. {formatNOK(it.unitPriceNok)} {catalogPriceBasisSuffix(it.unit)}
+                                    {sub != null ? ` · linje ca. ${formatNOK(sub)}` : null}
                                   </p>
                                 ) : (
                                   <p className="mt-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -414,12 +465,50 @@ export function MatHandlelisteListPage() {
           categoryOrder={mat.categoryOrder}
         />
 
+        <MatHandlelisteExportPdfModal
+          open={pdfExportModalOpen}
+          onClose={() => setPdfExportModalOpen(false)}
+          list={mat.list}
+          categoryOrder={mat.categoryOrder}
+          title="Handleliste"
+          variant="handleliste"
+          layout={pdfLayoutOptions}
+          onLayoutChange={setPdfLayoutOptions}
+          templates={mat.settings.shoppingListPdfTemplates}
+          lastTemplateId={mat.settings.shoppingListPdfLastTemplateId}
+          onSelectTemplate={(id) => {
+            const t = mat.settings.shoppingListPdfTemplates.find((x) => x.id === id)
+            if (t) {
+              setPdfLayoutOptions(mergeShoppingListPdfLayout(t.options))
+              mhSetShoppingListPdfLastTemplateId(id)
+            }
+          }}
+          onSetLastTemplateId={(id) => mhSetShoppingListPdfLastTemplateId(id)}
+          onSaveTemplate={(name) => mhAddShoppingListPdfTemplate(name, pdfLayoutOptions)}
+          onRemoveTemplate={(id) => mhRemoveShoppingListPdfTemplate(id)}
+          onDownload={runPdfDownload}
+          downloading={pdfBusy}
+        />
+
+        <MatHandlelisteButikkmodusPanel
+          open={butikkmodusOpen}
+          onClose={() => setButikkmodusOpen(false)}
+          list={mat.list}
+          categoryOrder={mat.categoryOrder}
+          toggleItem={mhToggleListItem}
+        />
+
       </MatHandlelistePageShell>
 
       {pdfPortalReady
         ? createPortal(
             <ShoppingListPdfPortalShell>
-              <MatHandlelisteShoppingListPrint ref={pdfRef} list={mat.list} categoryOrder={mat.categoryOrder} />
+              <MatHandlelisteShoppingListPrint
+                ref={pdfRef}
+                list={mat.list}
+                categoryOrder={mat.categoryOrder}
+                layout={pdfLayoutOptions}
+              />
             </ShoppingListPdfPortalShell>,
             document.body,
           )
