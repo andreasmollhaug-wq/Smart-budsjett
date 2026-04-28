@@ -243,7 +243,7 @@ export default function RapportBankPage() {
           className="px-4 sm:px-8 py-4 border-b min-w-0"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
-          <div className="flex flex-col gap-4 min-w-0">
+          <div className="flex flex-col gap-3 min-w-0">
             <Link
               href="/rapporter"
               className="inline-flex items-center gap-1 text-sm font-medium min-h-[44px] w-fit touch-manipulation py-1"
@@ -252,67 +252,48 @@ export default function RapportBankPage() {
               <ChevronLeft size={16} />
               Rapporter
             </Link>
-            <div className="flex flex-col gap-3 w-full min-w-0 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
-              <div className="flex flex-col gap-3 w-full min-w-0 sm:flex-row sm:flex-wrap sm:items-end">
-                <label className="flex flex-col gap-1 text-sm min-w-0 flex-1 sm:flex-initial sm:min-w-[7.5rem]" style={{ color: 'var(--text-muted)' }}>
-                  <span>År</span>
-                  <select
-                    value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                    className="w-full min-h-[44px] px-3 rounded-xl text-sm touch-manipulation"
-                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                  >
-                    {yearOptions.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1 text-sm min-w-0 flex-1 sm:flex-initial sm:min-w-[9rem]" style={{ color: 'var(--text-muted)' }}>
-                  <span>Måned</span>
-                  <select
-                    value={monthIndex}
-                    onChange={(e) => setMonthIndex(Number(e.target.value))}
-                    className="w-full min-h-[44px] px-3 rounded-xl text-sm touch-manipulation"
-                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                  >
-                    {MONTH_OPTIONS.map((label, i) => (
-                      <option key={label} value={i}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {isHouseholdAggregate ? (
-                  <label className="flex flex-col gap-1 text-sm min-w-0 w-full sm:flex-1 sm:min-w-[12rem]" style={{ color: 'var(--text-muted)' }}>
-                    <span>Rapport gjelder</span>
-                    <select
-                      value={reportSubject}
-                      onChange={(e) =>
-                        setReportSubject(
-                          e.target.value === 'household' ? 'household' : e.target.value,
-                        )
-                      }
-                      className="w-full min-h-[44px] px-3 rounded-xl text-sm min-w-0 touch-manipulation"
-                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                      title="Velg om tallene skal være for hele husholdningen eller én person"
-                    >
-                      <option value="household">Husholdning (samlet)</option>
-                      {profiles.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-2 w-full min-w-0 sm:flex-row sm:w-auto sm:justify-end">
+            <div className="flex flex-wrap items-end gap-x-3 gap-y-3 w-full min-w-0">
+              <label
+                className="flex min-w-0 flex-col gap-1 text-sm sm:min-w-[7.5rem]"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <span>År</span>
+                <select
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  className="w-full min-h-[44px] min-w-[7.5rem] rounded-xl px-3 text-sm touch-manipulation"
+                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label
+                className="flex min-w-0 flex-col gap-1 text-sm sm:min-w-[9rem]"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <span>Måned</span>
+                <select
+                  value={monthIndex}
+                  onChange={(e) => setMonthIndex(Number(e.target.value))}
+                  className="w-full min-h-[44px] min-w-[9rem] rounded-xl px-3 text-sm touch-manipulation"
+                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                >
+                  {MONTH_OPTIONS.map((label, i) => (
+                    <option key={label} value={i}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={handlePrint}
-                  className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium touch-manipulation w-full sm:w-auto"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium touch-manipulation"
                   style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
                 >
                   <Printer size={16} />
@@ -322,13 +303,39 @@ export default function RapportBankPage() {
                   type="button"
                   onClick={handlePdf}
                   disabled={pdfLoading}
-                  className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium text-white disabled:opacity-60 touch-manipulation w-full sm:w-auto"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium text-white touch-manipulation disabled:opacity-60"
                   style={{ background: 'var(--primary)' }}
                 >
                   <FileDown size={16} />
                   {pdfLoading ? 'Genererer PDF…' : 'Eksporter til PDF'}
                 </button>
               </div>
+              {isHouseholdAggregate ? (
+                <label
+                  className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[12rem]"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <span>Rapport gjelder</span>
+                  <select
+                    value={reportSubject}
+                    onChange={(e) =>
+                      setReportSubject(
+                        e.target.value === 'household' ? 'household' : e.target.value,
+                      )
+                    }
+                    className="w-full min-h-[44px] min-w-0 rounded-xl px-3 text-sm touch-manipulation"
+                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                    title="Velg om tallene skal være for hele husholdningen eller én person"
+                  >
+                    <option value="household">Husholdning (samlet)</option>
+                    {profiles.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
             </div>
           </div>
         </div>

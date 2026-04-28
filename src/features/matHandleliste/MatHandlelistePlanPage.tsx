@@ -2,6 +2,8 @@
 
 import Header from '@/components/layout/Header'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
+import { MatHandlelisteShoppingListPrint } from '@/components/matHandleliste/MatHandlelisteShoppingListPrint'
+import { ShoppingListPdfPortalShell } from '@/components/matHandleliste/ShoppingListPdfPortalShell'
 import { MatHandlelisteCollapsiblePanel } from '@/components/matHandleliste/MatHandlelisteCollapsiblePanel'
 import { MatHandlelistePlanSlotFields } from '@/components/matHandleliste/MatHandlelistePlanSlotFields'
 import { MatHandlelistePlanToolbar } from '@/components/matHandleliste/MatHandlelistePlanToolbar'
@@ -9,9 +11,9 @@ import { MatHandlelistePlanWeekGrid } from '@/components/matHandleliste/MatHandl
 import { MatHandlelistePlanWeekKpi } from '@/components/matHandleliste/MatHandlelistePlanWeekKpi'
 import { MatHandlelisteMealEditorModal } from '@/components/matHandleliste/MatHandlelisteMealEditorModal'
 import { MatHandlelisteAppendRangeDialog } from '@/features/matHandleliste/MatHandlelisteAppendDialog'
+import { appendIngredientsToShoppingList } from '@/features/matHandleliste/mergeIngredients'
 import {
   addDays,
-  buildWeekPlanExportRows,
   collectIngredientLinesFromPlanRange,
   dateKeyFromDate,
   formatDateKeyNb,
@@ -20,16 +22,20 @@ import {
   startOfWeekMonday,
   summarizeLinesForDialog,
   summarizeWeekPlan,
-  weekPlanToCsvString,
 } from '@/features/matHandleliste/planHelpers'
 import { MatHandlelistePageShell } from '@/features/matHandleliste/MatHandlelistePageShell'
 import { MEAL_SLOT_LABELS } from '@/features/matHandleliste/slotLabels'
+import type { MealSlotId, PlanWeekLayout, ShoppingListItem } from '@/features/matHandleliste/types'
+import { exportShoppingListPdf } from '@/lib/exportShoppingListPdf'
 import { useStore } from '@/lib/store'
-import type { MealSlotId, PlanWeekLayout } from '@/features/matHandleliste/types'
-import { CalendarDays, ChevronLeft, ChevronRight, Download, Plus } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, FileDown, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal, flushSync } from 'react-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+
+const PLAN_WEEK_PDF_INTRO =
+  'Listen samler ingredienser fra måltidsplanen for den valgte uken, gruppert etter butikkrekkefølge. Der samme vare brukes flere ganger, er mengdene summert.'
 
 type MealCreateModalState = {
   presetTags: MealSlotId[]
@@ -63,7 +69,9 @@ function planLayoutListClass(layout: PlanWeekLayout): string {
 
 export function MatHandlelistePlanPage() {
   const searchParams = useSearchParams()
+  const activeProfileId = useStore((s) => s.activeProfileId)
   const meals = useStore((s) => s.matHandleliste.meals)
+  const categoryOrder = useStore((s) => s.matHandleliste.categoryOrder)
   const planByDate = useStore((s) => s.matHandleliste.planByDate)
   const planVisibleSlots = useStore((s) => s.matHandleliste.settings.planVisibleSlots)
   const planWeekLayout = useStore((s) => s.matHandleliste.settings.planWeekLayout)
@@ -90,6 +98,15 @@ export function MatHandlelistePlanPage() {
   const [rangeTo, setRangeTo] = useState('')
   const [mealCreateOpen, setMealCreateOpen] = useState<MealCreateModalState>(null)
   const mealCreateRef = useRef<MealCreateModalState>(null)
+
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const [pdfExportItems, setPdfExportItems] = useState<ShoppingListItem[] | null>(null)
+  const [pdfPortalReady, setPdfPortalReady] = useState(false)
+  const pdfRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setPdfPortalReady(true)
+  }, [])
 
   useEffect(() => {
     mealCreateRef.current = mealCreateOpen
@@ -131,20 +148,52 @@ export function MatHandlelistePlanPage() {
 
   const planSettingsTitle = `Planinnstillinger · ${planVisibleSlots.length} tidsrom, ${planWeekLayoutNb(planWeekLayout)}`
 
-  function exportWeekPlanCsv() {
-    const rows = buildWeekPlanExportRows(dayKeys, planByDate, planVisibleSlots, mealMap)
-    const csv = weekPlanToCsvString(rows)
-    const { week, isoYear } = isoWeekAndYearFromMonday(weekStart)
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `maltidsplan-uke-${week}-${isoYear}.csv`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
-  }
+  const exportPlanPdf = useCallback(async () => {
+    const st = useStore.getState().matHandleliste
+    const lines = collectIngredientLinesFromPlanRange(st, dayKeys, mealMap, {
+      slots: st.settings.planVisibleSlots,
+    })
+    const now = new Date().toISOString()
+    const merged = appendIngredientsToShoppingList([], lines, activeProfileId, now)
+    const toShow = merged.filter((it) => !it.checked)
+    if (toShow.length === 0) {
+      window.alert(
+        'Ingen ingredienser å eksportere for denne uken. Legg inn måltider i planen, eller sjekk at valgte tidsrom under Planinnstillinger matcher det du har planlagt.',
+      )
+      return
+    }
+
+    setPdfBusy(true)
+    try {
+      flushSync(() => {
+        setPdfExportItems(toShow)
+      })
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve())
+        })
+      })
+      const el = pdfRef.current
+      if (!el) {
+        window.alert('Kunne ikke forberede PDF. Prøv å laste siden på nytt.')
+        return
+      }
+      const { week, isoYear } = isoWeekAndYearFromMonday(weekStart)
+      const fn = `maltidsplan-uke-${week}-${isoYear}.pdf`
+      await exportShoppingListPdf(el, fn)
+    } catch (e) {
+      console.error('exportPlanPdf', e)
+      const detail = e instanceof Error ? e.message : String(e)
+      window.alert(
+        process.env.NODE_ENV === 'development'
+          ? `PDF-eksport feilet (dev): ${detail}\n\nSjekk også at nedlasting ikke er blokkert.`
+          : 'PDF-eksport feilet. Sjekk at nedlasting ikke er blokkert (popup/nettleser), og prøv igjen.',
+      )
+    } finally {
+      setPdfBusy(false)
+      setPdfExportItems(null)
+    }
+  }, [activeProfileId, dayKeys, mealMap, weekStart])
 
   function openAppendWeek() {
     const st = useStore.getState().matHandleliste
@@ -245,12 +294,13 @@ export function MatHandlelistePlanPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={exportWeekPlanCsv}
-                    className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-semibold touch-manipulation sm:max-w-xs"
+                    disabled={pdfBusy}
+                    onClick={() => void exportPlanPdf()}
+                    className="inline-flex min-h-[48px] flex-1 items-center justify-center gap-2 rounded-xl border text-sm font-semibold touch-manipulation disabled:opacity-50 sm:max-w-xs"
                     style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
                   >
-                    <Download size={18} aria-hidden />
-                    Eksporter plan
+                    <FileDown size={18} aria-hidden />
+                    {pdfBusy ? 'Eksporterer…' : 'Eksporter PDF'}
                   </button>
                 </div>
               </div>
@@ -361,6 +411,24 @@ export function MatHandlelistePlanPage() {
         initialTagsWhenCreating={mealCreateOpen?.presetTags}
         onCreated={onMealCreatedFromPlan}
       />
+
+      {pdfPortalReady && pdfExportItems !== null
+        ? createPortal(
+            <ShoppingListPdfPortalShell>
+              <MatHandlelisteShoppingListPrint
+                ref={pdfRef}
+                list={pdfExportItems}
+                categoryOrder={categoryOrder}
+                title="Måltidsplanlegger"
+                subtitle={weekLabel}
+                intro={PLAN_WEEK_PDF_INTRO}
+                showBrand
+                variant="plan"
+              />
+            </ShoppingListPdfPortalShell>,
+            document.body,
+          )
+        : null}
     </>
   )
 }

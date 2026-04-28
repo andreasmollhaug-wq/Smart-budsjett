@@ -82,20 +82,22 @@ export function MatHandlelistePlanWeekGrid({
                   return (
                     <td
                       key={`${dk}-${slot}`}
-                      className="min-w-0 border-b p-1.5 align-top"
+                      className="h-full min-h-0 min-w-0 border-b p-2 align-top"
                       style={{ borderColor: 'var(--border)', background: rowBg }}
                     >
-                      <MatHandlelistePlanSlotFields
-                        dateKey={dk}
-                        slot={slot}
-                        cur={cur}
-                        meals={meals}
-                        mealMap={mealMap}
-                        mhSetPlanSlot={mhSetPlanSlot}
-                        fieldIdPrefix={`grid-${dk}-${slot}`}
-                        density="compact"
-                        onRequestCreateMeal={onRequestCreateMeal}
-                      />
+                      <div className="flex h-full min-h-0 flex-col">
+                        <MatHandlelistePlanSlotFields
+                          dateKey={dk}
+                          slot={slot}
+                          cur={cur}
+                          meals={meals}
+                          mealMap={mealMap}
+                          mhSetPlanSlot={mhSetPlanSlot}
+                          fieldIdPrefix={`grid-${dk}-${slot}`}
+                          density="compact"
+                          onRequestCreateMeal={onRequestCreateMeal}
+                        />
+                      </div>
                     </td>
                   )
                 })}

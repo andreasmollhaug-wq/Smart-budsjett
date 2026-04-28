@@ -34,26 +34,24 @@ export function MatHandlelistePlanSlotFields({
   const isCompact = density === 'compact'
   const labelClass = isCompact
     ? 'text-xs font-medium leading-tight'
-    : 'mt-2 block text-xs font-medium'
-  const firstLabelClass = isCompact ? 'text-xs font-medium leading-tight' : 'mt-2 block text-xs font-medium'
+    : 'block text-xs font-medium'
+  const firstLabelClass = isCompact ? 'text-xs font-medium leading-tight' : 'block text-xs font-medium'
 
   const selectClass = isCompact
     ? 'min-h-[44px] w-full min-w-0 rounded-xl border px-2 text-xs'
-    : 'mt-1 min-h-[44px] w-full rounded-xl border px-3 text-sm'
+    : 'min-h-[44px] w-full rounded-xl border px-3 text-sm'
 
   const servingsClass = isCompact
     ? 'min-h-[44px] w-full rounded-xl border px-2 text-xs tabular-nums'
-    : 'mt-1 min-h-[44px] w-full max-w-[8rem] rounded-xl border px-3 text-sm tabular-nums'
+    : 'min-h-[44px] w-full max-w-[8rem] rounded-xl border px-3 text-sm tabular-nums'
 
   const fieldBg = isCompact ? 'var(--bg)' : 'var(--surface)'
 
-  return (
-    <div className={isCompact ? 'flex flex-col gap-1' : 'flex flex-col'}>
-      <label
-        className={firstLabelClass}
-        style={{ color: 'var(--text-muted)' }}
-        htmlFor={selectId}
-      >
+  const innerGap = isCompact ? 'gap-1.5' : 'gap-2'
+
+  const fieldsBlock = (
+    <div className={`flex min-h-0 flex-1 flex-col ${innerGap}`}>
+      <label className={firstLabelClass} style={{ color: 'var(--text-muted)' }} htmlFor={selectId}>
         Måltid
       </label>
       <select
@@ -83,11 +81,7 @@ export function MatHandlelistePlanSlotFields({
       </select>
       {cur?.mealId ? (
         <>
-          <label
-            className={labelClass}
-            style={{ color: 'var(--text-muted)' }}
-            htmlFor={servingsId}
-          >
+          <label className={labelClass} style={{ color: 'var(--text-muted)' }} htmlFor={servingsId}>
             Antall porsjoner
           </label>
           <input
@@ -110,13 +104,21 @@ export function MatHandlelistePlanSlotFields({
           />
         </>
       ) : null}
+    </div>
+  )
+
+  return (
+    <div
+      className={`flex min-h-0 flex-col ${isCompact ? 'h-full min-h-[10.5rem] gap-1.5' : 'h-full gap-2'}`}
+    >
+      {fieldsBlock}
       {onRequestCreateMeal ? (
         <button
           type="button"
           className={
             isCompact
-              ? 'mt-1 w-full min-h-[40px] rounded-lg border px-2 text-center text-[11px] font-medium leading-tight touch-manipulation'
-              : 'mt-2 w-full min-h-[44px] rounded-xl border px-3 text-center text-xs font-medium touch-manipulation'
+              ? 'mt-auto w-full shrink-0 min-h-[40px] rounded-lg border px-2 text-center text-[11px] font-medium leading-tight touch-manipulation'
+              : 'mt-auto w-full shrink-0 min-h-[44px] rounded-xl border px-3 text-center text-xs font-medium touch-manipulation'
           }
           style={{ borderColor: 'var(--border)', color: 'var(--primary)', background: 'var(--bg)' }}
           onClick={() => onRequestCreateMeal({ dateKey, slot })}

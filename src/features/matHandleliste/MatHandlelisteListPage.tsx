@@ -8,6 +8,7 @@ import { MatHandlelisteAddListItemModal } from '@/components/matHandleliste/MatH
 import { MatHandlelisteEditListItemModal } from '@/components/matHandleliste/MatHandlelisteEditListItemModal'
 import { MatHandlelisteListKpi } from '@/components/matHandleliste/MatHandlelisteListKpi'
 import { MatHandlelisteShoppingListPrint } from '@/components/matHandleliste/MatHandlelisteShoppingListPrint'
+import { ShoppingListPdfPortalShell } from '@/components/matHandleliste/ShoppingListPdfPortalShell'
 import { categoryLabel } from '@/features/matHandleliste/categoryMap'
 import { MatHandlelistePageShell } from '@/features/matHandleliste/MatHandlelistePageShell'
 import type { IngredientUnit, ShoppingListItem } from '@/features/matHandleliste/types'
@@ -417,13 +418,9 @@ export function MatHandlelisteListPage() {
 
       {pdfPortalReady
         ? createPortal(
-            <div
-              className="pointer-events-none fixed top-0 w-[210mm]"
-              style={{ left: '-12000px' }}
-              aria-hidden
-            >
+            <ShoppingListPdfPortalShell>
               <MatHandlelisteShoppingListPrint ref={pdfRef} list={mat.list} categoryOrder={mat.categoryOrder} />
-            </div>,
+            </ShoppingListPdfPortalShell>,
             document.body,
           )
         : null}
