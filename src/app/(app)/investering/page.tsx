@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Header from '@/components/layout/Header'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
-import { useActivePersonFinance, Investment } from '@/lib/store'
+import { useActivePersonFinance, useStore, Investment } from '@/lib/store'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 import { generateId } from '@/lib/utils'
 import { fetchRateToNok, valueInNok } from '@/lib/fxToNok'
 import {
@@ -74,6 +75,9 @@ function isoDateLocal(date = new Date()) {
 
 export default function InvesteringPage() {
   const { formatNOK } = useNokDisplayFormatters()
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const chart = useMemo(() => chartColorsForUiPalette(uiColorPalette), [uiColorPalette])
+  const typeColorsLive = useMemo(() => ({ ...typeColors, stocks: chart.primary }), [chart.primary])
   const { investments, addInvestment, removeInvestment, updateInvestment, addInvestmentHistoryValue, removeInvestmentHistoryValue } = useActivePersonFinance()
   const investmentsRef = useRef(investments)
   investmentsRef.current = investments
@@ -349,7 +353,7 @@ export default function InvesteringPage() {
       acc[inv.type] = (acc[inv.type] || 0) + inv.currentValue
       return acc
     }, {} as Record<string, number>)
-  ).map(([type, value]) => ({ name: typeLabels[type as Investment['type']], value, color: typeColors[type as Investment['type']] }))
+  ).map(([type, value]) => ({ name: typeLabels[type as Investment['type']], value, color: typeColorsLive[type as Investment['type']] }))
 
   const portfolioTimeline = useMemo(() => {
     const dateSet = new Set<string>()
@@ -997,7 +1001,7 @@ export default function InvesteringPage() {
                     tick={{ fill: '#6B7A99', fontSize: 12 }}
                   />
                   <Tooltip formatter={(v) => formatNOK(v == null ? 0 : Number(v))} />
-                  <Line type="monotone" dataKey="total" stroke="#3B5BDB" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="total" stroke={chart.primary} strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -1017,7 +1021,7 @@ export default function InvesteringPage() {
                   Boolean(inv.quoteSymbol?.trim()) && inv.shares != null && inv.shares > 0
                 const ret = inv.currentValue - inv.purchaseValue
                 const retPct = inv.purchaseValue > 0 ? (ret / inv.purchaseValue) * 100 : 0
-                const color = typeColors[inv.type]
+                const color = typeColorsLive[inv.type]
                 const historySorted = (inv.history ?? []).slice().sort((a, b) => dateToTime(a.date) - dateToTime(b.date))
                 const last3 = historySorted.slice(-3)
                 const last3Values = last3.map((p) => p.value)
@@ -1631,7 +1635,7 @@ export default function InvesteringPage() {
                             tick={{ fill: '#6B7A99', fontSize: 12 }}
                           />
                           <Tooltip formatter={(v) => formatNOK(v == null ? 0 : Number(v))} />
-                          <Line type="monotone" dataKey="value" stroke="#3B5BDB" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="value" stroke={chart.primary} strokeWidth={2} dot={false} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>

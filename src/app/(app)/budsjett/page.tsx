@@ -55,8 +55,8 @@ import {
 } from '@/components/budget/HouseholdBudgetSplitSection'
 import { amountReferencesSumMatchesLine, impliedNewMonthTotal } from '@/lib/householdBudgetSplit'
 import { applyOnceMonthIndexChange } from '@/lib/budget/applyOnceMonthIndexChange'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 
-const COLORS = ['#3B5BDB', '#4C6EF5', '#7048E8', '#AE3EC9', '#E03131', '#F08C00', '#0CA678', '#0B7285']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 const MONTHS_FULL = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember']
 
@@ -167,6 +167,12 @@ export default function BudsjettPage() {
 
   const { formatNOK, formatNOKOrDash } = useNokDisplayFormatters()
   const people = useStore((s) => s.people)
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const chartPalette = useMemo(() => chartColorsForUiPalette(uiColorPalette), [uiColorPalette])
+  const categoryColors = useMemo(() => {
+    const { primary, primaryLight } = chartPalette
+    return [primary, primaryLight, '#7048E8', '#AE3EC9', '#E03131', '#F08C00', '#0CA678', '#0B7285']
+  }, [chartPalette])
   /** Husholdning: hvilken budsjettlinje (aggregat-id) som viser bidrag per person. */
   const [householdLineBreakdownOpen, setHouseholdLineBreakdownOpen] = useState<string | null>(null)
   const [incomeWhBreakdownOpenId, setIncomeWhBreakdownOpenId] = useState<string | null>(null)
@@ -470,7 +476,7 @@ export default function BudsjettPage() {
         frequency: newForm.freq,
         onceMonthIndex: newForm.freq === 'once' ? newForm.onceMonthIndex : undefined,
         amount: raw,
-        color: COLORS[displayCategories.length % COLORS.length],
+        color: categoryColors[displayCategories.length % categoryColors.length],
         participantProfileIds: pids,
         mode: mode === 'percent' ? 'percent' : mode === 'amount' ? 'amount' : 'equal',
         percentWeights,
@@ -504,7 +510,7 @@ export default function BudsjettPage() {
       budgeted,
       spent: 0,
       type: GROUPS.find((g) => g.id === group)?.type || 'expense',
-      color: COLORS[displayCategories.length % COLORS.length],
+      color: categoryColors[displayCategories.length % categoryColors.length],
       parentCategory: group,
       frequency: newForm.freq as BudgetCategory['frequency'],
       ...(newForm.freq === 'once' ? { onceMonthIndex: newForm.onceMonthIndex } : {}),
@@ -861,7 +867,7 @@ export default function BudsjettPage() {
             sub={kpiSub}
             icon={Wallet}
             trend="up"
-            color="#3B5BDB"
+            color={chartPalette.primary}
           />
           <StatCard
             label="Budsjetterte kostnader"

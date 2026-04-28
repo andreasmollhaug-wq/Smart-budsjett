@@ -11,6 +11,7 @@ import {
 } from '@/lib/store'
 import { createClient } from '@/lib/supabase/client'
 import { RoadmapVisibleTimeInvite } from '@/components/app/RoadmapVisibleTimeInvite'
+import { applyUiPaletteToDocument } from '@/lib/uiColorPalette'
 
 const DEBOUNCE_MS = 1500
 
@@ -54,6 +55,16 @@ export function AppStateProvider({
 
     syncReady.current = true
   }, [initialState, wasCreated])
+
+  useEffect(() => {
+    applyUiPaletteToDocument(useStore.getState().uiColorPalette)
+    const unsub = useStore.subscribe((state) => {
+      applyUiPaletteToDocument(state.uiColorPalette)
+    })
+    return () => {
+      unsub()
+    }
+  }, [])
 
   useEffect(() => {
     lastSavedSliceJson.current = null

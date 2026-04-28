@@ -5,8 +5,8 @@ import { MEAL_SLOT_LABELS } from '@/features/matHandleliste/slotLabels'
 import type { WeekPlanSummary } from '@/features/matHandleliste/planHelpers'
 import { MEAL_SLOT_ORDER, type MealSlotId } from '@/features/matHandleliste/types'
 import { CalendarDays, LayoutGrid, UtensilsCrossed } from 'lucide-react'
-
-const KPI_PRIMARY = '#3B5BDB'
+import { useStore } from '@/lib/store'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 const KPI_POSITIVE = '#0CA678'
 const KPI_NEUTRAL = '#868E96'
 
@@ -26,6 +26,8 @@ export function MatHandlelistePlanWeekKpi({
   weekLabel: string
   weekDayCount: number
 }) {
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const kpiPrimary = chartColorsForUiPalette(uiColorPalette).primary
   const pct = stats.totalSlots > 0 ? Math.round((stats.filledSlots / stats.totalSlots) * 100) : 0
   const breakdown = slotBreakdown(stats.bySlot)
   const daysFull = stats.daysWithPlan === weekDayCount && weekDayCount > 0
@@ -42,7 +44,7 @@ export function MatHandlelistePlanWeekKpi({
           value={String(stats.plannedMealCount)}
           sub={weekLabel}
           icon={UtensilsCrossed}
-          color={KPI_PRIMARY}
+          color={kpiPrimary}
           info={kpiInfoBase}
         />
         <StatCard

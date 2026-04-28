@@ -12,11 +12,15 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { useStore } from '@/lib/store'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 
 export type DashboardIncomeExpensePoint = { month: string; inntekt: number; utgift: number; netto: number }
 
 export default function DashboardIncomeExpenseChart({ data }: { data: DashboardIncomeExpensePoint[] }) {
   const { formatNOK } = useNokDisplayFormatters()
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const { primary: incomeStroke } = chartColorsForUiPalette(uiColorPalette)
   if (data.length === 0) {
     return (
       <p className="text-sm py-8 text-center" style={{ color: 'var(--text-muted)' }}>
@@ -36,8 +40,8 @@ export default function DashboardIncomeExpenseChart({ data }: { data: DashboardI
       <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <defs>
           <linearGradient id="income" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3B5BDB" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#3B5BDB" stopOpacity={0} />
+            <stop offset="5%" stopColor={incomeStroke} stopOpacity={0.15} />
+            <stop offset="95%" stopColor={incomeStroke} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="expense" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="#E03131" stopOpacity={0.1} />
@@ -56,7 +60,7 @@ export default function DashboardIncomeExpenseChart({ data }: { data: DashboardI
           labelFormatter={(label) => `Måned: ${label}`}
         />
         <ReferenceLine y={0} stroke="#ADB5BD" strokeDasharray="4 4" />
-        <Area type="monotone" dataKey="inntekt" stroke="#3B5BDB" strokeWidth={2} fill="url(#income)" name="Inntekt" />
+        <Area type="monotone" dataKey="inntekt" stroke={incomeStroke} strokeWidth={2} fill="url(#income)" name="Inntekt" />
         <Area type="monotone" dataKey="utgift" stroke="#E03131" strokeWidth={2} fill="url(#expense)" name="Utgifter" />
         <Line
           type="monotone"

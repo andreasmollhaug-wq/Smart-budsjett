@@ -1,21 +1,29 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { HouseholdMemberPeriodTotals } from '@/lib/householdDashboardData'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { useStore } from '@/lib/store'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 
-const COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#7048E8', '#E03131']
+const REST_COLORS = ['#0CA678', '#F08C00', '#AE3EC9', '#7048E8', '#E03131']
 
 type Row = { name: string; value: number; fill: string }
 
 export default function HouseholdIncomeSplit({ members }: { members: HouseholdMemberPeriodTotals[] }) {
   const { formatNOK } = useNokDisplayFormatters()
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const sliceColors = useMemo(() => {
+    const { primary } = chartColorsForUiPalette(uiColorPalette)
+    return [primary, ...REST_COLORS]
+  }, [uiColorPalette])
   const data: Row[] = members
     .filter((m) => m.budgetedIncome > 0)
     .map((m, i) => ({
       name: m.name,
       value: m.budgetedIncome,
-      fill: COLORS[i % COLORS.length]!,
+      fill: sliceColors[i % sliceColors.length]!,
     }))
 
   if (data.length === 0) {

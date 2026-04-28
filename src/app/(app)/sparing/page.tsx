@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import Header from '@/components/layout/Header'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
-import { useActivePersonFinance, type SavingsGoal } from '@/lib/store'
+import { useActivePersonFinance, useStore, type SavingsGoal } from '@/lib/store'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 import {
   calcProgress,
   generateId,
@@ -34,10 +35,13 @@ import SparingNewGoalModal, { type NewSavingsGoalPayload } from '@/components/sp
 import SparingSubnav from '@/components/sparing/SparingSubnav'
 import StatCard from '@/components/ui/StatCard'
 
-const COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#0B7285']
-
 export default function SparingPage() {
   const { formatNOK } = useNokDisplayFormatters()
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const goalColors = useMemo(() => {
+    const { primary } = chartColorsForUiPalette(uiColorPalette)
+    return [primary, '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#0B7285']
+  }, [uiColorPalette])
   const {
     savingsGoals,
     addSavingsGoal,
@@ -210,7 +214,7 @@ export default function SparingPage() {
       targetAmount: payload.targetAmount,
       currentAmount: payload.currentAmount,
       targetDate: payload.targetDate,
-      color: COLORS[savingsGoals.length % COLORS.length],
+      color: goalColors[savingsGoals.length % goalColors.length],
       linkedBudgetCategoryId: linkedId,
       baselineAmount,
       deposits: [],
@@ -371,7 +375,7 @@ export default function SparingPage() {
               sub="Effektiv sparing · inkl. koblede transaksjoner"
               icon={PiggyBank}
               trend="up"
-              color="#3B5BDB"
+              color={goalColors[0]}
               valueNoWrap
               info="Summen følger samme logikk som på hvert målkort: koblede mål teller transaksjoner på budsjettlinjen, ukoblede teller manuelle innskudd."
             />

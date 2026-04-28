@@ -12,6 +12,8 @@ import {
 } from 'recharts'
 import type { MonthlyBudgetActualPoint } from '@/lib/bankReportData'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { useStore } from '@/lib/store'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 
 export default function BudgetDashboardMonthlyChart({
   series,
@@ -57,7 +59,7 @@ export default function BudgetDashboardMonthlyChart({
             type="monotone"
             dataKey="netBudgeted"
             name="Budsjettert netto"
-            stroke="#3B5BDB"
+            stroke={budgetedNetStroke}
             strokeWidth={2}
             dot={{ r: 2 }}
             activeDot={{ r: 4 }}

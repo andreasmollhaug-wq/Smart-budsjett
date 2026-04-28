@@ -1,8 +1,17 @@
 'use client'
 
 import Link from 'next/link'
-import { User, Bell, Sparkles, FlaskConical, CircleDollarSign } from 'lucide-react'
+import {
+  User,
+  Bell,
+  Sparkles,
+  FlaskConical,
+  CircleDollarSign,
+  Palette,
+  ChevronRight,
+} from 'lucide-react'
 import { useStore, type BudgetCategory } from '@/lib/store'
+import { UI_COLOR_PALETTE_OPTIONS } from '@/lib/uiColorPalette'
 import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
@@ -11,6 +20,17 @@ import BudgetSetupChecklistCard from '@/components/konto/BudgetSetupChecklistCar
 
 /** Stabile tomme referanser — `?? []` / `?? {}` i Zustand-selectorer gir ny referanse hver gang og utløser React 18 getSnapshot-loop. */
 const EMPTY_BUDGET_CATEGORIES: BudgetCategory[] = []
+
+const APPEARANCE_PALETTE_EXPANDED_KEY = 'smart-budsjett-settings-appearance-palette-expanded'
+
+function readAppearancePaletteExpanded(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return window.localStorage.getItem(APPEARANCE_PALETTE_EXPANDED_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
 
 function editableNameFromMetadata(meta: Record<string, unknown> | undefined): string {
   const fromFull = meta?.full_name
@@ -372,6 +392,150 @@ function IncomeWithholdingDefaultsCard() {
   )
 }
 
+function AppearancePaletteCard() {
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const setUiColorPalette = useStore((s) => s.setUiColorPalette)
+  /** Alltid false ved første render (matcher SSR); localStorage leses etter mount. */
+  const [expanded, setExpanded] = useState(false)
+  const [justSaved, setJustSaved] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const panelId = 'innstillinger-fargepalett-panel'
+
+  const selectedLabel =
+    UI_COLOR_PALETTE_OPTIONS.find((o) => o.id === uiColorPalette)?.label ?? 'Klassisk blå'
+
+  useEffect(() => {
+    setExpanded(readAppearancePaletteExpanded())
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [])
+
+  const flashSaved = () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    setJustSaved(true)
+    saveTimerRef.current = setTimeout(() => {
+      setJustSaved(false)
+      saveTimerRef.current = null
+    }, 2800)
+  }
+
+  const toggleExpanded = () => {
+    setExpanded((e) => {
+      const next = !e
+      try {
+        window.localStorage.setItem(APPEARANCE_PALETTE_EXPANDED_KEY, String(next))
+      } catch {
+        /* private mode / blocked */
+      }
+      return next
+    })
+  }
+
+  return (
+    <div
+      className="rounded-2xl p-6 scroll-mt-24"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <button
+        type="button"
+        onClick={toggleExpanded}
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        className="flex w-full min-h-[44px] touch-manipulation items-center gap-2 rounded-xl py-1 text-left -mx-1 px-1 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+        style={{ color: 'var(--text)' }}
+      >
+        <ChevronRight
+          size={20}
+          className="shrink-0 transition-transform duration-200"
+          style={{
+            transform: expanded ? 'rotate(90deg)' : undefined,
+            color: 'var(--text-muted)',
+          }}
+          aria-hidden
+        />
+        <Palette size={16} style={{ color: 'var(--primary)' }} className="shrink-0" aria-hidden />
+        <span className="font-semibold min-w-0 flex-1" id="innstillinger-fargepalett-heading">
+          Utseende — fargepalett
+        </span>
+      </button>
+
+      {!expanded && (
+        <p className="text-sm mt-3 pl-[2.25rem]" style={{ color: 'var(--text-muted)' }}>
+          Valgt:{' '}
+          <span className="font-medium" style={{ color: 'var(--text)' }}>
+            {selectedLabel}
+          </span>
+        </p>
+      )}
+
+      {expanded ? (
+        <div id={panelId} className="mt-4">
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+            Velg fargetema for meny, knapper og bakgrunn i appen. Standard er det blå uttrykket du kjenner fra før.
+          </p>
+          <div
+            className="flex flex-col gap-2"
+            role="radiogroup"
+            aria-labelledby="innstillinger-fargepalett-heading"
+          >
+            {UI_COLOR_PALETTE_OPTIONS.map((opt) => {
+              const selected = uiColorPalette === opt.id
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => {
+                    if (opt.id === uiColorPalette) return
+                    setUiColorPalette(opt.id)
+                    flashSaved()
+                  }}
+                  className="flex w-full min-h-[44px] touch-manipulation items-start gap-3 rounded-xl border px-3 py-3 text-left transition-opacity hover:opacity-95 sm:items-center"
+                  style={{
+                    borderColor: selected ? 'var(--primary)' : 'var(--border)',
+                    background: selected ? 'var(--primary-pale)' : 'var(--bg)',
+                    boxShadow: selected ? '0 0 0 1px var(--primary)' : undefined,
+                  }}
+                >
+                  <span
+                    className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 sm:mt-0"
+                    style={{
+                      borderColor: selected ? 'var(--primary)' : 'var(--border)',
+                      background: selected ? 'var(--primary)' : 'transparent',
+                    }}
+                    aria-hidden
+                  >
+                    {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium" style={{ color: 'var(--text)' }}>
+                      {opt.label}
+                    </span>
+                    <span className="mt-0.5 block text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {opt.hint}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      {justSaved && (
+        <p role="status" aria-live="polite" className="text-sm font-medium mt-3" style={{ color: 'var(--success)' }}>
+          Innstilling lagret
+        </p>
+      )}
+    </div>
+  )
+}
+
 function StartveiledningCard() {
   const openOnboardingAgain = useStore((s) => s.openOnboardingAgain)
 
@@ -432,6 +596,8 @@ export default function KontoInnstillingerPage() {
       <DemoDataCard />
 
       <IncomeWithholdingDefaultsCard />
+
+      <AppearancePaletteCard />
 
       <StartveiledningCard />
 

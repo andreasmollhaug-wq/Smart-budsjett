@@ -15,9 +15,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const mainReadOnly = !readOnlyLoading && appReadOnly && !kontoSection
   const [mobileOpen, setMobileOpen] = useState(false)
   const demoDataEnabled = useStore((s) => s.demoDataEnabled)
-  const logoBg = demoDataEnabled
-    ? 'linear-gradient(135deg, #EA580C, #F97316)'
-    : 'linear-gradient(135deg, #3B5BDB, #4C6EF5)'
+  const logoBg = demoDataEnabled ? 'linear-gradient(135deg, #EA580C, #F97316)' : 'var(--cta-gradient)'
 
   const close = () => setMobileOpen(false)
 

@@ -13,6 +13,47 @@
   --success: #0CA678;
   --warning: #F08C00;
   --danger: #E03131;
+  /** Logo / CTA-gradient (sidebar, mobil header) — bruk `var(--cta-gradient)` i stedet for hardkodet blå. */
+  --cta-gradient: linear-gradient(135deg, #3B5BDB, #4C6EF5);
+}
+
+[data-ui-palette="green"] {
+  --bg: #f0f4f1;
+  --surface: #ffffff;
+  --primary: #217346;
+  --primary-light: #107c41;
+  --primary-pale: #e3efe8;
+  --accent: #6baf8f;
+  --text: #1e2e24;
+  --text-muted: #5a6b62;
+  --border: #c5d9cc;
+  --cta-gradient: linear-gradient(135deg, #1b5c38, #217346);
+}
+
+[data-ui-palette="rose"] {
+  --bg: #FFF0F6;
+  --surface: #FFFFFF;
+  --primary: #C2255C;
+  --primary-light: #E64980;
+  --primary-pale: #FFDEEB;
+  --accent: #FCC2D7;
+  --text: #2D1520;
+  --text-muted: #8A6178;
+  --border: #F4C2D5;
+  --cta-gradient: linear-gradient(135deg, #A61E4D, #E64980);
+}
+
+[data-ui-palette="dark"] {
+  --bg: #0f1117;
+  --surface: #1a1d26;
+  --primary: #748ffc;
+  --primary-light: #91a7ff;
+  --primary-pale: #2f3650;
+  --accent: #5c7cfa;
+  --text: #e9ecef;
+  --text-muted: #868e96;
+  --border: #343a46;
+  --cta-gradient: linear-gradient(135deg, #5c7cfa, #748ffc);
 }
 
 body {

@@ -5,6 +5,8 @@ import { categoryLabel } from '@/features/matHandleliste/categoryMap'
 import { mergeShoppingListPdfLayout, type ShoppingListPdfLayoutOptions } from '@/features/matHandleliste/printPdfLayout'
 import type { IngredientUnit, ShoppingListItem } from '@/features/matHandleliste/types'
 import { SHOPPING_LIST_PDF_CAPTURE_ROOT_ID } from '@/lib/exportShoppingListPdf'
+import { useStore } from '@/lib/store'
+import { ctaGradientForUiPalette } from '@/lib/uiColorPalette'
 import { forwardRef, useMemo } from 'react'
 
 /**
@@ -26,8 +28,6 @@ const PDF_COLORS = {
   amber900: '#78350f',
   white: '#ffffff',
 } as const
-
-const BRAND_GRADIENT = 'linear-gradient(135deg, #3B5BDB, #4C6EF5)'
 
 const UNIT_SHORT: Record<IngredientUnit, string> = {
   stk: 'stk',
@@ -88,6 +88,8 @@ export const MatHandlelisteShoppingListPrint = forwardRef<
   },
   ref,
 ) {
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const brandGradient = ctaGradientForUiPalette(uiColorPalette)
   const L = mergeShoppingListPdfLayout({
     ...(showBrand ? { showBrand: true } : {}),
     ...(layoutPartial ?? {}),
@@ -140,7 +142,7 @@ export const MatHandlelisteShoppingListPrint = forwardRef<
         >
           <div
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
-            style={{ background: BRAND_GRADIENT, color: PDF_COLORS.white }}
+            style={{ background: brandGradient, color: PDF_COLORS.white }}
           >
             SB
           </div>

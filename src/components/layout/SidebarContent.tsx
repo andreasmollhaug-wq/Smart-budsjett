@@ -43,9 +43,7 @@ type Props = {
 export default function SidebarContent({ onNavigate, endSlot }: Props) {
   const pathname = usePathname()
   const demoDataEnabled = useStore((s) => s.demoDataEnabled)
-  const logoBg = demoDataEnabled
-    ? 'linear-gradient(135deg, #EA580C, #F97316)'
-    : 'linear-gradient(135deg, #3B5BDB, #4C6EF5)'
+  const logoBg = demoDataEnabled ? 'linear-gradient(135deg, #EA580C, #F97316)' : 'var(--cta-gradient)'
 
   return (
     <>

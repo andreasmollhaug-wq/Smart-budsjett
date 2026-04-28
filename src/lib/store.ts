@@ -10,6 +10,7 @@ import { reorderBudgetCategoriesForParent } from './budgetYearHelpers'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
 import { computeInsightDeltas } from './insightNotifications'
 import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
+import { normalizeUiColorPaletteId, type UiColorPaletteId } from '@/lib/uiColorPalette'
 import {
   PLANNED_OVERDUE_NOTIFICATION_ID,
   buildPlannedOverdueNotification,
@@ -744,6 +745,10 @@ interface AppState {
   showAmountDecimals: boolean
   setShowAmountDecimals: (show: boolean) => void
 
+  /** UI-fargepalett (innlogget app); standard er dagens blå. */
+  uiColorPalette: UiColorPaletteId
+  setUiColorPalette: (id: UiColorPaletteId) => void
+
   /** Regnskap CSV: lagrede konto → budsjettkategori per kilde (conta, tripletex, …). */
   ledgerAccountMappings: LedgerAccountMappingsState
   /** Siste import-kjøringer (metadata). */
@@ -788,6 +793,7 @@ export type PersistedAppSlice = Pick<
   | 'peopleBeforeDemo'
   | 'matHandlelisteBeforeDemo'
   | 'showAmountDecimals'
+  | 'uiColorPalette'
   | 'ledgerAccountMappings'
   | 'ledgerImportHistory'
 >
@@ -816,6 +822,7 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     peopleBeforeDemo: null,
     matHandlelisteBeforeDemo: null,
     showAmountDecimals: false,
+    uiColorPalette: 'default',
     deliveredInsightIds: [],
     dismissedDuplicateSubscriptionPresetKeys: [],
     ledgerAccountMappings: {},
@@ -842,6 +849,7 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     peopleBeforeDemo: state.peopleBeforeDemo,
     matHandlelisteBeforeDemo: state.matHandlelisteBeforeDemo,
     showAmountDecimals: state.showAmountDecimals,
+    uiColorPalette: state.uiColorPalette,
     deliveredInsightIds: state.deliveredInsightIds,
     dismissedDuplicateSubscriptionPresetKeys: state.dismissedDuplicateSubscriptionPresetKeys,
     ledgerAccountMappings: state.ledgerAccountMappings,
@@ -1005,6 +1013,7 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
 
   if (typeof base.demoDataEnabled !== 'boolean') base.demoDataEnabled = false
   if (typeof base.showAmountDecimals !== 'boolean') base.showAmountDecimals = false
+  base.uiColorPalette = normalizeUiColorPaletteId(base.uiColorPalette)
   if (!base.ledgerAccountMappings || typeof base.ledgerAccountMappings !== 'object') {
     base.ledgerAccountMappings = {}
   }
@@ -1722,6 +1731,7 @@ export const useStore = create<AppState>()((set, get) => {
         peopleBeforeDemo: null as Record<string, PersonData> | null,
         matHandlelisteBeforeDemo: null as MatHandlelisteState | null,
         showAmountDecimals: false,
+        uiColorPalette: 'default' as UiColorPaletteId,
         ledgerAccountMappings: {} as LedgerAccountMappingsState,
         ledgerImportHistory: [] as LedgerImportRun[],
 
@@ -1880,6 +1890,11 @@ export const useStore = create<AppState>()((set, get) => {
 
         setShowAmountDecimals: (show) => {
           set((s) => (show === s.showAmountDecimals ? s : { showAmountDecimals: show }))
+        },
+
+        setUiColorPalette: (id) => {
+          const next = normalizeUiColorPaletteId(id)
+          set((s) => (next === s.uiColorPalette ? s : { uiColorPalette: next }))
         },
 
         setDemoDataEnabled: (enabled) => {
@@ -4716,6 +4731,7 @@ export function resetStoreForLogout() {
     peopleBeforeDemo: null,
     matHandlelisteBeforeDemo: null,
     showAmountDecimals: false,
+    uiColorPalette: 'default',
     ledgerAccountMappings: {},
     ledgerImportHistory: [],
   })

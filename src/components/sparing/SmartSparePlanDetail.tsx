@@ -11,6 +11,7 @@ import StatCard from '@/components/ui/StatCard'
 import type { PeriodMode } from '@/lib/budgetPeriod'
 import { periodSubtitle } from '@/lib/budgetPeriod'
 import { useActivePersonFinance, useStore } from '@/lib/store'
+import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 import {
   buildSmartSpareMonthlyPaidEarnedRows,
   buildStackedBarRows,
@@ -58,8 +59,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-
-const SOURCE_COLORS = ['#3B5BDB', '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#0B7285', '#7048E8']
 
 type GoalDonutSlice = { name: string; value: number; fill: string }
 
@@ -142,6 +141,13 @@ export default function SmartSparePlanDetail({ planId }: Props) {
     setActiveProfileId,
     setFinanceScope,
   } = useActivePersonFinance()
+
+  const uiColorPalette = useStore((s) => s.uiColorPalette)
+  const chartPalette = useMemo(() => chartColorsForUiPalette(uiColorPalette), [uiColorPalette])
+  const sourceBarColors = useMemo(() => {
+    const { primary, primaryLight } = chartPalette
+    return [primary, primaryLight, '#0CA678', '#F08C00', '#AE3EC9', '#E03131', '#0B7285', '#7048E8']
+  }, [chartPalette])
 
   const readOnly = isHouseholdAggregate
 
@@ -547,7 +553,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                 value={formatNOK(derived.targetAmount)}
                 sub={goalSub}
                 icon={Target}
-                color="#3B5BDB"
+                color={chartPalette.primary}
                 info="Målbeløpet tolkes i det du valgte under «Målgrunnlag» (før eller etter skatt)."
               />
               <StatCard
@@ -665,7 +671,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                             dataKey={`src_${s.id}`}
                             name={s.name || `Kilde ${i + 1}`}
                             stackId="income"
-                            fill={SOURCE_COLORS[i % SOURCE_COLORS.length]}
+                            fill={sourceBarColors[i % sourceBarColors.length]}
                           />
                         ))}
                       </BarChart>
@@ -729,7 +735,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
               value={String(derived.daysLeft)}
               sub="Fra referansedato (filter) til siste dag i planen."
               icon={Calendar}
-              color="#4C6EF5"
+              color={chartPalette.primaryLight}
             />
 
             <div
