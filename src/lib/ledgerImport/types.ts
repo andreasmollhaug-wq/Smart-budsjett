@@ -119,6 +119,22 @@ export interface LedgerImportLineSnapshot {
   ledgerSide: 'income' | 'expense'
 }
 
+/** Budsjettøkning ved regnskapsimport; reverseres ved fjernet importkjøring. */
+export interface LedgerBudgetAdjustmentSnapshot {
+  profileId: string
+  entries: Array<{
+    categoryId: string
+    monthIndex: number
+    /** Sum lagt til budgeted[monthIndex] for denne importen (positiv). */
+    deltaApplied: number
+  }>
+  /**
+   * Kategorirader fra kategori­velger (standardkatalog e.l.) som ikke fantes i profilen ennå.
+   * Uten disse vil ikke ID-basert budsjettjustering treffe noen rad — må legges til før apply.
+   */
+  backfillCategories?: BudgetCategory[]
+}
+
 export interface LedgerImportRun {
   id: string
   createdAt: string
@@ -135,6 +151,8 @@ export interface LedgerImportRun {
   errorSummary: string | null
   /** Alle linjer som ble til transaksjoner (nye importer); vises i detaljmodal uavhengig av sletting. */
   importedLines?: LedgerImportLineSnapshot[]
+  /** Når «Legg også til i budsjett» ble brukt — trekk fra ved removeLedgerImportRun. */
+  budgetAdjustment?: LedgerBudgetAdjustmentSnapshot
 }
 
 export type LedgerAccountMappingsState = Partial<Record<LedgerSourceId, Record<string, LedgerAccountMappingRule>>>

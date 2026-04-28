@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import ImportCategoryPicker from '@/components/konto/ImportCategoryPicker'
 import TransactionImportDropzone from '@/components/konto/TransactionImportDropzone'
@@ -12,7 +12,17 @@ import { formatLedgerImportAmountNb } from '@/lib/ledgerImport/formatLedgerImpor
 import { LEDGER_IMPORT_MAX_FILE_BYTES } from '@/lib/ledgerImport/ledgerImport.constants'
 import { parseLedgerCsvText } from '@/lib/ledgerImport/parseLedgerCsv'
 import { getLedgerProfileForSource } from '@/lib/ledgerImport/profiles'
-import type { CanonicalLedgerLine, LedgerSourceId, ParseLedgerCsvResult } from '@/lib/ledgerImport/types'
+import {
+  canApplyLedgerBudgetAdjust,
+  computeLedgerImportBudgetDeltas,
+  type LedgerBudgetAdjustReason,
+} from '@/lib/ledgerImport/ledgerImportBudgetAdjust'
+import type {
+  CanonicalLedgerLine,
+  LedgerBudgetAdjustmentSnapshot,
+  LedgerSourceId,
+  ParseLedgerCsvResult,
+} from '@/lib/ledgerImport/types'
 import {
   countPotentialDuplicateLedgerLines,
   summarizeLedgerLinesForPreview,
@@ -33,6 +43,19 @@ const SOURCE_OPTIONS: { id: LedgerSourceId; label: string }[] = [
 
 type Step = 'upload' | 'mapping' | 'summary'
 
+function budgetAdjustBlockedHint(reason: LedgerBudgetAdjustReason | undefined, year: number): string {
+  switch (reason) {
+    case 'multi_year':
+      return 'Importen dekker flere kalenderår. Begrens til ett år i filen, eller importer ett år om gangen.'
+    case 'wrong_year':
+      return `Alle poster må tilhøre budsjettåret ${year} i appen (samme år som budsjettvisningen).`
+    case 'empty':
+      return 'Ingen linjer å importere.'
+    default:
+      return ''
+  }
+}
+
 function labelListsForPerson(person: {
   customBudgetLabels?: Record<string, string[]>
   hiddenBudgetLabels?: Record<string, string[]>
@@ -50,12 +73,12 @@ export default function ImporterFraRegnskapPage() {
   const people = useStore((s) => s.people)
   const activeProfileId = useStore((s) => s.activeProfileId)
   const setActiveProfileId = useStore((s) => s.setActiveProfileId)
-  const addTransactions = useStore((s) => s.addTransactions)
   const addAppNotification = useStore((s) => s.addAppNotification)
   const ledgerAccountMappings = useStore((s) => s.ledgerAccountMappings)
   const ledgerImportHistory = useStore((s) => s.ledgerImportHistory)
   const setLedgerAccountMapping = useStore((s) => s.setLedgerAccountMapping)
-  const appendLedgerImportRun = useStore((s) => s.appendLedgerImportRun)
+  const budgetYear = useStore((s) => s.budgetYear)
+  const addLedgerImportRunWithTransactions = useStore((s) => s.addLedgerImportRunWithTransactions)
   const addBudgetCategory = useStore((s) => s.addBudgetCategory)
   const addCustomBudgetLabel = useStore((s) => s.addCustomBudgetLabel)
 
@@ -69,6 +92,7 @@ export default function ImporterFraRegnskapPage() {
   const [excludedFileLines, setExcludedFileLines] = useState<Set<number>>(() => new Set())
   const [forceIncludeHeldBack, setForceIncludeHeldBack] = useState<Set<number>>(() => new Set())
   const [importDisplayName, setImportDisplayName] = useState('')
+  const [alsoApplyToBudget, setAlsoApplyToBudget] = useState(false)
 
   const person = people[importProfileId]
   const pickerCategories = useMemo(() => {
@@ -200,6 +224,37 @@ export default function ImporterFraRegnskapPage() {
     )
   }, [person, linesIncluded, mappingForAccount])
 
+  const pendingImportTransactions = useMemo(() => {
+    if (!person || linesIncluded.length === 0) return []
+    return buildTransactionsFromLedgerLines(
+      linesIncluded,
+      accountToCategoryRecord,
+      pickerCategories,
+      importProfileId,
+    ).transactions
+  }, [person, linesIncluded, accountToCategoryRecord, pickerCategories, importProfileId])
+
+  const budgetAdjustEligibility = useMemo(
+    () => canApplyLedgerBudgetAdjust(pendingImportTransactions, budgetYear),
+    [pendingImportTransactions, budgetYear],
+  )
+
+  const budgetDeltaPreview = useMemo(() => {
+    if (pendingImportTransactions.length === 0 || !budgetAdjustEligibility.ok) return null
+    return computeLedgerImportBudgetDeltas(pendingImportTransactions, pickerCategories)
+  }, [pendingImportTransactions, pickerCategories, budgetAdjustEligibility])
+
+  const budgetAdjustBlockedMsg = useMemo(() => {
+    if (budgetAdjustEligibility.ok) return ''
+    return budgetAdjustBlockedHint(budgetAdjustEligibility.reason, budgetYear)
+  }, [budgetAdjustEligibility, budgetYear])
+
+  useEffect(() => {
+    if (step === 'summary' && !budgetAdjustEligibility.ok) {
+      setAlsoApplyToBudget(false)
+    }
+  }, [step, budgetAdjustEligibility.ok])
+
   const handleProfileChange = (pid: string) => {
     setImportProfileId(pid)
     setActiveProfileId(pid)
@@ -214,6 +269,7 @@ export default function ImporterFraRegnskapPage() {
     setExcludedFileLines(new Set())
     setForceIncludeHeldBack(new Set())
     setImportDisplayName('')
+    setAlsoApplyToBudget(false)
   }, [])
 
   const onFileText = useCallback(
@@ -237,6 +293,7 @@ export default function ImporterFraRegnskapPage() {
       setExcludedFileLines(new Set())
       setForceIncludeHeldBack(new Set())
       setImportDisplayName('')
+      setAlsoApplyToBudget(false)
       setParseResult(result)
       setFileLabel(name)
       setStep('mapping')
@@ -261,26 +318,60 @@ export default function ImporterFraRegnskapPage() {
     }
     const { transactions, skippedUnmapped, skippedUnknownCategory, importedLineSnapshots } =
       buildTransactionsFromLedgerLines(linesIncluded, map, pickerCategories, pid, runId)
-    addTransactions(transactions)
+
+    let budgetAdjustment: LedgerBudgetAdjustmentSnapshot | undefined
+    let splitSkippedForBudget = 0
+    if (alsoApplyToBudget) {
+      const elig = canApplyLedgerBudgetAdjust(transactions, budgetYear)
+      if (elig.ok) {
+        const computed = computeLedgerImportBudgetDeltas(transactions, pickerCategories)
+        splitSkippedForBudget = computed.skippedHouseholdSplitCount
+        if (computed.entries.length > 0) {
+          const existingIds = new Set(person.budgetCategories.map((c) => c.id))
+          const entryCatIds = new Set(computed.entries.map((e) => e.categoryId))
+          const backfillCategories = pickerCategories.filter(
+            (c) => entryCatIds.has(c.id) && !existingIds.has(c.id),
+          )
+          budgetAdjustment = {
+            profileId: pid,
+            entries: computed.entries,
+            ...(backfillCategories.length ? { backfillCategories } : {}),
+          }
+        }
+      }
+    }
+
     const skipped = skippedUnmapped + skippedUnknownCategory
     const labelTrim = importDisplayName.trim()
-    appendLedgerImportRun({
-      id: runId,
-      createdAt: new Date().toISOString(),
-      sourceId,
-      profileId: pid,
-      csvProfileId: ledgerProfile.id,
-      fileName: fileLabel,
-      displayName: labelTrim ? labelTrim : null,
-      rowCountParsed: linesIncluded.length,
-      rowCountImported: transactions.length,
-      rowCountSkipped: skipped,
-      errorSummary: null,
-      importedLines: importedLineSnapshots,
-    })
+    addLedgerImportRunWithTransactions(
+      {
+        id: runId,
+        createdAt: new Date().toISOString(),
+        sourceId,
+        profileId: pid,
+        csvProfileId: ledgerProfile.id,
+        fileName: fileLabel,
+        displayName: labelTrim ? labelTrim : null,
+        rowCountParsed: linesIncluded.length,
+        rowCountImported: transactions.length,
+        rowCountSkipped: skipped,
+        errorSummary: null,
+        importedLines: importedLineSnapshots,
+        budgetAdjustment,
+      },
+      transactions,
+    )
     const parts: string[] = [`${transactions.length} transaksjon${transactions.length === 1 ? '' : 'er'} fra regnskap.`]
     if (skipped > 0) parts.push(`${skipped} rad${skipped === 1 ? '' : 'er'} hoppet over.`)
     if (dupWarn > 0) parts.push(`${dupWarn} mulig${dupWarn === 1 ? '' : 'e'} duplikat.`)
+    if (budgetAdjustment) {
+      parts.push('Planlagte budsjettbeløp er økt for tilhørende måneder og kategorier.')
+    }
+    if (alsoApplyToBudget && splitSkippedForBudget > 0) {
+      parts.push(
+        `${splitSkippedForBudget} linje(r) på delt husstandsbudsjett ble ikke lagt til i budsjettplanen.`,
+      )
+    }
     addAppNotification({
       title: 'Import fra regnskap fullført',
       body: parts.join(' '),
@@ -817,6 +908,42 @@ export default function ImporterFraRegnskapPage() {
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   Vises i «Tidligere importer» så du lettere finner riktig kjøring.
                 </p>
+              </div>
+              <div
+                className="rounded-xl border px-4 py-3 space-y-2"
+                style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+              >
+                <label className="flex items-start gap-3 cursor-pointer touch-manipulation min-h-[44px]">
+                  <input
+                    type="checkbox"
+                    className="mt-1 shrink-0 rounded border touch-manipulation"
+                    style={{ borderColor: 'var(--border)' }}
+                    checked={alsoApplyToBudget}
+                    disabled={!budgetAdjustEligibility.ok}
+                    onChange={(e) => setAlsoApplyToBudget(e.target.checked)}
+                  />
+                  <span className="text-sm leading-snug min-w-0" style={{ color: 'var(--text)' }}>
+                    <span className="font-medium">Legg også til i budsjett</span>
+                    <span className="block mt-1 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                      Øker planlagte månedbeløp for samme kategori og måned som transaksjonene (budsjettår {budgetYear}).
+                      Inntekt med trekk i budsjettet justeres til brutto. Felles husstandsbudsjettlinjer oppdateres ikke
+                      automatisk.
+                    </span>
+                  </span>
+                </label>
+                {!budgetAdjustEligibility.ok && budgetAdjustBlockedMsg && (
+                  <p className="text-xs pl-7 sm:pl-8" style={{ color: 'var(--text-muted)' }}>
+                    {budgetAdjustBlockedMsg}
+                  </p>
+                )}
+                {budgetAdjustEligibility.ok &&
+                  budgetDeltaPreview &&
+                  budgetDeltaPreview.skippedHouseholdSplitCount > 0 && (
+                  <p className="text-xs pl-7 sm:pl-8" style={{ color: '#b45309' }}>
+                    {budgetDeltaPreview.skippedHouseholdSplitCount} linje(r) på delt husstandsbudsjett blir ikke lagt til
+                    i budsjettplanen.
+                  </p>
+                )}
               </div>
               <ul className="text-sm space-y-2" style={{ color: 'var(--text-muted)' }}>
                 <li>

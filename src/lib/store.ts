@@ -65,6 +65,11 @@ import {
   poolForTask,
 } from '@/features/hjemflyt/hjemflytLogic'
 import { LEDGER_IMPORT_HISTORY_MAX } from '@/lib/ledgerImport/ledgerImport.constants'
+import {
+  applyLedgerBudgetAdjustmentToCategories,
+  mergeBudgetCategoriesWithAdjustmentBackfill,
+  subtractLedgerBudgetAdjustmentFromCategories,
+} from '@/lib/ledgerImport/ledgerImportBudgetAdjust'
 import { normalizeLedgerAccountCode } from '@/lib/ledgerImport/parseLedgerCsv'
 import type {
   LedgerAccountMappingRule,
@@ -422,6 +427,20 @@ export interface OnboardingState {
 /** Første inntektslinje i demo-budsjett — brukes i onboarding. */
 export const ONBOARDING_MAIN_INCOME_CATEGORY_ID = 'demo-innt-1'
 
+export type LedgerImportRemovalMode = 'full' | 'historyOnly'
+
+export type RemoveLedgerImportRunResult =
+  | { ok: false; reason: 'not_found' }
+  | { ok: true; mode: 'historyOnly' }
+  | {
+      ok: true
+      mode: 'full'
+      transactionsRemoved: number
+      removedBudgetAdjustment: boolean
+      /** Full sletting fjernet kun historikk (ingen tilknyttede transaksjoner eller budsjett-justering å reversere). */
+      orphanFullRemoval: boolean
+    }
+
 interface AppState {
   subscriptionPlan: SubscriptionPlan
   profiles: PersonProfile[]
@@ -710,8 +729,13 @@ interface AppState {
     rule: LedgerAccountMappingRule | null,
   ) => void
   appendLedgerImportRun: (run: LedgerImportRun) => void
-  /** Fjerner import fra historikk og alle transaksjoner med samme ledgerImportRunId på målprofilen. */
-  removeLedgerImportRun: (runId: string) => void
+  /** Én atomisk kjøring: valgfritt budsjett-tillegg, deretter transaksjoner og historikk. */
+  addLedgerImportRunWithTransactions: (run: LedgerImportRun, transactions: Transaction[]) => void
+  /**
+   * `full`: fjern historikk + transaksjoner med ledgerImportRunId + eventuelt budsjett-justering.
+   * `historyOnly`: fjern kun historikkposten; transaksjoner og budsjett belastes ikke herfra.
+   */
+  removeLedgerImportRun: (runId: string, mode: LedgerImportRemovalMode) => RemoveLedgerImportRunResult
 }
 
 /** Ytre nøkkel årstall som string, indre er profilId. */
@@ -1707,29 +1731,126 @@ export const useStore = create<AppState>()((set, get) => {
           }))
         },
 
-        removeLedgerImportRun: (runId) => {
+        addLedgerImportRunWithTransactions: (run, incoming) => {
+          set((s) => {
+            const historySlice = [run, ...s.ledgerImportHistory].slice(0, LEDGER_IMPORT_HISTORY_MAX)
+
+            let nextPeople = { ...s.people }
+            const adj = run.budgetAdjustment
+            if (adj?.entries?.length && adj.profileId === run.profileId) {
+              const person = nextPeople[run.profileId]
+              if (person) {
+                const mergedForApply = mergeBudgetCategoriesWithAdjustmentBackfill(
+                  person.budgetCategories,
+                  adj.entries,
+                  adj.backfillCategories,
+                )
+                nextPeople = {
+                  ...nextPeople,
+                  [run.profileId]: {
+                    ...person,
+                    budgetCategories: applyLedgerBudgetAdjustmentToCategories(mergedForApply, adj.entries),
+                  },
+                }
+              }
+            }
+
+            if (!incoming.length) {
+              return { people: nextPeople, ledgerImportHistory: historySlice }
+            }
+
+            const groups = new Map<string, Transaction[]>()
+            for (const t of incoming) {
+              const pid = resolveTransactionOwnerProfileId(s, t.profileId)
+              const tx: Transaction = { ...t, profileId: pid }
+              const arr = groups.get(pid) ?? []
+              arr.push(tx)
+              groups.set(pid, arr)
+            }
+            for (const [pid, txs] of groups) {
+              const person = nextPeople[pid]
+              if (!person) continue
+              const next = syncLinkedSavingsGoalsCurrent(
+                { ...person, transactions: [...txs, ...person.transactions] },
+                pid,
+              )
+              nextPeople = {
+                ...nextPeople,
+                [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
+              }
+            }
+            return { people: nextPeople, ledgerImportHistory: historySlice }
+          })
+          get().syncInsightNotifications()
+        },
+
+        removeLedgerImportRun: (runId, mode) => {
+          let result: RemoveLedgerImportRunResult = { ok: false, reason: 'not_found' }
           set((s) => {
             const run = s.ledgerImportHistory.find((r) => r.id === runId)
             if (!run) return s
+
             const nextHistory = s.ledgerImportHistory.filter((r) => r.id !== runId)
+
+            if (mode === 'historyOnly') {
+              result = { ok: true, mode: 'historyOnly' }
+              return { ledgerImportHistory: nextHistory }
+            }
+
             const person = s.people[run.profileId]
             if (!person) {
+              result = {
+                ok: true,
+                mode: 'full',
+                transactionsRemoved: 0,
+                removedBudgetAdjustment: false,
+                orphanFullRemoval: true,
+              }
               return { ledgerImportHistory: nextHistory }
             }
-            const nextTx = person.transactions.filter((t) => t.ledgerImportRunId !== runId)
-            if (nextTx.length === person.transactions.length) {
+
+            let cats = person.budgetCategories
+            const adj = run.budgetAdjustment
+            if (adj?.entries?.length && adj.profileId === run.profileId) {
+              cats = subtractLedgerBudgetAdjustmentFromCategories(cats, adj.entries)
+            }
+
+            let merged: PersonData = { ...person, budgetCategories: cats }
+            const nextTx = merged.transactions.filter((t) => t.ledgerImportRunId !== runId)
+            const txsChanged = nextTx.length !== merged.transactions.length
+            const budgetChanged = !!(adj?.entries?.length && adj.profileId === run.profileId)
+            const txsRemoved = merged.transactions.length - nextTx.length
+
+            if (!txsChanged && !budgetChanged) {
+              result = {
+                ok: true,
+                mode: 'full',
+                transactionsRemoved: 0,
+                removedBudgetAdjustment: false,
+                orphanFullRemoval: true,
+              }
               return { ledgerImportHistory: nextHistory }
             }
-            const merged = syncLinkedSavingsGoalsCurrent({ ...person, transactions: nextTx }, run.profileId)
+
+            merged = syncLinkedSavingsGoalsCurrent({ ...merged, transactions: nextTx }, run.profileId)
+            merged = recalcPersonBudgetSpentForYear(merged, run.profileId, s.budgetYear)
+            result = {
+              ok: true,
+              mode: 'full',
+              transactionsRemoved: txsRemoved,
+              removedBudgetAdjustment: budgetChanged,
+              orphanFullRemoval: false,
+            }
             return {
               people: {
                 ...s.people,
-                [run.profileId]: recalcPersonBudgetSpentForYear(merged, run.profileId, s.budgetYear),
+                [run.profileId]: merged,
               },
               ledgerImportHistory: nextHistory,
             }
           })
           get().syncInsightNotifications()
+          return result
         },
 
         setShowAmountDecimals: (show) => {
