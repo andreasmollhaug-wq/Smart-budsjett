@@ -102,7 +102,8 @@ export function MatHandlelisteMealEditorModal({
   const fullSectionLookupRef = useRef(fullSectionLookup)
   fullSectionLookupRef.current = fullSectionLookup
 
-  const sectionDebounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  /** Nettleser: setTimeout-return er `number`; unngår Node `Timeout`-type i blandet libs. */
+  const sectionDebounceTimersRef = useRef<Map<string, number>>(new Map())
 
   const applySuggestedSectionForRow = useCallback((ingredientId: string) => {
     setIngredients((prev) => {
