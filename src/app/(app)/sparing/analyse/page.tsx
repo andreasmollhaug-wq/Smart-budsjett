@@ -7,6 +7,8 @@ import SparingAnalyseKpiModal, {
   type SparingAnalyseKpiKind,
 } from '@/components/sparing/analyse/SparingAnalyseKpiModal'
 import Header from '@/components/layout/Header'
+import SparingAnalyseTourHeaderButton from '@/features/sparing/SparingAnalyseTourHeaderButton'
+import SparingAnalyseTourProvider from '@/features/sparing/SparingAnalyseTourProvider'
 import DashboardPeriodToolbar from '@/components/dashboard/DashboardPeriodToolbar'
 import SparingSubnav from '@/components/sparing/SparingSubnav'
 import StatCard from '@/components/ui/StatCard'
@@ -197,17 +199,23 @@ export default function SparingAnalysePage() {
 
   const showHouseholdChart = householdRows.length >= 2 && householdRows.some((r) => r.effectiveNok > 0)
 
+  const hasGoals = filteredGoals.length > 0
+
   return (
-    <div className="flex-1 min-w-0 overflow-auto" style={{ background: 'var(--bg)' }}>
-      <Header
-        title="Analyse"
-        subtitle={
-          isHouseholdAggregate
-            ? 'Samlet bilde av sparemål og registrert sparingaktivitet i husholdningen'
-            : `Sparemål og aktivitet for ${activeProfileName}`
-        }
-      />
-      <SparingSubnav />
+    <SparingAnalyseTourProvider hasGoals={hasGoals} showHouseholdChart={showHouseholdChart}>
+      <div className="flex-1 min-w-0 overflow-auto" style={{ background: 'var(--bg)' }}>
+        <Header
+          title="Analyse"
+          subtitle={
+            isHouseholdAggregate
+              ? 'Samlet bilde av sparemål og registrert sparingaktivitet i husholdningen'
+              : `Sparemål og aktivitet for ${activeProfileName}`
+          }
+          titleAddon={<SparingAnalyseTourHeaderButton />}
+        />
+        <div data-sa-tour="subnav">
+          <SparingSubnav />
+        </div>
       <div
         className="mx-auto w-full min-w-0 max-w-7xl space-y-6 p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 lg:p-8 xl:max-w-[90rem]"
         style={{
@@ -217,49 +225,56 @@ export default function SparingAnalysePage() {
       >
         <section className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-            <DashboardPeriodToolbar
-              variant="inline"
-              filterYear={filterYear}
-              onFilterYearChange={setFilterYear}
-              periodMode={periodMode}
-              onPeriodModeChange={setPeriodMode}
-              monthIndex={monthIndex}
-              onMonthIndexChange={setMonthIndex}
-              yearOptions={yearOptions}
-            />
-            <button
-              type="button"
-              id={includeCompletedSwitchId}
-              role="switch"
-              aria-checked={includeCompletedGoals}
-              onClick={() => setIncludeCompletedGoals((v) => !v)}
-              className="inline-flex min-h-[44px] shrink-0 items-center gap-3 rounded-xl text-left touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-            >
-              <span
-                className="relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors"
-                style={{ background: includeCompletedGoals ? 'var(--primary)' : 'var(--border)' }}
+            <div data-sa-tour="period-toolbar" className="min-w-0 shrink">
+              <DashboardPeriodToolbar
+                variant="inline"
+                filterYear={filterYear}
+                onFilterYearChange={setFilterYear}
+                periodMode={periodMode}
+                onPeriodModeChange={setPeriodMode}
+                monthIndex={monthIndex}
+                onMonthIndexChange={setMonthIndex}
+                yearOptions={yearOptions}
+              />
+            </div>
+            <div data-sa-tour="include-completed" className="shrink-0">
+              <button
+                type="button"
+                id={includeCompletedSwitchId}
+                role="switch"
+                aria-checked={includeCompletedGoals}
+                onClick={() => setIncludeCompletedGoals((v) => !v)}
+                className="inline-flex min-h-[44px] shrink-0 items-center gap-3 rounded-xl text-left touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
               >
                 <span
-                  className="mt-1 inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
-                  style={{
-                    transform: includeCompletedGoals ? 'translateX(1.5rem)' : 'translateX(0.25rem)',
-                  }}
-                />
-              </span>
-              <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-                Inkluder fullførte mål
-              </span>
-            </button>
+                  className="relative inline-flex h-7 w-12 shrink-0 rounded-full transition-colors"
+                  style={{ background: includeCompletedGoals ? 'var(--primary)' : 'var(--border)' }}
+                >
+                  <span
+                    className="mt-1 inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
+                    style={{
+                      transform: includeCompletedGoals ? 'translateX(1.5rem)' : 'translateX(0.25rem)',
+                    }}
+                  />
+                </span>
+                <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  Inkluder fullførte mål
+                </span>
+              </button>
+            </div>
           </div>
-          <p className="text-sm leading-snug" style={{ color: 'var(--text-muted)' }}>
-            Periode: <strong style={{ color: 'var(--text)' }}>{periodLabel}</strong>. KPI og kakediagram viser
-            effektiv sparing på målene slik som på sparemål-kortene. Stolpediagrammet viser registrerte
-            transaksjoner til koblede kategorier og manuelle innskudd i perioden — ikke bankhistorikk av saldo.
-          </p>
+          <div data-sa-tour="intro-copy">
+            <p className="text-sm leading-snug" style={{ color: 'var(--text-muted)' }}>
+              Periode: <strong style={{ color: 'var(--text)' }}>{periodLabel}</strong>. KPI og kakediagram viser
+              effektiv sparing på målene slik som på sparemål-kortene. Stolpediagrammet viser registrerte
+              transaksjoner til koblede kategorier og manuelle innskudd i perioden — ikke bankhistorikk av saldo.
+            </p>
+          </div>
         </section>
 
         {filteredGoals.length === 0 ? (
           <div
+            data-sa-tour="empty-goals"
             className="rounded-2xl border p-6 text-center text-sm"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}
           >
@@ -271,7 +286,10 @@ export default function SparingAnalysePage() {
           </div>
         ) : (
           <>
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <section
+              data-sa-tour="kpi-grid"
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
               <StatCard
                 label="Totalt spart (effektiv)"
                 value={formatNOK(kpi.totalSaved)}
@@ -357,7 +375,7 @@ export default function SparingAnalysePage() {
               />
             ) : null}
 
-            <section className="space-y-3">
+            <section data-sa-tour="monthly-activity" className="space-y-3">
               <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
                 Sparingaktivitet per måned
               </h2>
@@ -388,7 +406,7 @@ export default function SparingAnalysePage() {
               </div>
             </section>
 
-            <section className="space-y-3">
+            <section data-sa-tour="goal-distribution" className="space-y-3">
               <h2 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
                 Fordeling av effektiv sparing mellom mål
               </h2>
@@ -403,7 +421,7 @@ export default function SparingAnalysePage() {
             </section>
 
             {showHouseholdChart ? (
-              <section className="space-y-3">
+              <section data-sa-tour="household-chart" className="space-y-3">
                 <h2 className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--text)' }}>
                   <Users size={18} aria-hidden className="shrink-0" style={{ color: 'var(--primary)' }} />
                   Fordeling i husholdningen (effektiv sparing)
@@ -440,7 +458,11 @@ export default function SparingAnalysePage() {
             ) : null}
 
             <section className="space-y-3">
-              <div className="w-full min-w-0 rounded-2xl border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+              <div
+                data-sa-tour="household-pace"
+                className="w-full min-w-0 rounded-2xl border p-4"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+              >
                 <SparingAnalyseHouseholdPace
                   paceRows={householdPaceRows}
                   profiles={paceProfiles}
@@ -452,5 +474,6 @@ export default function SparingAnalysePage() {
         )}
       </div>
     </div>
+    </SparingAnalyseTourProvider>
   )
 }
