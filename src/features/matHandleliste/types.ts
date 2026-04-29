@@ -38,6 +38,7 @@ export interface MealIngredient {
   unitLabel?: string
   note?: string
   section?: string
+  /** Kryss av ved ingredienser brukeren ofte har i skap/stash (sjeldent å kjøpe på hvert butikkbesøk). */
   isStaple?: boolean
 }
 
@@ -157,7 +158,7 @@ export interface MatHandlelisteState {
   savedShoppingLists: SavedShoppingList[]
   /** Rekkefølge på kategori-id fra categoryMap */
   categoryOrder: string[]
-  /** Normaliserte nøkler for stiftvarer */
+  /** Normaliserte varenavn for «har ofte hjemme» (brukes ved forhåndsvalg på handleliste). */
   staples: string[]
   activity: MatActivityEvent[]
   settings: MatHandlelisteSettings

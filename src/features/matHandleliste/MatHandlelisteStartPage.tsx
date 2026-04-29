@@ -212,12 +212,12 @@ export function MatHandlelisteStartPage() {
           <div className="grid min-w-0 gap-4 md:grid-cols-2 md:gap-5">
             <div className="rounded-2xl border p-5 shadow-sm" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
               <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                Stiftvarer (har ofte hjemme)
+                Har ofte hjemme
               </h2>
               <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                Når du legger måltid på listen, kan du i forhåndsvisningen velge bort det du allerede har. Stiftvarer her er
-                en huskeliste for autoforslag senere — nå brukes de som referanse når du redigerer måltid (merk ingredens som
-                stiftvare).
+                Når du legger måltid på listen, kan du i forhåndsvisningen velge bort varer du allerede har. Listen her husker
+                varenavn slik at appen kan foreslå det samme senere — og i måltidsredigereren kan du krysse ut «Har ofte
+                hjemme» på ingredienser du sjelden trenger å kjøpe hver gang.
               </p>
               <form
                 className="mt-3 flex gap-2"

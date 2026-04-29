@@ -10,9 +10,9 @@ import { MEAL_SLOT_LABELS } from '@/features/matHandleliste/slotLabels'
 import type { Meal, MealSlotId } from '@/features/matHandleliste/types'
 import { MEAL_SLOT_ORDER } from '@/features/matHandleliste/types'
 import { useStore } from '@/lib/store'
-import { Copy, Plus, Search, ShoppingCart } from 'lucide-react'
+import { Copy, Minus, Plus, Search, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 
 /** Søk i tittel, beskrivelse og ingrediensnavn (inkl. seksjon). */
 function mealMatchesSearch(meal: Meal, rawQuery: string): boolean {
@@ -43,6 +43,70 @@ function mealTagsInDisplayOrder(tags: MealSlotId[] | undefined): MealSlotId[] {
   if (!tags?.length) return []
   const set = new Set(tags)
   return MEAL_SLOT_ORDER.filter((s) => set.has(s))
+}
+
+type MealsFoldKey = MealSlotId | 'untagged'
+
+/** Seksjon under «Mine måltider» — kan lukkes/åpnes for ikke å liste alt på én gang. */
+function MealsFoldableSection({
+  title,
+  subtitle,
+  countLabel,
+  isOpen,
+  onToggle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  countLabel: string
+  isOpen: boolean
+  /** Kalles ved klikk på overskrifts-raden */
+  onToggle: () => void
+  children: ReactNode
+}) {
+  const listId = useId()
+  return (
+    <section
+      className="overflow-hidden rounded-2xl border"
+      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+    >
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={listId}
+        aria-label={isOpen ? `${title}: skjul liste` : `${title}: vis liste`}
+        className="flex min-h-[44px] w-full flex-wrap items-start gap-3 p-4 text-left outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] touch-manipulation sm:p-5"
+        onClick={onToggle}
+      >
+        <span
+          className="block w-1 shrink-0 self-stretch rounded-full"
+          aria-hidden
+          style={{ background: 'color-mix(in srgb, var(--primary) 50%, var(--border))', minHeight: '2.75rem' }}
+        />
+        <div className="min-w-0 flex-1 pl-3">
+          <h2 className="text-base font-semibold leading-tight" style={{ color: 'var(--text)' }}>
+            {title}
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            {subtitle}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <p className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
+            {countLabel}
+          </p>
+          <span className="inline-flex shrink-0" style={{ color: 'var(--text-muted)' }} aria-hidden>
+            {isOpen ? <Minus size={20} strokeWidth={2} /> : <Plus size={20} strokeWidth={2} />}
+          </span>
+        </div>
+      </button>
+      {isOpen ? (
+        <div id={listId} className="border-t px-4 pb-4 sm:px-5" style={{ borderColor: 'var(--border)' }}>
+          <ul className="grid grid-cols-1 gap-3 pt-3 md:grid-cols-2 md:gap-4">{children}</ul>
+        </div>
+      ) : null}
+    </section>
+  )
 }
 
 function MealRow({
@@ -150,6 +214,20 @@ export function MatHandlelisteMealsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [timeFilter, setTimeFilter] = useState<MealTimeFilter>('all')
   const [onlyMyMeals, setOnlyMyMeals] = useState(false)
+
+  /** Tidsrom/«uten tag» som brukeren har skjult (standard: alle åpne). */
+  const [collapsedMealSections, setCollapsedMealSections] = useState<Set<MealsFoldKey>>(() => new Set())
+
+  function toggleMealsSectionFold(key: MealsFoldKey) {
+    setCollapsedMealSections((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const mealsSectionExpanded = (key: MealsFoldKey) => !collapsedMealSections.has(key)
 
   const profileLabel = (id: string) => profiles.find((p) => p.id === id)?.name ?? 'Ukjent profil'
   const multiProfile = profiles.length > 1
@@ -347,89 +425,45 @@ export function MatHandlelisteMealsPage() {
           {meals.length > 0 ? (
             <div className="space-y-6 md:space-y-8">
               {groupedSections.tagged.map((sec) => (
-                <section
+                <MealsFoldableSection
                   key={sec.slot}
-                  className="rounded-2xl border p-4 sm:p-5"
-                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                  title={sec.label}
+                  subtitle="Oppskrifter til planlegging"
+                  countLabel={oppskriftTellingLabel(sec.meals.length)}
+                  isOpen={mealsSectionExpanded(sec.slot)}
+                  onToggle={() => toggleMealsSectionFold(sec.slot)}
                 >
-                  <div
-                    className="mb-4 border-l-4 pl-4 -ml-px"
-                    style={{
-                      borderLeftColor: 'color-mix(in srgb, var(--primary) 50%, var(--border))',
-                    }}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="text-base font-semibold leading-tight" style={{ color: 'var(--text)' }}>
-                          {sec.label}
-                        </h2>
-                        <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                          Oppskrifter til planlegging
-                        </p>
-                      </div>
-                      <p
-                        className="shrink-0 text-xs font-medium tabular-nums"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {oppskriftTellingLabel(sec.meals.length)}
-                      </p>
-                    </div>
-                  </div>
-                  <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-                    {sec.meals.map((m) => (
-                      <MealRow
-                        key={`${m.id}-${sec.slot}`}
-                        m={m}
-                        profileLabel={profileLabel(m.createdByProfileId)}
-                        onAppend={() => setAppendMeal(m)}
-                        onDuplicate={() => mhDuplicateMeal(m.id)}
-                        onEdit={() => openEdit(m)}
-                      />
-                    ))}
-                  </ul>
-                </section>
+                  {sec.meals.map((m) => (
+                    <MealRow
+                      key={`${m.id}-${sec.slot}`}
+                      m={m}
+                      profileLabel={profileLabel(m.createdByProfileId)}
+                      onAppend={() => setAppendMeal(m)}
+                      onDuplicate={() => mhDuplicateMeal(m.id)}
+                      onEdit={() => openEdit(m)}
+                    />
+                  ))}
+                </MealsFoldableSection>
               ))}
               {groupedSections.untagged.length > 0 ? (
-                <section
-                  className="rounded-2xl border p-4 sm:p-5"
-                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                <MealsFoldableSection
+                  title="Uten tag"
+                  subtitle="Synlig i alle tidsrom i ukeplanen"
+                  countLabel={oppskriftTellingLabel(groupedSections.untagged.length)}
+                  isOpen={mealsSectionExpanded('untagged')}
+                  onToggle={() => toggleMealsSectionFold('untagged')}
                 >
-                  <div
-                    className="mb-4 border-l-4 pl-4 -ml-px"
-                    style={{
-                      borderLeftColor: 'color-mix(in srgb, var(--primary) 50%, var(--border))',
-                    }}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="text-base font-semibold leading-tight" style={{ color: 'var(--text)' }}>
-                          Uten tag
-                        </h2>
-                        <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                          Synlig i alle tidsrom i ukeplanen
-                        </p>
-                      </div>
-                      <p
-                        className="shrink-0 text-xs font-medium tabular-nums"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {oppskriftTellingLabel(groupedSections.untagged.length)}
-                      </p>
-                    </div>
-                  </div>
-                  <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
-                    {groupedSections.untagged.map((m) => (
-                      <MealRow
-                        key={m.id}
-                        m={m}
-                        profileLabel={profileLabel(m.createdByProfileId)}
-                        onAppend={() => setAppendMeal(m)}
-                        onDuplicate={() => mhDuplicateMeal(m.id)}
-                        onEdit={() => openEdit(m)}
-                      />
-                    ))}
-                  </ul>
-                </section>
+                  {groupedSections.untagged.map((m) => (
+                    <MealRow
+                      key={m.id}
+                      m={m}
+                      profileLabel={profileLabel(m.createdByProfileId)}
+                      onAppend={() => setAppendMeal(m)}
+                      onDuplicate={() => mhDuplicateMeal(m.id)}
+                      onEdit={() => openEdit(m)}
+                    />
+                  ))}
+                </MealsFoldableSection>
               ) : null}
               {!hasListResults ? (
                 <p className="py-4 text-sm" style={{ color: 'var(--text-muted)' }}>

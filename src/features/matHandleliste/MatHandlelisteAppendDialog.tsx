@@ -94,7 +94,7 @@ export function MatHandlelisteAppendMealDialog({ open, onClose, meal, title }: P
                   ) : null}
                   {isStaple ? (
                     <span className="ml-2 text-xs" style={{ color: 'var(--primary)' }}>
-                      stiftvare
+                      har ofte hjemme
                     </span>
                   ) : null}
                 </div>

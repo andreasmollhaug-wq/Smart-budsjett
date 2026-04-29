@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createDemoMatHandlelisteState, matSnapshotContainsDemoMarkers } from './demoMatHandleliste'
 
 describe('createDemoMatHandlelisteState', () => {
-  it('inneholder måltider, plan for hele uken, handleliste og stiftvarer', () => {
+  it('inneholder måltider, plan for hele uken, handleliste og huskeliste for «har ofte hjemme»', () => {
     const ref = new Date('2026-04-27T12:00:00.000Z')
     const s = createDemoMatHandlelisteState('prof-1', ref)
     expect(s.meals.length).toBeGreaterThanOrEqual(6)

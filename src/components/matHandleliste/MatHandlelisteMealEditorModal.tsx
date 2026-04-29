@@ -1,5 +1,11 @@
 'use client'
 
+import { DEFAULT_SHOPPING_CATEGORIES } from '@/features/matHandleliste/categoryMap'
+import {
+  buildIngredientSectionLookup,
+  mergeDraftIngredientsIntoLookup,
+  suggestIngredientSection,
+} from '@/features/matHandleliste/ingredientSectionHints'
 import { MEAL_SLOT_LABELS } from '@/features/matHandleliste/slotLabels'
 import type { IngredientUnit, Meal, MealIngredient, MealSlotId } from '@/features/matHandleliste/types'
 import { MEAL_SLOT_ORDER } from '@/features/matHandleliste/types'
@@ -7,7 +13,7 @@ import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import { useStore } from '@/lib/store'
 import { generateId } from '@/lib/utils'
 import { Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 
 const UNITS: { value: IngredientUnit; label: string }[] = [
   { value: 'stk', label: 'stk' },
@@ -61,6 +67,10 @@ export function MatHandlelisteMealEditorModal({
 
   const ingredientNameSuggestions = useMemo(() => {
     const s = new Set<string>()
+    for (const row of ingredients) {
+      const n = row.name.trim()
+      if (n) s.add(n)
+    }
     for (const it of shoppingList) {
       const n = it.displayName.trim()
       if (n) s.add(n)
@@ -72,7 +82,49 @@ export function MatHandlelisteMealEditorModal({
       }
     }
     return [...s].sort((a, b) => a.localeCompare(b, 'nb'))
-  }, [meals, shoppingList])
+  }, [meals, shoppingList, ingredients])
+
+  const sectionLookup = useMemo(
+    () =>
+      buildIngredientSectionLookup(
+        meals,
+        shoppingList,
+        editing !== 'new' && editing != null ? { excludeMealId: editing.id } : undefined,
+      ),
+    [meals, shoppingList, editing],
+  )
+
+  const fullSectionLookup = useMemo(
+    () => mergeDraftIngredientsIntoLookup(sectionLookup, ingredients),
+    [sectionLookup, ingredients],
+  )
+
+  const fullSectionLookupRef = useRef(fullSectionLookup)
+  fullSectionLookupRef.current = fullSectionLookup
+
+  const sectionDebounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  const applySuggestedSectionForRow = useCallback((ingredientId: string) => {
+    setIngredients((prev) => {
+      const idx = prev.findIndex((i) => i.id === ingredientId)
+      if (idx < 0) return prev
+      const r = prev[idx]
+      // Ikke overskriv seksjon brukeren selv har begynt å fylle inn
+      if (!r?.name.trim() || r.section?.trim()) return prev
+      const suggested = suggestIngredientSection(r.name.trim(), fullSectionLookupRef.current)
+      if (!suggested) return prev
+      const copy = [...prev]
+      copy[idx] = { ...r, section: suggested }
+      return copy
+    })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      for (const t of sectionDebounceTimersRef.current.values()) clearTimeout(t)
+      sectionDebounceTimersRef.current.clear()
+    }
+  }, [editing])
 
   const ingredientSectionSuggestions = useMemo(() => {
     const s = new Set<string>()
@@ -80,8 +132,14 @@ export function MatHandlelisteMealEditorModal({
       const sec = row.section?.trim()
       if (sec) s.add(sec)
     }
+    for (const v of Object.values(fullSectionLookup)) {
+      if (v.trim()) s.add(v)
+    }
+    for (const c of DEFAULT_SHOPPING_CATEGORIES) {
+      s.add(c.label)
+    }
     return [...s].sort((a, b) => a.localeCompare(b, 'nb'))
-  }, [ingredients])
+  }, [ingredients, fullSectionLookup])
 
   useEffect(() => {
     if (editing == null) return
@@ -280,9 +338,29 @@ export function MatHandlelisteMealEditorModal({
                   <input
                     value={ing.name}
                     onChange={(e) => {
-                      const next = [...ingredients]
-                      next[idx] = { ...ing, name: e.target.value }
-                      setIngredients(next)
+                      const name = e.target.value
+                      setIngredients((prev) => {
+                        const next = [...prev]
+                        const i = next.findIndex((x) => x.id === ing.id)
+                        if (i < 0) return prev
+                        next[i] = { ...next[i]!, name }
+                        return next
+                      })
+                      const prevT = sectionDebounceTimersRef.current.get(ing.id)
+                      if (prevT) clearTimeout(prevT)
+                      const t = window.setTimeout(() => {
+                        sectionDebounceTimersRef.current.delete(ing.id)
+                        applySuggestedSectionForRow(ing.id)
+                      }, 200)
+                      sectionDebounceTimersRef.current.set(ing.id, t)
+                    }}
+                    onBlur={() => {
+                      const prevT = sectionDebounceTimersRef.current.get(ing.id)
+                      if (prevT) {
+                        clearTimeout(prevT)
+                        sectionDebounceTimersRef.current.delete(ing.id)
+                      }
+                      applySuggestedSectionForRow(ing.id)
                     }}
                     placeholder="Navn"
                     list={namesListId}
@@ -355,7 +433,7 @@ export function MatHandlelisteMealEditorModal({
                         setIngredients(next)
                       }}
                     />
-                    Stiftvare
+                    Har ofte hjemme
                   </label>
                   <button
                     type="button"
