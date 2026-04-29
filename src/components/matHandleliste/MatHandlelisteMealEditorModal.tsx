@@ -120,9 +120,10 @@ export function MatHandlelisteMealEditorModal({
   }, [])
 
   useEffect(() => {
+    const timerMap = sectionDebounceTimersRef.current
     return () => {
-      for (const t of sectionDebounceTimersRef.current.values()) clearTimeout(t)
-      sectionDebounceTimersRef.current.clear()
+      for (const t of timerMap.values()) clearTimeout(t)
+      timerMap.clear()
     }
   }, [editing])
 
