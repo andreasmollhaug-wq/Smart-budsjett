@@ -65,6 +65,53 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.people[DEFAULT_PROFILE_ID]).toBeDefined()
   })
 
+  it('normaliserer sparingPagePrefs ved merge', () => {
+    const slice = createDefaultPersistedSlice()
+    const merged = mergePersistedIntoFullState(
+      {
+        ...slice,
+        people: {
+          ...slice.people,
+          [DEFAULT_PROFILE_ID]: {
+            ...slice.people[DEFAULT_PROFILE_ID]!,
+            sparingPagePrefs: {
+              goalSortMode: 'invalid-mode',
+              showCompletedGoals: false,
+              goalSelection: ['goal-a'],
+            },
+          },
+        },
+      },
+      useStore.getState(),
+    )
+    const prefs = merged.people[DEFAULT_PROFILE_ID]!.sparingPagePrefs!
+    expect(prefs.goalSortMode).toBe('name_asc')
+    expect(prefs.showCompletedGoals).toBe(false)
+    expect(prefs.goalSelection).toEqual(['goal-a'])
+  })
+
+  it('bevarer spared_per_mål-sortering (saved_desc) ved merge', () => {
+    const slice = createDefaultPersistedSlice()
+    const merged = mergePersistedIntoFullState(
+      {
+        ...slice,
+        people: {
+          ...slice.people,
+          [DEFAULT_PROFILE_ID]: {
+            ...slice.people[DEFAULT_PROFILE_ID]!,
+            sparingPagePrefs: {
+              goalSortMode: 'saved_desc',
+              showCompletedGoals: true,
+              goalSelection: 'all',
+            },
+          },
+        },
+      },
+      useStore.getState(),
+    )
+    expect(merged.people[DEFAULT_PROFILE_ID]!.sparingPagePrefs!.goalSortMode).toBe('saved_desc')
+  })
+
   it('normaliserer ledgerImport-felter når lagret verdi er ugyldig', () => {
     const slice = createDefaultPersistedSlice()
     const merged = mergePersistedIntoFullState(

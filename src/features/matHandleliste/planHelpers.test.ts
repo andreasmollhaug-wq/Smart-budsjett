@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildWeekPlanExportRows,
+  filledVisibleSlotsForDay,
   formatDateKeyNb,
   formatWeekRangeLabelNb,
   isoWeekAndYearFromMonday,
   mealVisibleInSlot,
   monthDateRangeKeys,
   summarizeLinesForDialog,
+  summarizeMonthPlanCalendarMonth,
   summarizeWeekPlan,
   weekPlanToCsvString,
 } from './planHelpers'
@@ -108,6 +110,66 @@ describe('planHelpers', () => {
     const keys = ['2026-04-27']
     const s = summarizeWeekPlan(keys, {}, [])
     expect(s.totalSlots).toBe(MEAL_SLOT_ORDER.length)
+  })
+
+  it('filledVisibleSlotsForDay: kun valgte synlige slots', () => {
+    const dk = '2026-04-01'
+    const slots = ['breakfast', 'dinner'] as const
+    const planByDate = {
+      [dk]: {
+        slots: {
+          breakfast: { mealId: 'a', servings: null },
+          lunch: { mealId: 'b', servings: null },
+        },
+      },
+    }
+    expect(filledVisibleSlotsForDay(dk, planByDate, [...slots])).toBe(1)
+  })
+
+  it('summarizeMonthPlanCalendarMonth: februar 2026 KPI og per-dag bucket', () => {
+    const visibleSlots = [...MEAL_SLOT_ORDER]
+    const s = summarizeMonthPlanCalendarMonth(2026, 1, {}, visibleSlots)
+    expect(s.daysInMonth).toBe(28)
+    expect(s.daysWithAnyPlan).toBe(0)
+    expect(s.totalFilledSlots).toBe(0)
+    expect(s.totalPossibleSlots).toBe(28 * visibleSlots.length)
+    expect(s.byDateKey['2026-02-15']).toEqual({
+      filled: 0,
+      max: MEAL_SLOT_ORDER.length,
+    })
+  })
+
+  it('summarizeMonthPlanCalendarMonth: tom liste synlige slots', () => {
+    const s = summarizeMonthPlanCalendarMonth(2026, 1, { '2026-02-10': { slots: { breakfast: { mealId: 'x', servings: null } } } }, [])
+    expect(s.totalPossibleSlots).toBe(0)
+    expect(s.totalFilledSlots).toBe(0)
+    expect(s.byDateKey['2026-02-10']).toEqual({ filled: 0, max: 0 })
+  })
+
+  it('summarizeMonthPlanCalendarMonth: delvis utfylte dager og total %', () => {
+    const visibleSlots: Array<'breakfast' | 'dinner'> = ['breakfast', 'dinner']
+    const s = summarizeMonthPlanCalendarMonth(
+      2026,
+      3,
+      {
+        '2026-04-01': {
+          slots: { breakfast: { mealId: 'a', servings: null } },
+        },
+        '2026-04-02': {
+          slots: {
+            breakfast: { mealId: 'b', servings: null },
+            dinner: { mealId: 'c', servings: null },
+          },
+        },
+      },
+      visibleSlots,
+    )
+    expect(s.daysInMonth).toBe(30)
+    expect(s.daysWithAnyPlan).toBe(2)
+    expect(s.totalFilledSlots).toBe(3)
+    expect(s.totalPossibleSlots).toBe(60)
+    expect(s.byDateKey['2026-04-01']).toEqual({ filled: 1, max: 2 })
+    expect(Math.round((100 * s.totalFilledSlots) / s.totalPossibleSlots)).toBe(5)
   })
 
   it('formatDateKeyNb: norsk rekkefølge', () => {

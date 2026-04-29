@@ -5,6 +5,8 @@ export type SparingSortMode =
   | 'name_desc'
   | 'saved_asc'
   | 'saved_desc'
+  | 'targetAmount_asc'
+  | 'targetAmount_desc'
   | 'progress_asc'
   | 'progress_desc'
   | 'targetDate_asc'
@@ -15,6 +17,8 @@ export const SPARING_SORT_MODES: SparingSortMode[] = [
   'name_desc',
   'saved_asc',
   'saved_desc',
+  'targetAmount_asc',
+  'targetAmount_desc',
   'progress_asc',
   'progress_desc',
   'targetDate_asc',
@@ -26,6 +30,8 @@ export const SPARING_SORT_LABELS: Record<SparingSortMode, string> = {
   name_desc: 'Navn (Å–A)',
   saved_asc: 'Spart beløp (minst først)',
   saved_desc: 'Spart beløp (størst først)',
+  targetAmount_asc: 'Målbeløp (minst først)',
+  targetAmount_desc: 'Målbeløp (høyest først)',
   progress_asc: 'Fullført (minst % først)',
   progress_desc: 'Fullført (mest % først)',
   targetDate_asc: 'Måldato (nærmest først)',
@@ -81,6 +87,18 @@ export function sortSavingsGoalsForDisplay(rows: SparingGoalSortRow[], mode: Spa
         case 'saved_desc': {
           if (ra.effective !== rb.effective) return rb.effective - ra.effective
           if (ra.progress !== rb.progress) return rb.progress - ra.progress
+          return tieNameThenId(ga, gb)
+        }
+        case 'targetAmount_asc': {
+          const ta = ga.targetAmount
+          const tb = gb.targetAmount
+          if (ta !== tb) return ta - tb
+          return tieNameThenId(ga, gb)
+        }
+        case 'targetAmount_desc': {
+          const ta = ga.targetAmount
+          const tb = gb.targetAmount
+          if (ta !== tb) return tb - ta
           return tieNameThenId(ga, gb)
         }
         case 'progress_asc': {

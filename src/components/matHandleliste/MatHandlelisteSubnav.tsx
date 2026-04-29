@@ -22,6 +22,7 @@ export default function MatHandlelisteSubnav() {
 
   return (
     <div
+      data-mh-tour="subnav"
       className="flex shrink-0 gap-0.5 overflow-x-auto border-b touch-manipulation sm:gap-1 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:pl-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]"
       style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
     >

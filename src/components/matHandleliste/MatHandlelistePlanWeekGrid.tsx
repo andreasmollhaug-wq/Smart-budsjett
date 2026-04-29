@@ -27,7 +27,14 @@ export function MatHandlelistePlanWeekGrid({
   onRequestCreateMeal?: (ctx: { dateKey: string; slot: MealSlotId }) => void
 }) {
   return (
-    <div className="min-w-0 overflow-x-auto rounded-xl border touch-manipulation lg:overflow-x-visible" style={{ borderColor: 'var(--border)' }}>
+    <div
+      className="min-w-0 overflow-x-auto rounded-2xl border touch-manipulation lg:overflow-x-visible"
+      style={{
+        borderColor: 'var(--border)',
+        background: 'var(--surface)',
+        boxShadow: '0 8px 28px -14px rgba(30, 43, 79, 0.18)',
+      }}
+    >
       <table className="w-full min-w-0 table-fixed border-collapse text-sm" style={{ background: 'var(--surface)' }}>
         <colgroup>
           <col style={{ width: '7.5%' }} />
@@ -66,7 +73,11 @@ export function MatHandlelistePlanWeekGrid({
         </thead>
         <tbody>
           {visibleSlots.map((slot, rowIdx) => {
-            const rowBg = rowIdx % 2 === 1 ? 'var(--bg)' : 'var(--surface)'
+            /** Annenhver rad bruker ikke sidens `--bg` (smelter med ytre flate), men en bevisst tint innen «kort». */
+            const rowBg =
+              rowIdx % 2 === 1
+                ? 'color-mix(in srgb, var(--primary-pale) 92%, var(--surface))'
+                : 'var(--surface)'
             return (
               <tr key={slot} style={{ background: rowBg }}>
                 <th

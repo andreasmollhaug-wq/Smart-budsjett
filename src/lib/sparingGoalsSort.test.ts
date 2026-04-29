@@ -37,6 +37,16 @@ describe('sortSavingsGoalsForDisplay', () => {
     expect(sortIds(rows, 'saved_asc')).toEqual(['a', 'c', 'b'])
   })
 
+  it('sorterer på målbeløp (registrert målsum), ikke spart sum', () => {
+    const rows: SparingGoalSortRow[] = [
+      { goal: g({ id: 'syden', name: 'Syden', targetAmount: 25_000 }), effective: 5000, progress: 20 },
+      { goal: g({ id: 'bil', name: 'Bil', targetAmount: 100_000 }), effective: 99_000, progress: 99 },
+      { goal: g({ id: 'lav', name: 'Lav', targetAmount: 10_000 }), effective: 9000, progress: 90 },
+    ]
+    expect(sortIds(rows, 'targetAmount_desc')).toEqual(['bil', 'syden', 'lav'])
+    expect(sortIds(rows, 'targetAmount_asc')).toEqual(['lav', 'syden', 'bil'])
+  })
+
   it('ved lik progress: høyere effektiv sum først (tie-break)', () => {
     const rows: SparingGoalSortRow[] = [
       { goal: g({ id: 'low', name: 'A' }), effective: 100, progress: 50 },

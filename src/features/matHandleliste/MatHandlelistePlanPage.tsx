@@ -1,6 +1,7 @@
 'use client'
 
 import Header from '@/components/layout/Header'
+import MatHandlelisteTourHeaderButton from '@/features/matHandleliste/MatHandlelisteTourHeaderButton'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
 import { MatHandlelisteExportPdfModal } from '@/components/matHandleliste/MatHandlelisteExportPdfModal'
 import { MatHandlelisteShoppingListPrint } from '@/components/matHandleliste/MatHandlelisteShoppingListPrint'
@@ -243,7 +244,7 @@ export function MatHandlelistePlanPage() {
 
   return (
     <>
-      <Header title="Måltidsplan" subtitle={`Planlegg ${weekLabel} · Måned`} />
+      <Header title="Måltidsplan" subtitle={`Planlegg ${weekLabel} · Måned`} titleAddon={<MatHandlelisteTourHeaderButton />} />
       <MatHandlelistePageShell>
         <div className="w-full max-w-none pb-8">
           <div className="flex min-w-0 flex-col gap-6">
@@ -272,8 +273,8 @@ export function MatHandlelistePlanPage() {
               >
                 Denne uken
               </h2>
-              <div className="mt-3 flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+              <div data-mh-tour="plan-main" className="mt-3 flex flex-col gap-4">
+                <div data-mh-tour="plan-week-nav" className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
@@ -309,7 +310,7 @@ export function MatHandlelistePlanPage() {
                   </Link>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <div data-mh-tour="plan-quick-actions" className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
                     onClick={openAppendWeek}
@@ -345,15 +346,17 @@ export function MatHandlelistePlanPage() {
               <h2 id="plan-settings-heading" className="sr-only">
                 Planinnstillinger
               </h2>
-              <MatHandlelisteCollapsiblePanel title={planSettingsTitle} defaultOpen={false}>
-                <MatHandlelistePlanToolbar
-                  visibleSlots={planVisibleSlots}
-                  onVisibleSlotsChange={mhSetPlanVisibleSlots}
-                  layout={planWeekLayout}
-                  onLayoutChange={mhSetPlanWeekLayout}
-                  variant="plain"
-                />
-              </MatHandlelisteCollapsiblePanel>
+              <div data-mh-tour="plan-settings-panel">
+                <MatHandlelisteCollapsiblePanel title={planSettingsTitle} defaultOpen={false}>
+                  <MatHandlelistePlanToolbar
+                    visibleSlots={planVisibleSlots}
+                    onVisibleSlotsChange={mhSetPlanVisibleSlots}
+                    layout={planWeekLayout}
+                    onLayoutChange={mhSetPlanWeekLayout}
+                    variant="plain"
+                  />
+                </MatHandlelisteCollapsiblePanel>
+              </div>
             </section>
 
             <section aria-labelledby="plan-grid-heading">
@@ -399,8 +402,12 @@ export function MatHandlelistePlanPage() {
                             return (
                               <div
                                 key={slot}
-                                className="rounded-lg border p-3"
-                                style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+                                className="rounded-xl border p-3"
+                                style={{
+                                  borderColor: 'var(--border)',
+                                  background:
+                                    'color-mix(in srgb, var(--primary-pale) 45%, var(--surface))',
+                                }}
                               >
                                 <h4 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
                                   {MEAL_SLOT_LABELS[slot]}

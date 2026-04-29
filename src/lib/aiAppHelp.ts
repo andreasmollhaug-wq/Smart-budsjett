@@ -24,7 +24,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /dashboard — Oversikt
 - /budsjett — Budsjett (underfaner: /budsjett/dashboard — Budsjett dashboard; /budsjett/husholdning — Husholdning, kun når «Viser data for» er husholdning med Familie og minst to profiler)
 - /transaksjoner — Transaksjoner (undermeny: /transaksjoner/kommende — Kommende planlagte transaksjoner; /transaksjoner/dashboard — Transaksjonsdashboard)
-- /sparing — Sparing (underfaner: /sparing/smartspare — smartSpare, planlegging av inntekt mot mål over en periode; /sparing/formuebygger — Formuebyggeren PRO)
+- /sparing — Sparing (underfaner: /sparing/smartspare — smartSpare, planlegging av inntekt mot mål over en periode; /sparing/analyse — KPI og grafer for sparemål og sparingaktivitet; /sparing/formuebygger — Formuebyggeren PRO)
 - /gjeld — Gjeld: under «Oversikt» (/gjeld) registreres og administreres lån. Når appen er satt til Familie-abonnement og det finnes minst to profiler, vises også underfanen «Husholdning» (/gjeld/husholdning) med samlet husholdnings-KPI, per-person-kort, diagrammer og modal (se egen seksjon «Gjeld»). Uten to profiler eller med Solo vises ingen gjeld-underfane — bare hovedsiden.
 - /snoball — Snøball
 - /investering — Investering
@@ -51,6 +51,7 @@ Startveiledning (første gangs oppsett, 6 steg)
 - «Hopp over» avslutter veiledningen uten alle steg.
 - Utvidet valgfri guide (anbefalt rekkefølge, moduler, tips): /konto/kom-i-gang — også lenket fra siste steg i startveiledningen og fra Min konto → Innstillinger.
 - Kom i gang-siden (/konto/kom-i-gang) er en utvidet reise i anbefalt rekkefølge: (1) budsjettår og hovedinntekt, (2) budsjett linje for linje, (3) transaksjoner for faktiske tall, (4) oversikten, (5) sparing/gjeld/snøball, (6) rapporter, investering og EnkelExcel AI — pluss valgfri dybde om Formuebyggeren PRO.
+- Mat og handleliste (/intern/mat-handleliste/start m.fl.) har «Vis meg rundt»: kort spotlight-omvisning (måltider → plan → handleliste og fanemeny). «Utvidet gjennomgang» (fra Start og header i modulen) går dypere på blant annet uke/måned-plan, hurtighandlinger, innstillinger og handleliste.
 
 Demodata
 - Slås på/av under startveiledning eller Min konto → Innstillinger (seksjonen «Demodata»). Når demodata er på, vises eksempeldata for blant annet budsjett, transaksjoner, sparemål, investeringer og lån; egne data lagres og gjenopprettes når demodata slås av. I familiehusholdning med flere profiler er eksempeldata ulike per medlem (første profil følger standardsettet).
@@ -88,8 +89,9 @@ Transaksjoner (/transaksjoner)
 - Fra flere steder (f.eks. budsjettdashboard) kan du komme til transaksjoner med forhåndsfilter.
 
 Sparing (/sparing)
-- Underfaner: «Sparing» (/sparing), «smartSpare» (/sparing/smartspare), «Formuebygger» (/sparing/formuebygger).
-- Sparing (/sparing): sparemål med navn, målbeløp, valgfri måldato, valgfri kobling til en budsjettkategori under gruppen «Sparing».
+- Underfaner: «Sparing» (/sparing), «smartSpare» (/sparing/smartspare), «Analyse» (/sparing/analyse), «Formuebygger» (/sparing/formuebygger).
+- Sparing (/sparing): sparemål med navn, målbeløp, valgfri måldato, valgfri kobling til en budsjettkategori under gruppen «Sparing». Under «Sorter» kan listen rangere etter bl.a. målbeløp (høyeste eller minst først), spart beløp, fullføringsgrad, måldato eller navn.
+- **Analyse** (/sparing/analyse): KPI og grafer for sparemål — månedlig sparingaktivitet i valgt år og periode (transaksjoner til koblede sparekategorier og manuelle innskudd på mål uten kategori), diagram som fordeler effektiv sparing mellom målene, og ved **husholdningsvisning** oversikt som fordeler effektiv sparing mellom medlemmer. Filtrer på periode og om fullførte mål inkluderes. Ikke komplett banksaldo-historikk.
 - Med kobling til sparekategori: innskudd kan registreres som transaksjon i den kategorien. Uten kobling: innskudd som egne poster på målet.
 - smartSpare: **Oversikt** på /sparing/smartspare (i **enkeltprofilvisning** kun aktiv profils planer; i **husholdning** alle medlemmer). **Periodefilter** styrer KPI (**tjent** og **månedlig innbetalt**): **hittil i år** klippes til **i dag** og planens start/slutt; **én måned** og **hele året** summerer **brutto-tabellen** for hele det kalendervinduet (også planlagte måneder som ikke er passert ennå). **Tjent hittil** kommer fra brutto-tabellen (målgrunnlag før/etter skatt). **Innbetalt hittil** er månedlige tilføringer via **kildenavnet** i den blå ruten (**kildevindu**: velg måned, se tabell over **innbetalt per måned** — beløpene er **felles for hele planen**, ikke per kilde — **rediger beløp** i tabellen eller sett beløp for valgt måned, **tilfør** ekstra, eller bruk **blyant** / **navnefelt i vinduet** for kildenavn) pluss valgfri **engangs** under Innstillinger — fremdriftskake og rest mot mål bygger på **innbetalt**, ikke tjent+innbetalt (unngår dobbeltelling). **Månedscellene** er **brutto per måned**; i kildevinduet ser du brutto/skatt/netto for valgt måned, og med skatt på kan du sette **egen skatteprosent per kilde** (tom = planens standard). **Én plan** på rute /sparing/smartspare/ etterfulgt av plan-id. Nye planer lagres på valgt profil under «Viser data for». «Åpne» på kort i husholdning bytter til riktig profil. Gammel ?plan= på oversikten videresendes til plansiden. /sparing/innspurt videresendes til /sparing/smartspare.
 - Formuebyggeren PRO (/sparing/formuebygger): egen simulator for langsiktig formue, kjøpekraft og milepæler (separat fra sparemål-listen og smartSpare).

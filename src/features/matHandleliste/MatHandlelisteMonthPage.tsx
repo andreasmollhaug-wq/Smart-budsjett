@@ -2,6 +2,8 @@
 
 import Header from '@/components/layout/Header'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
+import { MatHandlelisteDayPlanModal } from '@/components/matHandleliste/MatHandlelisteDayPlanModal'
+import { MatHandlelisteMonthInsights } from '@/components/matHandleliste/MatHandlelisteMonthInsights'
 import { MatHandlelisteAppendRangeDialog } from '@/features/matHandleliste/MatHandlelisteAppendDialog'
 import { MatHandlelistePageShell } from '@/features/matHandleliste/MatHandlelistePageShell'
 import {
@@ -14,6 +16,7 @@ import {
 import { useStore } from '@/lib/store'
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import type { MealSlotId } from '@/features/matHandleliste/types'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const DOW = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
@@ -21,7 +24,9 @@ const DOW = ['Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør', 'Søn']
 export function MatHandlelisteMonthPage() {
   const planByDate = useStore((s) => s.matHandleliste.planByDate)
   const meals = useStore((s) => s.matHandleliste.meals)
+  const planVisibleSlots = useStore((s) => s.matHandleliste.settings.planVisibleSlots) as MealSlotId[]
   const [cursor, setCursor] = useState(() => new Date())
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null)
   const [appendOpen, setAppendOpen] = useState(false)
   const [rangeLines, setRangeLines] = useState<{ normalizedKey: string; displayName: string }[]>([])
   const [rangeFrom, setRangeFrom] = useState('')
@@ -34,6 +39,12 @@ export function MatHandlelisteMonthPage() {
   const grid = useMemo(() => calendarGridForMonth(y, m), [y, m])
 
   const mealMap = useMemo(() => new Map(meals.map((meal) => [meal.id, meal])), [meals])
+
+  const mealTitlesById = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const meal of meals) m.set(meal.id, meal.title)
+    return m
+  }, [meals])
 
   const monthKeys = useMemo(() => monthDateRangeKeys(y, m), [y, m])
 
@@ -71,7 +82,8 @@ export function MatHandlelisteMonthPage() {
       <MatHandlelistePageShell>
         <div className="w-full max-w-none space-y-4 pb-8">
           <MatHandlelisteBudgetCard />
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div data-mh-tour="plan-month-overview" className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -103,26 +115,26 @@ export function MatHandlelisteMonthPage() {
             >
               I dag
             </button>
-          </div>
+            </div>
 
-          <Link
+            <Link
             href="/intern/mat-handleliste/plan"
             className="inline-block text-sm font-medium underline"
             style={{ color: 'var(--primary)' }}
           >
             Til ukeplan
-          </Link>
+            </Link>
 
-          <button
+            <button
             type="button"
             onClick={openAppendMonth}
             className="w-full min-h-[48px] rounded-xl text-sm font-semibold text-white touch-manipulation"
             style={{ background: 'var(--primary)' }}
           >
             Legg hele måneden på handleliste
-          </button>
+            </button>
 
-          <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            <div className="rounded-xl border p-2" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
             <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-semibold sm:text-xs" style={{ color: 'var(--text-muted)' }}>
               {DOW.map((d) => (
                 <div key={d} className="py-1">
@@ -163,22 +175,34 @@ export function MatHandlelisteMonthPage() {
                   )
                   if (!cell.inMonth) return <div key={cell.key}>{content}</div>
                   return (
-                    <Link
+                    <button
                       key={cell.key}
-                      href={`/intern/mat-handleliste/plan?uke=${cell.key}`}
-                      className="block touch-manipulation"
+                      type="button"
+                      className="block w-full cursor-pointer touch-manipulation rounded-lg outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                      style={{ background: 'transparent', border: 'none', padding: 0 }}
+                      onClick={() => setSelectedDateKey(cell.key)}
+                      aria-label={`${cell.key}: vis planlagte måltider for dagen`}
                     >
                       {content}
-                    </Link>
+                    </button>
                   )
                 })}
               </div>
             ))}
+            </div>
           </div>
 
+          <MatHandlelisteMonthInsights
+            year={y}
+            monthIndex0={m}
+            planByDate={planByDate}
+            visibleSlots={planVisibleSlots}
+          />
+
           <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Fylt prikk = minst ett måltid planlagt. Stiplet ring = ingen plan den dagen (tydelig på dager i måneden). Stiplet
-            ramme rundt cellen = ledig dag. Trykk på en dag for ukeplan. «I dag» har hel ramme.
+            Fylt prikk = minst ett måltid planlagt. Stiplet ring = ingen plan den dagen. Stiplet ramme rundt cellen = ledig
+            dag. Trykk på en dag for å se hva som er lagt inn; bruk «Åpne i ukeplan» i vinduet eller lenken til ukeplan
+            over om du vil redigere. «I dag» har hel ramme.
           </p>
         </div>
       </MatHandlelistePageShell>
@@ -189,6 +213,15 @@ export function MatHandlelisteMonthPage() {
         fromKey={rangeFrom}
         toKey={rangeTo}
         lines={rangeLines}
+      />
+
+      <MatHandlelisteDayPlanModal
+        open={selectedDateKey != null}
+        onClose={() => setSelectedDateKey(null)}
+        dateKey={selectedDateKey}
+        planByDate={planByDate}
+        visibleSlots={planVisibleSlots}
+        mealTitlesById={mealTitlesById}
       />
     </>
   )

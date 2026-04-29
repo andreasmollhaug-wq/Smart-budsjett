@@ -195,6 +195,66 @@ export function dayHasPlannedMeals(plan: DayPlan | undefined): boolean {
   return Object.keys(plan.slots).length > 0
 }
 
+/** Antall utfylte tidsrom blant kun `visibleSlots` for én dag. */
+export function filledVisibleSlotsForDay(
+  dateKey: string,
+  planByDate: Record<string, DayPlan>,
+  visibleSlots: MealSlotId[],
+): number {
+  if (visibleSlots.length === 0) return 0
+  const day = planByDate[dateKey]
+  let n = 0
+  for (const slot of visibleSlots) {
+    if (day?.slots?.[slot]) n++
+  }
+  return n
+}
+
+export type MonthPlanDayFill = {
+  filled: number
+  max: number
+}
+
+export type MonthPlanCalendarSummary = {
+  daysInMonth: number
+  daysWithAnyPlan: number
+  totalFilledSlots: number
+  totalPossibleSlots: number
+  /** Kun dager i måneden (ikke padded kalenderfelt). */
+  byDateKey: Record<string, MonthPlanDayFill>
+}
+
+/**
+ * Statistikk for valgt måned kun med synlige tidsrom (samme liste som ukens plan).
+ */
+export function summarizeMonthPlanCalendarMonth(
+  year: number,
+  monthIndex0: number,
+  planByDate: Record<string, DayPlan>,
+  visibleSlots: MealSlotId[],
+): MonthPlanCalendarSummary {
+  const monthKeys = monthDateRangeKeys(year, monthIndex0)
+  const max = visibleSlots.length
+  const byDateKey: Record<string, MonthPlanDayFill> = {}
+  let daysWithAnyPlan = 0
+  let totalFilledSlots = 0
+  for (const dk of monthKeys) {
+    const filled = filledVisibleSlotsForDay(dk, planByDate, visibleSlots)
+    byDateKey[dk] = { filled, max }
+    if (filled > 0) daysWithAnyPlan++
+    totalFilledSlots += filled
+  }
+  const daysInMonth = monthKeys.length
+  const totalPossibleSlots = daysInMonth * max
+  return {
+    daysInMonth,
+    daysWithAnyPlan,
+    totalFilledSlots,
+    totalPossibleSlots,
+    byDateKey,
+  }
+}
+
 export type WeekPlanSummary = {
   plannedMealCount: number
   daysWithPlan: number

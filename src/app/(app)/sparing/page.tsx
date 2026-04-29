@@ -27,6 +27,10 @@ import {
   sortSavingsGoalsForDisplay,
   type SparingSortMode,
 } from '@/lib/sparingGoalsSort'
+import {
+  computeNextGoalSelectionForToggle,
+  normalizeSparingPagePrefs,
+} from '@/lib/sparingPagePrefs'
 import { useFormattedThousandsInput } from '@/lib/useFormattedThousandsInput'
 import { Calendar, Percent, PiggyBank, Plus, Target, Trash2 } from 'lucide-react'
 import { PolarAngleAxis, RadialBar, RadialBarChart, ResponsiveContainer } from 'recharts'
@@ -56,14 +60,23 @@ export default function SparingPage() {
     activeProfileId,
     updateTransaction,
     removeTransaction,
+    setSparingPagePrefs,
   } = useActivePersonFinance()
+
+  const sparingPrefsRaw = useStore((s) => s.people[s.activeProfileId]?.sparingPagePrefs)
+  const sparingPrefs = useMemo(() => normalizeSparingPagePrefs(sparingPrefsRaw ?? {}), [sparingPrefsRaw])
+
+  const goalSortMode = sparingPrefs.goalSortMode
+  const showCompletedGoals = sparingPrefs.showCompletedGoals
+  const goalSelection = useMemo((): 'all' | Set<string> => {
+    const gs = sparingPrefs.goalSelection
+    if (gs === 'all') return 'all'
+    return new Set(gs)
+  }, [sparingPrefs.goalSelection])
 
   const [createGoalModalOpen, setCreateGoalModalOpen] = useState(false)
   const sortSelectId = useId()
   const showCompletedSwitchId = useId()
-  const [goalSortMode, setGoalSortMode] = useState<SparingSortMode>('name_asc')
-  const [showCompletedGoals, setShowCompletedGoals] = useState(true)
-  const [goalSelection, setGoalSelection] = useState<'all' | Set<string>>('all')
   const goalSelectionInputPrefix = useId()
 
   const [depositId, setDepositId] = useState<string | null>(null)
@@ -131,12 +144,19 @@ export default function SparingPage() {
 
   useEffect(() => {
     const visibleIds = new Set(displayedGoals.map((g) => g.id))
-    setGoalSelection((prev) => {
-      if (prev === 'all') return 'all'
-      const next = new Set([...prev].filter((id) => visibleIds.has(id)))
-      return next.size === 0 ? 'all' : next
+    const prefs = normalizeSparingPagePrefs(
+      useStore.getState().people[activeProfileId]?.sparingPagePrefs ?? {},
+    )
+    const gs = prefs.goalSelection
+    if (gs === 'all') return
+
+    const filtered = gs.filter((id) => visibleIds.has(id))
+    if (filtered.length === gs.length && gs.every((id) => visibleIds.has(id))) return
+
+    setSparingPagePrefs({
+      goalSelection: filtered.length === 0 ? 'all' : filtered,
     })
-  }, [displayedGoals])
+  }, [displayedGoals, activeProfileId, setSparingPagePrefs])
 
   const goalsForKpi = useMemo(() => {
     if (displayedGoals.length === 0) return []
@@ -153,23 +173,14 @@ export default function SparingPage() {
 
   const toggleGoalInKpiSelection = useCallback(
     (goalId: string) => {
-      setGoalSelection((prev) => {
-        const visibleIds = displayedGoals.map((g) => g.id)
-        if (visibleIds.length === 0) return 'all'
-        if (prev === 'all') {
-          const next = new Set(visibleIds.filter((id) => id !== goalId))
-          if (next.size === 0 || next.size === visibleIds.length) return 'all'
-          return next
-        }
-        const next = new Set(prev)
-        if (next.has(goalId)) next.delete(goalId)
-        else next.add(goalId)
-        if (next.size === 0) return 'all'
-        if (next.size === visibleIds.length && visibleIds.every((id) => next.has(id))) return 'all'
-        return next
-      })
+      const visibleIds = displayedGoals.map((g) => g.id)
+      const prefs = normalizeSparingPagePrefs(
+        useStore.getState().people[activeProfileId]?.sparingPagePrefs ?? {},
+      )
+      const next = computeNextGoalSelectionForToggle(prefs.goalSelection, goalId, visibleIds)
+      setSparingPagePrefs({ goalSelection: next })
     },
-    [displayedGoals],
+    [activeProfileId, displayedGoals, setSparingPagePrefs],
   )
 
   const hiddenCompletedCount = useMemo(() => {
@@ -430,7 +441,9 @@ export default function SparingPage() {
               <select
                 id={sortSelectId}
                 value={goalSortMode}
-                onChange={(e) => setGoalSortMode(e.target.value as SparingSortMode)}
+                onChange={(e) =>
+                  setSparingPagePrefs({ goalSortMode: e.target.value as SparingSortMode })
+                }
                 className="min-h-[44px] min-w-0 flex-1 rounded-xl px-3 py-2.5 text-base touch-manipulation sm:text-sm"
                 style={{
                   border: '1px solid var(--border)',
@@ -448,7 +461,7 @@ export default function SparingPage() {
             </div>
             <button
               type="button"
-              onClick={() => setGoalSelection('all')}
+              onClick={() => setSparingPagePrefs({ goalSelection: 'all' })}
               className="min-h-[44px] w-full shrink-0 rounded-xl border px-4 text-sm font-medium touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:w-auto"
               style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--surface)' }}
             >
@@ -459,7 +472,7 @@ export default function SparingPage() {
               id={showCompletedSwitchId}
               role="switch"
               aria-checked={showCompletedGoals}
-              onClick={() => setShowCompletedGoals((v) => !v)}
+              onClick={() => setSparingPagePrefs({ showCompletedGoals: !showCompletedGoals })}
               className="inline-flex min-h-[44px] w-full shrink-0 items-center gap-3 rounded-xl text-left touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] sm:ml-auto sm:w-auto"
             >
               <span

@@ -143,6 +143,11 @@ import {
 } from './demoMatHandleliste'
 import { effectiveBudgetedIncomeMonth, normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import {
+  mergePatchIntoSparingPagePrefs,
+  normalizeSparingPagePrefs,
+  type SparingPagePrefs,
+} from '@/lib/sparingPagePrefs'
+import {
   ensureIncomeSprintPlanId,
   reconcileIncomeSprintPlan,
   type IncomeSprintPlan,
@@ -429,6 +434,8 @@ export interface PersonData {
   incomeSprintPlans?: IncomeSprintPlan[]
   /** Standard for nye inntektslinjer og fallback for brutto-transaksjoner uten egen prosent. */
   defaultIncomeWithholding?: { apply: boolean; percent: number }
+  /** UI på `/sparing`: sortering, vis fullførte mål, KPI-målvalg — per budsjettprofil. */
+  sparingPagePrefs?: SparingPagePrefs
 }
 
 export type OnboardingStatus = 'pending' | 'completed' | 'skipped'
@@ -571,6 +578,7 @@ interface AppState {
   removeDebt: (id: string) => void
   setSnowballExtraMonthly: (amount: number) => void
   setDefaultIncomeWithholding: (rule: { apply: boolean; percent: number }) => void
+  setSparingPagePrefs: (patch: Partial<SparingPagePrefs>) => void
   setDebtPayoffStrategy: (strategy: DebtPayoffStrategy) => void
 
   addInvestment: (i: Investment) => void
@@ -962,6 +970,12 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     )
     let synced = syncLinkedSavingsGoalsCurrent(person, pr.id)
     synced = applySubscriptionCancellationsToBudgetForYear(synced, base.budgetYear)
+    if (synced.sparingPagePrefs !== undefined) {
+      synced = {
+        ...synced,
+        sparingPagePrefs: normalizeSparingPagePrefs(synced.sparingPagePrefs),
+      }
+    }
     base.people[pr.id] = recalcPersonBudgetSpentForYear(synced, pr.id, base.budgetYear)
   }
 
@@ -1112,9 +1126,33 @@ const defaultCategories: BudgetCategory[] = [
 ]
 
 const defaultGoals: SavingsGoal[] = [
-  { id: '1', name: 'Feriefond', targetAmount: 30000, currentAmount: 12000, targetDate: '2026-07-01', color: '#3B5BDB' },
-  { id: '2', name: 'Nødfond', targetAmount: 100000, currentAmount: 45000, targetDate: '2026-12-01', color: '#0CA678' },
-  { id: '3', name: 'Ny bil', targetAmount: 250000, currentAmount: 80000, targetDate: '2027-06-01', color: '#F08C00' },
+  {
+    id: '1',
+    name: 'Feriefond',
+    targetAmount: 30000,
+    currentAmount: 12000,
+    targetDate: '2026-07-01',
+    color: '#3B5BDB',
+    linkedBudgetCategoryId: 'demo-spar-1',
+  },
+  {
+    id: '2',
+    name: 'Nødfond',
+    targetAmount: 100000,
+    currentAmount: 45000,
+    targetDate: '2026-12-01',
+    color: '#0CA678',
+    linkedBudgetCategoryId: 'demo-spar-4',
+  },
+  {
+    id: '3',
+    name: 'Ny bil',
+    targetAmount: 250000,
+    currentAmount: 80000,
+    targetDate: '2027-06-01',
+    color: '#F08C00',
+    linkedBudgetCategoryId: 'demo-spar-2',
+  },
 ]
 
 const defaultDebts: Debt[] = [
@@ -3613,6 +3651,12 @@ export const useStore = create<AppState>()((set, get) => {
             defaultIncomeWithholding: normalizeIncomeWithholdingRule(rule),
           })),
 
+        setSparingPagePrefs: (patch) =>
+          patchActive((d) => ({
+            ...d,
+            sparingPagePrefs: mergePatchIntoSparingPagePrefs(d.sparingPagePrefs, patch),
+          })),
+
         setDebtPayoffStrategy: (strategy) =>
           patchActive((d) => ({
             ...d,
@@ -4783,6 +4827,7 @@ export function useActivePersonFinance() {
       removeDebt: s.removeDebt,
       setSnowballExtraMonthly: s.setSnowballExtraMonthly,
       setDefaultIncomeWithholding: s.setDefaultIncomeWithholding,
+      setSparingPagePrefs: s.setSparingPagePrefs,
       setDebtPayoffStrategy: s.setDebtPayoffStrategy,
       addInvestment: s.addInvestment,
       updateInvestment: s.updateInvestment,
@@ -4876,6 +4921,7 @@ export function useActivePersonFinance() {
     removeDebt: state.removeDebt,
     setSnowballExtraMonthly: state.setSnowballExtraMonthly,
     setDefaultIncomeWithholding: state.setDefaultIncomeWithholding,
+    setSparingPagePrefs: state.setSparingPagePrefs,
     setDebtPayoffStrategy: state.setDebtPayoffStrategy,
     addInvestment: state.addInvestment,
     updateInvestment: state.updateInvestment,

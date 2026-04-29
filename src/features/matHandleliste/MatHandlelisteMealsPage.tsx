@@ -1,6 +1,7 @@
 'use client'
 
 import Header from '@/components/layout/Header'
+import MatHandlelisteTourHeaderButton from '@/features/matHandleliste/MatHandlelisteTourHeaderButton'
 import { MatHandlelisteCollapsiblePanel } from '@/components/matHandleliste/MatHandlelisteCollapsiblePanel'
 import { MatHandlelisteMealEditorModal } from '@/components/matHandleliste/MatHandlelisteMealEditorModal'
 import { MatHandlelisteAppendMealDialog } from '@/features/matHandleliste/MatHandlelisteAppendDialog'
@@ -189,9 +190,14 @@ export function MatHandlelisteMealsPage() {
 
   return (
     <>
-      <Header title="Mine måltider" subtitle="Din kokebok — lagres i appen (ikke hentet fra nettet)" />
+      <Header
+        title="Mine måltider"
+        subtitle="Din kokebok — lagres i appen (ikke hentet fra nettet)"
+        titleAddon={<MatHandlelisteTourHeaderButton />}
+      />
       <MatHandlelistePageShell>
-        <div className="mx-auto w-full max-w-4xl space-y-4 pb-8 text-left">
+        <div data-mh-tour="meals-main" className="mx-auto w-full max-w-4xl space-y-4 pb-8 text-left">
+          <div data-mh-tour="meals-toolbar" className="space-y-4">
           <div
             className="rounded-xl border p-4 text-sm leading-relaxed"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
@@ -336,6 +342,7 @@ export function MatHandlelisteMealsPage() {
               </p>
             </MatHandlelisteCollapsiblePanel>
           ) : null}
+          </div>
 
           {meals.length > 0 ? (
             <div className="space-y-6 md:space-y-8">

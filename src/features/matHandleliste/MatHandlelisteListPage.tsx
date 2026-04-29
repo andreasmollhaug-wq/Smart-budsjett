@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import Header from '@/components/layout/Header'
+import MatHandlelisteTourHeaderButton from '@/features/matHandleliste/MatHandlelisteTourHeaderButton'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
 import { MatHandlelisteAddListItemModal } from '@/components/matHandleliste/MatHandlelisteAddListItemModal'
 import { MatHandlelisteEditListItemModal } from '@/components/matHandleliste/MatHandlelisteEditListItemModal'
@@ -226,9 +227,9 @@ export function MatHandlelisteListPage() {
 
   return (
     <>
-      <Header title="Handleliste" subtitle="Mat og handleliste" />
+      <Header title="Handleliste" subtitle="Mat og handleliste" titleAddon={<MatHandlelisteTourHeaderButton />} />
       <MatHandlelistePageShell>
-        <div className="mx-auto w-full max-w-lg space-y-4 pb-8">
+        <div data-mh-tour="list-main" className="mx-auto w-full max-w-lg space-y-4 pb-8">
           <MatHandlelisteBudgetCard showHandlelisteEstimates />
 
           <MatHandlelisteListKpi list={mat.list} />
@@ -263,6 +264,7 @@ export function MatHandlelisteListPage() {
 
           <button
             type="button"
+            data-mh-tour="list-add-item"
             onClick={() => setAddOpen(true)}
             className="min-h-[48px] w-full rounded-xl text-sm font-semibold text-white touch-manipulation"
             style={{ background: 'var(--primary)' }}
