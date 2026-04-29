@@ -1,6 +1,6 @@
 'use client'
 
-import Header from '@/components/layout/Header'
+import { MatHandlelisteHeader } from '@/components/matHandleliste/MatHandlelisteHeader'
 import MatHandlelisteTourHeaderButton from '@/features/matHandleliste/MatHandlelisteTourHeaderButton'
 import { useMatHandlelisteTour } from '@/features/matHandleliste/MatHandlelisteTourProvider'
 import { MatHandlelistePageShell } from '@/features/matHandleliste/MatHandlelistePageShell'
@@ -23,7 +23,7 @@ export function MatHandlelisteStartPage() {
 
   return (
     <>
-      <Header
+      <MatHandlelisteHeader
         title="Mat og handleliste"
         subtitle="Ukeplan, måltider og samlet handleliste"
         titleAddon={<MatHandlelisteTourHeaderButton />}

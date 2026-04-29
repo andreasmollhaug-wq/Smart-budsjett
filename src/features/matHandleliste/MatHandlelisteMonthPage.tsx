@@ -1,6 +1,6 @@
 'use client'
 
-import Header from '@/components/layout/Header'
+import { MatHandlelisteHeader } from '@/components/matHandleliste/MatHandlelisteHeader'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
 import { MatHandlelisteDayPlanModal } from '@/components/matHandleliste/MatHandlelisteDayPlanModal'
 import { MatHandlelisteMonthInsights } from '@/components/matHandleliste/MatHandlelisteMonthInsights'
@@ -78,7 +78,7 @@ export function MatHandlelisteMonthPage() {
 
   return (
     <>
-      <Header title="Måned" subtitle="Oversikt over planlagte måltider" />
+      <MatHandlelisteHeader title="Måned" subtitle="Oversikt over planlagte måltider" />
       <MatHandlelistePageShell>
         <div className="w-full max-w-none space-y-4 pb-8">
           <MatHandlelisteBudgetCard />

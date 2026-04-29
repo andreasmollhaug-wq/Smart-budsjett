@@ -9,7 +9,7 @@ import { APP_VERSION_LABEL } from '@/lib/version'
 
 const MOBILE_MAX = '(max-width: 767px)'
 
-export default function NotificationBell() {
+export default function NotificationBell({ panelZClass }: { panelZClass?: string }) {
   const [open, setOpen] = useState(false)
   const [panelTop, setPanelTop] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -98,7 +98,7 @@ export default function NotificationBell() {
         <div
           role="dialog"
           aria-label="Varsler"
-          className="fixed z-50 left-1/2 -translate-x-1/2 w-[min(100vw-2rem,22rem)] max-h-[min(70vh,28rem)] flex flex-col rounded-xl shadow-lg overflow-hidden md:absolute md:inset-auto md:right-0 md:left-auto md:top-full md:mt-2 md:translate-x-0"
+          className={`fixed left-1/2 -translate-x-1/2 w-[min(100vw-2rem,22rem)] max-h-[min(70vh,28rem)] flex flex-col rounded-xl shadow-lg overflow-hidden md:absolute md:inset-auto md:right-0 md:left-auto md:top-full md:mt-2 md:translate-x-0 ${panelZClass ?? 'z-50'}`}
           style={{
             background: 'var(--surface)',
             border: '1px solid var(--border)',

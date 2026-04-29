@@ -6,7 +6,7 @@ import { User, ChevronDown, Settings, CreditCard, Shield, LogOut, Map } from 'lu
 import { createClient } from '@/lib/supabase/client'
 import { resetStoreForLogout } from '@/lib/store'
 
-export default function AccountMenu() {
+export default function AccountMenu({ dropdownZClass }: { dropdownZClass?: string }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -46,7 +46,7 @@ export default function AccountMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-56 rounded-xl py-1 z-50 shadow-lg"
+          className={`absolute right-0 top-full mt-2 w-56 rounded-xl py-1 shadow-lg ${dropdownZClass ?? 'z-50'}`}
           style={{
             background: 'var(--surface)',
             border: '1px solid var(--border)',

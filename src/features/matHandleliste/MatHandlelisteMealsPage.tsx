@@ -1,6 +1,6 @@
 'use client'
 
-import Header from '@/components/layout/Header'
+import { MatHandlelisteHeader } from '@/components/matHandleliste/MatHandlelisteHeader'
 import MatHandlelisteTourHeaderButton from '@/features/matHandleliste/MatHandlelisteTourHeaderButton'
 import { MatHandlelisteCollapsiblePanel } from '@/components/matHandleliste/MatHandlelisteCollapsiblePanel'
 import { MatHandlelisteMealEditorModal } from '@/components/matHandleliste/MatHandlelisteMealEditorModal'
@@ -268,7 +268,7 @@ export function MatHandlelisteMealsPage() {
 
   return (
     <>
-      <Header
+      <MatHandlelisteHeader
         title="Mine måltider"
         subtitle="Din kokebok — lagres i appen (ikke hentet fra nettet)"
         titleAddon={<MatHandlelisteTourHeaderButton />}

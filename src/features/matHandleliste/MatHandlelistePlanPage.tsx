@@ -1,6 +1,6 @@
 'use client'
 
-import Header from '@/components/layout/Header'
+import { MatHandlelisteHeader } from '@/components/matHandleliste/MatHandlelisteHeader'
 import MatHandlelisteTourHeaderButton from '@/features/matHandleliste/MatHandlelisteTourHeaderButton'
 import MatHandlelisteBudgetCard from '@/components/matHandleliste/MatHandlelisteBudgetCard'
 import { MatHandlelisteExportPdfModal } from '@/components/matHandleliste/MatHandlelisteExportPdfModal'
@@ -244,7 +244,7 @@ export function MatHandlelistePlanPage() {
 
   return (
     <>
-      <Header title="Måltidsplan" subtitle={`Planlegg ${weekLabel} · Måned`} titleAddon={<MatHandlelisteTourHeaderButton />} />
+      <MatHandlelisteHeader title="Måltidsplan" subtitle={`Planlegg ${weekLabel} · Måned`} titleAddon={<MatHandlelisteTourHeaderButton />} />
       <MatHandlelistePageShell>
         <div className="w-full max-w-none pb-8">
           <div className="flex min-w-0 flex-col gap-6">
