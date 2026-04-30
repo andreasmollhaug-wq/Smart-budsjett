@@ -194,8 +194,8 @@ Importer transaksjoner (/konto/importer-transaksjoner)
 Import fra regnskap (/konto/importer-fra-regnskap)
 - CSV fra regnskapssystem (hovedbok med dato, konto, debet/kredit eller beløp med fortegn). Velg leverandør/profil, kartlegg hver regnskapskonto til en budsjettkategori (huskes neste gang), se sammendrag, bekreft. Endelig inntekt/utgift på transaksjonen følger kategoritypen i appen.
 
-Intern prosjekt — oppussing (/intern/prosjekt)
-- Valgfri intern modul for prosjekt/oppussing med egne poster; ikke fullt synkronisert med hovedbudsjettet som resten av appen. Bruk hovedbudsjett og transaksjoner for ordinær husholdningsøkonomi.
+Oppussing og prosjekt (/prosjekt, meny: Oppussing)
+- Valgfri modul for prosjekt og oppussing med egne budsjettposter og utgifter; ikke synkronisert med hovedbudsjettet og transaksjonslisten. Bruk Budsjett og Transaksjoner for ordinær husholdningsøkonomi. Gamle lenker til /intern/prosjekt omdirigeres til /prosjekt.
 
 Formuebyggeren PRO (/sparing/formuebygger)
 - Langsiktig simulering av formue og kjøpekraft; egne felt og tabeller; kan eksportere PDF der det er knapp for det i grensesnittet.

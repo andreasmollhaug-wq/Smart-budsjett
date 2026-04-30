@@ -22,6 +22,10 @@ import {
   BUDGET_LINE_LABEL_SUGGESTIONS,
   datalistOptionsForBudgetLines,
 } from './budgetLineSuggestions'
+import RenovationProjectDetailKpiModal, {
+  type RenovationProjectDetailKpiKind,
+} from './RenovationProjectDetailKpiModal'
+import { RENOVATION_PROJECT_BASE_PATH } from './paths'
 
 function todayYyyyMmDd(): string {
   const d = new Date()
@@ -75,6 +79,7 @@ export default function InternProsjektDetailPage() {
   const [editExpAmount, setEditExpAmount] = useState('')
   const [editExpDesc, setEditExpDesc] = useState('')
   const [editExpLineId, setEditExpLineId] = useState('')
+  const [detailKpiModal, setDetailKpiModal] = useState<RenovationProjectDetailKpiKind | null>(null)
 
   const lineAmountField = useFormattedMoneyInput(lineAmount, setLineAmount)
   const editLineAmountField = useFormattedMoneyInput(editLineAmount, setEditLineAmount)
@@ -120,7 +125,7 @@ export default function InternProsjektDetailPage() {
         <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
           Fant ikke prosjektet.
         </p>
-        <Link href="/intern/prosjekt" className="inline-flex min-h-[44px] items-center text-sm font-medium" style={{ color: 'var(--primary)' }}>
+        <Link href={RENOVATION_PROJECT_BASE_PATH} className="inline-flex min-h-[44px] items-center text-sm font-medium" style={{ color: 'var(--primary)' }}>
           Tilbake til listen
         </Link>
       </div>
@@ -250,10 +255,10 @@ export default function InternProsjektDetailPage() {
     <div className="flex-1 min-h-0 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
         title={project.name}
-        subtitle="Prosjektmodul (intern) — ikke synkronisert med hovedbudsjett"
+        subtitle="Ikke synkronisert med hovedbudsjett eller transaksjoner"
         titleAddon={
           <Link
-            href="/intern/prosjekt"
+            href={RENOVATION_PROJECT_BASE_PATH}
             className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation"
             style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--bg)' }}
           >
@@ -282,7 +287,7 @@ export default function InternProsjektDetailPage() {
                 type="button"
                 onClick={() => {
                   updateProjectMeta(project.id, { status: 'archived' })
-                  router.push('/intern/prosjekt')
+                  router.push(RENOVATION_PROJECT_BASE_PATH)
                 }}
                 className="min-h-[44px] flex-1 rounded-xl px-3 py-2.5 text-sm sm:flex-none"
                 style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
@@ -294,7 +299,7 @@ export default function InternProsjektDetailPage() {
                 onClick={() => {
                   if (typeof window !== 'undefined' && window.confirm('Slette prosjektet permanent?')) {
                     removeProject(project.id)
-                    router.push('/intern/prosjekt')
+                    router.push(RENOVATION_PROJECT_BASE_PATH)
                   }
                 }}
                 className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-sm sm:flex-none"
@@ -416,7 +421,9 @@ export default function InternProsjektDetailPage() {
                 }
                 icon={Wallet}
                 color="#3B5BDB"
-                info="Sum av alle budsjettlinjer i prosjektet."
+                valueNoWrap
+                onClick={() => setDetailKpiModal('budgetSum')}
+                aria-label="Budsjett sum — åpne detaljer"
               />
               <StatCard
                 label="Faktisk (sum)"
@@ -429,7 +436,9 @@ export default function InternProsjektDetailPage() {
                 icon={Receipt}
                 trend={kpis.varianceNok <= 0 ? 'up' : 'down'}
                 color={kpis.varianceNok > 0 ? '#E03131' : '#0CA678'}
-                info="Sum av alle registrerte utgifter."
+                valueNoWrap
+                onClick={() => setDetailKpiModal('actualSum')}
+                aria-label="Faktisk sum — åpne detaljer"
               />
               <StatCard
                 label="Avvik"
@@ -442,7 +451,9 @@ export default function InternProsjektDetailPage() {
                 icon={Scale}
                 trend={kpis.varianceNok <= 0 ? 'up' : 'down'}
                 color={kpis.varianceNok > 0 ? '#E03131' : '#0CA678'}
-                info="Faktisk minus budsjettert (positivt tall betyr overforbruk)."
+                valueNoWrap
+                onClick={() => setDetailKpiModal('variance')}
+                aria-label="Avvik — åpne detaljer"
               />
               <StatCard
                 label="Sjekkliste"
@@ -454,9 +465,19 @@ export default function InternProsjektDetailPage() {
                 }
                 icon={ListChecks}
                 color="#495057"
-                info="Antall avhukede punkter av totalt antall i sjekklisten."
+                onClick={() => setDetailKpiModal('checklist')}
+                aria-label="Sjekkliste — åpne detaljer"
               />
             </div>
+            {detailKpiModal !== null ? (
+              <RenovationProjectDetailKpiModal
+                open
+                kind={detailKpiModal}
+                onClose={() => setDetailKpiModal(null)}
+                project={project}
+                kpis={kpis}
+              />
+            ) : null}
             {kpis.totalBudgetedNok > 0 && (
               <div className="rounded-2xl px-4 py-4 sm:px-5" style={cardStyle}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>

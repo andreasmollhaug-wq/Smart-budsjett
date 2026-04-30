@@ -6,11 +6,11 @@ import { RenovationModuleProvider } from '@/features/renovation-project/Renovati
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Prosjekter (intern)',
+  title: 'Oppussingsprosjekt',
   robots: { index: false, follow: false },
 }
 
-export default async function InternProsjektLayout({ children }: { children: React.ReactNode }) {
+export default async function ProsjektLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const {
     data: { user },

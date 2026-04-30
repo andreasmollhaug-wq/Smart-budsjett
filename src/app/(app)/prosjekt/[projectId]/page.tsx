@@ -1,5 +1,5 @@
 import InternProsjektDetailPage from '@/features/renovation-project/InternProsjektDetailPage'
 
-export default function InternProsjektDetailRoutePage() {
+export default function ProsjektDetailRoutePage() {
   return <InternProsjektDetailPage />
 }

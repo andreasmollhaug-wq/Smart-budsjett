@@ -34,6 +34,16 @@ const nextConfig: NextConfig = {
         destination: '/sparing/smartspare',
         permanent: true,
       },
+      {
+        source: '/intern/prosjekt',
+        destination: '/prosjekt',
+        permanent: true,
+      },
+      {
+        source: '/intern/prosjekt/:projectId',
+        destination: '/prosjekt/:projectId',
+        permanent: true,
+      },
     ]
   },
 }

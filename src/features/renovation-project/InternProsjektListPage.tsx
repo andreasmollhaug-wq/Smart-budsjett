@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
@@ -10,6 +10,11 @@ import type { RenovationProject, RenovationTemplateKey } from './types'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { computePortfolioKpisForProjects, computeProjectKpis } from './kpis'
+import {
+  RENOVATION_PROJECT_BASE_PATH,
+  RENOVATION_SCOPE_INFO_DISMISSED_STORAGE_KEY,
+} from './paths'
+import RenovationPortfolioKpiModal, { type RenovationPortfolioKpiKind } from './RenovationPortfolioKpiModal'
 import { FolderKanban, Hammer, ListChecks, Plus, Receipt, Wallet } from 'lucide-react'
 
 function renovationProjectListMetaLine(p: RenovationProject): string | null {
@@ -49,6 +54,17 @@ export default function InternProsjektListPage() {
   const [endDate, setEndDate] = useState('')
   const [notes, setNotes] = useState('')
   const [openForm, setOpenForm] = useState(false)
+  const [scopeInfoDismissed, setScopeInfoDismissed] = useState<boolean | null>(null)
+  const [portfolioKpiModal, setPortfolioKpiModal] = useState<RenovationPortfolioKpiKind | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      setScopeInfoDismissed(window.localStorage.getItem(RENOVATION_SCOPE_INFO_DISMISSED_STORAGE_KEY) === '1')
+    } catch {
+      setScopeInfoDismissed(false)
+    }
+  }, [])
 
   const activeProjects = projects.filter((p) => p.status === 'active')
 
@@ -106,16 +122,37 @@ export default function InternProsjektListPage() {
     <div className="flex-1 min-h-0 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
         title="Oppussingsprosjekter"
-        subtitle="Intern testmodul — ikke en del av hovedbudsjettet eller transaksjonslisten"
+        subtitle="Planlegg oppussing og prosjekter — eget budsjett og utgifter (se info under)"
       />
       <div className="min-w-0 space-y-6 max-w-4xl mx-auto py-4 sm:py-6 md:py-8 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] md:pl-[max(2rem,env(safe-area-inset-left))] md:pr-[max(2rem,env(safe-area-inset-right))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <div
-          className="rounded-2xl px-4 py-3 text-sm break-words"
-          style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
-        >
-          <strong>Intern test:</strong> Data lagres separat for din bruker og blandes ikke inn i Budsjett eller
-          Transaksjoner. Direktelenke: <code className="text-xs break-all">/intern/prosjekt</code>
-        </div>
+        {scopeInfoDismissed === false && (
+          <div
+            className="rounded-2xl px-4 py-3 text-sm break-words flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
+            role="status"
+          >
+            <p className="min-w-0 flex-1">
+              <strong>Eget spor:</strong> Prosjektbudsjett og utgifter lagres på kontoen din og vises ikke i
+              hovedbudsjettet eller transaksjonslisten. Bruk Budsjett og Transaksjoner for vanlig
+              husholdningsøkonomi.
+            </p>
+            <button
+              type="button"
+              className="shrink-0 min-h-[44px] min-w-[44px] rounded-xl px-4 py-2 text-sm font-medium touch-manipulation sm:self-center"
+              style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+              onClick={() => {
+                try {
+                  window.localStorage.setItem(RENOVATION_SCOPE_INFO_DISMISSED_STORAGE_KEY, '1')
+                } catch {
+                  /* ignore */
+                }
+                setScopeInfoDismissed(true)
+              }}
+            >
+              Skjul
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
@@ -124,7 +161,8 @@ export default function InternProsjektListPage() {
             sub="Totalt i arbeid"
             icon={FolderKanban}
             color="#3B5BDB"
-            info="Antall prosjekter med status aktiv (arkiverte telles ikke)."
+            onClick={() => setPortfolioKpiModal('activeProjects')}
+            aria-label="Aktive prosjekter — åpne detaljer"
           />
           <StatCard
             label="Samlet budsjett"
@@ -136,7 +174,9 @@ export default function InternProsjektListPage() {
             }
             icon={Wallet}
             color="#3B5BDB"
-            info="Sum av alle budsjettlinjer på tvers av aktive prosjekter."
+            valueNoWrap
+            onClick={() => setPortfolioKpiModal('totalBudget')}
+            aria-label="Samlet budsjett — åpne detaljer"
           />
           <StatCard
             label="Samlet faktisk"
@@ -151,7 +191,9 @@ export default function InternProsjektListPage() {
             icon={Receipt}
             trend={portfolio.varianceNok <= 0 ? 'up' : 'down'}
             color={portfolio.varianceNok > 0 ? '#E03131' : '#0CA678'}
-            info="Sum av alle registrerte utgifter i aktive prosjekter."
+            valueNoWrap
+            onClick={() => setPortfolioKpiModal('totalActual')}
+            aria-label="Samlet faktisk — åpne detaljer"
           />
           <StatCard
             label="Sjekkliste (samlet)"
@@ -165,9 +207,20 @@ export default function InternProsjektListPage() {
             }
             icon={ListChecks}
             color="#495057"
-            info="Antall fullførte punkter av totalt antall sjekklistepunkter i alle aktive prosjekter."
+            onClick={() => setPortfolioKpiModal('checklist')}
+            aria-label="Sjekkliste samlet — åpne detaljer"
           />
         </div>
+
+        {portfolioKpiModal !== null ? (
+          <RenovationPortfolioKpiModal
+            open
+            kind={portfolioKpiModal}
+            onClose={() => setPortfolioKpiModal(null)}
+            portfolio={portfolio}
+            activeProjects={activeProjects}
+          />
+        ) : null}
 
         <div className="flex flex-wrap items-center gap-3">
           <button
@@ -325,7 +378,7 @@ export default function InternProsjektListPage() {
               return (
                 <li key={p.id}>
                   <Link
-                    href={`/intern/prosjekt/${p.id}`}
+                    href={`${RENOVATION_PROJECT_BASE_PATH}/${p.id}`}
                     className="block min-h-[56px] rounded-2xl p-4 sm:p-5 transition-opacity hover:opacity-95 active:opacity-90 touch-manipulation"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                   >
