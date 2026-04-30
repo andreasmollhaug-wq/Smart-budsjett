@@ -506,14 +506,11 @@ export default function BoliglanKalkulator() {
               text="Månedlig betaling (annuitet) er renter pluss avdrag. Nominell årsrente er kursen banken oppgir. Effektiv årsrente her viser hva det svarer til ved månedlig forrentning, uten gebyrer. Det er ikke det samme som kostnaden av å eie bolig (felleskostnader, forsikring, kommunale avgifter og løpende vedlikehold kommer i tillegg)."
             />
           </div>
-          <p className="text-2xl min-[400px]:text-3xl sm:text-4xl font-bold tabular-nums mt-1 min-w-0 max-w-full leading-tight">
-            <span
-              className="inline-block max-w-full overflow-x-auto overflow-y-visible overscroll-x-contain [scrollbar-width:thin] align-bottom"
-              style={{ color: 'var(--text)' }}
-            >
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-2xl min-[400px]:text-3xl sm:text-4xl font-bold tabular-nums mt-1 min-w-0 max-w-full leading-tight">
+            <span className="min-w-0 max-w-full break-anywhere" style={{ color: 'var(--text)' }}>
               {formatNOK(loanAmount > 0 ? monthlyPayment : 0)}
-            </span>{' '}
-            <span className="text-base min-[400px]:text-lg sm:text-xl font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>
+            </span>
+            <span className="text-base min-[400px]:text-lg sm:text-xl font-semibold whitespace-nowrap shrink-0" style={{ color: 'var(--text)' }}>
               pr. md.
             </span>
           </p>
