@@ -1,12 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
-import { useRenovationProjectStore, buildNewProjectFromTemplate } from './renovationProjectStore'
-import { buildChecklistFromTemplate } from './templates'
-import type { RenovationProject, RenovationTemplateKey } from './types'
+import { useRenovationProjectStore } from './renovationProjectStore'
+import type { RenovationProject } from './types'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { computePortfolioKpisForProjects, computeProjectKpis } from './kpis'
@@ -14,6 +13,7 @@ import {
   RENOVATION_PROJECT_BASE_PATH,
   RENOVATION_SCOPE_INFO_DISMISSED_STORAGE_KEY,
 } from './paths'
+import RenovationNewProjectModal from './RenovationNewProjectModal'
 import RenovationPortfolioKpiModal, { type RenovationPortfolioKpiKind } from './RenovationPortfolioKpiModal'
 import { FolderKanban, Hammer, ListChecks, Plus, Receipt, Wallet } from 'lucide-react'
 
@@ -36,24 +36,10 @@ function renovationDateRangeLabel(p: { startDate?: string; endDate?: string }): 
   return null
 }
 
-const TEMPLATE_OPTIONS: { key: RenovationTemplateKey; label: string }[] = [
-  { key: 'bathroom', label: 'Bad' },
-  { key: 'kitchen', label: 'Kjøkken' },
-  { key: 'custom', label: 'Tomt (egen sjekkliste)' },
-]
-
 export default function InternProsjektListPage() {
   const { formatNOK } = useNokDisplayFormatters()
   const projects = useRenovationProjectStore((s) => s.projects)
-  const addProject = useRenovationProjectStore((s) => s.addProject)
-
-  const [name, setName] = useState('')
-  const [templateKey, setTemplateKey] = useState<RenovationTemplateKey>('bathroom')
-  const [location, setLocation] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [notes, setNotes] = useState('')
-  const [openForm, setOpenForm] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
   const [scopeInfoDismissed, setScopeInfoDismissed] = useState<boolean | null>(null)
   const [portfolioKpiModal, setPortfolioKpiModal] = useState<RenovationPortfolioKpiKind | null>(null)
 
@@ -69,54 +55,6 @@ export default function InternProsjektListPage() {
   const activeProjects = projects.filter((p) => p.status === 'active')
 
   const portfolio = useMemo(() => computePortfolioKpisForProjects(projects), [projects])
-
-  const createDateRangeWarning = useMemo(() => {
-    const s = startDate.trim()
-    const e = endDate.trim()
-    if (!s || !e) return null
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) return null
-    if (e < s) return 'Sluttdato er før startdato.'
-    return null
-  }, [startDate, endDate])
-
-  const resetCreateForm = useCallback(() => {
-    setName('')
-    setTemplateKey('bathroom')
-    setLocation('')
-    setStartDate('')
-    setEndDate('')
-    setNotes('')
-  }, [])
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault()
-    const n = name.trim()
-    if (!n) return
-    const checklist = buildChecklistFromTemplate(templateKey)
-    const project = buildNewProjectFromTemplate({
-      name: n,
-      templateKey,
-      checklist,
-      location,
-      startDate,
-      endDate,
-      notes,
-    })
-    addProject(project)
-    resetCreateForm()
-    setOpenForm(false)
-  }
-
-  const handleToggleNewProject = () => {
-    setOpenForm((wasOpen) => {
-      if (wasOpen) {
-        resetCreateForm()
-        return false
-      }
-      resetCreateForm()
-      return true
-    })
-  }
 
   return (
     <div className="flex-1 min-h-0 overflow-auto" style={{ background: 'var(--bg)' }}>
@@ -222,145 +160,23 @@ export default function InternProsjektListPage() {
           />
         ) : null}
 
+        <RenovationNewProjectModal open={createModalOpen} onClose={() => setCreateModalOpen(false)} />
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={handleToggleNewProject}
+            onClick={() => setCreateModalOpen(true)}
             className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation"
             style={{ background: 'var(--primary)' }}
-            aria-expanded={openForm}
+            aria-haspopup="dialog"
+            aria-expanded={createModalOpen}
           >
             <Plus size={18} />
             Nytt prosjekt
           </button>
         </div>
 
-        {openForm && (
-          <form
-            onSubmit={handleCreate}
-            className="rounded-2xl p-5 space-y-4"
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-          >
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
-                Prosjektnavn
-              </label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                placeholder="F.eks. Bad 2. etasje"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
-                Mal (sjekkliste)
-              </label>
-              <select
-                value={templateKey}
-                onChange={(e) => setTemplateKey(e.target.value as RenovationTemplateKey)}
-                className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-              >
-                {TEMPLATE_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="pt-1 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>
-                Valgfritt — samme felter finner du på prosjektsiden senere
-              </p>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
-                    Sted
-                  </label>
-                  <input
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
-                    style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    placeholder="F.eks. garasje, kjeller"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
-                      Startdato
-                    </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
-                      style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
-                      Sluttdato (mål)
-                    </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
-                      style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                    />
-                  </div>
-                </div>
-                {createDateRangeWarning && (
-                  <p className="text-xs" style={{ color: 'var(--danger)' }}>
-                    {createDateRangeWarning}
-                  </p>
-                )}
-                <div>
-                  <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
-                    Notater
-                  </label>
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                    placeholder="Kort om plan, kontakter …"
-                    className="w-full resize-y rounded-xl border px-3 py-2.5 text-base sm:text-sm leading-relaxed min-h-[5rem]"
-                    style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:flex-wrap">
-              <button
-                type="submit"
-                className="min-h-[44px] w-full rounded-xl px-4 py-3 text-sm font-medium text-white sm:w-auto"
-                style={{ background: 'var(--primary)' }}
-              >
-                Opprett
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  resetCreateForm()
-                  setOpenForm(false)
-                }}
-                className="min-h-[44px] w-full rounded-xl px-4 py-3 text-sm font-medium sm:w-auto"
-                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
-              >
-                Avbryt
-              </button>
-            </div>
-          </form>
-        )}
-
-        {activeProjects.length === 0 && !openForm ? (
+        {activeProjects.length === 0 && !createModalOpen ? (
           <div
             className="rounded-2xl p-10 text-center"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
@@ -370,7 +186,7 @@ export default function InternProsjektListPage() {
               Ingen aktive prosjekter ennå. Opprett et for å følge budsjett og sjekkliste.
             </p>
           </div>
-        ) : (
+        ) : activeProjects.length > 0 ? (
           <ul className="space-y-3">
             {activeProjects.map((p) => {
               const k = computeProjectKpis(p)
@@ -427,7 +243,7 @@ export default function InternProsjektListPage() {
               )
             })}
           </ul>
-        )}
+        ) : null}
       </div>
     </div>
   )
