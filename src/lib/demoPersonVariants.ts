@@ -28,7 +28,7 @@ export function getDemoVariantIndexForProfile(
   return Math.min(Math.max(profileIndex, 0), MAX_DEMO_VARIANT_INDEX)
 }
 
-type DemoIncomePattern = {
+export type DemoIncomePattern = {
   salaryMonthly: number
   /** Måned med ferie-/bonusinntekt (0 = jan, 5 = juni) — ingen vanlig lønn den måneden. */
   bonusMonthIndex: number
@@ -622,6 +622,17 @@ const VARIANT_BY_INDEX: Record<1 | 2 | 3 | 4, DemoVariantBody> = {
   2: VARIANT_2,
   3: VARIANT_3,
   4: VARIANT_4,
+}
+
+/**
+ * Demo-inntektsmønster for smartSpare/seeding — samme som budsjett-/transaksjon-demo (variant 0 = standard i store).
+ */
+export function getDemoIncomePatternForVariant(variantIndex: number): DemoIncomePattern {
+  const v = Math.min(Math.max(0, Math.floor(variantIndex)), 4)
+  if (v === 0) {
+    return { salaryMonthly: 50_000, bonusMonthIndex: 5, bonusIncome: 80_000 }
+  }
+  return VARIANT_BY_INDEX[v as 1 | 2 | 3 | 4].income
 }
 
 /** Månedlige beløp for demo-tjenesteabonnement (matcher `monthlyExpenses` indeks 3, 5, 6). */

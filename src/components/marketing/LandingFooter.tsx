@@ -2,7 +2,14 @@ import Link from 'next/link'
 import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal'
 import { CTA_HREF, LOGIN_HREF, landingHorizontalPadding } from './constants'
 
-export default function LandingFooter() {
+type LandingFooterProps = {
+  /** Dottir: vis Dottir som produktnavn i footer (samme selskap som hovedsiden). */
+  variant?: 'default' | 'dottir'
+}
+
+export default function LandingFooter({ variant = 'default' }: LandingFooterProps) {
+  const productTitle = variant === 'dottir' ? 'Dottir' : 'Smart Budsjett'
+
   return (
     <footer
       className={`border-t py-10 ${landingHorizontalPadding}`}
@@ -11,7 +18,7 @@ export default function LandingFooter() {
       <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 sm:flex-row">
         <div className="text-center sm:text-left">
           <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            Smart Budsjett
+            {productTitle}
           </p>
           <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
             Et produkt fra {COMPANY_NAME} ·{' '}

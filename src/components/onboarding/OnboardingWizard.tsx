@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useStore, ONBOARDING_MAIN_INCOME_CATEGORY_ID } from '@/lib/store'
+import { syncSmartvaneAfterDemoToggle } from '@/lib/smartvaneDemoToggleSideEffects'
 import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import { formatThousands, parseThousands } from '@/lib/utils'
 
@@ -289,7 +290,22 @@ export default function OnboardingWizard() {
                 type="button"
                 role="switch"
                 aria-checked={demoDataEnabled}
-                onClick={() => setDemoDataEnabled(!demoDataEnabled)}
+                onClick={() => {
+                  void (async () => {
+                    const next = !demoDataEnabled
+                    try {
+                      if (next) {
+                        setDemoDataEnabled(true)
+                        await syncSmartvaneAfterDemoToggle(true)
+                      } else {
+                        await syncSmartvaneAfterDemoToggle(false)
+                        setDemoDataEnabled(false)
+                      }
+                    } catch {
+                      /* best-effort */
+                    }
+                  })()
+                }}
                 className="inline-flex items-center gap-3 text-left w-full min-h-[44px]"
               >
                 <span

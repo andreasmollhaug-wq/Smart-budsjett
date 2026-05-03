@@ -13,6 +13,16 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: '/preview/dottir',
+        destination: '/dottir',
+        permanent: true,
+      },
+      {
+        source: '/preview/dottir/om-oss',
+        destination: '/dottir/om-oss',
+        permanent: true,
+      },
       /** Mange klienter ber om /favicon.ico; vi bruker dynamisk /icon (ImageResponse). */
       {
         source: '/favicon.ico',

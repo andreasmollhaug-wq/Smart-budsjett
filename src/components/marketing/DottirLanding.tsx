@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -19,7 +20,15 @@ import {
   X,
 } from 'lucide-react'
 import LandingFooter from '@/components/marketing/LandingFooter'
-import { CTA_HREF, DOTTIR_OM_OSS_HREF, DOTTIR_PREVIEW_HREF, LOGIN_HREF, landingHorizontalPadding } from '@/components/marketing/constants'
+import {
+  CTA_HREF,
+  DOTTIR_ICON_SRC,
+  DOTTIR_LOGO_SRC,
+  DOTTIR_OM_OSS_HREF,
+  DOTTIR_HOME_HREF,
+  LOGIN_HREF,
+  landingHorizontalPadding,
+} from '@/components/marketing/constants'
 
 const NAV = [
   { href: DOTTIR_OM_OSS_HREF, label: 'Om oss' },
@@ -195,24 +204,30 @@ export default function DottirLanding() {
           className={`mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-2 py-3 sm:gap-4 sm:py-3 ${landingHorizontalPadding}`}
         >
           <Link
-            href={DOTTIR_PREVIEW_HREF}
+            href={DOTTIR_HOME_HREF}
+            aria-label="Dottir"
             className="flex min-w-0 max-w-[min(100%,14rem)] shrink items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:max-w-none sm:gap-3"
           >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-md"
-              style={{ background: 'linear-gradient(135deg, #7048E8, #4C6EF5)' }}
-              aria-hidden
-            >
-              Dt
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
-                Dottir
-              </p>
-              <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
-                Konsept · forhåndsvisning
-              </p>
-            </div>
+            <span className="relative flex h-9 w-9 shrink-0 md:hidden">
+              <Image
+                src={DOTTIR_ICON_SRC}
+                alt=""
+                width={36}
+                height={36}
+                className="object-contain"
+                priority
+              />
+            </span>
+            <span className="relative hidden h-9 shrink-0 md:block">
+              <Image
+                src={DOTTIR_LOGO_SRC}
+                alt=""
+                width={220}
+                height={44}
+                className="h-9 w-auto max-w-[min(100%,11rem)] object-contain object-left lg:max-w-[15rem]"
+                priority
+              />
+            </span>
           </Link>
 
           <nav className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
@@ -261,12 +276,14 @@ export default function DottirLanding() {
               style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
             >
               <span className="sm:hidden">Prøv gratis</span>
-              <span className="hidden sm:inline">Utforsk Smart Budsjett</span>
+              <span className="hidden sm:inline">Start gratis prøveperiode</span>
             </Link>
           </nav>
         </div>
       </header>
-      {mobileNav ? createPortal(mobileNav, document.body) : null}
+      {mobileNav && typeof document !== 'undefined'
+        ? createPortal(mobileNav, document.body)
+        : null}
 
       <main>
         <section
@@ -300,7 +317,7 @@ export default function DottirLanding() {
               }}
             >
               <Sparkles className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
-              Konsept · ikke bare budsjett — et livssystem i én flyt
+              Ikke bare budsjett — et livssystem i én flyt
             </p>
 
             <h1 className="text-[1.65rem] font-bold leading-snug tracking-tight sm:text-4xl md:text-5xl md:leading-snug" style={{ color: 'var(--text)' }}>
@@ -321,7 +338,7 @@ export default function DottirLanding() {
               Små handlinger. Stor kontroll.
             </p>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: 'var(--text-muted)' }}>
-              Dottir er et konsept for et personlig system som samler økonomi, oppgaver og planlegging — slik at du kan bruke det i
+              Dottir er et personlig system som samler økonomi, oppgaver og planlegging — slik at du kan bruke det i
               hverdagen, ikke bare «se på tall».
             </p>
 
@@ -355,7 +372,7 @@ export default function DottirLanding() {
                 className="inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-95 sm:w-auto"
                 style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
               >
-                Utforsk Smart Budsjett
+                Start gratis prøveperiode
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
               <Link
@@ -370,10 +387,6 @@ export default function DottirLanding() {
                 Hvem står bak dette?
               </Link>
             </div>
-
-            <p className="mt-7 text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-              Dette er en intern konseptside — ikke lenket fra hovednavigasjon.
-            </p>
           </div>
         </section>
 
@@ -689,7 +702,7 @@ export default function DottirLanding() {
                 className="inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95"
                 style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
               >
-                Start med Smart Budsjett i dag
+                Start gratis prøveperiode
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
               <Link
@@ -711,7 +724,7 @@ export default function DottirLanding() {
         </section>
       </main>
 
-      <LandingFooter />
+      <LandingFooter variant="dottir" />
     </div>
   )
 }

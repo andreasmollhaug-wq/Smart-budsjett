@@ -1,0 +1,17 @@
+{
+  "name": "Smart Budsjett · EnkelExcel",
+  "short_name": "Smart Budsjett",
+  "description": "Budsjett, sparing og SmartVane vaner — én app.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EEF2FF",
+  "theme_color": "#3B5BDB",
+  "icons": [
+    {
+      "src": "/icon",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ]
+}

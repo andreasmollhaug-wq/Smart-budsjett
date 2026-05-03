@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import {
+  Flame,
   LayoutDashboard,
   Wallet,
   PiggyBank,
@@ -15,6 +16,7 @@ import {
   Hammer,
 } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
+import { SMARTVANE_BASE_PATH } from '@/features/smartvane/paths'
 
 export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/dashboard', label: 'Oversikt', icon: LayoutDashboard },
@@ -30,6 +32,7 @@ export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = 
   { href: '/hjemflyt/start', label: 'Hjemflyt', icon: ClipboardList },
   { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
   { href: RENOVATION_PROJECT_BASE_PATH, label: 'Oppussing', icon: Hammer },
+  { href: SMARTVANE_BASE_PATH, label: 'SmartVane', icon: Flame },
 ]
 
 export function isSidebarNavActive(pathname: string, href: string): boolean {
@@ -40,5 +43,6 @@ export function isSidebarNavActive(pathname: string, href: string): boolean {
   if (href === '/hjemflyt/start') return pathname.startsWith('/hjemflyt')
   if (href === '/intern/mat-handleliste/handleliste') return pathname.startsWith('/intern/mat-handleliste')
   if (href === RENOVATION_PROJECT_BASE_PATH) return pathname.startsWith(RENOVATION_PROJECT_BASE_PATH)
+  if (href === SMARTVANE_BASE_PATH) return pathname.startsWith(SMARTVANE_BASE_PATH)
   return pathname === href
 }

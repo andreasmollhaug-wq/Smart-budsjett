@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -13,7 +14,13 @@ import {
   Users,
 } from 'lucide-react'
 import LandingFooter from '@/components/marketing/LandingFooter'
-import { CTA_HREF, DOTTIR_PREVIEW_HREF, LOGIN_HREF, landingHorizontalPadding } from '@/components/marketing/constants'
+import {
+  CTA_HREF,
+  DOTTIR_ICON_SRC,
+  DOTTIR_HOME_HREF,
+  LOGIN_HREF,
+  landingHorizontalPadding,
+} from '@/components/marketing/constants'
 import { COMPANY_NAME, CONTACT_EMAIL } from '@/lib/legal'
 
 const IRIS_DINSIDE_ARTICLE =
@@ -30,7 +37,7 @@ const WHY_WE_EXIST = [
   {
     icon: Layers,
     title: 'Struktur du orker å holde',
-    text: 'Smart Budsjett gir ferdig tankesett og oversikt. Dottir-konseptet er et mulig neste steg: mer av hverdagen samlet i én flyt.',
+    text: 'Smart Budsjett gir ferdig tankesett og oversikt. Dottir er et mulig neste steg: mer av hverdagen samlet i én flyt.',
   },
   {
     icon: Target,
@@ -56,9 +63,23 @@ export default function DottirOmOssPage() {
           borderColor: 'var(--border)',
         }}
       >
-        <div className={`mx-auto flex min-w-0 max-w-5xl flex-wrap items-center justify-between gap-3 py-3 sm:py-4 ${landingHorizontalPadding}`}>
+        <div className={`mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-3 py-3 sm:py-4 ${landingHorizontalPadding}`}>
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="relative flex h-10 w-10 shrink-0">
+              <Image
+                src={DOTTIR_ICON_SRC}
+                alt=""
+                width={40}
+                height={40}
+                className="object-contain"
+              />
+            </span>
+            <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
+              Om oss
+            </p>
+          </div>
           <Link
-            href={DOTTIR_PREVIEW_HREF}
+            href={DOTTIR_HOME_HREF}
             className="inline-flex min-h-[44px] shrink-0 touch-manipulation items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
             style={{ color: 'var(--primary)' }}
           >
@@ -66,23 +87,6 @@ export default function DottirOmOssPage() {
             <span className="hidden sm:inline">Tilbake til Dottir</span>
             <span className="sm:hidden">Tilbake</span>
           </Link>
-          <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-white shadow-md"
-              style={{ background: 'linear-gradient(135deg, #7048E8, #4C6EF5)' }}
-              aria-hidden
-            >
-              Dt
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
-                Om oss
-              </p>
-              <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
-                Konsept · utkast
-              </p>
-            </div>
-          </div>
         </div>
       </header>
 
@@ -115,7 +119,7 @@ export default function DottirOmOssPage() {
               }}
             >
               <Sparkles className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
-              Bak konseptet — ikke bare et navn på lysbakgrunn
+              Bak Dottir — ikke bare et navn på lysbakgrunn
             </p>
             <h1 className="mt-6 text-balance text-[1.75rem] font-bold leading-tight tracking-tight sm:text-4xl md:text-5xl md:leading-[1.08]" style={{ color: 'var(--text)' }}>
               Folk som vil gjøre økonomi{' '}
@@ -131,8 +135,7 @@ export default function DottirOmOssPage() {
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: 'var(--text-muted)' }}>
-              Vi jobber under navnet {COMPANY_NAME}, med Smart Budsjett som produktet tusenvis kan ta i bruk i dag. Dottir er et
-              konsept om hvordan den samme respekten for hverdagen kan utvikles videre — mer samlet, mer meningsfullt — uten å
+              Vi jobber under navnet {COMPANY_NAME}, med Smart Budsjett som produktet tusenvis kan ta i bruk i dag. Dottir handler om hvordan den samme respekten for hverdagen kan utvikles videre — mer samlet, mer meningsfullt — uten å
               miste det rolige språket vi er kjent for.
             </p>
           </div>
@@ -191,15 +194,15 @@ export default function DottirOmOssPage() {
                 faktisk føles når postkassen blir skrekken.
               </p>
               <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                Dottir-konseptet er ikke «ny PR». Det er et forsøk på å sette ord og retning på hvordan vi vil at neste generasjon
+                Dottir er ikke «ny PR». Det er et forsøk på å sette ord og retning på hvordan vi vil at neste generasjon
                 verktøy skal oppleves: som et sted du lever — ikke et ark du skammer deg over at du ikke åpnet i går.
               </p>
               <p className="leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                Denne siden er et utkast vi bruker til å tenke høyt med kollegaer, partnere og venner av huset.{' '}
                 <Link href="/" className="font-semibold underline underline-offset-2 transition-opacity hover:opacity-90" style={{ color: 'var(--primary)' }}>
-                  Produktet du kan logge inn på i dag
+                  Smart Budsjett på forsiden
                 </Link>{' '}
-                er fortsatt Smart Budsjett på forsiden.
+                er produktet du kan bruke i dag. Dottir er veien videre — samme team og samme respekt for hverdagen, med et
+                bredere system for økonomi og planlegging.
               </p>
             </div>
 
@@ -358,7 +361,7 @@ export default function DottirOmOssPage() {
                     Si hei — eller bare luft et spørsmål
                   </h2>
                   <p className="mt-3 text-sm leading-relaxed sm:text-base" style={{ color: 'var(--text-muted)' }}>
-                    Vi leser e-post fra folk som bryr seg om retningen til Smart Budsjett og konsepter som Dottir. Del gjerne hva
+                    Vi leser e-post fra folk som bryr seg om retningen til Smart Budsjett og Dottir. Del gjerne hva
                     som mangler i din hverdag — det driver oss.
                   </p>
                   <a
@@ -378,7 +381,7 @@ export default function DottirOmOssPage() {
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <Link
-                    href={DOTTIR_PREVIEW_HREF}
+                    href={DOTTIR_HOME_HREF}
                     className="inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 rounded-xl border px-5 py-3 text-sm font-semibold transition-opacity hover:opacity-95"
                     style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                   >
@@ -390,7 +393,7 @@ export default function DottirOmOssPage() {
                     className="inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95"
                     style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
                   >
-                    Start eller utforsk Smart Budsjett
+                    Start gratis prøveperiode
                     <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </div>
@@ -407,7 +410,7 @@ export default function DottirOmOssPage() {
         </section>
       </article>
 
-      <LandingFooter />
+      <LandingFooter variant="dottir" />
     </div>
   )
 }

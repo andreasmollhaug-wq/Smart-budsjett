@@ -161,6 +161,22 @@ describe('mergePersistedIntoFullState', () => {
     expect(Object.keys(merged.matHandleliste.planByDate).length).toBeGreaterThan(0)
   })
 
+  it('tilbakefyller SmartSpare-plan når demo er på men incomeSprintPlans er tom (eldre lagring)', () => {
+    const slice = createDefaultPersistedSlice()
+    const fullDemo = createDemoPersonDataForProfile(DEFAULT_PROFILE_ID, slice.budgetYear)
+    const staleDemo = { ...fullDemo, incomeSprintPlans: [] as typeof fullDemo.incomeSprintPlans }
+    const withStale = {
+      ...slice,
+      demoDataEnabled: true,
+      people: { [DEFAULT_PROFILE_ID]: staleDemo },
+    }
+    const merged = mergePersistedIntoFullState(withStale, useStore.getState())
+    expect(merged.people[DEFAULT_PROFILE_ID]!.incomeSprintPlans?.length ?? 0).toBeGreaterThan(0)
+    expect(merged.people[DEFAULT_PROFILE_ID]!.incomeSprintPlans?.[0]?.startDate.startsWith(String(slice.budgetYear))).toBe(
+      true,
+    )
+  })
+
   it('nullstiller matHandleliste når demo er av men lagret state fortsatt har demo-måltider', () => {
     const slice = createDefaultPersistedSlice()
     const inconsistent = {
@@ -202,6 +218,50 @@ describe('setActiveProfileId', () => {
     expect(st.financeScope).toBe('profile')
     expect(st.people[extraId]).toBeDefined()
     expect(Array.isArray(st.people[extraId]!.transactions)).toBe(true)
+  })
+})
+
+describe('hydrateFromServerRefresh', () => {
+  beforeEach(() => {
+    resetStoreForLogout()
+  })
+
+  it('beholder aktiv profil og financeScope når server-payload har eldre activeProfileId (debounce-luke)', () => {
+    const extraId = 'extra-prof'
+    useStore.setState({
+      subscriptionPlan: 'family',
+      profiles: [
+        { id: DEFAULT_PROFILE_ID, name: 'Meg' },
+        { id: extraId, name: 'Partner' },
+      ],
+      people: {
+        [DEFAULT_PROFILE_ID]: createEmptyPersonData(),
+        [extraId]: createEmptyPersonData(),
+      },
+      activeProfileId: extraId,
+      financeScope: 'household',
+    })
+
+    const serverPayload = createDefaultPersistedSlice()
+    const serverLike = {
+      ...serverPayload,
+      subscriptionPlan: 'family' as const,
+      profiles: [
+        { id: DEFAULT_PROFILE_ID, name: 'Meg' },
+        { id: extraId, name: 'Partner' },
+      ],
+      people: {
+        [DEFAULT_PROFILE_ID]: createEmptyPersonData(),
+        [extraId]: createEmptyPersonData(),
+      },
+      activeProfileId: DEFAULT_PROFILE_ID,
+      financeScope: 'profile' as const,
+    }
+
+    useStore.getState().hydrateFromServerRefresh(serverLike)
+    const st = useStore.getState()
+    expect(st.activeProfileId).toBe(extraId)
+    expect(st.financeScope).toBe('household')
   })
 })
 

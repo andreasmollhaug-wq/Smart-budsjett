@@ -4,10 +4,13 @@ import {
   hasSubscriptionAccess,
   isSubscriptionEnforcementEnabled,
 } from '@/lib/stripe/subscriptionAccess'
+import { applySmartvaneMonthCanonicalUrl } from '@/features/smartvane/smartvaneMonthMiddleware'
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true
   if (pathname === '/iris') return true
+  if (pathname === '/dottir' || pathname.startsWith('/dottir/')) return true
+  if (pathname === '/preview/dottir' || pathname.startsWith('/preview/dottir/')) return true
   if (pathname.startsWith('/guider')) return true
   if (pathname === '/produktflyt') return true
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt') return true
@@ -51,8 +54,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/iris', request.url))
   }
 
-  /** Favicon / app-ikoner må ikke kreve innlogging (matcher unngår ikke alltid /icon uten filendelse). */
-  if (pathname === '/icon' || pathname === '/apple-icon') {
+  /** Favicon / app-ikoner — ikke kjør auth (matcher unngår ikke alltid /icon uten filendelse). */
+  if (
+    pathname === '/icon' ||
+    pathname === '/apple-icon' ||
+    pathname === '/dottir/icon' ||
+    pathname === '/dottir/apple-icon'
+  ) {
     return NextResponse.next()
   }
 
@@ -81,9 +89,16 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null
+  try {
+    const {
+      data: { user: u },
+    } = await supabase.auth.getUser()
+    user = u
+  } catch {
+    /** Ugyldig session/cookie skal ikke ta ned offentlige sider (f.eks. /dottir). */
+    user = null
+  }
 
   if (isPublicPath(pathname)) {
     if (user && isAuthOnlyPath(pathname)) {
@@ -116,7 +131,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return supabaseResponse
+  return applySmartvaneMonthCanonicalUrl(request, supabaseResponse)
 }
 
 export const config = {

@@ -32,20 +32,28 @@ export function AppStateProvider({
   userId: string
 }) {
   const syncReady = useRef(false)
+  /** Skiller første lasting fra `router.refresh()` — se `hydrateFromServerRefresh`. */
+  const initialPayloadHydrationDone = useRef(false)
   /** Unngår identiske upserts når store trigges uten reell endring (samme serialiserte slice). */
   const lastSavedSliceJson = useRef<string | null>(null)
   const persistRlsWarned = useRef(false)
   const [persistSaveError, setPersistSaveError] = useState<string | null>(null)
 
   useEffect(() => {
-    useStore.getState().hydrateFromPayload(initialState)
+    if (!initialPayloadHydrationDone.current) {
+      useStore.getState().hydrateFromPayload(initialState)
 
-    if (wasCreated) {
-      const legacy = tryReadLegacyLocalStorage()
-      if (legacy) {
-        useStore.getState().hydrateFromPayload(legacy)
-        clearLegacyLocalStorage()
+      if (wasCreated) {
+        const legacy = tryReadLegacyLocalStorage()
+        if (legacy) {
+          useStore.getState().hydrateFromPayload(legacy)
+          clearLegacyLocalStorage()
+        }
       }
+
+      initialPayloadHydrationDone.current = true
+    } else {
+      useStore.getState().hydrateFromServerRefresh(initialState)
     }
 
     // Etter server-/legacy-hydrering — ellers kan NotificationBell sin tidligere sync

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 import { budgetedMonthsFromFrequency, generateId, type BudgetCategoryFrequency } from './utils'
+import { writeSmartvaneProfileCookieClient } from '@/features/smartvane/smartvaneProfileCookie'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
 import { applyCategoryRemap, type CategoryRemapErrorReason } from './categoryRemap'
@@ -141,6 +142,7 @@ import {
   isMatHandlelisteShellEmpty,
   matSnapshotContainsDemoMarkers,
 } from './demoMatHandleliste'
+import { buildDemoIncomeSprintPlansForYear } from './demoIncomeSprintPlans'
 import { effectiveBudgetedIncomeMonth, normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import {
   mergePatchIntoSparingPagePrefs,
@@ -488,8 +490,15 @@ interface AppState {
 
   /** Erstatter tidligere Zustand-persist + brukes ved innlasting fra Supabase. */
   hydrateFromPayload: (payload: unknown) => void
+  /**
+   * Slår server-snapshot inn uten å overskrive aktiv profil/husholdningsvalg som klienten nettopp byttet:
+   * `user_app_state` kan ligge 1–2 s bak (debounce), mens `router.refresh()` rekjører layout og ellers
+   * ville tilbakestilt `activeProfileId` (merkbart på SmartVane).
+   */
+  hydrateFromServerRefresh: (payload: unknown) => void
   syncProductAnnouncements: () => void
   syncInsightNotifications: () => void
+  syncSmartvaneBellReminder: (args: { profileId: string; calendarYmd: string; show: boolean }) => void
   /** Én gang etter ~30 min synlig bruk; idempotent via deliveredAnnouncementIds. */
   deliverRoadmapInviteNotification: () => void
   markNotificationRead: (id: string) => void
@@ -1061,6 +1070,26 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     base.matHandleliste = createDemoMatHandlelisteState(base.activeProfileId, new Date())
   }
 
+  /**
+   * Eldre lagring: demodata var på før SmartSpare-demo ble lagt inn — incomeSprintPlans kan mangle eller være tom.
+   * Fyll kun når budsjettet fortsatt har demo-kategorier og brukeren ikke har noen lagrede planer.
+   */
+  if (base.demoDataEnabled && peopleSnapshotContainsDemoMarkers(base.people)) {
+    for (let i = 0; i < base.profiles.length; i++) {
+      const pr = base.profiles[i]!
+      const person = base.people[pr.id]
+      if (!person) continue
+      const hasDemoBudget = person.budgetCategories.some((c) => typeof c.id === 'string' && c.id.startsWith('demo-'))
+      if (!hasDemoBudget) continue
+      const plans = person.incomeSprintPlans ?? []
+      if (plans.length > 0) continue
+      const vi = getDemoVariantIndexForProfile(base.subscriptionPlan, base.profiles.length, i)
+      const seeded = buildDemoIncomeSprintPlansForYear(base.budgetYear, vi, pr.id)
+      if (seeded.length === 0) continue
+      base.people[pr.id] = { ...person, incomeSprintPlans: seeded }
+    }
+  }
+
   delete (base as unknown as Record<string, unknown>).earlyStepsChecklist
 
   return base
@@ -1402,7 +1431,10 @@ export function createDemoPersonDataForProfile(
   }
   person = recalcPersonBudgetSpentForYear(person, profileId, budgetYear)
   person = syncLinkedSavingsGoalsCurrent(person, profileId)
-  return person
+  return {
+    ...person,
+    incomeSprintPlans: buildDemoIncomeSprintPlansForYear(budgetYear, v, profileId),
+  }
 }
 
 export { getDemoVariantIndexForProfile }
@@ -2026,6 +2058,19 @@ export const useStore = create<AppState>()((set, get) => {
           set((current) => mergePersistedIntoFullState(payload, current))
         },
 
+        hydrateFromServerRefresh: (payload: unknown) => {
+          set((current) => {
+            const prevProfileId = current.activeProfileId
+            const prevFinanceScope = current.financeScope
+            const merged = mergePersistedIntoFullState(payload, current)
+            if (merged.profiles.some((x) => x.id === prevProfileId)) {
+              merged.activeProfileId = prevProfileId
+              merged.financeScope = prevFinanceScope
+            }
+            return merged
+          })
+        },
+
         dismissDuplicateSubscriptionHint: (presetKey) => {
           const k = presetKey.trim()
           if (!k) return
@@ -2215,6 +2260,40 @@ export const useStore = create<AppState>()((set, get) => {
           }))
         },
 
+        syncSmartvaneBellReminder: ({ profileId, calendarYmd, show }) => {
+          const sig = `smartvane-day-${profileId}-${calendarYmd}`
+          set((s) => {
+            const nextFiltered = s.notifications.filter((n) => {
+              const c = n.contentSignature
+              if (typeof c === 'string' && c.startsWith('smartvane-day-')) return c === sig
+              return true
+            })
+            if (!show) {
+              return { notifications: nextFiltered.filter((n) => n.contentSignature !== sig) }
+            }
+            if (nextFiltered.some((n) => n.contentSignature === sig)) {
+              return { notifications: nextFiltered }
+            }
+            return {
+              notifications: [
+                {
+                  id: `smartvane-bell-${calendarYmd}`,
+                  title: 'SmartVane',
+                  body:
+                    'Du har daglige vaner uten kryss ennå i dag. Loggfør litt når du har et øyeblikk — eller vent til senere.',
+                  kind: 'smartvane',
+                  createdAt: new Date().toISOString(),
+                  read: false,
+                  contentSignature: sig,
+                  actionHref: '/smartvane/i-dag',
+                  actionLabel: 'Gå til I dag',
+                },
+                ...nextFiltered,
+              ],
+            }
+          })
+        },
+
         setSubscriptionPlan: (plan) => {
           const s = get()
           if (plan === 'solo' && s.profiles.length > 1) {
@@ -2231,6 +2310,7 @@ export const useStore = create<AppState>()((set, get) => {
           if (!s.people[id]) {
             people = { ...s.people, [id]: createEmptyPersonData() }
           }
+          writeSmartvaneProfileCookieClient(id)
           set({ activeProfileId: id, financeScope: 'profile', people })
         },
 
@@ -2273,6 +2353,7 @@ export const useStore = create<AppState>()((set, get) => {
             if (m) nextRow = { ...nextRow, hjemflyt: m }
           }
           const nextProfiles = [...s.profiles, nextRow]
+          writeSmartvaneProfileCookieClient(id)
           set({
             people: nextPeople,
             profiles: nextProfiles,
@@ -2331,6 +2412,7 @@ export const useStore = create<AppState>()((set, get) => {
             assigneeProfileIds: t.assigneeProfileIds.filter((x) => x !== id),
           }))
 
+          writeSmartvaneProfileCookieClient(activeProfileId)
           set({
             profiles: nextProfiles,
             people: restPeople,

@@ -13,11 +13,15 @@ import { periodSubtitle } from '@/lib/budgetPeriod'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 import {
+  appendIncomeSprintPaidLine,
   buildSmartSpareMonthlyPaidEarnedRows,
   buildStackedBarRows,
   computeIncomeSprintDerived,
   computeSourceMonthGrossTaxNet,
+  formatIncomeSprintPaidLineTimestampNb,
   formatIncomeSprintPlanPeriodNb,
+  incomeSprintPaidLinesExplicitForMonth,
+  incomeSprintNormalizedPaidLinesForMonth,
   listMonthKeysInRange,
   maxAdditionalPaidForMonth,
   monthEarnedInGoalBasis,
@@ -26,6 +30,7 @@ import {
   reconcileIncomeSprintPlan,
   smartSpareFilterToReferenceDate,
   yearOptionsTouchingPlan,
+  type IncomeSprintPaidLine,
   type IncomeSprintPlan,
 } from '@/lib/incomeSprint'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
@@ -61,6 +66,267 @@ import {
 } from 'recharts'
 
 type GoalDonutSlice = { name: string; value: number; fill: string }
+
+function InnbetaltMotMalMonthEditor(props: {
+  plan: IncomeSprintPlan
+  monthKey: string
+  readOnly: boolean
+  persistPlan: (next: IncomeSprintPlan) => void
+  persistPaidForMonth: (monthKey: string, raw: string) => void
+  /** Når sann: kortere hjelpetekst (brukt inne i kildemodal). */
+  compactHint?: boolean
+}) {
+  const { plan, monthKey, readOnly, persistPlan, persistPaidForMonth, compactHint } = props
+  const { formatNOK } = useNokDisplayFormatters()
+  const explicit = incomeSprintPaidLinesExplicitForMonth(plan, monthKey)
+  const lines: IncomeSprintPaidLine[] = explicit ? (plan.paidLinesByMonthKey?.[monthKey] ?? []) : []
+  const total = plan.paidByMonthKey?.[monthKey] ?? 0
+  const earned = monthEarnedInGoalBasis(plan, monthKey)
+  const room = maxAdditionalPaidForMonth(plan, monthKey)
+
+  const [totalDraftStr, setTotalDraftStr] = useState('')
+  const [newLineAmtStr, setNewLineAmtStr] = useState('')
+  const [newLineNote, setNewLineNote] = useState('')
+
+  useEffect(() => {
+    setTotalDraftStr(total ? formatThousands(String(total)) : '')
+    setNewLineAmtStr('')
+    setNewLineNote('')
+  }, [monthKey, total, plan.id])
+
+  const applyTotalFromField = useCallback(() => {
+    persistPaidForMonth(monthKey, totalDraftStr)
+  }, [monthKey, persistPaidForMonth, totalDraftStr])
+
+  return (
+    <div className="rounded-xl p-3 sm:p-4 space-y-4 min-w-0" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+          Innbetalt mot mål ({monthKeyHeadingNb(monthKey)})
+        </h3>
+        <p className="text-sm tabular-nums font-medium" style={{ color: 'var(--text)' }}>
+          Sum {formatNOK(total)}
+          <span className="text-xs font-normal block sm:inline sm:ml-1" style={{ color: 'var(--text-muted)' }}>
+            (opptjent {formatNOK(earned)})
+          </span>
+        </p>
+      </div>
+      <p className="text-xs leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
+        Tidspunktet viser når posten ble registrert i appen (Europe/Oslo). Nyeste øverst.
+        {!compactHint
+          ? ' Når måneden har beløp eller poster trykker du cellen mot modal. Fet skrift når måneden har minst to linjer i loggen (f.eks. gammelt beløp splittet til én rad pluss en ny innbetaling). Tom måned lar deg taste inn direkte.'
+          : null}
+      </p>
+      {!explicit && total > 0 ? (
+        <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
+          Beløpet er én samlet sum. Legg til post eller bruk «Tilfør» for å dele i flere linjer med logg.
+        </p>
+      ) : null}
+      {lines.length > 0 ? (
+        <ul className="space-y-2 min-w-0">
+          {lines.map((line) => (
+            <li
+              key={line.id}
+              className="rounded-lg p-2 sm:p-2.5 space-y-2"
+              style={{ border: '1px solid var(--border)', background: 'var(--primary-pale)' }}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
+                    {formatIncomeSprintPaidLineTimestampNb(line.createdAt)}
+                  </p>
+                  {line.note ? (
+                    <p className="text-xs mt-1 break-words" style={{ color: 'var(--text)' }}>
+                      {line.note}
+                    </p>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  disabled={readOnly}
+                  onClick={() => {
+                    const nextArr = lines.filter((l) => l.id !== line.id)
+                    persistPlan({
+                      ...plan,
+                      paidLinesByMonthKey: {
+                        ...(plan.paidLinesByMonthKey ?? {}),
+                        [monthKey]: nextArr.length > 0 ? nextArr : [],
+                      },
+                    })
+                  }}
+                  className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg touch-manipulation disabled:opacity-40"
+                  style={{ color: 'var(--danger)' }}
+                  aria-label="Slett post"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label className="flex flex-col gap-1 text-sm font-medium min-w-0" style={{ color: 'var(--text)' }}>
+                  Beløp (kr)
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    disabled={readOnly}
+                    defaultValue={formatThousands(String(line.amount))}
+                    key={`${line.id}-${line.amount}`}
+                    onBlur={(e) => {
+                      let n = Math.max(0, parseThousands(e.target.value.trim() || '0'))
+                      const otherSum = lines.filter((l) => l.id !== line.id).reduce((s, l) => s + l.amount, 0)
+                      const maxForLine = Math.max(0, earned - otherSum)
+                      if (n > maxForLine) n = maxForLine
+                      if (n === line.amount) return
+                      persistPlan({
+                        ...plan,
+                        paidLinesByMonthKey: {
+                          ...(plan.paidLinesByMonthKey ?? {}),
+                          [monthKey]: lines.map((l) => (l.id === line.id ? { ...l, amount: n } : l)),
+                        },
+                      })
+                    }}
+                    className="min-h-[44px] px-2 py-2 rounded-lg text-sm tabular-nums w-full min-w-0"
+                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm font-medium min-w-0" style={{ color: 'var(--text)' }}>
+                  Merknad (valgfritt)
+                  <input
+                    type="text"
+                    disabled={readOnly}
+                    defaultValue={line.note ?? ''}
+                    key={`note-${line.id}-${line.note ?? ''}`}
+                    onBlur={(e) => {
+                      const noteTrim = e.target.value.trim().slice(0, 140)
+                      const noteNext = noteTrim.length > 0 ? noteTrim : undefined
+                      const prev = (line.note ?? '').trim()
+                      if ((noteNext ?? '') === prev) return
+                      persistPlan({
+                        ...plan,
+                        paidLinesByMonthKey: {
+                          ...(plan.paidLinesByMonthKey ?? {}),
+                          [monthKey]: lines.map((l) =>
+                            l.id === line.id ? { ...l, note: noteNext } : l,
+                          ),
+                        },
+                      })
+                    }}
+                    className="min-h-[44px] px-2 py-2 rounded-lg text-sm w-full min-w-0"
+                    style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                    placeholder="F.eks. lønn 15.4"
+                  />
+                </label>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : explicit ? (
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          Ingen poster for denne måneden ennå — legg til under.
+        </p>
+      ) : null}
+
+      <div
+        className="rounded-lg p-3 sm:p-3.5 space-y-3 min-w-0"
+        style={{ border: '1px solid var(--border)', background: 'var(--primary-pale)' }}
+      >
+        <div>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+            Legg til ny post
+          </p>
+          <p className="text-[11px] sm:text-xs leading-snug mt-1 break-words" style={{ color: 'var(--text-muted)' }}>
+            På{' '}
+            <span className="font-medium" style={{ color: 'var(--text)' }}>
+              {monthKeyHeadingNb(monthKey)}
+            </span>{' '}
+            kan du ennå registrere innbetalt for opptil{' '}
+            <span className="font-medium tabular-nums" style={{ color: 'var(--text)' }}>
+              {formatNOK(room)}
+            </span>{' '}
+            (opptjent for måneden minus det som allerede er ført).
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1.5 text-sm font-medium min-w-0" style={{ color: 'var(--text)' }}>
+            Beløp (kr)
+            <input
+              type="text"
+              inputMode="numeric"
+              disabled={readOnly || room <= 0}
+              value={newLineAmtStr}
+              onChange={(e) => setNewLineAmtStr(formatThousands(e.target.value))}
+              placeholder={room > 0 ? 'Skriv beløp' : 'Ikke rom for mer'}
+              className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm tabular-nums touch-manipulation w-full min-w-0"
+              style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm font-medium min-w-0" style={{ color: 'var(--text)' }}>
+            Merknad (valgfritt)
+            <input
+              type="text"
+              disabled={readOnly || room <= 0}
+              value={newLineNote}
+              onChange={(e) => setNewLineNote(e.target.value.slice(0, 140))}
+              className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm w-full min-w-0 touch-manipulation"
+              style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+              placeholder="F.eks. ekstra BSU"
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          disabled={
+            readOnly ||
+            room <= 0 ||
+            !Number.isFinite(parseThousands(newLineAmtStr.trim() || '0')) ||
+            parseThousands(newLineAmtStr.trim() || '0') <= 0
+          }
+          onClick={() => {
+            const raw = parseThousands(newLineAmtStr.trim() || '0')
+            const add = Math.max(0, Math.round(Number.isFinite(raw) ? raw : 0))
+            if (add <= 0) return
+            const capped = Math.min(add, room)
+            persistPlan(appendIncomeSprintPaidLine(plan, monthKey, capped, newLineNote.trim() || undefined))
+            setNewLineAmtStr('')
+            setNewLineNote('')
+          }}
+          className="min-h-[44px] w-full px-4 py-2.5 rounded-xl text-sm font-medium touch-manipulation disabled:opacity-50"
+          style={{ background: 'var(--primary)', color: '#fff' }}
+        >
+          Legg til post
+        </button>
+      </div>
+
+      <div className="space-y-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+        <label className="flex flex-col gap-1.5 text-sm min-w-0 font-medium" style={{ color: 'var(--text)' }}>
+          Sett månedsum direkte (kr)
+          <span className="text-xs font-normal leading-snug" style={{ color: 'var(--text-muted)' }}>
+            Erstatter enkeltsummer med én totalsum og fjerner postlisten for måneden. Bruk poster over for å logge flere
+            innbetalinger med tidspunkt.
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            disabled={readOnly}
+            value={totalDraftStr}
+            onChange={(e) => setTotalDraftStr(formatThousands(e.target.value))}
+            className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm w-full min-w-0 tabular-nums touch-manipulation"
+            style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={readOnly}
+          onClick={() => applyTotalFromField()}
+          className="min-h-[44px] w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium touch-manipulation disabled:opacity-50"
+          style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+        >
+          Oppdater månedsum
+        </button>
+      </div>
+    </div>
+  )
+}
+
 
 function SmartSpareGoalDonutBlock({ pieData, centerPercent }: { pieData: GoalDonutSlice[]; centerPercent: number }) {
   const { formatNOK } = useNokDisplayFormatters()
@@ -219,11 +485,12 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   type CellModal = { sourceId: string; monthKey: string }
   const [cellModal, setCellModal] = useState<CellModal | null>(null)
   const [cellModalHelpOpen, setCellModalHelpOpen] = useState(false)
+  const [innbetaltDetailMonthKey, setInnbetaltDetailMonthKey] = useState<string | null>(null)
   const cellModalBackdropDismiss = useModalBackdropDismiss(() => setCellModal(null))
+  const innbetaltDetailBackdropDismiss = useModalBackdropDismiss(() => setInnbetaltDetailMonthKey(null))
   const cellModalHelpRef = useRef<HTMLDivElement>(null)
   const [renamingSourceId, setRenamingSourceId] = useState<string | null>(null)
   const [modalAddCustomStr, setModalAddCustomStr] = useState('')
-  const [modalSelectedMonthPaidStr, setModalSelectedMonthPaidStr] = useState('')
   const [periodFilterExpanded, setPeriodFilterExpanded] = useState(false)
   const [settingsExpanded, setSettingsExpanded] = useState(false)
   const [planTaxPercentStr, setPlanTaxPercentStr] = useState('')
@@ -231,12 +498,6 @@ export default function SmartSparePlanDetail({ planId }: Props) {
   useEffect(() => {
     if (!cellModal) setModalAddCustomStr('')
   }, [cellModal])
-
-  useEffect(() => {
-    if (!cellModal || !plan) return
-    const v = plan.paidByMonthKey?.[cellModal.monthKey] ?? 0
-    setModalSelectedMonthPaidStr(v ? formatThousands(String(v)) : '')
-  }, [cellModal?.monthKey, cellModal?.sourceId, plan?.id, plan?.paidByMonthKey, cellModal, plan])
 
   useEffect(() => {
     if (!cellModal) {
@@ -260,6 +521,15 @@ export default function SmartSparePlanDetail({ planId }: Props) {
     document.addEventListener('pointerdown', close)
     return () => document.removeEventListener('pointerdown', close)
   }, [cellModalHelpOpen])
+
+  useEffect(() => {
+    if (!innbetaltDetailMonthKey) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setInnbetaltDetailMonthKey(null)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [innbetaltDetailMonthKey])
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 640px)')
@@ -314,19 +584,17 @@ export default function SmartSparePlanDetail({ planId }: Props) {
     return listMonthKeysInRange(plan.startDate, plan.endDate)
   }, [plan])
 
-  const paidInnbetaltMonthRows = useMemo(() => {
-    if (!plan) return []
-    const paid = plan.paidByMonthKey ?? {}
-    return monthKeys.filter((mk) => (paid[mk] ?? 0) > 0)
-  }, [plan, monthKeys])
-
   const persistPaidForMonth = useCallback(
     (monthKey: string, raw: string) => {
       if (readOnly || !plan) return
       const n = Math.max(0, parseThousands(raw.trim() || '0'))
+      const nextPaidLines = { ...(plan.paidLinesByMonthKey ?? {}) }
+      delete nextPaidLines[monthKey]
+      const lineKeys = Object.keys(nextPaidLines)
       persistPlan({
         ...plan,
         paidByMonthKey: { ...(plan.paidByMonthKey ?? {}), [monthKey]: n },
+        paidLinesByMonthKey: lineKeys.length > 0 ? nextPaidLines : undefined,
       })
     },
     [plan, readOnly, persistPlan],
@@ -947,24 +1215,40 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                         </td>
                         {monthKeys.map((mk) => {
                           const v = plan.paidByMonthKey?.[mk] ?? 0
+                          /** Normaliser like reconcile (bl.a. beløp lagret som streng etter persist). */
+                          const normalizedLinesForMonth = incomeSprintNormalizedPaidLinesForMonth(plan, mk)
+                          const lineCount = normalizedLinesForMonth.length
+                          /** Tom måned (0 kr, ingen gyldige linjer) → tallfelt. Ellers trykk åpner modal; fet skrift når minst to rader i månedens logg (f.eks. opprulling «Tidligere ført samlet» + ny post). */
+                          const openInnbetaltDetail = lineCount >= 1 || v > 0
+                          const boldTabellSum = lineCount >= 2
                           return (
                             <td key={mk} className="py-1 px-0.5 align-middle">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                disabled={readOnly}
-                                value={v ? formatThousands(String(v)) : ''}
-                                onChange={(e) => {
-                                  const n = Math.max(0, parseThousands(e.target.value))
-                                  persistPlan({
-                                    ...plan,
-                                    paidByMonthKey: { ...(plan.paidByMonthKey ?? {}), [mk]: n },
-                                  })
-                                }}
-                                className="w-full min-h-[44px] min-w-[4.25rem] sm:min-w-[4.5rem] px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm touch-manipulation"
-                                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                                aria-label={`Innbetalt mot mål ${monthKeyHeadingNb(mk)}`}
-                              />
+                              {openInnbetaltDetail ? (
+                                <button
+                                  type="button"
+                                  disabled={readOnly}
+                                  onClick={() => setInnbetaltDetailMonthKey(mk)}
+                                  className={`w-full min-h-[44px] min-w-[4.25rem] sm:min-w-[4.5rem] flex items-center justify-end px-1 py-2 rounded-lg tabular-nums text-[10px] sm:text-sm touch-manipulation outline-none disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--primary)] ${boldTabellSum ? 'font-bold' : 'font-normal'}`}
+                                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                                  aria-label={`Innbetalt mot mål ${monthKeyHeadingNb(mk)}, innbetalingsposter – åpne redigering`}
+                                >
+                                  {v ? formatThousands(String(v)) : ''}
+                                </button>
+                              ) : (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  disabled={readOnly}
+                                  value={v ? formatThousands(String(v)) : ''}
+                                  onChange={(e) => {
+                                    if (readOnly) return
+                                    persistPaidForMonth(mk, e.target.value)
+                                  }}
+                                  className="w-full min-h-[44px] min-w-[4.25rem] sm:min-w-[4.5rem] px-1 py-2 rounded-lg text-right tabular-nums text-[10px] sm:text-sm touch-manipulation"
+                                  style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                                  aria-label={`Innbetalt mot mål ${monthKeyHeadingNb(mk)}`}
+                                />
+                              )}
                             </td>
                           )
                         })}
@@ -1313,9 +1597,9 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                                 <strong style={{ color: 'var(--text)' }}>felles for hele planen</strong> — ikke per kilde.
                               </li>
                               <li>
-                                <strong style={{ color: 'var(--text)' }}>Tilfør</strong> legger beløp til valgt måneds
-                                innbetalt (forslag følger brutto/netto og målgrunnlag). Summen kan ikke overstige det som
-                                er opptjent for måneden totalt (felles innbetalt) — gjenværende rom klippes automatisk.
+                                <strong style={{ color: 'var(--text)' }}>Tilfør</strong> og «Legg til post» legger en ny
+                                post i loggen for valgt måned (tidspunktet settes når du trykker). Forslag følger
+                                brutto/netto og målgrunnlag; maks er opptjent minus allerede innbetalt.
                               </li>
                               <li>
                                 Valgfri <strong style={{ color: 'var(--text)' }}>skatt per kilde</strong> overstyrer
@@ -1438,82 +1722,14 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                       </label>
                     )}
 
-                    <div
-                      className="rounded-xl p-3 sm:p-4 space-y-2 min-w-0"
-                      style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}
-                    >
-                      <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                        Innbetalt mot mål (felles for planen)
-                      </h3>
-                      <p className="text-xs leading-snug break-words" style={{ color: 'var(--text-muted)' }}>
-                        Månedlig innbetalt gjelder hele spareplanen — ikke per kilde. Her ser du hvor det er ført, og kan
-                        rette beløp (feltet oppdateres når du forlater det).
-                      </p>
-                      {paidInnbetaltMonthRows.length === 0 ? (
-                        <p className="text-sm py-2" style={{ color: 'var(--text-muted)' }}>
-                          Ingen månedlig innbetalt registrert ennå — bruk feltet under eller «Tilfør».
-                        </p>
-                      ) : (
-                        <div className="overflow-x-auto -mx-1">
-                          <table className="w-full text-xs sm:text-sm border-collapse min-w-[16rem]">
-                            <thead>
-                              <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
-                                <th className="text-left py-2 pr-2 font-medium">Måned</th>
-                                <th className="text-right py-2 pl-2 font-medium tabular-nums">Innbetalt (kr)</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {paidInnbetaltMonthRows.map((mk) => {
-                                const amt = plan.paidByMonthKey?.[mk] ?? 0
-                                return (
-                                  <tr key={mk} style={{ borderTop: '1px solid var(--border)', color: 'var(--text)' }}>
-                                    <td className="py-2 pr-2 align-middle whitespace-nowrap">{monthKeyHeadingNb(mk)}</td>
-                                    <td className="py-1.5 pl-2 text-right align-middle">
-                                      <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        disabled={readOnly}
-                                        defaultValue={amt ? formatThousands(String(amt)) : ''}
-                                        key={`${mk}-${amt}`}
-                                        onBlur={(e) => persistPaidForMonth(mk, e.target.value)}
-                                        className="w-full min-w-[6rem] max-w-[11rem] ml-auto block px-2 py-2 rounded-lg text-right tabular-nums text-xs sm:text-sm"
-                                        style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                                        aria-label={`Innbetalt ${monthKeyHeadingNb(mk)}`}
-                                      />
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="flex flex-col gap-1.5 text-sm min-w-0 font-medium" style={{ color: 'var(--text)' }}>
-                        Innbetalt for valgt måned (kr)
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          disabled={readOnly}
-                          value={modalSelectedMonthPaidStr}
-                          onChange={(e) => setModalSelectedMonthPaidStr(formatThousands(e.target.value))}
-                          placeholder="0"
-                          className="min-h-[44px] px-3 py-2 rounded-xl text-base sm:text-sm w-full min-w-0 tabular-nums"
-                          style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        disabled={readOnly}
-                        onClick={() => persistPaidForMonth(cellModal.monthKey, modalSelectedMonthPaidStr)}
-                        className="min-h-[44px] w-full sm:w-auto px-4 py-2.5 rounded-xl text-sm font-medium touch-manipulation disabled:opacity-50"
-                        style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
-                      >
-                        Oppdater beløp for {monthKeyHeadingNb(cellModal.monthKey)}
-                      </button>
-                    </div>
+                    <InnbetaltMotMalMonthEditor
+                      plan={plan}
+                      monthKey={cellModal.monthKey}
+                      readOnly={readOnly}
+                      persistPlan={persistPlan}
+                      persistPaidForMonth={persistPaidForMonth}
+                      compactHint
+                    />
 
                     <label className="flex flex-col gap-1.5 text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
                       Legg til ekstra innbetalt for valgt måned (kr) — tom bruker forslag under. Maks tilgjengelig er
@@ -1554,12 +1770,7 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                           const add = tilforEffectiveAmount
                           if (add <= 0) return
                           const mk = cellModal.monthKey
-                          const map = plan.paidByMonthKey ?? {}
-                          const prev = map[mk] ?? 0
-                          persistPlan({
-                            ...plan,
-                            paidByMonthKey: { ...map, [mk]: prev + add },
-                          })
+                          persistPlan(appendIncomeSprintPaidLine(plan, mk, add))
                           setModalAddCustomStr('')
                         }}
                         className="min-h-[44px] px-5 py-2.5 rounded-xl text-sm font-medium touch-manipulation disabled:opacity-50"
@@ -1572,6 +1783,63 @@ export default function SmartSparePlanDetail({ planId }: Props) {
                 </div>
               </div>
             )}
+            {plan && innbetaltDetailMonthKey ? (
+              <div
+                className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center touch-manipulation"
+                style={{ padding: safePad }}
+                role="presentation"
+              >
+                <button
+                  type="button"
+                  className="absolute inset-0 bg-black/40"
+                  aria-label="Lukk"
+                  {...innbetaltDetailBackdropDismiss}
+                />
+                <div
+                  className="relative flex max-h-[min(92dvh,44rem)] w-full max-w-lg flex-col rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden touch-manipulation"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="smartspare-innbetalt-detail-title"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    marginTop: 'max(0.5rem, env(safe-area-inset-top))',
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <div
+                    className="flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-5 shrink-0"
+                    style={{ borderColor: 'var(--border)' }}
+                  >
+                    <h2
+                      id="smartspare-innbetalt-detail-title"
+                      className="text-lg font-semibold min-w-0 pr-1 break-words"
+                      style={{ color: 'var(--text)' }}
+                    >
+                      Innbetalt mot mål · {monthKeyHeadingNb(innbetaltDetailMonthKey)}
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setInnbetaltDetailMonthKey(null)}
+                      className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl shrink-0 outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                      style={{ color: 'var(--text-muted)' }}
+                      aria-label="Lukk"
+                    >
+                      <X size={22} strokeWidth={2} />
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 flex-1 min-h-0">
+                    <InnbetaltMotMalMonthEditor
+                      plan={plan}
+                      monthKey={innbetaltDetailMonthKey}
+                      readOnly={readOnly}
+                      persistPlan={persistPlan}
+                      persistPaidForMonth={persistPaidForMonth}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </>
         )}
       </div>

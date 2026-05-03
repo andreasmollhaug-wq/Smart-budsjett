@@ -21,6 +21,10 @@ describe('setDemoDataEnabled', () => {
     useStore.getState().setDemoDataEnabled(true)
     expect(useStore.getState().demoDataEnabled).toBe(true)
     expect(useStore.getState().people[DEFAULT_PROFILE_ID]!.budgetCategories.length).toBeGreaterThan(0)
+    const demoBudgetYear = useStore.getState().budgetYear
+    const smartSparePlans = useStore.getState().people[DEFAULT_PROFILE_ID]!.incomeSprintPlans ?? []
+    expect(smartSparePlans.length).toBeGreaterThan(0)
+    expect(smartSparePlans[0]!.startDate.slice(0, 4)).toBe(String(demoBudgetYear))
     expect(matSnapshotContainsDemoMarkers(useStore.getState().matHandleliste)).toBe(true)
 
     useStore.setState({ peopleBeforeDemo: null, matHandlelisteBeforeDemo: null })
@@ -100,6 +104,9 @@ describe('demo varianter familie', () => {
     expect(sumIncome(a)).toBe(11 * 50_000 + 80_000)
     expect(sumIncome(b)).toBe(11 * 28_000 + 42_000)
     expect(sumIncome(a)).not.toBe(sumIncome(b))
+    expect((a.incomeSprintPlans ?? []).length).toBeGreaterThan(0)
+    expect((b.incomeSprintPlans ?? []).length).toBeGreaterThan(0)
+    expect(a.incomeSprintPlans![0]!.id).not.toBe(b.incomeSprintPlans![0]!.id)
   })
 
   it('setDemoDataEnabled med to familieprofiler gir ulike demodata per person', () => {
@@ -114,6 +121,9 @@ describe('demo varianter familie', () => {
       p.transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
     expect(sumIncome(p0)).toBe(11 * 50_000 + 80_000)
     expect(sumIncome(p1)).toBe(11 * 28_000 + 42_000)
+    expect((p0.incomeSprintPlans ?? []).length).toBeGreaterThan(0)
+    expect((p1.incomeSprintPlans ?? []).length).toBeGreaterThan(0)
+    expect(p0.incomeSprintPlans![0]!.id).not.toBe(p1.incomeSprintPlans![0]!.id)
   })
 })
 

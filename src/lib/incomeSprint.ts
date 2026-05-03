@@ -1,5 +1,5 @@
 import { BUDGET_MONTH_LABELS, periodRange, type PeriodMode } from '@/lib/budgetPeriod'
-import { generateId } from '@/lib/utils'
+import { generateId, parseThousands } from '@/lib/utils'
 
 export type IncomeSprintGoalBasis = 'afterTax' | 'beforeTax'
 
@@ -10,6 +10,19 @@ export interface IncomeSprintSource {
   taxPercent?: number
   amountsByMonthKey: Record<string, number>
 }
+
+/** Enkel post under «Innbetalt mot mål» per kalendermåned (summen bor i paidByMonthKey). */
+export interface IncomeSprintPaidLine {
+  id: string
+  /** Hele kroner, >= 0 */
+  amount: number
+  /** ISO 8601 — når posten ble lagt inn i appen */
+  createdAt: string
+  note?: string
+}
+
+/** Syntetisk merknad når første post splitter tidligere kun paidByMonthKey; telles ikke som egen brukerpreg i UI. */
+export const INCOME_SPRINT_LEGACY_ROLLUP_NOTE = 'Tidligere ført samlet'
 
 export interface IncomeSprintPlan {
   id: string
@@ -25,6 +38,11 @@ export interface IncomeSprintPlan {
   paidTowardGoal: number
   /** Faktisk innbetalt per kalendermåned (YYYY-MM), samme målgrunnlag som målet. */
   paidByMonthKey?: Record<string, number>
+  /**
+   * Detaljerte innbetalingsposter per måned. Når en månednøkkel mangler eller ikke er eksplisitt satt,
+   * kommer summen kun fra paidByMonthKey (legacy). Tom array på en nøkkel betyr eksplisitt 0 kr.
+   */
+  paidLinesByMonthKey?: Record<string, IncomeSprintPaidLine[]>
   sources: IncomeSprintSource[]
 }
 
@@ -186,20 +204,162 @@ export function yearOptionsTouchingPlan(plan: Pick<IncomeSprintPlan, 'startDate'
   return [...set].sort((a, b) => b - a)
 }
 
+function coercePaidLineAmount(amtRaw: unknown): number {
+  if (typeof amtRaw === 'number' && Number.isFinite(amtRaw)) return Math.round(Math.max(0, amtRaw))
+  if (typeof amtRaw === 'string') return Math.round(Math.max(0, parseThousands(amtRaw)))
+  return 0
+}
+
+function normalizePaidLinesArray(raw: unknown): IncomeSprintPaidLine[] {
+  if (!Array.isArray(raw)) return []
+  const nowIso = new Date().toISOString()
+  const out: IncomeSprintPaidLine[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as Record<string, unknown>
+    const id = typeof o.id === 'string' && o.id.trim().length > 0 ? o.id.trim() : generateId()
+    const amt = coercePaidLineAmount(o.amount)
+    if (amt <= 0) continue
+    const ca =
+      typeof o.createdAt === 'string' && Number.isFinite(Date.parse(o.createdAt)) ? o.createdAt : nowIso
+    const noteRaw = o.note
+    const note =
+      typeof noteRaw === 'string' && noteRaw.trim().length > 0 ? noteRaw.trim().slice(0, 140) : undefined
+    out.push({ id, amount: amt, createdAt: ca, note })
+  }
+  return out.sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+}
+
+/**
+ * Formatterer lagringstidsstempel for innbetalingsposter (lokal norsk tid via Europe/Oslo).
+ */
+export function formatIncomeSprintPaidLineTimestampNb(iso: string): string {
+  const t = Date.parse(iso)
+  if (!Number.isFinite(t)) return '—'
+  return new Intl.DateTimeFormat('nb-NO', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Europe/Oslo',
+  }).format(new Date(t))
+}
+
+/** Sann om måned har eksplisitt paidLines-flagg (evt. tom array = «nullstill til 0 kr»). */
+export function incomeSprintPaidLinesExplicitForMonth(plan: IncomeSprintPlan, monthKey: string): boolean {
+  const m = plan.paidLinesByMonthKey
+  if (typeof m !== 'object' || m === null) return false
+  return Object.prototype.hasOwnProperty.call(m, monthKey)
+}
+
+/**
+ * Legger til ny post på måned og synker paidByMonthKey via reconcile.
+ * Har måned kun legacy-sum uten eksplisitte linjer, flyttes eksisterende beløp til én samlet første linje før tillegget.
+ */
+export function appendIncomeSprintPaidLine(
+  plan: IncomeSprintPlan,
+  monthKey: string,
+  amount: number,
+  note?: string,
+): IncomeSprintPlan {
+  const amt = Math.max(0, Math.round(Number.isFinite(amount) ? amount : 0))
+  if (amt <= 0) return reconcileIncomeSprintPlan(plan)
+
+  const keys = listMonthKeysInRange(plan.startDate, plan.endDate)
+  if (!keys.includes(monthKey)) return reconcileIncomeSprintPlan(plan)
+
+  const linesBag = typeof plan.paidLinesByMonthKey === 'object' && plan.paidLinesByMonthKey !== null ? plan.paidLinesByMonthKey : {}
+  const hasExplicit = Object.prototype.hasOwnProperty.call(linesBag, monthKey)
+  const normalizedExisting = hasExplicit ? normalizePaidLinesArray(linesBag[monthKey]) : []
+
+  const prevPaidRaw = plan.paidByMonthKey?.[monthKey]
+  const prevPaid = typeof prevPaidRaw === 'number' && Number.isFinite(prevPaidRaw) ? Math.max(0, prevPaidRaw) : 0
+
+  const noteTrim = note?.trim() ? note.trim().slice(0, 140) : undefined
+  const tail: IncomeSprintPaidLine = {
+    id: generateId(),
+    amount: amt,
+    createdAt: new Date().toISOString(),
+    note: noteTrim,
+  }
+
+  let lines: IncomeSprintPaidLine[]
+  const startTrim = plan.startDate.trim().slice(0, 10)
+  const rollupAt =
+    /^(\d{4})-(\d{2})-(\d{2})$/.test(startTrim) ? `${startTrim}T12:00:00.000Z` : new Date().toISOString()
+
+  if (!hasExplicit && normalizedExisting.length === 0 && prevPaid > 0) {
+    lines = [
+      {
+        id: generateId(),
+        amount: prevPaid,
+        createdAt: rollupAt,
+        note: INCOME_SPRINT_LEGACY_ROLLUP_NOTE,
+      },
+      tail,
+    ]
+  } else {
+    lines = [...normalizedExisting, tail]
+  }
+
+  return reconcileIncomeSprintPlan({
+    ...plan,
+    paidLinesByMonthKey: { ...linesBag, [monthKey]: lines },
+  })
+}
+
+/** Antall faktiske innbetalingsposter (utenom syntetisk opprulling fra gammelt månedsfelt). Brukes til bl.a. fet sum i månedstabell ved ≥ 2. */
+/** Normaliserte gyldige poster for én måned (coercer beløp, sorterer nyeste først). */
+export function incomeSprintNormalizedPaidLinesForMonth(
+  plan: IncomeSprintPlan,
+  monthKey: string,
+): IncomeSprintPaidLine[] {
+  return normalizePaidLinesArray(plan.paidLinesByMonthKey?.[monthKey])
+}
+
+export function incomeSprintUserEnteredPaidLineCount(plan: IncomeSprintPlan, monthKey: string): number {
+  const normalized = incomeSprintNormalizedPaidLinesForMonth(plan, monthKey)
+  let n = 0
+  for (const line of normalized) {
+    const nu = line.note?.trim() ?? ''
+    if (nu === INCOME_SPRINT_LEGACY_ROLLUP_NOTE) continue
+    n++
+  }
+  return n
+}
+
 export function reconcileIncomeSprintPlan(plan: IncomeSprintPlan): IncomeSprintPlan {
   const keys = listMonthKeysInRange(plan.startDate, plan.endDate)
   const paidIn = typeof plan.paidByMonthKey === 'object' && plan.paidByMonthKey !== null ? { ...plan.paidByMonthKey } : {}
+  const linesIn =
+    typeof plan.paidLinesByMonthKey === 'object' && plan.paidLinesByMonthKey !== null ? plan.paidLinesByMonthKey : {}
+
   const paidClean: Record<string, number> = {}
+  const linesOut: Record<string, IncomeSprintPaidLine[]> = {}
   for (const k of keys) {
-    const v = paidIn[k]
-    paidClean[k] = typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0
+    const hasExplicitLinesKey = Object.prototype.hasOwnProperty.call(linesIn, k)
+    const normalized = hasExplicitLinesKey ? normalizePaidLinesArray(linesIn[k]) : []
+    if (hasExplicitLinesKey) {
+      if (normalized.length > 0) {
+        paidClean[k] = normalized.reduce((s, l) => s + l.amount, 0)
+        linesOut[k] = normalized
+      } else {
+        paidClean[k] = 0
+        linesOut[k] = []
+      }
+    } else {
+      const v = paidIn[k]
+      paidClean[k] = typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0
+    }
   }
+
+  const nextPaidLines: Record<string, IncomeSprintPaidLine[]> | undefined =
+    Object.keys(linesOut).length > 0 ? linesOut : undefined
 
   return {
     ...plan,
     targetAmount: Math.max(0, plan.targetAmount),
     paidTowardGoal: Math.max(0, plan.paidTowardGoal),
     paidByMonthKey: paidClean,
+    paidLinesByMonthKey: nextPaidLines,
     taxPercent: clampTaxPercent(plan.taxPercent),
     sources: plan.sources.map((s) => {
       const amounts: Record<string, number> = {}

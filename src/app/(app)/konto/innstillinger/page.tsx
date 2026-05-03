@@ -16,6 +16,7 @@ import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { syncSmartvaneAfterDemoToggle } from '@/lib/smartvaneDemoToggleSideEffects'
 import BudgetSetupChecklistCard from '@/components/konto/BudgetSetupChecklistCard'
 
 /** Stabile tomme referanser — `?? []` / `?? {}` i Zustand-selectorer gir ny referanse hver gang og utløser React 18 getSnapshot-loop. */
@@ -255,16 +256,36 @@ function DemoDataCard() {
       <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
         Vis eksempeldata for budsjett, transaksjoner, sparemål, investeringer og lån (boliglån utenfor snøball,
         studielån og kredittkort i snøball), samt ferdig utfylt ukeplan, måltider og handleliste i den interne modulen
-        «mat og handleliste». Dine egne data lagres trygt mens demodata er på, og gjenopprettes når du slår det av. I
-        familiehusholdning med flere profiler er eksempeltallene forskjellige per medlem (første profil tilsvarer
-        standarddemoen).
+        «mat og handleliste». I{' '}
+        <Link href="/smartvane" className="font-medium underline" style={{ color: 'var(--primary)' }}>
+          SmartVane
+        </Link>{' '}
+        legges også inn eksempelvaner (navn som starter «Demo · », med kryss i forrige og inneværende måned) — de ryddes når du
+        slår demodata av. Hvis du allerede har egne vaner utenom dem, forsøkes ikke automatisk å blande demodata inn i SmartVane.
+        Dine egne data lagres trygt mens demodata er på, og gjenopprettes når du slår det av. I familiehusholdning med flere profiler
+        er eksempeltallene forskjellige per medlem (første profil tilsvarer standarddemoen).
       </p>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <button
           type="button"
           role="switch"
           aria-checked={demoDataEnabled}
-          onClick={() => setDemoDataEnabled(!demoDataEnabled)}
+          onClick={() => {
+            void (async () => {
+              const next = !demoDataEnabled
+              try {
+                if (next) {
+                  setDemoDataEnabled(true)
+                  await syncSmartvaneAfterDemoToggle(true)
+                } else {
+                  await syncSmartvaneAfterDemoToggle(false)
+                  setDemoDataEnabled(false)
+                }
+              } catch {
+                /* best-effort */
+              }
+            })()
+          }}
           className="inline-flex items-center gap-3 text-left min-h-[44px]"
         >
           <span

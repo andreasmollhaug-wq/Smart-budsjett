@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  appendIncomeSprintPaidLine,
   computeIncomeSprintDerived,
   computeSourceMonthGrossTaxNet,
   ensureIncomeSprintPlanId,
   formatIncomeSprintPlanPeriodNb,
+  incomeSprintPaidLinesExplicitForMonth,
+  incomeSprintNormalizedPaidLinesForMonth,
+  incomeSprintUserEnteredPaidLineCount,
   listMonthKeysInRange,
   monthKeyHeadingNb,
   reconcileIncomeSprintPlan,
@@ -406,5 +410,155 @@ describe('incomeSprint', () => {
       paidByMonthKey: { '2026-04': 12_000 },
     })
     expect(maxAdditionalPaidForMonth(overPaid, '2026-04')).toBe(0)
+  })
+
+  it('reconcileIncomeSprintPlan: ikke-tomme paidLines overskriver paidByMonthKey-sum for måneden', () => {
+    const r = reconcileIncomeSprintPlan({
+      id: 'lines-sum',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      goalBasis: 'beforeTax',
+      targetAmount: 0,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: { '2026-04': 99_999 },
+      paidLinesByMonthKey: {
+        '2026-04': [
+          { id: 'a', amount: 8_600, createdAt: '2026-04-10T10:00:00.000Z' },
+          { id: 'b', amount: 2_500, createdAt: '2026-04-11T10:00:00.000Z' },
+        ],
+      },
+      sources: [],
+    })
+    expect(r.paidByMonthKey!['2026-04']).toBe(11_100)
+  })
+
+  it('reconcileIncomeSprintPlan: manglende paidLines rører ikke legacy paidByMonthKey', () => {
+    const r = reconcileIncomeSprintPlan({
+      id: 'legacy',
+      startDate: '2026-01-01',
+      endDate: '2026-02-28',
+      goalBasis: 'afterTax',
+      targetAmount: 0,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: { '2026-01': 5_000, '2026-02': 3_000 },
+      sources: [],
+    })
+    expect(r.paidByMonthKey!['2026-01']).toBe(5_000)
+    expect(r.paidByMonthKey!['2026-02']).toBe(3_000)
+    expect(r.paidLinesByMonthKey).toBeUndefined()
+  })
+
+  it('reconcileIncomeSprintPlan: eksplisitt tom paidLines-liste gir 0 kr for måneden', () => {
+    const r = reconcileIncomeSprintPlan({
+      id: 'cleared',
+      startDate: '2026-03-01',
+      endDate: '2026-03-31',
+      goalBasis: 'afterTax',
+      targetAmount: 0,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: { '2026-03': 9_000 },
+      paidLinesByMonthKey: { '2026-03': [] },
+      sources: [],
+    })
+    expect(r.paidByMonthKey!['2026-03']).toBe(0)
+    expect(incomeSprintPaidLinesExplicitForMonth(r, '2026-03')).toBe(true)
+    expect(r.paidLinesByMonthKey!['2026-03']).toEqual([])
+  })
+
+  it('appendIncomeSprintPaidLine: legger sammen med legacy uten å miste tidligere sum', () => {
+    const base = reconcileIncomeSprintPlan({
+      id: 'tilfor-legacy',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      goalBasis: 'beforeTax',
+      targetAmount: 0,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: { '2026-04': 8_600 },
+      sources: [{ id: 's', name: 'S', amountsByMonthKey: { '2026-04': 20_000 } }],
+    })
+    const next = reconcileIncomeSprintPlan(appendIncomeSprintPaidLine(base, '2026-04', 2_500))
+    expect(next.paidByMonthKey!['2026-04']).toBe(11_100)
+    const lines = next.paidLinesByMonthKey!['2026-04']!
+    expect(lines).toHaveLength(2)
+    expect(lines.reduce((s, l) => s + l.amount, 0)).toBe(11_100)
+    expect(maxAdditionalPaidForMonth(next, '2026-04')).toBe(8_900)
+  })
+
+  it('incomeSprintUserEnteredPaidLineCount: syntetisk opprulling teller ikke med i «antall poster»', () => {
+    const base = reconcileIncomeSprintPlan({
+      id: 'count-rollup',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      goalBasis: 'beforeTax',
+      targetAmount: 0,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: { '2026-04': 8_600 },
+      sources: [],
+    })
+    const oneUserLine = reconcileIncomeSprintPlan(appendIncomeSprintPaidLine(base, '2026-04', 2_500))
+    expect(oneUserLine.paidLinesByMonthKey!['2026-04']).toHaveLength(2)
+    expect(incomeSprintUserEnteredPaidLineCount(oneUserLine, '2026-04')).toBe(1)
+
+    const twoUserLines = reconcileIncomeSprintPlan(appendIncomeSprintPaidLine(oneUserLine, '2026-04', 500))
+    expect(incomeSprintUserEnteredPaidLineCount(twoUserLines, '2026-04')).toBe(2)
+  })
+
+  it('beløp lagret som streng i paidLines telles etter normalisering', () => {
+    const r = reconcileIncomeSprintPlan({
+      id: 'coerce',
+      startDate: '2026-06-01',
+      endDate: '2026-06-30',
+      goalBasis: 'beforeTax',
+      targetAmount: 0,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: {},
+      paidLinesByMonthKey: {
+        '2026-06': [
+          // Persistet JSON kan levere tall som streng; normalisering skal likevel tolke og synke summen.
+          // @ts-expect-error test: beløpsfelt kan være streng fra lagring
+          { id: 'a', amount: '4 000', createdAt: '2026-06-01T08:00:00.000Z' },
+          { id: 'b', amount: 1000, createdAt: '2026-06-02T08:00:00.000Z' },
+        ],
+      },
+      sources: [],
+    })
+    expect(incomeSprintNormalizedPaidLinesForMonth(r, '2026-06')).toHaveLength(2)
+    expect(incomeSprintUserEnteredPaidLineCount(r, '2026-06')).toBe(2)
+    expect(r.paidByMonthKey!['2026-06']).toBe(5_000)
+  })
+
+  it('maxAdditionalPaidForMonth med to linjer: bruker sum av paidByMonthKey', () => {
+    const plan = reconcileIncomeSprintPlan({
+      id: 'two-lines',
+      startDate: '2026-05-01',
+      endDate: '2026-05-31',
+      goalBasis: 'beforeTax',
+      targetAmount: 0,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 0,
+      paidByMonthKey: {},
+      paidLinesByMonthKey: {
+        '2026-05': [
+          { id: 'x', amount: 4_000, createdAt: '2026-05-01T08:00:00.000Z' },
+          { id: 'y', amount: 1_000, createdAt: '2026-05-02T08:00:00.000Z' },
+        ],
+      },
+      sources: [{ id: 's', name: 'S', amountsByMonthKey: { '2026-05': 10_000 } }],
+    })
+    expect(plan.paidByMonthKey!['2026-05']).toBe(5_000)
+    expect(maxAdditionalPaidForMonth(plan, '2026-05')).toBe(5_000)
   })
 })
