@@ -20,9 +20,10 @@ import {
 import RenovationNewProjectModal from './RenovationNewProjectModal'
 import RenovationPortfolioKpiModal, { type RenovationPortfolioKpiKind } from './RenovationPortfolioKpiModal'
 import RenovationOppussingInfoHeaderButton from './RenovationOppussingInfoHeaderButton'
+import RenovationOrganizeProjectsModal from './RenovationOrganizeProjectsModal'
 import RenovationProjectListPreviewModal from './RenovationProjectListPreviewModal'
 import { renovationProjectListMetaLine } from './renovationProjectListMeta'
-import { ChevronRight, FolderKanban, Hammer, ListChecks, Plus, Receipt, Wallet } from 'lucide-react'
+import { ChevronRight, FolderKanban, FolderTree, Hammer, ListChecks, Plus, Receipt, Wallet } from 'lucide-react'
 
 type RenovationCreateModalState =
   | { open: false }
@@ -36,6 +37,8 @@ export default function InternProsjektListPage() {
   const [scopeInfoDismissed, setScopeInfoDismissed] = useState<boolean | null>(null)
   const [portfolioKpiModal, setPortfolioKpiModal] = useState<RenovationPortfolioKpiKind | null>(null)
   const [previewChildId, setPreviewChildId] = useState<string | null>(null)
+  const [organizeModalOpen, setOrganizeModalOpen] = useState(false)
+  const [organizeScrollToProjectId, setOrganizeScrollToProjectId] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -180,11 +183,34 @@ export default function InternProsjektListPage() {
           onClose={() => setPreviewChildId(null)}
         />
 
-        <div className="flex flex-wrap items-center gap-3">
+        <RenovationOrganizeProjectsModal
+          open={organizeModalOpen}
+          onClose={() => {
+            setOrganizeModalOpen(false)
+            setOrganizeScrollToProjectId(undefined)
+          }}
+          initialScrollToProjectId={organizeScrollToProjectId}
+        />
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setOrganizeScrollToProjectId(undefined)
+              setOrganizeModalOpen(true)
+            }}
+            className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation sm:w-auto"
+            style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+            aria-haspopup="dialog"
+            aria-expanded={organizeModalOpen}
+          >
+            <FolderTree size={18} aria-hidden />
+            Organiser prosjekter
+          </button>
           <button
             type="button"
             onClick={() => setCreateModal({ open: true, variant: 'main' })}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation"
+            className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation sm:w-auto"
             style={{ background: 'var(--primary)' }}
             aria-haspopup="dialog"
             aria-expanded={createModal.open && createModal.variant === 'main'}
@@ -196,7 +222,7 @@ export default function InternProsjektListPage() {
             type="button"
             onClick={() => setCreateModal({ open: true, variant: 'sub' })}
             disabled={activeRoots.length === 0}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation disabled:cursor-not-allowed disabled:opacity-45"
+            className="inline-flex min-h-[44px] w-full min-w-0 items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation disabled:cursor-not-allowed disabled:opacity-45 sm:w-auto"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
             title={activeRoots.length === 0 ? 'Opprett et hovedprosjekt først' : undefined}
             aria-haspopup="dialog"
@@ -225,16 +251,30 @@ export default function InternProsjektListPage() {
               const metaLine = renovationProjectListMetaLine(p)
               return (
                 <li key={p.id} className="space-y-2">
-                  <Link
-                    href={`${RENOVATION_PROJECT_BASE_PATH}/${p.id}`}
-                    className="block min-h-[56px] rounded-2xl p-4 sm:p-5 transition-opacity hover:opacity-95 active:opacity-90 touch-manipulation"
+                  <div
+                    className="relative min-h-[56px] rounded-2xl transition-opacity hover:opacity-95"
                     style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
                   >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold break-words" style={{ color: 'var(--text)' }}>
-                          {p.name}
-                        </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrganizeScrollToProjectId(p.id)
+                        setOrganizeModalOpen(true)
+                      }}
+                      className="absolute top-3 right-3 z-[1] text-xs font-medium rounded-lg px-2 py-1 touch-manipulation min-h-[36px] min-w-[5rem]"
+                      style={{ color: 'var(--primary)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+                    >
+                      Organiser
+                    </button>
+                    <Link
+                      href={`${RENOVATION_PROJECT_BASE_PATH}/${p.id}`}
+                      className="block p-4 sm:p-5 pr-[7rem] sm:pr-[7.5rem] touch-manipulation"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold break-words" style={{ color: 'var(--text)' }}>
+                            {p.name}
+                          </p>
                         <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                           Hovedprosjekt · medregner {children.length}{' '}
                           {children.length === 1 ? 'rom/underprosjekt' : 'rom/underprosjekter'}
@@ -279,6 +319,7 @@ export default function InternProsjektListPage() {
                       </div>
                     )}
                   </Link>
+                  </div>
                   {children.length > 0 ? (
                     <ul className="pl-2 sm:pl-4 border-l-2 ml-3 space-y-1.5 min-w-0" style={{ borderColor: 'var(--border)' }}>
                       {children.map((c) => {

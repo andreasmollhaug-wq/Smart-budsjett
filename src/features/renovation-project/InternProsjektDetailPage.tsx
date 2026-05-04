@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
 import { useRenovationProjectStore } from './renovationProjectStore'
-import { computeProjectKpis, computeRollupProjectKpis, getActiveChildProjects, getActiveRootProjects } from './kpis'
+import { computeProjectKpis, computeRollupProjectKpis, getActiveChildProjects } from './kpis'
 import type { RenovationProjectExpense } from './types'
 import {
   formatMoneyInputFromNonNegativeNumber,
@@ -27,7 +27,8 @@ import RenovationProjectDetailKpiModal, {
 } from './RenovationProjectDetailKpiModal'
 import RenovationNewProjectModal from './RenovationNewProjectModal'
 import RenovationOppussingInfoHeaderButton from './RenovationOppussingInfoHeaderButton'
-import { collectSubtreeProjectIds, projectHasActiveChildren } from './projectHierarchyHelpers'
+import { collectSubtreeProjectIds } from './projectHierarchyHelpers'
+import { getActiveRootTargetsExcluding, getAttachRootAsChildAvailability } from './renovationHierarchyUi'
 import { RENOVATION_PROJECT_BASE_PATH, renovationDetailBudgetLinesStorageKey, renovationDetailChecklistStorageKey } from './paths'
 
 function todayYyyyMmDd(): string {
@@ -195,7 +196,12 @@ export default function InternProsjektDetailPage() {
 
   const otherRootChoices = useMemo(() => {
     if (!project) return []
-    return getActiveRootProjects(projects).filter((r) => r.id !== project.id)
+    return getActiveRootTargetsExcluding(project.id, projects)
+  }, [project, projects])
+
+  const attachAsChildAvailability = useMemo(() => {
+    if (!project) return { ok: false as const, reason: 'not_a_root' as const }
+    return getAttachRootAsChildAvailability(project, projects)
   }, [project, projects])
 
   const dateRangeWarning = useMemo(() => {
@@ -226,7 +232,7 @@ export default function InternProsjektDetailPage() {
     const p = projects.find((x) => x.id === projectId)
     if (!p) return
     setReparentDraft(p.parentId ?? '')
-    const others = getActiveRootProjects(projects).filter((r) => r.id !== p.id)
+    const others = getActiveRootTargetsExcluding(p.id, projects)
     setLinkParentDraft(others[0]?.id ?? '')
   }, [projectId, projects])
 
@@ -1617,7 +1623,7 @@ export default function InternProsjektDetailPage() {
                   style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                 />
               </div>
-              {!project.parentId && !projectHasActiveChildren(project.id, projects) && otherRootChoices.length > 0 ? (
+              {!project.parentId && attachAsChildAvailability.ok ? (
                 <div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
                   <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                     Koble til hovedprosjekt
@@ -1673,13 +1679,11 @@ export default function InternProsjektDetailPage() {
                         className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
                         style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
                       >
-                        {getActiveRootProjects(projects)
-                          .filter((r) => r.id !== project.id)
-                          .map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
+                        {getActiveRootTargetsExcluding(project.id, projects).map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <button

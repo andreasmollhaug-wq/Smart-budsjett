@@ -5,6 +5,11 @@ import {
   repairRenovationProjectParentRefs,
   RENOVATION_MODULE_STATE_VERSION,
 } from './types'
+import {
+  childCanReparentToAnotherRoot,
+  getActiveRootTargetsExcluding,
+  getAttachRootAsChildAvailability,
+} from './renovationHierarchyUi'
 
 function bareProject(over: Partial<RenovationProject>): RenovationProject {
   return {
@@ -88,5 +93,63 @@ describe('normalizeRenovationModuleState hierarchy', () => {
     }
     const st = normalizeRenovationModuleState(raw)
     expect(st.projects.find((x) => x.id === 'c')?.parentId).toBe('p')
+  })
+})
+
+describe('renovationHierarchyUi', () => {
+  it('getActiveRootTargetsExcluding filtrerer bort eget id blant aktive røtter', () => {
+    const projects: RenovationProject[] = [
+      bareProject({ id: 'a', name: 'A' }),
+      bareProject({ id: 'b', name: 'B' }),
+    ]
+    const t = getActiveRootTargetsExcluding('a', projects)
+    expect(t.map((p) => p.id)).toEqual(['b'])
+  })
+
+  it('getAttachRootAsChildAvailability: rot uten barn og to røtter → ok', () => {
+    const projects: RenovationProject[] = [
+      bareProject({ id: 'house', name: 'Hus' }),
+      bareProject({ id: 'loft', name: 'Loft' }),
+    ]
+    const loft = projects[1]!
+    expect(getAttachRootAsChildAvailability(loft, projects)).toEqual({
+      ok: true,
+      targetRoots: [projects[0]!],
+    })
+  })
+
+  it('getAttachRootAsChildAvailability: rot med aktivt barn → has_children', () => {
+    const projects: RenovationProject[] = [
+      bareProject({ id: 'house', name: 'Hus' }),
+      bareProject({ id: 'rom', name: 'Bad', parentId: 'house' }),
+    ]
+    const r = getAttachRootAsChildAvailability(projects[0]!, projects)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toBe('has_children')
+  })
+
+  it('getAttachRootAsChildAvailability: kun én rot → no_other_root', () => {
+    const projects: RenovationProject[] = [bareProject({ id: 'solo', name: 'Solo' })]
+    const r = getAttachRootAsChildAvailability(projects[0]!, projects)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toBe('no_other_root')
+  })
+
+  it('getAttachRootAsChildAvailability: barn med forelder → not_a_root', () => {
+    const projects: RenovationProject[] = [
+      bareProject({ id: 'house', name: 'Hus' }),
+      bareProject({ id: 'rom', name: 'R', parentId: 'house' }),
+    ]
+    const r = getAttachRootAsChildAvailability(projects[1]!, projects)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.reason).toBe('not_a_root')
+  })
+
+  it('childCanReparentToAnotherRoot: rom uten egne barn → true', () => {
+    const projects: RenovationProject[] = [
+      bareProject({ id: 'h', name: 'H' }),
+      bareProject({ id: 'r', name: 'R', parentId: 'h' }),
+    ]
+    expect(childCanReparentToAnotherRoot(projects[1]!, projects)).toBe(true)
   })
 })

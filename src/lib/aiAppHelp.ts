@@ -206,6 +206,8 @@ Oppussing og prosjekt (/prosjekt, menyvalg «Oppussing»)
 
 - Liste: Hovedkort viser **kun aktive hovedprosjekter** med **rollup** (hus + sine rom). Under hvert hus: liste med aktive rom. **Rom-rad åpner en kort modal** med nøkkeltall før valgfritt «Se detaljer».
 
+- Liste: Knapp **«Organiser prosjekter»** (og **«Organiser»** på hvert hovedkort) åpner en modal for å **gruppere uten å gå inn på hvert prosjekt**: koble et hoved uten rom under et annet hoved, **bytte hvilket hoved et rom tilhører**, eller **løsrive** et rom til eget hoved — **samme regler** som kobling/«Om prosjektet» på prosjektdetalj. Inne i den samme modalen kan du også **opprette et nytt hovedprosjekt** og deretter flytte andre prosjekter dit.
+
 - Oppretting: Knapp «**Nytt hovedprosjekt**» eller «**Nytt rom / underprosjekt**» (disabled til det finnes minst ett hus når nytt rom). Modal: ved rom velges hvilket hus. Malvalg (**kjøkken, bad**, egen) gir forslags­sjekkliste og lignende ved opprettelse.
 
 - Prosjektdetaljside (/prosjekt/[projectId]): **Header** har prosjektnavn og **Liste** tilbake (+ lenke opp til hus hvis du er på et rom).
