@@ -9,7 +9,15 @@ import type {
   RenovationTemplateKey,
 } from './types'
 import { createEmptyRenovationModuleState, normalizeOptionalIsoDateString } from './types'
+import {
+  collectSubtreeProjectIds,
+  validateParentForNewChild,
+  validateSetProjectParent,
+  type ValidateHierarchyResult,
+} from './projectHierarchyHelpers'
 import { generateId } from '@/lib/utils'
+
+export type { ValidateHierarchyResult } from './projectHierarchyHelpers'
 
 export interface RenovationProjectStoreState extends RenovationModulePersistedState {
   /** Satt etter hydrate fra server */
@@ -20,7 +28,7 @@ type Store = RenovationProjectStoreState & {
   hydrate: (state: RenovationModulePersistedState) => void
   reset: () => void
 
-  addProject: (project: RenovationProject) => void
+  addProject: (project: RenovationProject) => ValidateHierarchyResult
   updateProjectMeta: (
     projectId: string,
     patch: {
@@ -32,6 +40,7 @@ type Store = RenovationProjectStoreState & {
       location?: string
     },
   ) => void
+  setProjectParent: (projectId: string, parentId: string | null) => ValidateHierarchyResult
   removeProject: (projectId: string) => void
 
   addBudgetLine: (projectId: string, line: RenovationBudgetLine) => void
@@ -85,58 +94,92 @@ export const useRenovationProjectStore = create<Store>((set, get) => ({
   },
 
   addProject: (project) => {
+    const v = validateParentForNewChild(project.parentId, get().projects)
+    if (!v.ok) return v
     set((s) => ({ projects: [...s.projects, project] }))
+    return { ok: true }
+  },
+
+  setProjectParent: (projectId, parentId) => {
+    const v = validateSetProjectParent(projectId, parentId, get().projects)
+    if (!v.ok) return v
+    set((s) => ({
+      projects: patchProject(s.projects, projectId, (p) => {
+        if (parentId === null) {
+          const { parentId: _d, ...rest } = p
+          return rest as RenovationProject
+        }
+        return { ...p, parentId }
+      }),
+    }))
+    return { ok: true }
   },
 
   updateProjectMeta: (projectId, patch) => {
-    set((s) => ({
-      projects: patchProject(s.projects, projectId, (p) => {
-        let next: RenovationProject = { ...p }
-        if (patch.name !== undefined) next = { ...next, name: patch.name }
-        if (patch.status !== undefined) next = { ...next, status: patch.status }
-        if (patch.notes !== undefined) {
-          const t = patch.notes.trim()
-          if (t === '') {
-            const { notes: _n, ...rest } = next
-            next = rest as RenovationProject
-          } else {
-            next = { ...next, notes: t }
+    set((s) => {
+      if (patch.status === 'archived') {
+        const target = s.projects.find((x) => x.id === projectId)
+        if (target && !target.parentId) {
+          const ids = collectSubtreeProjectIds(projectId, s.projects)
+          return {
+            projects: s.projects.map((proj) =>
+              ids.has(proj.id) ? { ...proj, status: 'archived' as const } : proj,
+            ),
           }
         }
-        if (patch.location !== undefined) {
-          const t = patch.location.trim()
-          if (t === '') {
-            const { location: _l, ...rest } = next
-            next = rest as RenovationProject
-          } else {
-            next = { ...next, location: t }
+      }
+      return {
+        projects: patchProject(s.projects, projectId, (p) => {
+          let next: RenovationProject = { ...p }
+          if (patch.name !== undefined) next = { ...next, name: patch.name }
+          if (patch.status !== undefined) next = { ...next, status: patch.status }
+          if (patch.notes !== undefined) {
+            const t = patch.notes.trim()
+            if (t === '') {
+              const { notes: _n, ...rest } = next
+              next = rest as RenovationProject
+            } else {
+              next = { ...next, notes: t }
+            }
           }
-        }
-        if (patch.startDate !== undefined) {
-          const t = patch.startDate.trim()
-          if (t === '') {
-            const { startDate: _s, ...rest } = next
-            next = rest as RenovationProject
-          } else if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
-            next = { ...next, startDate: t }
+          if (patch.location !== undefined) {
+            const t = patch.location.trim()
+            if (t === '') {
+              const { location: _l, ...rest } = next
+              next = rest as RenovationProject
+            } else {
+              next = { ...next, location: t }
+            }
           }
-        }
-        if (patch.endDate !== undefined) {
-          const t = patch.endDate.trim()
-          if (t === '') {
-            const { endDate: _e, ...rest } = next
-            next = rest as RenovationProject
-          } else if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
-            next = { ...next, endDate: t }
+          if (patch.startDate !== undefined) {
+            const t = patch.startDate.trim()
+            if (t === '') {
+              const { startDate: _s, ...rest } = next
+              next = rest as RenovationProject
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+              next = { ...next, startDate: t }
+            }
           }
-        }
-        return next
-      }),
-    }))
+          if (patch.endDate !== undefined) {
+            const t = patch.endDate.trim()
+            if (t === '') {
+              const { endDate: _e, ...rest } = next
+              next = rest as RenovationProject
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+              next = { ...next, endDate: t }
+            }
+          }
+          return next
+        }),
+      }
+    })
   },
 
   removeProject: (projectId) => {
-    set((s) => ({ projects: s.projects.filter((p) => p.id !== projectId) }))
+    set((s) => {
+      const ids = collectSubtreeProjectIds(projectId, s.projects)
+      return { projects: s.projects.filter((p) => !ids.has(p.id)) }
+    })
   },
 
   addBudgetLine: (projectId, line) => {
@@ -248,6 +291,7 @@ export function buildNewProjectFromTemplate(input: {
   name: string
   templateKey: RenovationTemplateKey
   checklist: RenovationChecklistItem[]
+  parentId?: string
   location?: string
   startDate?: string
   endDate?: string
@@ -261,9 +305,14 @@ export function buildNewProjectFromTemplate(input: {
     input.notes !== undefined && input.notes.trim() !== '' ? input.notes.trim() : undefined
   const startDate = normalizeOptionalIsoDateString(input.startDate)
   const endDate = normalizeOptionalIsoDateString(input.endDate)
+  const parentId =
+    input.parentId !== undefined && input.parentId.trim() !== ''
+      ? input.parentId.trim()
+      : undefined
   return {
     id,
     name: input.name.trim() || 'Uten navn',
+    ...(parentId ? { parentId } : {}),
     ...(location ? { location } : {}),
     ...(notes ? { notes } : {}),
     ...(startDate ? { startDate } : {}),

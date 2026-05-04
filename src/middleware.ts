@@ -54,8 +54,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/iris', request.url))
   }
 
-  /** Favicon / app-ikoner — ikke kjør auth (matcher unngår ikke alltid /icon uten filendelse). */
-  if (pathname === '/icon' || pathname === '/apple-icon') {
+  /** Legacy SmartVane service worker — statisk fil i `public/`; må ikke redirectes til innlogging. */
+  if (pathname === '/smartvane-sw.js') {
     return NextResponse.next()
   }
 

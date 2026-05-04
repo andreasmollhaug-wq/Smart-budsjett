@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
 import { useRenovationProjectStore } from './renovationProjectStore'
-import { computeProjectKpis } from './kpis'
+import { computeProjectKpis, computeRollupProjectKpis, getActiveChildProjects, getActiveRootProjects } from './kpis'
 import type { RenovationProjectExpense } from './types'
 import {
   formatMoneyInputFromNonNegativeNumber,
@@ -17,7 +17,7 @@ import {
 import { useFormattedMoneyInput } from '@/lib/useFormattedMoneyInput'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { formatIsoDateDdMmYyyy, generateId } from '@/lib/utils'
-import { ArrowLeft, ListChecks, Pencil, Receipt, Scale, Trash2, Wallet } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ListChecks, Pencil, Plus, Receipt, Scale, Trash2, Wallet, ChevronRight } from 'lucide-react'
 import {
   BUDGET_LINE_LABEL_SUGGESTIONS,
   datalistOptionsForBudgetLines,
@@ -25,7 +25,10 @@ import {
 import RenovationProjectDetailKpiModal, {
   type RenovationProjectDetailKpiKind,
 } from './RenovationProjectDetailKpiModal'
-import { RENOVATION_PROJECT_BASE_PATH } from './paths'
+import RenovationNewProjectModal from './RenovationNewProjectModal'
+import RenovationOppussingInfoHeaderButton from './RenovationOppussingInfoHeaderButton'
+import { collectSubtreeProjectIds, projectHasActiveChildren } from './projectHierarchyHelpers'
+import { RENOVATION_PROJECT_BASE_PATH, renovationDetailBudgetLinesStorageKey, renovationDetailChecklistStorageKey } from './paths'
 
 function todayYyyyMmDd(): string {
   const d = new Date()
@@ -44,6 +47,7 @@ export default function InternProsjektDetailPage() {
   const projects = useRenovationProjectStore((s) => s.projects)
   const updateProjectMeta = useRenovationProjectStore((s) => s.updateProjectMeta)
   const removeProject = useRenovationProjectStore((s) => s.removeProject)
+  const setProjectParent = useRenovationProjectStore((s) => s.setProjectParent)
   const addBudgetLine = useRenovationProjectStore((s) => s.addBudgetLine)
   const updateBudgetLine = useRenovationProjectStore((s) => s.updateBudgetLine)
   const removeBudgetLine = useRenovationProjectStore((s) => s.removeBudgetLine)
@@ -80,6 +84,78 @@ export default function InternProsjektDetailPage() {
   const [editExpDesc, setEditExpDesc] = useState('')
   const [editExpLineId, setEditExpLineId] = useState('')
   const [detailKpiModal, setDetailKpiModal] = useState<RenovationProjectDetailKpiKind | null>(null)
+  const [childModalOpen, setChildModalOpen] = useState(false)
+  const [linkParentDraft, setLinkParentDraft] = useState('')
+  const [reparentDraft, setReparentDraft] = useState('')
+  const [hierarchySavedFlash, setHierarchySavedFlash] = useState(false)
+  const [aboutSectionOpen, setAboutSectionOpen] = useState(false)
+  const [budgetLinesExpanded, setBudgetLinesExpanded] = useState(true)
+  const budgetLinesSkipPersistRef = useRef(true)
+  const [checklistExpanded, setChecklistExpanded] = useState(true)
+  const checklistSkipPersistRef = useRef(true)
+  const hierarchySaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const flashHierarchySaved = () => {
+    if (hierarchySaveTimerRef.current) clearTimeout(hierarchySaveTimerRef.current)
+    setHierarchySavedFlash(true)
+    hierarchySaveTimerRef.current = setTimeout(() => {
+      setHierarchySavedFlash(false)
+      hierarchySaveTimerRef.current = null
+    }, 2800)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (hierarchySaveTimerRef.current) clearTimeout(hierarchySaveTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!projectId) return
+    budgetLinesSkipPersistRef.current = true
+    checklistSkipPersistRef.current = true
+    try {
+      const rawBl = window.localStorage.getItem(renovationDetailBudgetLinesStorageKey(projectId))
+      setBudgetLinesExpanded(rawBl !== '0')
+      const rawCl = window.localStorage.getItem(renovationDetailChecklistStorageKey(projectId))
+      setChecklistExpanded(rawCl !== '0')
+    } catch {
+      setBudgetLinesExpanded(true)
+      setChecklistExpanded(true)
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    if (!projectId) return
+    if (budgetLinesSkipPersistRef.current) {
+      budgetLinesSkipPersistRef.current = false
+      return
+    }
+    try {
+      window.localStorage.setItem(
+        renovationDetailBudgetLinesStorageKey(projectId),
+        budgetLinesExpanded ? '1' : '0',
+      )
+    } catch {
+      /* private mode */
+    }
+  }, [budgetLinesExpanded, projectId])
+
+  useEffect(() => {
+    if (!projectId) return
+    if (checklistSkipPersistRef.current) {
+      checklistSkipPersistRef.current = false
+      return
+    }
+    try {
+      window.localStorage.setItem(
+        renovationDetailChecklistStorageKey(projectId),
+        checklistExpanded ? '1' : '0',
+      )
+    } catch {
+      /* private mode */
+    }
+  }, [checklistExpanded, projectId])
 
   const lineAmountField = useFormattedMoneyInput(lineAmount, setLineAmount)
   const editLineAmountField = useFormattedMoneyInput(editLineAmount, setEditLineAmount)
@@ -88,6 +164,39 @@ export default function InternProsjektDetailPage() {
 
   const kpis = project ? computeProjectKpis(project) : null
 
+  const parentProject = useMemo(
+    () => (project?.parentId ? (projects.find((p) => p.id === project.parentId) ?? null) : null),
+    [project, projects],
+  )
+
+  const activeChildren = useMemo(
+    () => (project ? getActiveChildProjects(project.id, projects) : []),
+    [project, projects],
+  )
+
+  const rollupTotals = useMemo(() => {
+    if (!project || project.parentId) return null
+    if (activeChildren.length === 0) return null
+    return computeRollupProjectKpis(project, projects)
+  }, [project, projects, activeChildren.length])
+
+  const headlineKpis = rollupTotals && kpis
+    ? {
+        ...kpis,
+        totalBudgetedNok: rollupTotals.totalBudgetedNok,
+        totalActualNok: rollupTotals.totalActualNok,
+        varianceNok: rollupTotals.varianceNok,
+        variancePercentOfBudget: rollupTotals.variancePercentOfBudget,
+        checklistDone: rollupTotals.checklistDone,
+        checklistTotal: rollupTotals.checklistTotal,
+        checklistPercent: rollupTotals.checklistPercent,
+      }
+    : kpis
+
+  const otherRootChoices = useMemo(() => {
+    if (!project) return []
+    return getActiveRootProjects(projects).filter((r) => r.id !== project.id)
+  }, [project, projects])
 
   const dateRangeWarning = useMemo(() => {
     const s = startDateDraft.trim()
@@ -110,6 +219,20 @@ export default function InternProsjektDetailPage() {
     }
     // Kun ved navigering til annet prosjekt — ikke når `projects` oppdateres under redigering
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
+
+  useEffect(() => {
+    if (!projectId) return
+    const p = projects.find((x) => x.id === projectId)
+    if (!p) return
+    setReparentDraft(p.parentId ?? '')
+    const others = getActiveRootProjects(projects).filter((r) => r.id !== p.id)
+    setLinkParentDraft(others[0]?.id ?? '')
+  }, [projectId, projects])
+
+  useEffect(() => {
+    setHierarchySavedFlash(false)
+    setAboutSectionOpen(false)
   }, [projectId])
 
   if (!projectId) {
@@ -251,172 +374,64 @@ export default function InternProsjektDetailPage() {
 
   const cardStyle = { background: 'var(--surface)', border: '1px solid var(--border)' } as const
 
+  const budgetLinesCollapsedHint =
+    kpis === null || kpis.lineRows.length === 0
+      ? 'Ingen linjer ennå — åpne for å komme i gang'
+      : `${kpis.lineRows.length} linje${kpis.lineRows.length === 1 ? '' : 'r'} · budsjett ${formatNOK(kpis.totalBudgetedNok)} · faktisk ${formatNOK(kpis.totalActualNok)}`
+
+  const checklistCollapsedHint =
+    kpis === null || kpis.checklistTotal === 0
+      ? 'Ingen punkter ennå — åpne for å legge til'
+      : `${kpis.checklistDone} av ${kpis.checklistTotal} fullført`
+
   return (
     <div className="flex-1 min-h-0 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header
         title={project.name}
         subtitle="Ikke synkronisert med hovedbudsjett eller transaksjoner"
         titleAddon={
-          <Link
-            href={RENOVATION_PROJECT_BASE_PATH}
-            className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation"
-            style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--bg)' }}
-          >
-            <ArrowLeft size={14} aria-hidden />
-            Liste
-          </Link>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {parentProject ? (
+              <Link
+                href={`${RENOVATION_PROJECT_BASE_PATH}/${parentProject.id}`}
+                className="inline-flex min-h-[44px] min-w-[44px] max-w-[180px] sm:max-w-xs items-center justify-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation min-w-0"
+                style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--bg)' }}
+                title={`Til ${parentProject.name}`}
+              >
+                <ArrowLeft size={14} aria-hidden />
+                <span className="min-w-0 truncate">{parentProject.name}</span>
+              </Link>
+            ) : null}
+            <Link
+              href={RENOVATION_PROJECT_BASE_PATH}
+              className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation"
+              style={{ color: 'var(--text)', borderColor: 'var(--border)', background: 'var(--bg)' }}
+            >
+              <ArrowLeft size={14} aria-hidden />
+              Liste
+            </Link>
+            <RenovationOppussingInfoHeaderButton variant="detail" />
+          </div>
         }
       />
       <div className="min-w-0 max-w-4xl mx-auto space-y-6 py-4 sm:py-6 md:py-8 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] md:pl-[max(2rem,env(safe-area-inset-left))] md:pr-[max(2rem,env(safe-area-inset-right))] pb-[max(2rem,env(safe-area-inset-bottom))]">
-        <div className="rounded-2xl p-4 sm:p-6 space-y-4" style={cardStyle}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="min-w-0 flex-1 sm:min-w-[200px]">
-              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
-                Prosjektnavn
-              </label>
-              <input
-                value={nameDraft || project.name}
-                onChange={(e) => setNameDraft(e.target.value)}
-                onBlur={handleSaveName}
-                className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-              />
-            </div>
-            <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  updateProjectMeta(project.id, { status: 'archived' })
-                  router.push(RENOVATION_PROJECT_BASE_PATH)
-                }}
-                className="min-h-[44px] flex-1 rounded-xl px-3 py-2.5 text-sm sm:flex-none"
-                style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
-              >
-                Arkiver
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== 'undefined' && window.confirm('Slette prosjektet permanent?')) {
-                    removeProject(project.id)
-                    router.push(RENOVATION_PROJECT_BASE_PATH)
-                  }
-                }}
-                className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-sm sm:flex-none"
-                style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: 'var(--bg)' }}
-              >
-                <Trash2 size={16} />
-                Slett
-              </button>
-            </div>
-          </div>
-        </div>
 
-        <section className="rounded-2xl p-4 sm:p-6 space-y-4" style={cardStyle}>
-          <div>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              Om prosjektet
-            </h2>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              Valgfritt sted, periode og notater — typisk for hobby- og oppussingsprosjekter.
-            </p>
-          </div>
-
-          <div>
-            <label
-              className="block text-xs font-medium mb-1"
-              htmlFor={`project-location-${project.id}`}
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Sted
-            </label>
-            <input
-              id={`project-location-${project.id}`}
-              type="text"
-              value={locationDraft}
-              onChange={(e) => setLocationDraft(e.target.value)}
-              onBlur={handleSaveLocation}
-              placeholder="F.eks. garasje, kjeller, hytta"
-              className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
-              style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-              autoComplete="off"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label
-                className="block text-xs font-medium mb-1"
-                htmlFor={`project-start-${project.id}`}
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Startdato
-              </label>
-              <input
-                id={`project-start-${project.id}`}
-                type="date"
-                value={startDateDraft}
-                onChange={(e) => setStartDateDraft(e.target.value)}
-                onBlur={handleSaveStartDate}
-                className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-              />
-            </div>
-            <div>
-              <label
-                className="block text-xs font-medium mb-1"
-                htmlFor={`project-end-${project.id}`}
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Sluttdato (mål)
-              </label>
-              <input
-                id={`project-end-${project.id}`}
-                type="date"
-                value={endDateDraft}
-                onChange={(e) => setEndDateDraft(e.target.value)}
-                onBlur={handleSaveEndDate}
-                className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
-                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-              />
-            </div>
-          </div>
-          {dateRangeWarning && (
-            <p className="text-xs" style={{ color: 'var(--danger)' }}>
-              {dateRangeWarning}
-            </p>
-          )}
-
-          <div>
-            <label
-              className="block text-xs font-medium mb-1"
-              htmlFor={`project-notes-${project.id}`}
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Notater
-            </label>
-            <textarea
-              id={`project-notes-${project.id}`}
-              value={notesDraft}
-              onChange={(e) => setNotesDraft(e.target.value)}
-              onBlur={handleSaveNotes}
-              rows={5}
-              placeholder="Adresse, kontakter, leverandører, avtaler …"
-              className="w-full min-h-[7.5rem] resize-y rounded-xl border px-3 py-2.5 text-sm leading-relaxed"
-              style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-            />
-          </div>
-        </section>
-
-        {kpis && (
+        {headlineKpis && kpis ? (
           <>
+            {rollupTotals ? (
+              <p className="text-xs rounded-xl px-3 py-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                Tallene øverst inkluderer <strong style={{ color: 'var(--text)' }}>{activeChildren.length}</strong>{' '}
+                {activeChildren.length === 1 ? 'aktivt underprosjekt' : 'aktive underprosjekter'}. Linjer og utgifter
+                vises kun for denne noden lengre ned.
+              </p>
+            ) : null}
             <div className="grid grid-cols-1 gap-4 min-[400px]:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 label="Budsjett (sum)"
-                value={formatNOK(kpis.totalBudgetedNok)}
+                value={formatNOK(headlineKpis.totalBudgetedNok)}
                 sub={
-                  kpis.totalBudgetedNok > 0
-                    ? `Gjenstår ${formatNOK(kpis.totalBudgetedNok - kpis.totalActualNok)}`
+                  headlineKpis.totalBudgetedNok > 0
+                    ? `Gjenstår ${formatNOK(headlineKpis.totalBudgetedNok - headlineKpis.totalActualNok)}`
                     : 'Ingen budsjettlinjer'
                 }
                 icon={Wallet}
@@ -427,30 +442,30 @@ export default function InternProsjektDetailPage() {
               />
               <StatCard
                 label="Faktisk (sum)"
-                value={formatNOK(kpis.totalActualNok)}
+                value={formatNOK(headlineKpis.totalActualNok)}
                 sub={
-                  kpis.totalBudgetedNok > 0
-                    ? `${((kpis.totalActualNok / kpis.totalBudgetedNok) * 100).toFixed(1)} % av budsjett`
+                  headlineKpis.totalBudgetedNok > 0
+                    ? `${((headlineKpis.totalActualNok / headlineKpis.totalBudgetedNok) * 100).toFixed(1)} % av budsjett`
                     : 'Sett budsjett for å se andel brukt'
                 }
                 icon={Receipt}
-                trend={kpis.varianceNok <= 0 ? 'up' : 'down'}
-                color={kpis.varianceNok > 0 ? '#E03131' : '#0CA678'}
+                trend={headlineKpis.varianceNok <= 0 ? 'up' : 'down'}
+                color={headlineKpis.varianceNok > 0 ? '#E03131' : '#0CA678'}
                 valueNoWrap
                 onClick={() => setDetailKpiModal('actualSum')}
                 aria-label="Faktisk sum — åpne detaljer"
               />
               <StatCard
                 label="Avvik"
-                value={formatNOK(kpis.varianceNok)}
+                value={formatNOK(headlineKpis.varianceNok)}
                 sub={
-                  kpis.variancePercentOfBudget != null
-                    ? `${kpis.variancePercentOfBudget.toFixed(1)} % av budsjett`
+                  headlineKpis.variancePercentOfBudget != null
+                    ? `${headlineKpis.variancePercentOfBudget.toFixed(1)} % av budsjett`
                     : '—'
                 }
                 icon={Scale}
-                trend={kpis.varianceNok <= 0 ? 'up' : 'down'}
-                color={kpis.varianceNok > 0 ? '#E03131' : '#0CA678'}
+                trend={headlineKpis.varianceNok <= 0 ? 'up' : 'down'}
+                color={headlineKpis.varianceNok > 0 ? '#E03131' : '#0CA678'}
                 valueNoWrap
                 onClick={() => setDetailKpiModal('variance')}
                 aria-label="Avvik — åpne detaljer"
@@ -458,10 +473,14 @@ export default function InternProsjektDetailPage() {
               <StatCard
                 label="Sjekkliste"
                 value={
-                  kpis.checklistTotal === 0 ? '—' : `${kpis.checklistDone} / ${kpis.checklistTotal}`
+                  headlineKpis.checklistTotal === 0
+                    ? '—'
+                    : `${headlineKpis.checklistDone} / ${headlineKpis.checklistTotal}`
                 }
                 sub={
-                  kpis.checklistPercent != null ? `${kpis.checklistPercent.toFixed(0)} % ferdig` : 'Ingen punkter'
+                  headlineKpis.checklistPercent != null
+                    ? `${headlineKpis.checklistPercent.toFixed(0)} % ferdig`
+                    : 'Ingen punkter'
                 }
                 icon={ListChecks}
                 color="#495057"
@@ -476,16 +495,17 @@ export default function InternProsjektDetailPage() {
                 onClose={() => setDetailKpiModal(null)}
                 project={project}
                 kpis={kpis}
+                rollupHeadline={rollupTotals}
               />
             ) : null}
-            {kpis.totalBudgetedNok > 0 && (
+            {headlineKpis.totalBudgetedNok > 0 && (
               <div className="rounded-2xl px-4 py-4 sm:px-5" style={cardStyle}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                   <span className="font-medium" style={{ color: 'var(--text)' }}>
                     Andel brukt av budsjett
                   </span>
                   <span className="tabular-nums">
-                    {((kpis.totalActualNok / kpis.totalBudgetedNok) * 100).toFixed(1)} %
+                    {((headlineKpis.totalActualNok / headlineKpis.totalBudgetedNok) * 100).toFixed(1)} %
                   </span>
                 </div>
                 <div
@@ -496,7 +516,7 @@ export default function InternProsjektDetailPage() {
                   <div
                     className="h-full rounded-full"
                     style={{
-                      width: `${Math.min(100, (kpis.totalActualNok / kpis.totalBudgetedNok) * 100)}%`,
+                      width: `${Math.min(100, (headlineKpis.totalActualNok / headlineKpis.totalBudgetedNok) * 100)}%`,
                       background: 'var(--text-muted)',
                     }}
                   />
@@ -504,7 +524,7 @@ export default function InternProsjektDetailPage() {
               </div>
             )}
           </>
-        )}
+        ) : null}
 
         {kpis && kpis.uncategorizedActualNok > 0 && (
           <p
@@ -516,17 +536,95 @@ export default function InternProsjektDetailPage() {
           </p>
         )}
 
-        <section className="rounded-2xl p-4 sm:p-6 space-y-4" style={cardStyle}>
-          <div>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              Budsjettlinjer
-            </h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-              Skriv fritt (f.eks. «Rørlegger Petter», «Flis fra Mega») eller bruk forslag under. Du kan endre
-              navn og beløp på eksisterende linjer med blyanten.
-            </p>
-          </div>
-          <datalist id={budgetLineDatalistId}>
+        {!project.parentId ? (
+          <section className="rounded-2xl p-4 sm:p-6 space-y-3" style={cardStyle}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  Underprosjekter
+                </h2>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  Rom og arbeidspakker under dette prosjektet.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setChildModalOpen(true)}
+                className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-white touch-manipulation"
+                style={{ background: 'var(--primary)' }}
+              >
+                <Plus size={18} aria-hidden />
+                Nytt rom
+              </button>
+            </div>
+            {activeChildren.length > 0 ? (
+              <ul className="space-y-2 min-w-0">
+                {activeChildren.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      href={`${RENOVATION_PROJECT_BASE_PATH}/${c.id}`}
+                      className="flex min-h-[44px] items-center gap-3 rounded-xl border px-3 py-2.5 transition-opacity hover:opacity-90 active:opacity-90 touch-manipulation min-w-0"
+                      style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+                    >
+                      <ChevronRight className="shrink-0 opacity-45" size={18} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate font-medium" style={{ color: 'var(--text)' }}>
+                        {c.name}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm py-4 text-center" style={{ color: 'var(--text-muted)' }}>
+                Ingen aktive rom ennå — bruk «Nytt rom», eller liste → «Nytt rom / underprosjekt».
+              </p>
+            )}
+          </section>
+        ) : null}
+
+        <section className="rounded-2xl overflow-hidden space-y-0" style={cardStyle}>
+          <button
+            type="button"
+            id={`budget-lines-toggle-${project.id}`}
+            onClick={() => setBudgetLinesExpanded((prev) => !prev)}
+            className="flex w-full min-h-[56px] items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5 text-left touch-manipulation"
+            aria-expanded={budgetLinesExpanded}
+            aria-controls={`budget-lines-panel-${project.id}`}
+          >
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>
+                Budsjettlinjer
+              </h2>
+              <p className="text-xs mt-1 leading-relaxed sm:text-sm" style={{ color: 'var(--text-muted)' }}>
+                {budgetLinesExpanded
+                  ? 'Poster og beløp — lukk mellom øktene om du vil'
+                  : budgetLinesCollapsedHint}
+              </p>
+            </div>
+            <ChevronDown
+              size={22}
+              className="shrink-0 transition-transform duration-200"
+              style={{
+                transform: budgetLinesExpanded ? 'rotate(180deg)' : undefined,
+                color: 'var(--text-muted)',
+                opacity: 0.7,
+              }}
+              aria-hidden
+            />
+          </button>
+          {budgetLinesExpanded ? (
+            <div
+              id={`budget-lines-panel-${project.id}`}
+              role="region"
+              aria-labelledby={`budget-lines-toggle-${project.id}`}
+              className="space-y-4 border-t px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <p className="text-sm leading-relaxed -mt-1 sm:-mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Skriv fritt (f.eks. «Rørlegger Petter», «Flis fra Mega») eller bruk forslag under. Du kan endre
+                navn og beløp på eksisterende linjer med blyanten.
+              </p>
+              <datalist id={budgetLineDatalistId}>
             {budgetLineDatalistOptions.map((opt) => (
               <option key={opt} value={opt} />
             ))}
@@ -540,7 +638,7 @@ export default function InternProsjektDetailPage() {
                 key={label}
                 type="button"
                 onClick={() => setLineLabel(label)}
-                className="min-h-[40px] rounded-full border px-3 py-2 text-left text-xs font-medium leading-snug transition-opacity hover:opacity-90 active:opacity-90 sm:py-1.5"
+                className="min-h-[44px] rounded-full border px-3 py-2 text-left text-xs font-medium leading-snug transition-opacity hover:opacity-90 active:opacity-90 sm:py-1.5"
                 style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--bg)' }}
               >
                 {label}
@@ -764,7 +862,7 @@ export default function InternProsjektDetailPage() {
                             <button
                               type="button"
                               onClick={saveEditLine}
-                              className="min-h-[40px] rounded-lg px-3 text-xs font-medium text-white"
+                              className="min-h-[44px] rounded-lg px-3 text-xs font-medium text-white"
                               style={{ background: 'var(--primary)' }}
                             >
                               Lagre
@@ -772,7 +870,7 @@ export default function InternProsjektDetailPage() {
                             <button
                               type="button"
                               onClick={cancelEditLine}
-                              className="min-h-[40px] rounded-lg border px-3 text-xs"
+                              className="min-h-[44px] rounded-lg border px-3 text-xs"
                               style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
                             >
                               Avbryt
@@ -817,7 +915,7 @@ export default function InternProsjektDetailPage() {
                               type="button"
                               aria-label="Rediger linje"
                               onClick={() => startEditLine(row.lineId)}
-                              className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg hover:opacity-80"
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:opacity-80"
                               style={{ color: 'var(--text-muted)' }}
                             >
                               <Pencil size={16} />
@@ -826,7 +924,7 @@ export default function InternProsjektDetailPage() {
                               type="button"
                               aria-label="Slett linje"
                               onClick={() => removeBudgetLine(project.id, row.lineId)}
-                              className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg hover:opacity-80"
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:opacity-80"
                               style={{ color: 'var(--text-muted)' }}
                             >
                               <Trash2 size={16} />
@@ -847,6 +945,8 @@ export default function InternProsjektDetailPage() {
               </tbody>
             </table>
           </div>
+          </div>
+          ) : null}
         </section>
 
         <section className="rounded-2xl p-4 sm:p-6 space-y-4" style={cardStyle}>
@@ -1137,7 +1237,7 @@ export default function InternProsjektDetailPage() {
                             <button
                               type="button"
                               onClick={saveEditExpense}
-                              className="min-h-[40px] rounded-lg px-3 text-xs font-medium text-white"
+                              className="min-h-[44px] rounded-lg px-3 text-xs font-medium text-white"
                               style={{ background: 'var(--primary)' }}
                             >
                               Lagre
@@ -1145,7 +1245,7 @@ export default function InternProsjektDetailPage() {
                             <button
                               type="button"
                               onClick={cancelEditExpense}
-                              className="min-h-[40px] rounded-lg border px-3 text-xs"
+                              className="min-h-[44px] rounded-lg border px-3 text-xs"
                               style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
                             >
                               Avbryt
@@ -1202,7 +1302,7 @@ export default function InternProsjektDetailPage() {
                               type="button"
                               aria-label="Rediger utgift"
                               onClick={() => startEditExpense(ex)}
-                              className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg hover:opacity-80"
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:opacity-80"
                               style={{ color: 'var(--text-muted)' }}
                             >
                               <Pencil size={16} />
@@ -1211,7 +1311,7 @@ export default function InternProsjektDetailPage() {
                               type="button"
                               aria-label="Slett utgift"
                               onClick={() => removeExpense(project.id, ex.id)}
-                              className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg hover:opacity-80"
+                              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg hover:opacity-80"
                               style={{ color: 'var(--text-muted)' }}
                             >
                               <Trash2 size={16} />
@@ -1234,15 +1334,44 @@ export default function InternProsjektDetailPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl p-4 sm:p-6 space-y-4" style={cardStyle}>
-          <div>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              Sjekkliste
-            </h2>
-            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-              Kryss av underveis. Legg til egne punkter etter behov.
-            </p>
-          </div>
+        <section className="rounded-2xl overflow-hidden space-y-0" style={cardStyle}>
+          <button
+            type="button"
+            id={`checklist-toggle-${project.id}`}
+            onClick={() => setChecklistExpanded((prev) => !prev)}
+            className="flex w-full min-h-[56px] items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5 text-left touch-manipulation"
+            aria-expanded={checklistExpanded}
+            aria-controls={`checklist-panel-${project.id}`}
+          >
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>
+                Sjekkliste
+              </h2>
+              <p className="text-xs mt-1 leading-relaxed sm:text-sm" style={{ color: 'var(--text-muted)' }}>
+                {checklistExpanded
+                  ? 'Kryss av underveis. Lukk mellom øktene om du vil — huskes lokalt på denne enheten.'
+                  : checklistCollapsedHint}
+              </p>
+            </div>
+            <ChevronDown
+              size={22}
+              className="shrink-0 transition-transform duration-200"
+              style={{
+                transform: checklistExpanded ? 'rotate(180deg)' : undefined,
+                color: 'var(--text-muted)',
+                opacity: 0.7,
+              }}
+              aria-hidden
+            />
+          </button>
+          {checklistExpanded ? (
+            <div
+              id={`checklist-panel-${project.id}`}
+              role="region"
+              aria-labelledby={`checklist-toggle-${project.id}`}
+              className="space-y-4 border-t px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5"
+              style={{ borderColor: 'var(--border)' }}
+            >
           <ul className="space-y-2 mb-4">
             {[...project.checklist]
               .sort((a, b) => a.order - b.order)
@@ -1305,7 +1434,294 @@ export default function InternProsjektDetailPage() {
               Legg til
             </button>
           </form>
+            </div>
+          ) : null}
         </section>
+
+        <section className="rounded-2xl overflow-hidden space-y-0" style={cardStyle}>
+          <button
+            type="button"
+            id={`about-project-toggle-${project.id}`}
+            onClick={() => setAboutSectionOpen((o) => !o)}
+            className="flex w-full min-h-[56px] items-center justify-between gap-3 px-4 py-4 sm:px-6 sm:py-5 text-left touch-manipulation"
+            aria-expanded={aboutSectionOpen}
+            aria-controls={`about-project-panel-${project.id}`}
+          >
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold leading-snug" style={{ color: 'var(--text)' }}>
+                Om prosjektet
+              </h2>
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Navn, arkivering, sted, datoer og kobling mellom hus og rom
+              </p>
+            </div>
+            <ChevronDown
+              size={22}
+              className="shrink-0 transition-transform duration-200"
+              style={{
+                transform: aboutSectionOpen ? 'rotate(180deg)' : undefined,
+                color: 'var(--text-muted)',
+                opacity: 0.7,
+              }}
+              aria-hidden
+            />
+          </button>
+          {hierarchySavedFlash ? (
+            <p
+              role="status"
+              aria-live="polite"
+              className="text-sm font-medium px-4 pb-3 sm:px-6"
+              style={{ color: 'var(--success)' }}
+            >
+              Lagret
+            </p>
+          ) : null}
+          {aboutSectionOpen ? (
+            <div
+              id={`about-project-panel-${project.id}`}
+              role="region"
+              aria-labelledby={`about-project-toggle-${project.id}`}
+              className="space-y-4 border-t px-4 pb-5 pt-4 sm:px-6"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end -mt-1">
+                <div className="min-w-0 flex-1 sm:min-w-[200px]">
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+                    Prosjektnavn
+                  </label>
+                  <input
+                    value={nameDraft || project.name}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onBlur={handleSaveName}
+                    className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
+                    style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  />
+                </div>
+                <div className="flex w-full gap-2 sm:w-auto sm:shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateProjectMeta(project.id, { status: 'archived' })
+                      router.push(RENOVATION_PROJECT_BASE_PATH)
+                    }}
+                    className="min-h-[44px] flex-1 rounded-xl px-3 py-2.5 text-sm sm:flex-none"
+                    style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
+                  >
+                    Arkiver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const subtree = collectSubtreeProjectIds(project.id, projects).size
+                      const msg =
+                        subtree > 1
+                          ? `Slette «${project.name}» og ${subtree - 1} underprosjekt(er) permanent?`
+                          : 'Slette prosjektet permanent?'
+                      if (typeof window !== 'undefined' && window.confirm(msg)) {
+                        removeProject(project.id)
+                        router.push(RENOVATION_PROJECT_BASE_PATH)
+                      }
+                    }}
+                    className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-sm sm:flex-none"
+                    style={{ border: '1px solid var(--danger)', color: 'var(--danger)', background: 'var(--bg)' }}
+                  >
+                    <Trash2 size={16} />
+                    Slett
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                Valgfritt sted og periode — typisk for hobby- og oppussingsprosjekter.
+              </p>
+              <div>
+                <label
+                  className="block text-xs font-medium mb-1"
+                  htmlFor={`project-location-${project.id}`}
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Sted
+                </label>
+                <input
+                  id={`project-location-${project.id}`}
+                  type="text"
+                  value={locationDraft}
+                  onChange={(e) => setLocationDraft(e.target.value)}
+                  onBlur={handleSaveLocation}
+                  placeholder="F.eks. garasje, kjeller, hytta"
+                  className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
+                  style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    className="block text-xs font-medium mb-1"
+                    htmlFor={`project-start-${project.id}`}
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Startdato
+                  </label>
+                  <input
+                    id={`project-start-${project.id}`}
+                    type="date"
+                    value={startDateDraft}
+                    onChange={(e) => setStartDateDraft(e.target.value)}
+                    onBlur={handleSaveStartDate}
+                    className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
+                    style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  />
+                </div>
+                <div>
+                  <label
+                    className="block text-xs font-medium mb-1"
+                    htmlFor={`project-end-${project.id}`}
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Sluttdato (mål)
+                  </label>
+                  <input
+                    id={`project-end-${project.id}`}
+                    type="date"
+                    value={endDateDraft}
+                    onChange={(e) => setEndDateDraft(e.target.value)}
+                    onBlur={handleSaveEndDate}
+                    className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
+                    style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                  />
+                </div>
+              </div>
+              {dateRangeWarning && (
+                <p className="text-xs" style={{ color: 'var(--danger)' }}>
+                  {dateRangeWarning}
+                </p>
+              )}
+
+              <div>
+                <label
+                  className="block text-xs font-medium mb-1"
+                  htmlFor={`project-notes-${project.id}`}
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Notater
+                </label>
+                <textarea
+                  id={`project-notes-${project.id}`}
+                  value={notesDraft}
+                  onChange={(e) => setNotesDraft(e.target.value)}
+                  onBlur={handleSaveNotes}
+                  rows={5}
+                  placeholder="Adresse, kontakter, leverandører, avtaler …"
+                  className="w-full min-h-[7.5rem] resize-y rounded-xl border px-3 py-2.5 text-sm leading-relaxed"
+                  style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                />
+              </div>
+              {!project.parentId && !projectHasActiveChildren(project.id, projects) && otherRootChoices.length > 0 ? (
+                <div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                    Koble til hovedprosjekt
+                  </p>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                    Hvis dette var ment som et rom under et hus, kan du knytte det til riktig hovedprosjekt. Prosjektet kan
+                    ikke allerede ha aktive rom/underprosjekter.
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <select
+                      value={linkParentDraft}
+                      onChange={(e) => setLinkParentDraft(e.target.value)}
+                      className="min-h-[44px] w-full flex-1 rounded-xl border px-3 py-2.5 text-sm sm:max-w-xs"
+                      style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                      aria-label="Velg hovedprosjekt"
+                    >
+                      {otherRootChoices.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!linkParentDraft) return
+                        const r = setProjectParent(project.id, linkParentDraft)
+                        if (!r.ok) typeof window !== 'undefined' && window.alert(r.message)
+                        else flashHierarchySaved()
+                      }}
+                      className="min-h-[44px] shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium text-white touch-manipulation"
+                      style={{ background: 'var(--primary)' }}
+                    >
+                      Koble til
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              {project.parentId ? (
+                <div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                    Hierarki
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                    <div className="min-w-0 flex-1 sm:max-w-xs">
+                      <label className="mb-1 block text-xs" style={{ color: 'var(--text-muted)' }} htmlFor={`reparent-${project.id}`}>
+                        Bytt hovedprosjekt
+                      </label>
+                      <select
+                        id={`reparent-${project.id}`}
+                        value={reparentDraft}
+                        onChange={(e) => setReparentDraft(e.target.value)}
+                        className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-sm"
+                        style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                      >
+                        {getActiveRootProjects(projects)
+                          .filter((r) => r.id !== project.id)
+                          .map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      className="min-h-[44px] rounded-xl border px-4 py-2.5 text-sm font-medium touch-manipulation"
+                      style={{ borderColor: 'var(--border)', background: 'var(--primary)', color: '#fff' }}
+                      onClick={() => {
+                        if (!reparentDraft || reparentDraft === project.parentId) return
+                        const r = setProjectParent(project.id, reparentDraft)
+                        if (!r.ok) typeof window !== 'undefined' && window.alert(r.message)
+                        else flashHierarchySaved()
+                      }}
+                    >
+                      Lagre
+                    </button>
+                    <button
+                      type="button"
+                      className="min-h-[44px] rounded-xl border px-4 py-2.5 text-sm font-medium touch-manipulation"
+                      style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
+                      onClick={() => {
+                        const r = setProjectParent(project.id, null)
+                        if (!r.ok) typeof window !== 'undefined' && window.alert(r.message)
+                        else flashHierarchySaved()
+                      }}
+                    >
+                      Gjør til hovedprosjekt
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+
+        {!project.parentId ? (
+          <RenovationNewProjectModal
+            open={childModalOpen}
+            variant="sub"
+            defaultParentId={project.id}
+            onClose={() => setChildModalOpen(false)}
+          />
+        ) : null}
       </div>
     </div>
   )

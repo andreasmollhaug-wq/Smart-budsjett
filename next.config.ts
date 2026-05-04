@@ -38,12 +38,6 @@ const shared: NextConfig = {
         destination: '/dottir/om-oss',
         permanent: true,
       },
-      /** Mange klienter ber om /favicon.ico; vi bruker dynamisk /icon (ImageResponse). */
-      {
-        source: '/favicon.ico',
-        destination: '/icon',
-        permanent: false,
-      },
       {
         source: '/rapporter/sparemål',
         destination: '/rapporter/sparemal',

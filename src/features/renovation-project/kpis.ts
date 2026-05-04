@@ -29,6 +29,60 @@ function sumExpensesForLine(project: RenovationProject, lineId: string): number 
   return s
 }
 
+export function getActiveChildProjects(
+  parentId: string,
+  projects: RenovationProject[],
+): RenovationProject[] {
+  return projects.filter((p) => p.status === 'active' && p.parentId === parentId)
+}
+
+/** Summer egen KPI + alle aktive underprosjekter (ett nivå). */
+export interface RollupProjectKpis {
+  totalBudgetedNok: number
+  totalActualNok: number
+  varianceNok: number
+  variancePercentOfBudget: number | null
+  checklistDone: number
+  checklistTotal: number
+  checklistPercent: number | null
+}
+
+export function computeRollupProjectKpis(
+  root: RenovationProject,
+  projects: RenovationProject[],
+): RollupProjectKpis {
+  const rootK = computeProjectKpis(root)
+  let totalBudgetedNok = rootK.totalBudgetedNok
+  let totalActualNok = rootK.totalActualNok
+  let checklistDone = rootK.checklistDone
+  let checklistTotal = rootK.checklistTotal
+  for (const c of getActiveChildProjects(root.id, projects)) {
+    const k = computeProjectKpis(c)
+    totalBudgetedNok += k.totalBudgetedNok
+    totalActualNok += k.totalActualNok
+    checklistDone += k.checklistDone
+    checklistTotal += k.checklistTotal
+  }
+  const varianceNok = totalActualNok - totalBudgetedNok
+  const variancePercentOfBudget =
+    totalBudgetedNok === 0 ? null : (varianceNok / totalBudgetedNok) * 100
+  const checklistPercent =
+    checklistTotal === 0 ? null : (checklistDone / checklistTotal) * 100
+  return {
+    totalBudgetedNok,
+    totalActualNok,
+    varianceNok,
+    variancePercentOfBudget,
+    checklistDone,
+    checklistTotal,
+    checklistPercent,
+  }
+}
+
+export function getActiveRootProjects(projects: RenovationProject[]): RenovationProject[] {
+  return projects.filter((p) => p.status === 'active' && !p.parentId)
+}
+
 export function computeProjectKpis(project: RenovationProject): ProjectKpis {
   const totalBudgetedNok = project.budgetLines.reduce((a, l) => a + Math.max(0, l.budgetedNok), 0)
   const totalActualNok = project.expenses.reduce((a, e) => a + Math.max(0, e.amountNok), 0)
@@ -78,7 +132,10 @@ export function computeProjectKpis(project: RenovationProject): ProjectKpis {
 
 /** Aggregerte KPI-er for aktive prosjekter (samme filter som prosjektlisten). */
 export interface PortfolioKpis {
+  /** Aktive hovedprosjekter (rotnivå). */
   activeProjectCount: number
+  /** Aktive underprosjekter (med parentId). */
+  activeSubprojectCount: number
   totalBudgetedNok: number
   totalActualNok: number
   remainingNok: number
@@ -92,20 +149,20 @@ export interface PortfolioKpis {
 }
 
 export function computePortfolioKpisForProjects(projects: RenovationProject[]): PortfolioKpis {
-  const active = projects.filter((p) => p.status === 'active')
-  const activeProjectCount = active.length
+  const activeRoots = getActiveRootProjects(projects)
+  const activeChildren = projects.filter((p) => p.status === 'active' && p.parentId)
 
   let totalBudgetedNok = 0
   let totalActualNok = 0
   let checklistDone = 0
   let checklistTotal = 0
 
-  for (const p of active) {
-    const k = computeProjectKpis(p)
-    totalBudgetedNok += k.totalBudgetedNok
-    totalActualNok += k.totalActualNok
-    checklistDone += k.checklistDone
-    checklistTotal += k.checklistTotal
+  for (const root of activeRoots) {
+    const r = computeRollupProjectKpis(root, projects)
+    totalBudgetedNok += r.totalBudgetedNok
+    totalActualNok += r.totalActualNok
+    checklistDone += r.checklistDone
+    checklistTotal += r.checklistTotal
   }
 
   const varianceNok = totalActualNok - totalBudgetedNok
@@ -118,7 +175,8 @@ export function computePortfolioKpisForProjects(projects: RenovationProject[]): 
     checklistTotal === 0 ? null : (checklistDone / checklistTotal) * 100
 
   return {
-    activeProjectCount,
+    activeProjectCount: activeRoots.length,
+    activeSubprojectCount: activeChildren.length,
     totalBudgetedNok,
     totalActualNok,
     remainingNok,

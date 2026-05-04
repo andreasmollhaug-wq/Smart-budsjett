@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RenovationProject } from './types'
-import { computePortfolioKpisForProjects, computeProjectKpis } from './kpis'
+import { computePortfolioKpisForProjects, computeProjectKpis, computeRollupProjectKpis } from './kpis'
 
 function baseProject(over: Partial<RenovationProject> = {}): RenovationProject {
   return {
@@ -99,6 +99,7 @@ describe('computePortfolioKpisForProjects', () => {
   it('tom liste gir null prosenter og null tellere', () => {
     const p = computePortfolioKpisForProjects([])
     expect(p.activeProjectCount).toBe(0)
+    expect(p.activeSubprojectCount).toBe(0)
     expect(p.totalBudgetedNok).toBe(0)
     expect(p.totalActualNok).toBe(0)
     expect(p.remainingNok).toBe(0)
@@ -152,6 +153,7 @@ describe('computePortfolioKpisForProjects', () => {
       }),
     ])
     expect(p.activeProjectCount).toBe(2)
+    expect(p.activeSubprojectCount).toBe(0)
     expect(p.totalBudgetedNok).toBe(50_000)
     expect(p.totalActualNok).toBe(15_000)
     expect(p.remainingNok).toBe(35_000)
@@ -161,5 +163,59 @@ describe('computePortfolioKpisForProjects', () => {
     expect(p.checklistDone).toBe(2)
     expect(p.checklistTotal).toBe(3)
     expect(p.checklistPercent).toBeCloseTo((2 / 3) * 100)
+  })
+
+  it('rollup: hus og to aktive barn summeres én gang i portefølje', () => {
+    const house = baseProject({
+      id: 'h',
+      name: 'Hus',
+      budgetLines: [{ id: 'hl', label: 'Felles', budgetedNok: 10_000 }],
+    })
+    const k1 = baseProject({
+      id: 'k1',
+      name: 'Kjøkken',
+      parentId: 'h',
+      budgetLines: [{ id: 'l1', label: 'X', budgetedNok: 40_000 }],
+    })
+    const k2 = baseProject({
+      id: 'k2',
+      name: 'Bad',
+      parentId: 'h',
+      budgetLines: [{ id: 'l2', label: 'Y', budgetedNok: 50_000 }],
+    })
+    const list = [house, k1, k2]
+    const roll = computeRollupProjectKpis(house, list)
+    expect(roll.totalBudgetedNok).toBe(100_000)
+    const port = computePortfolioKpisForProjects(list)
+    expect(port.activeProjectCount).toBe(1)
+    expect(port.activeSubprojectCount).toBe(2)
+    expect(port.totalBudgetedNok).toBe(100_000)
+  })
+
+  it('arkivert barn telles ikke i rollup', () => {
+    const house = baseProject({ id: 'h', budgetLines: [{ id: 'x', label: 'a', budgetedNok: 5_000 }] })
+    const child = baseProject({
+      id: 'c',
+      parentId: 'h',
+      status: 'archived',
+      budgetLines: [{ id: 'y', label: 'b', budgetedNok: 50_000 }],
+    })
+    const roll = computeRollupProjectKpis(house, [house, child])
+    expect(roll.totalBudgetedNok).toBe(5_000)
+  })
+
+  it('to uavhengige røtter summeres hver for seg', () => {
+    const a = baseProject({
+      id: 'a',
+      budgetLines: [{ id: 'l', label: 'x', budgetedNok: 10_000 }],
+    })
+    const b = baseProject({
+      id: 'b',
+      budgetLines: [{ id: 'm', label: 'y', budgetedNok: 20_000 }],
+    })
+    const p = computePortfolioKpisForProjects([a, b])
+    expect(p.activeProjectCount).toBe(2)
+    expect(p.activeSubprojectCount).toBe(0)
+    expect(p.totalBudgetedNok).toBe(30_000)
   })
 })

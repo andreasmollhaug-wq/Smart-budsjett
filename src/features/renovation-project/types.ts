@@ -29,6 +29,8 @@ export interface RenovationChecklistItem {
 export interface RenovationProject {
   id: string
   name: string
+  /** Peke på hovedprosjekt (rotnivå). Kun ett nivå: forelder skal ikke ha egen parentId. */
+  parentId?: string
   /** Fritekst: adresse, kontakter, leverandører, ting å huske … */
   notes?: string
   /** yyyy-mm-dd */
@@ -52,6 +54,39 @@ export interface RenovationModulePersistedState {
 
 export function createEmptyRenovationModuleState(): RenovationModulePersistedState {
   return { version: RENOVATION_MODULE_STATE_VERSION, projects: [] }
+}
+
+/**
+ * Validerer og fjerner ugyldig parentId (promover til rot). Deterministisk og idempotent.
+ * Kaller etter parsing av alle prosjekter.
+ */
+export function repairRenovationProjectParentRefs(projects: RenovationProject[]): RenovationProject[] {
+  const byId = new Map(projects.map((p) => [p.id, p]))
+
+  const keepParentLink = (child: RenovationProject, parentId: string): boolean => {
+    if (parentId === child.id) return false
+    const parent = byId.get(parentId)
+    if (!parent) return false
+    if (parent.parentId) return false
+    if (child.status === 'active' && parent.status === 'archived') return false
+    return true
+  }
+
+  return projects.map((p) => {
+    const pid = p.parentId
+    if (pid == null || (typeof pid === 'string' && pid.trim() === '')) {
+      if (!('parentId' in p)) return p
+      const { parentId: _drop, ...rest } = p
+      return rest as RenovationProject
+    }
+    const trimmed = typeof pid === 'string' ? pid.trim() : ''
+    if (!trimmed || !keepParentLink(p, trimmed)) {
+      const { parentId: _drop, ...rest } = p
+      return rest as RenovationProject
+    }
+    if (trimmed === pid) return p
+    return { ...p, parentId: trimmed }
+  })
 }
 
 export function normalizeRenovationModuleState(raw: unknown): RenovationModulePersistedState {
@@ -110,9 +145,12 @@ export function normalizeRenovationModuleState(raw: unknown): RenovationModulePe
     const endDate = normalizeOptionalIsoDateString(pr.endDate)
     const location =
       typeof pr.location === 'string' && pr.location.trim() !== '' ? pr.location.trim() : undefined
+    const rawParent =
+      typeof pr.parentId === 'string' && pr.parentId.trim() !== '' ? pr.parentId.trim() : undefined
     projects.push({
       id: pr.id,
       name: pr.name,
+      ...(rawParent ? { parentId: rawParent } : {}),
       ...(notes !== undefined ? { notes } : {}),
       ...(startDate ? { startDate } : {}),
       ...(endDate ? { endDate } : {}),
@@ -125,7 +163,8 @@ export function normalizeRenovationModuleState(raw: unknown): RenovationModulePe
       checklist,
     })
   }
-  return { version: RENOVATION_MODULE_STATE_VERSION, projects }
+  const repaired = repairRenovationProjectParentRefs(projects)
+  return { version: RENOVATION_MODULE_STATE_VERSION, projects: repaired }
 }
 
 /** Leser lagret verdi til yyyy-mm-dd eller undefined (ukjente format droppes). */

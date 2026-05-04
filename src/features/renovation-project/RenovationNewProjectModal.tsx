@@ -5,6 +5,8 @@ import { X } from 'lucide-react'
 import { useRenovationProjectStore, buildNewProjectFromTemplate } from './renovationProjectStore'
 import { buildChecklistFromTemplate } from './templates'
 import type { RenovationTemplateKey } from './types'
+import { getActiveRootProjects } from './kpis'
+import RenovationModalFrame, { renovationModalFooterClass, renovationModalScrollableMainClass } from './RenovationModalFrame'
 
 const TEMPLATE_OPTIONS: { key: RenovationTemplateKey; label: string }[] = [
   { key: 'bathroom', label: 'Bad' },
@@ -17,13 +19,25 @@ const TITLE_ID = 'renovation-new-project-modal-title'
 type Props = {
   open: boolean
   onClose: () => void
+  variant: 'main' | 'sub'
+  /** Når variant=sub: hvilket hovedprosjekt som er forhåndsvalgt */
+  defaultParentId?: string
 }
 
-export default function RenovationNewProjectModal({ open, onClose }: Props) {
+export default function RenovationNewProjectModal({
+  open,
+  onClose,
+  variant,
+  defaultParentId,
+}: Props) {
   const addProject = useRenovationProjectStore((s) => s.addProject)
+  const projects = useRenovationProjectStore((s) => s.projects)
+
+  const parentChoices = useMemo(() => getActiveRootProjects(projects), [projects])
 
   const [name, setName] = useState('')
   const [templateKey, setTemplateKey] = useState<RenovationTemplateKey>('bathroom')
+  const [parentIdDraft, setParentIdDraft] = useState('')
   const [location, setLocation] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -32,6 +46,7 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
   const resetForm = useCallback(() => {
     setName('')
     setTemplateKey('bathroom')
+    setParentIdDraft('')
     setLocation('')
     setStartDate('')
     setEndDate('')
@@ -41,16 +56,13 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return
     resetForm()
-  }, [open, resetForm])
+  }, [open, variant, resetForm])
 
   useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    if (!open || variant !== 'sub') return
+    const first = parentChoices[0]?.id ?? ''
+    setParentIdDraft(defaultParentId && parentChoices.some((p) => p.id === defaultParentId) ? defaultParentId : first)
+  }, [open, variant, defaultParentId, parentChoices])
 
   const createDateRangeWarning = useMemo(() => {
     const s = startDate.trim()
@@ -65,17 +77,27 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
     e.preventDefault()
     const n = name.trim()
     if (!n) return
+    if (variant === 'sub' && !parentIdDraft.trim()) {
+      typeof window !== 'undefined' &&
+        window.alert('Velg hvilket hovedprosjekt rommet skal høre til.')
+      return
+    }
     const checklist = buildChecklistFromTemplate(templateKey)
     const project = buildNewProjectFromTemplate({
       name: n,
       templateKey,
       checklist,
+      ...(variant === 'sub' && parentIdDraft ? { parentId: parentIdDraft } : {}),
       location,
       startDate,
       endDate,
       notes,
     })
-    addProject(project)
+    const result = addProject(project)
+    if (!result.ok) {
+      typeof window !== 'undefined' && window.alert(result.message)
+      return
+    }
     resetForm()
     onClose()
   }
@@ -87,33 +109,27 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
 
   if (!open) return null
 
+  const modalTitle =
+    variant === 'main'
+      ? 'Nytt hovedprosjekt'
+      : parentChoices.length === 0
+        ? 'Nytt rom (opprett hovedprosjekt først)'
+        : 'Nytt rom / underprosjekt'
+
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={TITLE_ID}
-    >
-      <button
-        type="button"
-        className="absolute inset-0 bg-black/40 touch-manipulation"
-        aria-label="Lukk"
-        onClick={handleClose}
-      />
-      <div
-        className="relative flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl shadow-xl min-w-0"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-      >
+    <RenovationModalFrame onRequestClose={handleClose} ariaLabelledBy={TITLE_ID} maxWidth="lg">
         <div
-          className="flex items-start justify-between gap-4 border-b p-5 min-w-0 shrink-0"
+          className="flex shrink-0 items-start justify-between gap-4 border-b p-4 sm:p-5 min-w-0"
           style={{ borderColor: 'var(--border)' }}
         >
           <div className="min-w-0 flex-1 space-y-1">
             <h2 id={TITLE_ID} className="text-lg font-semibold leading-snug" style={{ color: 'var(--text)' }}>
-              Nytt prosjekt
+              {modalTitle}
             </h2>
             <p className="text-xs leading-snug sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-              Navn og mal er obligatorisk. Resten kan du fylle ut senere.
+              {variant === 'main'
+                ? 'Hovedprosjekt for f.eks. et kjøpt hus eller større oppussingsløp. Du legger til rom under senere.'
+                : 'Rommet lagres som underprosjekt under valgt hus. Økonomi og sjekklister på rommet.'}
             </p>
           </div>
           <button
@@ -121,19 +137,42 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
             onClick={handleClose}
             className="inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl outline-none transition-colors hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[var(--primary)] touch-manipulation"
             aria-label="Lukk"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <X size={22} style={{ color: 'var(--text-muted)' }} aria-hidden />
           </button>
         </div>
 
-        <form
-          onSubmit={handleCreate}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-hidden p-5 min-w-0">
+        <form onSubmit={handleCreate} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className={`${renovationModalScrollableMainClass}`}>
+            {variant === 'sub' ? (
+              <div>
+                <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }} htmlFor="renovation-new-parent">
+                  Hører til hovedprosjekt
+                </label>
+                <select
+                  id="renovation-new-parent"
+                  value={parentIdDraft}
+                  onChange={(e) => setParentIdDraft(e.target.value)}
+                  disabled={parentChoices.length === 0}
+                  className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm disabled:opacity-50"
+                  style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                >
+                  {parentChoices.length === 0 ? (
+                    <option value="">—</option>
+                  ) : (
+                    parentChoices.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            ) : null}
             <div>
               <label className="mb-1 block text-sm font-medium" style={{ color: 'var(--text)' }} htmlFor="renovation-new-name">
-                Prosjektnavn
+                Navn på prosjekt
               </label>
               <input
                 id="renovation-new-name"
@@ -141,8 +180,8 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
                 onChange={(e) => setName(e.target.value)}
                 className="min-h-[44px] w-full rounded-xl border px-3 py-2.5 text-base sm:text-sm"
                 style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                placeholder="F.eks. Bad 2. etasje"
-                autoFocus
+                placeholder={variant === 'main' ? 'F.eks. Lommedalsveien 12' : 'F.eks. Bad 2. etasje'}
+                autoFocus={variant !== 'sub'}
                 autoComplete="off"
               />
             </div>
@@ -236,7 +275,7 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
           </div>
 
           <div
-            className="flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:flex-wrap sm:justify-end sm:p-5"
+            className={`flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3 ${renovationModalFooterClass}`}
             style={{ borderColor: 'var(--border)' }}
           >
             <button
@@ -249,7 +288,7 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
             </button>
             <button
               type="submit"
-              disabled={!name.trim()}
+              disabled={!name.trim() || (variant === 'sub' && (parentChoices.length === 0 || !parentIdDraft))}
               className="min-h-[44px] w-full rounded-xl px-4 py-3 text-sm font-medium text-white touch-manipulation outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] enabled:transition-opacity enabled:hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               style={{ background: 'var(--primary)' }}
             >
@@ -257,7 +296,6 @@ export default function RenovationNewProjectModal({ open, onClose }: Props) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </RenovationModalFrame>
   )
 }

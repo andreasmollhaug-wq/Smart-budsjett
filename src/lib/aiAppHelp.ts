@@ -29,6 +29,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /snoball — Snøball
 - /investering — Investering
 - /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
+- /prosjekt — Oppussing (egen modul med hovedprosjekt og rom/underprosjekter — ikke samme budsjett som /budsjekt; beskrives i detalj under «Oppussing og prosjekt»). Menypunktet «Oppussing» kan ligge bakerst i menyen.
 - /enkelexcel-ai — EnkelExcel AI
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
@@ -141,11 +142,11 @@ Rapporter
 - /rapporter/sparemal — sparemål, fremdrift, aktivitet; PDF/utskrift.
 
 EnkelExcel AI (/enkelexcel-ai)
-- Chat med «EnkelExcel AI» om budsjett, sparing, gjeld og hvordan appen brukes (sammen med bruksveiledningen du leser nå og brukerens tall i samme forespørsel).
+- Chat med «EnkelExcel AI» om budsjett, sparing, gjeld, **hvordan Oppussing-modulen fungerer** (struktur, menyer og flyt ut fra bruksveiledningen), og øvrige funksjoner beskrevet her — kombinert med bruksveiledningen og brukerens **tallblokk** fra appen der den finnes (se punkt om oppussing og talltekst).
 - Personvern: tallteksten som sendes til AI bygges kun fra den innloggede brukerens egen lagrede app-data — ikke andre brukeres kontoer.
 - Hvilket tallgrunnlag som sendes til AI følger profilvelgeren til venstre: én profil eller samlet husholdning (Familie med minst to profiler). Chattsiden viser tydelig hvilket grunnlag som gjelder.
 - I husholdningsmodus er mange beløp i tallteksten summert på tvers av profiler (aggregat). Enkeltlinjer som transaksjoner, abonnementer og en del andre poster kan være merket med profil (f.eks. [navn]). Når brukeren spør om hvem eller fordeling, bruk slike profilmerker og eventuell tabell per profil — ikke anta mer enn teksten viser.
-- Innhold i tallteksten (typisk rekkefølge): innledning med budsjettår og visningsmodus; deretter tjenesteabonnementer (i husholdning: tabell per profil + detaljliste med [profil], plassert før transaksjoner slik at summene ikke forsvinner ved avkorting); transaksjoner (nyeste først, begrenset antall linjer) med profilkolonne i husholdning; kort utdrag av planlagte poster som krever oppfølging (Kommende); budsjettkategorier (brukt/plan for året); sparemål; gjeld; investeringer — med [profil] der det er relevant i husholdning. Ved svært mye data kan teksten avkortes (øvre tegnbegrensning); ikke gjett utover det som står.
+- Innhold i tallteksten (typisk rekkefølge): innledning med budsjettår og visningsmodus; deretter tjenesteabonnementer (i husholdning: tabell per profil + detaljliste med [profil], plassert før transaksjoner slik at summene ikke forsvinner ved avkorting); transaksjoner (nyeste først, begrenset antall linjer) med profilkolonne i husholdning; kort utdrag av planlagte poster som krever oppfølging (Kommende); budsjettkategorier (brukt/plan for året); sparemål; gjeld; investeringer — med [profil] der det er relevant i husholdning. **Oppussingsprosjekter under /prosjekt inngår per nå ikke i denne tallteksten** — forklar struktur og bruk fra bruksveiledningen og inviter brukeren til å åpne Oppussing for egne oppussingsbeløp (ikke finn opp brukerens prosjekt­tall eller anta at de står i tallblokken). Ved svært mye data kan teksten avkortes (øvre tegnbegrensning); ikke gjett utover det som står.
 - Spørsmål om **hvor i appen** man ser gjeld **fordelt på person**, **diagram** eller **detaljvisning per medlem**: med Familie og minst to profiler finnes **Gjeld → Husholdning** (/gjeld/husholdning) med grafer, tall over søyler (forkortet k/M) og modal ved klikk på person eller søyle — dette er **ikke** en egen datakilde utover registrert gjeld per profil; tallteksten til AI er liste/tabellbasert, siden er visuell.
 - Svar skal være ren tekst uten Markdown (ingen **, kodeblokker, osv.) — som beskrevet i systeminstruksen.
 - Meldingskvote: standard inkludert antall meldinger per kalendermåned (serverstyrt; miljøvariabel AI_MONTHLY_MESSAGE_LIMIT, standard 100). Når inkluderte meldinger er brukt opp, kan du ha «ekstra meldinger» (bonus credits) hvis kjøpt.
@@ -194,14 +195,40 @@ Importer transaksjoner (/konto/importer-transaksjoner)
 Import fra regnskap (/konto/importer-fra-regnskap)
 - CSV fra regnskapssystem (hovedbok med dato, konto, debet/kredit eller beløp med fortegn). Velg leverandør/profil, kartlegg hver regnskapskonto til en budsjettkategori (huskes neste gang), se sammendrag, bekreft. Endelig inntekt/utgift på transaksjonen følger kategoritypen i appen.
 
-Oppussing og prosjekt (/prosjekt, meny: Oppussing)
-- Valgfri modul for prosjekt og oppussing med egne budsjettposter og utgifter; ikke synkronisert med hovedbudsjettet og transaksjonslisten. Bruk Budsjett og Transaksjoner for ordinær husholdningsøkonomi. Gamle lenker til /intern/prosjekt omdirigeres til /prosjekt.
+Oppussing og prosjekt (/prosjekt, menyvalg «Oppussing»)
+- Formål: Egne oppussings- og prosjekt­tall (**prosjektbudsjett** og prosjekt­utgifter) som **lagres på kontoen din** og kan planlegges **uten å blande dem inn i ordinært hus­budsjett** eller transaksjonsoversikt. Det er et **sekundært spor** for planlegging (rom, materialer, håndverk osv.). For strømmen av vanlig økonomi (lønn, regninger, daglig kjøp) bruk **Budsjett** (/budsjett) og **Transaksjoner** (/transaksjoner).
+
+- Viktige skiller: Oppussingen **kopieres ikke automatisk** til eller fra hovedbudsjett eller transaksjonslisten. Oppussingsposter er **kun** på prosjektsiden (og persisteres på kontoen). Brukeren må selv **velge å dobbeltføre** i ordinær økonomi der det er ønskelig (f.eks. egen kategori i transaksjoner).
+
+- Hierarki (**ett nivå**): Et **hovedprosjekt** er et prosjekt **uten forelder** (rotnivå), f.eks. «Hus Frogner». **Rom / under­prosjekter** (kjøkken, bad …) har en **kobling til nøyaktig ett aktivt hovedprosjekt**. Det er **ikke mulig å ha rom under rom** eller tre nivåer — dette hindres i lagring og rettes ved lasting av data («normalisering») hvis korrupt tekst dukker opp.
+
+- Liste (/prosjekt): Øverst **portefølje-KPI** (samlet aktive hus, budsjett, faktisk, sjekkliste) slik at det **ikke dobbelt­telles**: per aktivt hus summeres husets egne budsjett­linjer og utgifter pluss aktive rom under; summen tas **én gang per hus**. Tallet for **aktive hovedprosjekt** **teller kun røttene**. Undertekst/modal nevner også **antall aktive rom** når aktuelt — slik at brukeren ikke tror ting har «forsvunnet».
+
+- Liste: Hovedkort viser **kun aktive hovedprosjekter** med **rollup** (hus + sine rom). Under hvert hus: liste med aktive rom. **Rom-rad åpner en kort modal** med nøkkeltall før valgfritt «Se detaljer».
+
+- Oppretting: Knapp «**Nytt hovedprosjekt**» eller «**Nytt rom / underprosjekt**» (disabled til det finnes minst ett hus når nytt rom). Modal: ved rom velges hvilket hus. Malvalg (**kjøkken, bad**, egen) gir forslags­sjekkliste og lignende ved opprettelse.
+
+- Prosjektdetaljside (/prosjekt/[projectId]): **Header** har prosjektnavn og **Liste** tilbake (+ lenke opp til hus hvis du er på et rom).
+
+- Øverst KPI-kort på **aktiv rot med rom**: totalsummer («rollup») på kort kan **inneholde aktive rom** — infotekst/modal forklarer det. **På ett rom**: KPI viser kun det rommet.
+
+- **Under­prosjekter** (kun på hus): liste over aktive rom, «Nytt rom». **Budsjettlinjer**, **Utgifter** og **Sjekkliste** er ordinært arbeidsinnhold. **Om prosjektet** ligger nederst og er **sammenleggbart** (ofte lukket som standard): navn på prosjekt, arkiver/slett (slett hus med barn **bekrefter hele subtreet**).
+
+- Kobling hus–rom (**uten tekniske ord for bruker**): I «Om prosjektet»: Fritt hus **uten aktive barn** kan **kobles til et annet aktivt hus** (ble opprettet feil eller skal ligge der). **Prosjekt som allerede har aktive rom** kan ikke «flyttes under» annet hus uten først å arkivere eller slette rom — da vises en avvisende melding fra appen.
+
+- Rom: Kan **bytte hvilket aktivt hus det hører til** eller velge **«Gjør til hovedprosjekt»** — da blir rommet toppnivå (rom har ikke egne barn i modellen). Vellykkede lagringer bekrefter med **Lagret**.
+
+- Arkiver hus: setter **hus og alle under­rom** til arkivert i samme økt (unngår ugyldige blandingstilstand).
+
+- Persistens på innlogget konto: oppussingsdata synkroniseres ved lagring (som øvrige brukerdata). Gamle URL **/intern/prosjekt** omdirigeres til **/prosjekt**.
+
+- UI-detaljer (for forklaring til bruker): **«Budsjettlinjer»** og **«Sjekkliste»** på prosjektdetaljer er vanligvis **åpent første gang** du åpner det prosjektet; **åpent/lukket huskes lokalt per prosjekt-ID** mellom øktene (localStorage på prosjektdetalj-siden).
 
 Formuebyggeren PRO (/sparing/formuebygger)
 - Langsiktig simulering av formue og kjøpekraft; egne felt og tabeller; kan eksportere PDF der det er knapp for det i grensesnittet.
 
 Viktig for svar i chat
-- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; **sparing analyse** og «Vis meg rundt» på /sparing/analyse → Sparing-seksjonen over; faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement og Stripe → Betalinger /konto/betalinger; gjeld per person / diagram / modal på husholdningssiden → Gjeld-seksjonen over, rute /gjeld/husholdning med forutsetning Familie + minst to profiler).
+- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; **sparing analyse** og «Vis meg rundt» på /sparing/analyse → Sparing-seksjonen over; **Oppussing** / hoved vs rom → seksjonen «Oppussing og prosjekt» (/prosjekt); faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement og Stripe → Betalinger /konto/betalinger; gjeld per person / diagram / modal på husholdningssiden → Gjeld-seksjonen over, rute /gjeld/husholdning med forutsetning Familie + minst to profiler). **Ikke bland inn konkrete prosjekt­beløp fra tallblokk** — oppussing er ikke automatisk dér.
 - Når brukeren spør «hvordan gjør jeg …», gi steg som finnes i appen her — ikke finn opp nye knapper.
 - Skille mellom generell økonomiteori og det Smart Budsjett faktisk gjør.
 - Ved spørsmål om husholdning og fordeling: bruk profilmerket data og aggregater som beskrevet under EnkelExcel AI og Profiler — ikke anta tall som ikke står i tallteksten. Gjeld-husholdningssiden viser **ikke** en egen «rettferdig fordeling» av hvem som bør betale — bare registrerte lån og avdrag per profil.

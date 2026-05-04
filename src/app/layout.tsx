@@ -17,11 +17,6 @@ export const metadata: Metadata = {
   },
   description: 'Din personlige økonomiassistent',
   manifest: '/manifest.webmanifest',
-  /** Eksplisitte ruter fra app/icon.tsx og app/apple-icon.tsx (unngår 404 på /favicon.ico alene). */
-  icons: {
-    icon: [{ url: '/icon', type: 'image/png' }],
-    apple: [{ url: '/apple-icon', type: 'image/png' }],
-  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
