@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -16,7 +15,6 @@ import {
 import LandingFooter from '@/components/marketing/LandingFooter'
 import {
   CTA_HREF,
-  DOTTIR_ICON_SRC,
   DOTTIR_HOME_HREF,
   LOGIN_HREF,
   landingHorizontalPadding,
@@ -64,20 +62,9 @@ export default function DottirOmOssPage() {
         }}
       >
         <div className={`mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-3 py-3 sm:py-4 ${landingHorizontalPadding}`}>
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="relative flex h-10 w-10 shrink-0">
-              <Image
-                src={DOTTIR_ICON_SRC}
-                alt=""
-                width={40}
-                height={40}
-                className="object-contain"
-              />
-            </span>
-            <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
-              Om oss
-            </p>
-          </div>
+          <p className="min-w-0 truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
+            Om oss
+          </p>
           <Link
             href={DOTTIR_HOME_HREF}
             className="inline-flex min-h-[44px] shrink-0 touch-manipulation items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition-opacity hover:opacity-90"

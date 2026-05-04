@@ -118,7 +118,10 @@ export function sumIncomeExpenseInMonthRange(
     if (t.type === 'income') {
       const pid = t.profileId ?? ''
       income += effectiveIncomeTransactionAmount(t, people?.[pid]?.defaultIncomeWithholding)
-    } else expense += t.amount
+    } else {
+      const a = typeof t.amount === 'number' && Number.isFinite(t.amount) ? t.amount : 0
+      expense += a
+    }
   }
   return { income, expense }
 }

@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
+import { PHASE_PRODUCTION_BUILD } from 'next/constants'
 
-const nextConfig: NextConfig = {
+const shared: NextConfig = {
   /**
    * Unngår cross-origin-advarsel når dev-server åpnes via 127.0.0.1 mens klient forventer localhost (eller omvendt).
    * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
@@ -8,8 +9,9 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
   /** Mindre risiko for rare HMR-feil når Supabase ikke bundler inn på nytt ved hver endring. */
   serverExternalPackages: ['@supabase/supabase-js', '@supabase/ssr'],
-  experimental: {
-    optimizePackageImports: ['lucide-react', 'recharts'],
+  /** Tillatte `quality`-verdier for `next/image` (nyere Next krever eksplisitt liste). */
+  images: {
+    qualities: [75, 90, 95],
   },
   async redirects() {
     return [
@@ -58,4 +60,25 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+/**
+ * `webpackBuildWorker: false` m.m. stabiliserer `next build` på Windows, men skal **kun** gjelde
+ * produksjonsbygg — ikke `next dev` (gir ufullstendig `.next` / routes-manifest og 500) eller `next start`.
+ */
+export default function defineNextConfig(phase: string): NextConfig {
+  const prodBuildStability =
+    phase === PHASE_PRODUCTION_BUILD
+      ? {
+          webpackBuildWorker: false,
+          parallelServerCompiles: false,
+          parallelServerBuildTraces: false,
+        }
+      : {}
+
+  return {
+    ...shared,
+    experimental: {
+      optimizePackageImports: ['lucide-react', 'recharts'],
+      ...prodBuildStability,
+    },
+  }
+}

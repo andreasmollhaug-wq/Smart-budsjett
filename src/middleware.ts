@@ -4,6 +4,7 @@ import {
   hasSubscriptionAccess,
   isSubscriptionEnforcementEnabled,
 } from '@/lib/stripe/subscriptionAccess'
+import { safeRedirectPath } from '@/lib/safeRedirectPath'
 import { applySmartvaneMonthCanonicalUrl } from '@/features/smartvane/smartvaneMonthMiddleware'
 
 function isPublicPath(pathname: string): boolean {
@@ -55,12 +56,7 @@ export async function middleware(request: NextRequest) {
   }
 
   /** Favicon / app-ikoner — ikke kjør auth (matcher unngår ikke alltid /icon uten filendelse). */
-  if (
-    pathname === '/icon' ||
-    pathname === '/apple-icon' ||
-    pathname === '/dottir/icon' ||
-    pathname === '/dottir/apple-icon'
-  ) {
+  if (pathname === '/icon' || pathname === '/apple-icon') {
     return NextResponse.next()
   }
 
@@ -102,7 +98,8 @@ export async function middleware(request: NextRequest) {
 
   if (isPublicPath(pathname)) {
     if (user && isAuthOnlyPath(pathname)) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      const dest = safeRedirectPath(request.nextUrl.searchParams.get('next'))
+      return NextResponse.redirect(new URL(dest, request.url))
     }
     return supabaseResponse
   }

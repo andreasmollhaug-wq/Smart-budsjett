@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { currentCalendarYearMonthOslo } from '@/lib/aiUsage'
 import {
   SMARTVANE_YM_COOKIE,
   parseYmCookie,
@@ -9,15 +10,15 @@ import {
 
 function copyResponseCookies(from: NextResponse, to: NextResponse) {
   from.cookies.getAll().forEach((c) => {
-    to.cookies.set(c.name, c.value)
+    /** Én-arg `set` bevarer path/httpOnly/sameSite m.m. — viktig for Supabase ved redirect. */
+    to.cookies.set(c)
   })
 }
 
 /**
  * Synker `/smartvane/maned` og `/smartvane/insikt` med kanonisk `?y=&m=`:
- * - Gyldig query → lagrer i cookie (siste valgte måned).
- * - Mangler/ugyldig query → redirect til cookie eller inneværende måned (samme logikk som bunnnav
- *   når du ikke har valgt måned — men her holder vi også Innsikt i takt med forrige Måned-besøk).
+ * - Gyldig query → lagrer i cookie (siste valgte måned).  
+ * - Mangler/ugyldig query → redirect til cookie eller inneværende måned i **Europe/Oslo** (samme som AI-kvote).
  */
 export function applySmartvaneMonthCanonicalUrl(
   request: NextRequest,
@@ -43,8 +44,7 @@ export function applySmartvaneMonthCanonicalUrl(
   }
 
   const fromCookie = parseYmCookie(request.cookies.get(SMARTVANE_YM_COOKIE)?.value)
-  const now = new Date()
-  const target = fromCookie ?? { year: now.getFullYear(), month: now.getMonth() + 1 }
+  const target = fromCookie ?? currentCalendarYearMonthOslo()
 
   const url = request.nextUrl.clone()
   url.searchParams.set('y', String(target.year))

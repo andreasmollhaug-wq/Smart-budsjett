@@ -133,7 +133,9 @@ export function effectiveIncomeTransactionAmount(
   tx: Transaction,
   profileDefault: IncomeWithholdingRule | undefined | null,
 ): number {
-  if (tx.type !== 'income') return tx.amount
+  if (tx.type !== 'income') {
+    return typeof tx.amount === 'number' && Number.isFinite(tx.amount) ? tx.amount : 0
+  }
   const gross = typeof tx.amount === 'number' && Number.isFinite(tx.amount) ? Math.max(0, tx.amount) : 0
   if (transactionIncomeIsNet(tx)) return gross
   const p = effectiveWithholdingPercentForIncomeTransaction(tx, profileDefault)

@@ -53,3 +53,16 @@ export function currentYearMonthOslo(now: Date = new Date()): string {
   }
   return `${y}-${m}`
 }
+
+/** Kalenderår og måned (1–12) i Europe/Oslo — samme logikk som `currentYearMonthOslo` (f.eks. SmartVane redirect). */
+export function currentCalendarYearMonthOslo(now: Date = new Date()): { year: number; month: number } {
+  const ym = currentYearMonthOslo(now)
+  const [yStr, mStr] = ym.split('-')
+  const year = Number.parseInt(yStr ?? '', 10)
+  const month = Number.parseInt(mStr ?? '', 10)
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    const d = new Date()
+    return { year: d.getFullYear(), month: d.getMonth() + 1 }
+  }
+  return { year, month }
+}

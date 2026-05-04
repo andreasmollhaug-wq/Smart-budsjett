@@ -75,9 +75,10 @@ export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`
 }
 
-/** Avvik som andel av budsjett (for avvikskolonne); null når budsjett er 0. */
+/** Avvik som andel av budsjett (for avvikskolonne); null når budsjett er 0 eller ikke-finite. */
 export function variancePercentOfBudget(variance: number, budgeted: number): number | null {
-  if (budgeted === 0) return null
+  if (!Number.isFinite(budgeted) || budgeted === 0) return null
+  if (!Number.isFinite(variance)) return null
   return (variance / budgeted) * 100
 }
 

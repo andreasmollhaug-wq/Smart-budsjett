@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -22,16 +21,16 @@ import {
 import LandingFooter from '@/components/marketing/LandingFooter'
 import {
   CTA_HREF,
-  DOTTIR_ICON_SRC,
-  DOTTIR_LOGO_SRC,
   DOTTIR_OM_OSS_HREF,
   DOTTIR_HOME_HREF,
+  DOTTIR_UTFORSK_HREF,
   LOGIN_HREF,
   landingHorizontalPadding,
 } from '@/components/marketing/constants'
 
 const NAV = [
   { href: DOTTIR_OM_OSS_HREF, label: 'Om oss' },
+  { href: DOTTIR_UTFORSK_HREF, label: 'Utforsk alt' },
   { href: '#kjerne', label: 'Kjerne' },
   { href: '#produkt', label: 'Produktet' },
   { href: '#problem', label: 'Problem' },
@@ -206,28 +205,10 @@ export default function DottirLanding() {
           <Link
             href={DOTTIR_HOME_HREF}
             aria-label="Dottir"
-            className="flex min-w-0 max-w-[min(100%,14rem)] shrink items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:max-w-none sm:gap-3"
+            className="inline-flex min-h-[44px] shrink-0 items-center rounded-xl px-1 py-1 text-lg font-bold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
+            style={{ color: 'var(--text)' }}
           >
-            <span className="relative flex h-9 w-9 shrink-0 md:hidden">
-              <Image
-                src={DOTTIR_ICON_SRC}
-                alt=""
-                width={36}
-                height={36}
-                className="object-contain"
-                priority
-              />
-            </span>
-            <span className="relative hidden h-9 shrink-0 md:block">
-              <Image
-                src={DOTTIR_LOGO_SRC}
-                alt=""
-                width={220}
-                height={44}
-                className="h-9 w-auto max-w-[min(100%,11rem)] object-contain object-left lg:max-w-[15rem]"
-                priority
-              />
-            </span>
+            Dottir
           </Link>
 
           <nav className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
@@ -521,6 +502,15 @@ export default function DottirLanding() {
                   </li>
                 ))}
               </ul>
+              <p className="mt-6 text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
+                <Link
+                  href={DOTTIR_UTFORSK_HREF}
+                  className="inline-flex min-h-[44px] touch-manipulation items-center justify-center font-semibold underline underline-offset-4 transition-opacity hover:opacity-80"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  Se alle moduler interaktivt
+                </Link>
+              </p>
             </div>
           </div>
         </section>

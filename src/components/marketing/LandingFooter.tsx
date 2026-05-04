@@ -1,6 +1,12 @@
 import Link from 'next/link'
 import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal'
-import { CTA_HREF, LOGIN_HREF, landingHorizontalPadding } from './constants'
+import {
+  CTA_HREF,
+  DOTTIR_OM_OSS_HREF,
+  DOTTIR_UTFORSK_HREF,
+  LOGIN_HREF,
+  landingHorizontalPadding,
+} from './constants'
 
 type LandingFooterProps = {
   /** Dottir: vis Dottir som produktnavn i footer (samme selskap som hovedsiden). */
@@ -31,6 +37,16 @@ export default function LandingFooter({ variant = 'default' }: LandingFooterProp
           </p>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-6 text-sm">
+          {variant === 'dottir' ? (
+            <>
+              <Link href={DOTTIR_OM_OSS_HREF} className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
+                Om oss
+              </Link>
+              <Link href={DOTTIR_UTFORSK_HREF} className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
+                Utforsk alt
+              </Link>
+            </>
+          ) : null}
           <Link href="/produktflyt" className="font-medium transition-opacity hover:opacity-80" style={{ color: 'var(--text-muted)' }}>
             Produktflyt
           </Link>
