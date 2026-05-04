@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { useShallow } from 'zustand/react/shallow'
 import { budgetedMonthsFromFrequency, generateId, type BudgetCategoryFrequency } from './utils'
-import { writeSmartvaneProfileCookieClient } from '@/features/smartvane/smartvaneProfileCookie'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
 import { applyCategoryRemap, type CategoryRemapErrorReason } from './categoryRemap'
@@ -492,13 +491,11 @@ interface AppState {
   hydrateFromPayload: (payload: unknown) => void
   /**
    * Slår server-snapshot inn uten å overskrive aktiv profil/husholdningsvalg som klienten nettopp byttet:
-   * `user_app_state` kan ligge 1–2 s bak (debounce), mens `router.refresh()` rekjører layout og ellers
-   * ville tilbakestilt `activeProfileId` (merkbart på SmartVane).
+   * `user_app_state` kan ligge 1–2 s bak (debounce), mens `router.refresh()` rekjører layout.
    */
   hydrateFromServerRefresh: (payload: unknown) => void
   syncProductAnnouncements: () => void
   syncInsightNotifications: () => void
-  syncSmartvaneBellReminder: (args: { profileId: string; calendarYmd: string; show: boolean }) => void
   /** Én gang etter ~30 min synlig bruk; idempotent via deliveredAnnouncementIds. */
   deliverRoadmapInviteNotification: () => void
   markNotificationRead: (id: string) => void
@@ -2260,40 +2257,6 @@ export const useStore = create<AppState>()((set, get) => {
           }))
         },
 
-        syncSmartvaneBellReminder: ({ profileId, calendarYmd, show }) => {
-          const sig = `smartvane-day-${profileId}-${calendarYmd}`
-          set((s) => {
-            const nextFiltered = s.notifications.filter((n) => {
-              const c = n.contentSignature
-              if (typeof c === 'string' && c.startsWith('smartvane-day-')) return c === sig
-              return true
-            })
-            if (!show) {
-              return { notifications: nextFiltered.filter((n) => n.contentSignature !== sig) }
-            }
-            if (nextFiltered.some((n) => n.contentSignature === sig)) {
-              return { notifications: nextFiltered }
-            }
-            return {
-              notifications: [
-                {
-                  id: `smartvane-bell-${calendarYmd}`,
-                  title: 'SmartVane',
-                  body:
-                    'Du har daglige vaner uten kryss ennå i dag. Loggfør litt når du har et øyeblikk — eller vent til senere.',
-                  kind: 'smartvane',
-                  createdAt: new Date().toISOString(),
-                  read: false,
-                  contentSignature: sig,
-                  actionHref: '/smartvane/i-dag',
-                  actionLabel: 'Gå til I dag',
-                },
-                ...nextFiltered,
-              ],
-            }
-          })
-        },
-
         setSubscriptionPlan: (plan) => {
           const s = get()
           if (plan === 'solo' && s.profiles.length > 1) {
@@ -2310,7 +2273,6 @@ export const useStore = create<AppState>()((set, get) => {
           if (!s.people[id]) {
             people = { ...s.people, [id]: createEmptyPersonData() }
           }
-          writeSmartvaneProfileCookieClient(id)
           set({ activeProfileId: id, financeScope: 'profile', people })
         },
 
@@ -2353,7 +2315,6 @@ export const useStore = create<AppState>()((set, get) => {
             if (m) nextRow = { ...nextRow, hjemflyt: m }
           }
           const nextProfiles = [...s.profiles, nextRow]
-          writeSmartvaneProfileCookieClient(id)
           set({
             people: nextPeople,
             profiles: nextProfiles,
@@ -2412,7 +2373,6 @@ export const useStore = create<AppState>()((set, get) => {
             assigneeProfileIds: t.assigneeProfileIds.filter((x) => x !== id),
           }))
 
-          writeSmartvaneProfileCookieClient(activeProfileId)
           set({
             profiles: nextProfiles,
             people: restPeople,

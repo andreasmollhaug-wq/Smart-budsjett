@@ -54,7 +54,7 @@ export function currentYearMonthOslo(now: Date = new Date()): string {
   return `${y}-${m}`
 }
 
-/** Kalenderår og måned (1–12) i Europe/Oslo — samme logikk som `currentYearMonthOslo` (f.eks. SmartVane redirect). */
+/** Kalenderår og måned (1–12) i Europe/Oslo — samme logikk som `currentYearMonthOslo`. */
 export function currentCalendarYearMonthOslo(now: Date = new Date()): { year: number; month: number } {
   const ym = currentYearMonthOslo(now)
   const [yStr, mStr] = ym.split('-')

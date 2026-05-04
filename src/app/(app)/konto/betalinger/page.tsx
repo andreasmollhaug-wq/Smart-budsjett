@@ -18,14 +18,6 @@ const familyFeatures = [
   'Ideelt for par og familier',
 ]
 
-type StripeSubscriptionRow = {
-  status: string
-  plan: 'solo' | 'family' | null
-  stripe_price_id: string | null
-  current_period_end: string | null
-  updated_at: string
-} | null
-
 /** Inkluderer abonnementsfakturaer og evt. engangskjøp (f.eks. AI-kreditter) på samme Stripe-kunde. */
 type StripeInvoiceRow = {
   id: string
@@ -92,42 +84,20 @@ function BetalingerContent() {
   const reason = searchParams.get('reason')
   const trialWelcome = searchParams.get('trial')
 
-  const { trialPeriodDays } = useSubscriptionReadOnly()
+  const { trialPeriodDays, subscription: stripeSub, canOpenBillingPortal, refresh } = useSubscriptionReadOnly()
   const [trialModalOpen, setTrialModalOpen] = useState(false)
 
   const { subscriptionPlan, setSubscriptionPlan } = useActivePersonFinance()
   const showAmountDecimals = useStore((s) => s.showAmountDecimals)
   const [downgradeError, setDowngradeError] = useState(false)
-  const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
   const [checkoutLoading, setCheckoutLoading] = useState<'solo' | 'family' | null>(null)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [checkoutStripeRequestId, setCheckoutStripeRequestId] = useState<string | null>(null)
-  const [canOpenBillingPortal, setCanOpenBillingPortal] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
   const [invoices, setInvoices] = useState<StripeInvoiceRow[] | undefined>(undefined)
   const [paidCount, setPaidCount] = useState<number | undefined>(undefined)
   const [invoicesError, setInvoicesError] = useState<string | null>(null)
-
-  const loadStripeSubscription = useCallback(async () => {
-    try {
-      const res = await fetch('/api/stripe/subscription')
-      if (!res.ok) {
-        setStripeSub(null)
-        setCanOpenBillingPortal(false)
-        return
-      }
-      const data = (await res.json()) as {
-        subscription?: StripeSubscriptionRow
-        canOpenBillingPortal?: boolean
-      }
-      setStripeSub(data.subscription ?? null)
-      setCanOpenBillingPortal(Boolean(data.canOpenBillingPortal))
-    } catch {
-      setStripeSub(null)
-      setCanOpenBillingPortal(false)
-    }
-  }, [])
 
   const loadInvoices = useCallback(async () => {
     setInvoicesError(null)
@@ -156,16 +126,15 @@ function BetalingerContent() {
   }, [])
 
   useEffect(() => {
-    void loadStripeSubscription()
     void loadInvoices()
-  }, [loadStripeSubscription, loadInvoices])
+  }, [loadInvoices])
 
   useEffect(() => {
     if (checkout === 'success') {
-      void loadStripeSubscription()
+      void refresh()
       void loadInvoices()
     }
-  }, [checkout, loadStripeSubscription, loadInvoices])
+  }, [checkout, refresh, loadInvoices])
 
   const paidActive = stripeSub && hasSubscriptionAccess(stripeSub.status)
 

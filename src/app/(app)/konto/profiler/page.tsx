@@ -5,7 +5,6 @@ import { Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChildEmojiPicker } from '@/features/hjemflyt/ChildEmojiPicker'
-import { deleteSmartvaneDataForProfile } from '@/features/smartvane/actions'
 import { DEFAULT_PROFILE_ID, useStore } from '@/lib/store'
 import type { HjemflytProfileMeta } from '@/features/hjemflyt/types'
 
@@ -107,18 +106,7 @@ function ProfileRow({
   }, [hjemflyt?.kind, hjemflyt?.childEmoji])
 
   const confirmRemove = async () => {
-    const server = await deleteSmartvaneDataForProfile(id)
     setRemoveModalOpen(false)
-    if (!server.ok) {
-      if (typeof window !== 'undefined') {
-        window.alert(
-          server.error === 'Kan ikke slette SmartVane for hovedprofilen'
-            ? server.error
-            : `SmartVane kunne ikke ryddes: ${server.error}`,
-        )
-      }
-      return
-    }
     const res = removeProfile(id)
     if (!res.ok && typeof window !== 'undefined') {
       window.alert(res.reason === 'last_profile' ? 'Du må ha minst én profil.' : 'Profilen kunne ikke fjernes.')

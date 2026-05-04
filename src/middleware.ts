@@ -5,7 +5,6 @@ import {
   isSubscriptionEnforcementEnabled,
 } from '@/lib/stripe/subscriptionAccess'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
-import { applySmartvaneMonthCanonicalUrl } from '@/features/smartvane/smartvaneMonthMiddleware'
 
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true
@@ -128,11 +127,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return applySmartvaneMonthCanonicalUrl(request, supabaseResponse)
+  return supabaseResponse
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Statiske filer fra `public/` og vanlige assets — ikke kjør Supabase/session på disse.
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|mjs|css|woff2|woff|ttf|otf|map|txt|xml|webmanifest)$).*)',
   ],
 }

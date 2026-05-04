@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
-import { SMARTVANE_BASE_PATH } from '@/features/smartvane/paths'
 import { SIDEBAR_NAV } from '@/lib/sidebarNav'
 
 export type DottirShowcaseCategoryId = 'alle' | 'okonomi' | 'hverdag' | 'innsikt'
@@ -116,13 +115,6 @@ const SHOWCASE_BY_HREF: Record<string, ShowcaseCopy> = {
     what: 'Prosjekter, delmål og oversikt når boligen skal løftes over tid.',
     when: 'Renovering, vedlikehold eller større oppgraderinger hvor kostnader og oppgaver stables.',
     outcome: 'Kontroll på både gjøremål og forventet belastning — færre dyre overraskelser.',
-  },
-  [SMARTVANE_BASE_PATH]: {
-    category: 'hverdag',
-    hook: 'Vaner som faktisk blir med neste uke — ikke bare nyttårsforsett.',
-    what: 'Bygg og følg rutiner med oversikt og motivasjon inne i appen.',
-    when: 'Når du vil stabilisere repetisjoner som påvirker både helse og økonomi.',
-    outcome: 'Små steg som synes — og som du ikke trenger å skamme deg over å komme tilbake til.',
   },
 }
 

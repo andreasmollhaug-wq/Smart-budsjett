@@ -3,6 +3,19 @@ import { PHASE_PRODUCTION_BUILD } from 'next/constants'
 
 const shared: NextConfig = {
   /**
+   * Reduserer støy fra Webpack 5 filesystem-cache (`PackFileCacheStrategy` / «Serializing big strings»).
+   * Advarselen påvirker først og fremst cache-deserialisering i dev og er vanligvis harmløs.
+   */
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.infrastructureLogging = {
+        ...config.infrastructureLogging,
+        level: 'error',
+      }
+    }
+    return config
+  },
+  /**
    * Unngår cross-origin-advarsel når dev-server åpnes via 127.0.0.1 mens klient forventer localhost (eller omvendt).
    * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
    */

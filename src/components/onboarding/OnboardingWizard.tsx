@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useStore, ONBOARDING_MAIN_INCOME_CATEGORY_ID } from '@/lib/store'
-import { syncSmartvaneAfterDemoToggle } from '@/lib/smartvaneDemoToggleSideEffects'
 import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import { formatThousands, parseThousands } from '@/lib/utils'
 
@@ -296,9 +295,7 @@ export default function OnboardingWizard() {
                     try {
                       if (next) {
                         setDemoDataEnabled(true)
-                        await syncSmartvaneAfterDemoToggle(true)
                       } else {
-                        await syncSmartvaneAfterDemoToggle(false)
                         setDemoDataEnabled(false)
                       }
                     } catch {

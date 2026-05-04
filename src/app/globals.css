@@ -129,12 +129,4 @@ body {
 .smartspare-recharts-no-focus :focus-visible {
   outline: none !important;
 }
-/* SmartVane / habit charts: Recharts fokus-outline */
-.smartvane-recharts-no-focus :focus,
-.smartvane-recharts-no-focus :focus-visible {
-  outline: none !important;
-}
-.smartvane-recharts-no-focus .recharts-surface:focus {
-  outline: none !important;
-}
 

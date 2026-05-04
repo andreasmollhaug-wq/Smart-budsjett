@@ -171,11 +171,6 @@ export default function NotificationBell({ panelZClass }: { panelZClass?: string
                               Data
                             </span>
                           )}
-                          {n.kind === 'smartvane' && (
-                            <span className="ml-2 rounded px-1.5 py-0.5" style={{ background: 'var(--bg)' }}>
-                              SmartVane
-                            </span>
-                          )}
                         </p>
                       </div>
                       {!n.read && (

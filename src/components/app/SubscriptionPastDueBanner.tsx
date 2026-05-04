@@ -1,40 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
-
-type StripeSubscriptionRow = {
-  status: string
-} | null
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 
 /**
  * Vises når Stripe-status er past_due (grace): brukeren har fortsatt tilgang, men bør oppdatere kort.
  */
 export default function SubscriptionPastDueBanner() {
-  const [stripeSub, setStripeSub] = useState<StripeSubscriptionRow | undefined>(undefined)
+  const { loading, subscription } = useSubscriptionReadOnly()
 
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const res = await fetch('/api/stripe/subscription')
-        if (!res.ok) {
-          if (!cancelled) setStripeSub(null)
-          return
-        }
-        const data = (await res.json()) as { subscription?: { status: string } | null }
-        if (!cancelled) setStripeSub(data.subscription ?? null)
-      } catch {
-        if (!cancelled) setStripeSub(null)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  if (stripeSub === undefined || stripeSub === null) return null
-  if (stripeSub.status !== 'past_due') return null
+  if (loading || subscription?.status !== 'past_due') return null
 
   return (
     <div
