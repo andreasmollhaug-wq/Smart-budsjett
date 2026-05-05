@@ -1651,8 +1651,11 @@ export default function InternProsjektDetailPage() {
                       onClick={() => {
                         if (!linkParentDraft) return
                         const r = setProjectParent(project.id, linkParentDraft)
-                        if (!r.ok) typeof window !== 'undefined' && window.alert(r.message)
-                        else flashHierarchySaved()
+                        if (!r.ok) {
+                          if (typeof window !== 'undefined') window.alert(r.message)
+                        } else {
+                          flashHierarchySaved()
+                        }
                       }}
                       className="min-h-[44px] shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium text-white touch-manipulation"
                       style={{ background: 'var(--primary)' }}
@@ -1693,8 +1696,11 @@ export default function InternProsjektDetailPage() {
                       onClick={() => {
                         if (!reparentDraft || reparentDraft === project.parentId) return
                         const r = setProjectParent(project.id, reparentDraft)
-                        if (!r.ok) typeof window !== 'undefined' && window.alert(r.message)
-                        else flashHierarchySaved()
+                        if (!r.ok) {
+                          if (typeof window !== 'undefined') window.alert(r.message)
+                        } else {
+                          flashHierarchySaved()
+                        }
                       }}
                     >
                       Lagre
@@ -1705,8 +1711,11 @@ export default function InternProsjektDetailPage() {
                       style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
                       onClick={() => {
                         const r = setProjectParent(project.id, null)
-                        if (!r.ok) typeof window !== 'undefined' && window.alert(r.message)
-                        else flashHierarchySaved()
+                        if (!r.ok) {
+                          if (typeof window !== 'undefined') window.alert(r.message)
+                        } else {
+                          flashHierarchySaved()
+                        }
                       }}
                     >
                       Gjør til hovedprosjekt

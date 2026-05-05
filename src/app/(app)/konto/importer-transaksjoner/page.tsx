@@ -207,7 +207,10 @@ export default function ImporterTransaksjonerPage() {
     return mergeBudgetCategoriesForTransactionPicker(person.budgetCategories, labelListsForPerson(person))
   }, [person])
 
-  const bankMaps = bankImportMappingsRoot[BANK_SOURCE_ID] ?? {}
+  const bankMaps = useMemo(
+    () => bankImportMappingsRoot[BANK_SOURCE_ID] ?? {},
+    [bankImportMappingsRoot],
+  )
 
   const handleProfileChange = (pid: string) => {
     setImportProfileId(pid)

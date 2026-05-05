@@ -62,7 +62,9 @@ export default function RenovationCreateMainProjectForm({ idPrefix, onSuccess, o
     })
     const result = addProject(project)
     if (!result.ok) {
-      typeof window !== 'undefined' && window.alert(result.message)
+      if (typeof window !== 'undefined') {
+        window.alert(result.message)
+      }
       return
     }
     resetForm()

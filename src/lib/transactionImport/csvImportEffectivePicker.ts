@@ -29,7 +29,7 @@ export function buildEffectivePickerCategoriesForCsvImport(
     customBudgetLabels: person.customBudgetLabels ?? empty.customBudgetLabels,
     hiddenBudgetLabels: person.hiddenBudgetLabels ?? empty.hiddenBudgetLabels,
   }
-  let hypothetical = mergeBudgetCategoriesForTransactionPicker(person.budgetCategories, lists)
+  const hypothetical = mergeBudgetCategoriesForTransactionPicker(person.budgetCategories, lists)
   const rejected = new Set(unknownList.filter((u) => unknownApproval[u] === false))
   const seen = new Set(hypothetical.map((c) => c.name))
   for (const u of unknownList) {

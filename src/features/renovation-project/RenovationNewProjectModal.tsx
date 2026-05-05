@@ -73,8 +73,9 @@ export default function RenovationNewProjectModal({
     const n = name.trim()
     if (!n) return
     if (!parentIdDraft.trim()) {
-      typeof window !== 'undefined' &&
+      if (typeof window !== 'undefined') {
         window.alert('Velg hvilket hovedprosjekt rommet skal høre til.')
+      }
       return
     }
     const checklist = buildChecklistFromTemplate(templateKey)
@@ -90,7 +91,9 @@ export default function RenovationNewProjectModal({
     })
     const result = addProject(project)
     if (!result.ok) {
-      typeof window !== 'undefined' && window.alert(result.message)
+      if (typeof window !== 'undefined') {
+        window.alert(result.message)
+      }
       return
     }
     resetForm()
