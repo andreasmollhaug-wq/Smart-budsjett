@@ -33,7 +33,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /enkelexcel-ai — EnkelExcel AI
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
-- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, **Profiler** (kun synlig med Familie-abonnement — se egen seksjon), Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal; beløp støtter norsk tallformat med tusenskille og komma som desimal, avrundet til hele kroner), **Import fra regnskap** (/konto/importer-fra-regnskap — CSV hovedbok fra bl.a. Conta/Tripletex; kartlegg regnskapskonto til budsjettkategori, valg huskes; sammendrag før bekreftelse), nederst i menyen
+- Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, **Profiler** (kun synlig med Familie-abonnement — se egen seksjon), Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal eller bankfil DNB/Sbanken; beløp med inntil to desimaler, valgfri «Legg også til i budsjett» og valgfri utelatelse av enkelt-rader; oppsummering uten navigasjon bort fra siden), **Import fra regnskap** (/konto/importer-fra-regnskap — CSV hovedbok fra bl.a. Conta/Tripletex; kartlegg regnskapskonto til budsjettkategori, valg huskes; sammendrag før bekreftelse), nederst i menyen
 
 Profiler, abonnement og «Viser data for»
 - Solo-abonnement: én profil i appen.
@@ -189,7 +189,7 @@ Roadmap (/konto/roadmap)
 - Funksjonsønsker: opprett forslag (tittel/beskrivelse), valgfritt bilde eller skjermbilde (PNG/JPEG/WebP/GIF, maks 2 MB), stem, se statuskolonner (venter, godkjent, under arbeid, ferdig, avvist). Ved demodata kan eksempelønsker vises.
 
 Importer transaksjoner (/konto/importer-transaksjoner)
-- Last opp CSV (Excel-mal fra siden eller egen fil i støttet format). Beløp kan bruke norsk tallformat (tusenskille og komma som desimal) og avrundes til hele kroner.
+- Last opp CSV (Excel-mal fra siden eller egen fil i støttet format) eller bankfil (.xlsx/.csv DNB/Sbanken). Beløp kan bruke norsk tallformat (tusenskille og komma som desimal, eller punktum som desimal fra Excel) og lagres med inntil to desimaler. På forhåndsvisning kan du fjerne enkelt-rader («Med») og velge «Legg også til i budsjett» som ved regnskapsimport. Excel-import lagres med historikk for evt. tilbakestilling; oppsummeringsdialog har bare Lukk.
 - Flyt: last opp → eventuelt kartlegg ukjente kategorinavn mot appens kategorier → forhåndsvis og bekreft import. Du kan laste ned mal fra importsiden.
 - Importerte rader blir transaksjoner på aktiv profil (bytt profil i menyen før import hvis du vil legge inn på en bestemt profil).
 

@@ -134,6 +134,16 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.bankImportHistory.length).toBe(0)
   })
 
+  it('normaliserer templateCsvImportHistory når lagret verdi er ugyldig', () => {
+    const slice = createDefaultPersistedSlice()
+    const merged = mergePersistedIntoFullState(
+      { ...slice, templateCsvImportHistory: null as unknown as undefined },
+      useStore.getState(),
+    )
+    expect(Array.isArray(merged.templateCsvImportHistory)).toBe(true)
+    expect(merged.templateCsvImportHistory.length).toBe(0)
+  })
+
   it('bevarer dismissedDuplicateSubscriptionPresetKeys fra lagret slice', () => {
     const slice = createDefaultPersistedSlice()
     const merged = mergePersistedIntoFullState(

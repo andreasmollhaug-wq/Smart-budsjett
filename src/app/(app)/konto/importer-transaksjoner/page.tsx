@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import BankImportHistoryList from '@/components/konto/BankImportHistoryList'
+import TemplateCsvImportHistoryList from '@/components/konto/TemplateCsvImportHistoryList'
 import BankImportMappingAggregateLists from '@/components/konto/BankImportMappingAggregateLists'
 import BankTransactionImportDropzone from '@/components/konto/BankTransactionImportDropzone'
 import ImportCategoryPicker from '@/components/konto/ImportCategoryPicker'
@@ -21,11 +22,22 @@ import {
   resolveCategoryForImport,
 } from '@/lib/transactionImport/resolveImportCategories'
 import { summarizeImportedTransactions } from '@/lib/transactionImport/summarizeImport'
-import { IMPORT_FORMAT_V1 } from '@/lib/transactionImport/transactionImport.constants'
+import { buildEffectivePickerCategoriesForCsvImport } from '@/lib/transactionImport/csvImportEffectivePicker'
+import {
+  IMPORT_FORMAT_V1,
+  TEMPLATE_CSV_IMPORT_PROFILE_ID,
+} from '@/lib/transactionImport/transactionImport.constants'
+import { importTextContainsKontoregulering } from '@/lib/transactionImport/kontoreguleringImport'
+import {
+  canApplyLedgerBudgetAdjust,
+  computeLedgerImportBudgetDeltas,
+} from '@/lib/ledgerImport/ledgerImportBudgetAdjust'
+import { ledgerBudgetAdjustBlockedUserMessage } from '@/lib/ledgerImport/budgetAdjustEligibilityHints'
+import type { LedgerBudgetAdjustmentSnapshot } from '@/lib/ledgerImport/types'
 import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
 import { buildTransactionsFromBankRows } from '@/lib/bankImport/buildTransactionsFromBankRows'
 import { resolveBankMappingCategoryName } from '@/lib/bankImport/bankMappingKeys'
-import { BANK_IMPORT_PROFILE_ID } from '@/lib/bankImport/bankImport.constants'
+import { BANK_IMPORT_PROFILE_ID, BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST } from '@/lib/bankImport/bankImport.constants'
 import {
   buildBankMappingAggregates,
   countPotentialDuplicateBankRows,
@@ -144,8 +156,10 @@ export default function ImporterTransaksjonerPage() {
   const setActiveProfileId = useStore((s) => s.setActiveProfileId)
   const addBudgetCategory = useStore((s) => s.addBudgetCategory)
   const addCustomBudgetLabel = useStore((s) => s.addCustomBudgetLabel)
-  const addTransactions = useStore((s) => s.addTransactions)
   const addAppNotification = useStore((s) => s.addAppNotification)
+  const budgetYear = useStore((s) => s.budgetYear)
+  const addTemplateCsvImportRunWithTransactions = useStore((s) => s.addTemplateCsvImportRunWithTransactions)
+  const templateCsvImportHistory = useStore((s) => s.templateCsvImportHistory)
   const bankImportMappingsRoot = useStore((s) => s.bankImportMappings)
   const setBankImportMapping = useStore((s) => s.setBankImportMapping)
   const addBankImportRunWithTransactions = useStore((s) => s.addBankImportRunWithTransactions)
@@ -175,8 +189,13 @@ export default function ImporterTransaksjonerPage() {
   const [showOnlyUnmapped, setShowOnlyUnmapped] = useState(true)
   const [bankAiBusy, setBankAiBusy] = useState(false)
   const [bankAiError, setBankAiError] = useState<string | null>(null)
+  const [bankAiProgress, setBankAiProgress] = useState<string | null>(null)
   const [bankMappingExpanded, setBankMappingExpanded] = useState(false)
   const [bankAmountOverridesByLine, setBankAmountOverridesByLine] = useState<Record<number, number>>({})
+  const [excludedCsvFileLines, setExcludedCsvFileLines] = useState<Set<number>>(() => new Set())
+  const [excludedBankFileLines, setExcludedBankFileLines] = useState<Set<number>>(() => new Set())
+  const [alsoApplyToBudgetCsv, setAlsoApplyToBudgetCsv] = useState(false)
+  const [alsoApplyToBudgetBank, setAlsoApplyToBudgetBank] = useState(false)
 
   useEffect(() => {
     setImportProfileId(activeProfileId)
@@ -208,6 +227,8 @@ export default function ImporterTransaksjonerPage() {
     setSummaryParseErrorCount(0)
     setSkippedImportRows(0)
     setDupWarn(0)
+    setExcludedCsvFileLines(new Set())
+    setAlsoApplyToBudgetCsv(false)
   }, [])
 
   const resetBankFlow = useCallback(() => {
@@ -221,6 +242,8 @@ export default function ImporterTransaksjonerPage() {
     setBankAiError(null)
     setBankMappingExpanded(false)
     setBankAmountOverridesByLine({})
+    setExcludedBankFileLines(new Set())
+    setAlsoApplyToBudgetBank(false)
   }, [])
 
   const switchImportMode = useCallback(
@@ -253,6 +276,8 @@ export default function ImporterTransaksjonerPage() {
       setParsedRows(result.rows)
       setRowParseErrors(result.rowErrors)
       setFileLabel(name)
+      setExcludedCsvFileLines(new Set())
+      setAlsoApplyToBudgetCsv(false)
 
       const unknowns = collectUnknownCategoryNames(result.rows, pickerCategories)
       const approve: Record<string, boolean> = {}
@@ -277,8 +302,42 @@ export default function ImporterTransaksjonerPage() {
     [pickerCategories, addAppNotification],
   )
 
-  const previewRows = useMemo(() => {
-    return parsedRows.slice(0, 100)
+  const csvPreviewSections = useMemo(() => {
+    const main: typeof parsedRows = []
+    const ko: typeof parsedRows = []
+    for (const r of parsedRows) {
+      if (importTextContainsKontoregulering(r.description)) ko.push(r)
+      else main.push(r)
+    }
+    const out: {
+      key: string
+      showHeading: boolean
+      title: string
+      subtitle: string | null
+      rows: typeof parsedRows
+      total: number
+    }[] = []
+    if (main.length > 0) {
+      out.push({
+        key: 'main',
+        showHeading: ko.length > 0,
+        title: 'Øvrige transaksjoner',
+        subtitle: null,
+        rows: main.slice(0, 100),
+        total: main.length,
+      })
+    }
+    if (ko.length > 0) {
+      out.push({
+        key: 'kontoreg',
+        showHeading: true,
+        title: 'Kontoregulering',
+        subtitle: 'Typisk overføringer mellom egne kontoer — samme import som øvrige, men samlet for oversikt.',
+        rows: ko.slice(0, 100),
+        total: ko.length,
+      })
+    }
+    return out
   }, [parsedRows])
 
   /** Forhåndsoppsummering: sum per budsjettgruppe — bruker parentCategoryHint direkte fra TRANSAKSJON-kolonnen. */
@@ -293,11 +352,11 @@ export default function ImporterTransaksjonerPage() {
     }
     for (const r of parsedRows) {
       const t = r.categoryRaw.trim()
-      if (rejected.has(t)) continue
+      if (rejected.has(t) || excludedCsvFileLines.has(r.fileLine)) continue
       sums[r.parentCategoryHint] = (sums[r.parentCategoryHint] ?? 0) + r.amount
     }
     return sums
-  }, [parsedRows, unknownList, unknownApproval])
+  }, [parsedRows, unknownList, unknownApproval, excludedCsvFileLines])
 
   /** Inkluderer godkjente nye kategorier som ennå ikke er i store (for duplikatsjekk i forhåndsvisning). */
   const duplicatePreviewCount = useMemo(() => {
@@ -317,7 +376,7 @@ export default function ImporterTransaksjonerPage() {
       }
     }
     return countPotentialDuplicateRows(
-      parsedRows,
+      parsedRows.filter((r) => !excludedCsvFileLines.has(r.fileLine)),
       (raw) => {
         const t = raw.trim()
         if (rejected.has(t)) return null
@@ -326,7 +385,7 @@ export default function ImporterTransaksjonerPage() {
       },
       person.transactions,
     )
-  }, [person, parsedRows, unknownList, unknownApproval, pickerCategories])
+  }, [person, parsedRows, unknownList, unknownApproval, pickerCategories, excludedCsvFileLines])
 
   const legacyKeysByPrimary = useMemo(() => {
     const m = new Map<string, Set<string>>()
@@ -454,22 +513,148 @@ export default function ImporterTransaksjonerPage() {
     return bankAggregates.every((a) => isBankKeyMapped(a.mappingKey, a.transactionType))
   }, [bankAggregates, isBankKeyMapped])
 
-  const unmappedBankKeysForAi = useMemo(() => {
-    return bankAggregates
-      .filter((a) => !isBankKeyMapped(a.mappingKey, a.transactionType))
-      .slice(0, 80)
+  const bankUnmappedAggregates = useMemo(() => {
+    return bankAggregates.filter((a) => !isBankKeyMapped(a.mappingKey, a.transactionType))
   }, [bankAggregates, isBankKeyMapped])
 
   const bankDuplicatePreviewCount = useMemo(() => {
     if (!person || bankParsedRows.length === 0) return 0
+    const rows = bankParsedRowsEffective.filter((r) => !excludedBankFileLines.has(r.fileLine))
     return countPotentialDuplicateBankRows(
-      bankParsedRowsEffective,
+      rows,
       (row) => resolveBankMappingCategoryName(bankMaps, row) ?? null,
       person.transactions,
     )
-  }, [person, bankParsedRowsEffective, bankMaps])
+  }, [person, bankParsedRows, bankParsedRowsEffective, bankMaps, excludedBankFileLines])
 
-  const bankPreviewRows = useMemo(() => bankParsedRowsEffective.slice(0, 100), [bankParsedRowsEffective])
+  const bankPreviewSections = useMemo(() => {
+    const main: BankParsedRow[] = []
+    const ko: BankParsedRow[] = []
+    for (const r of bankParsedRowsEffective) {
+      if (importTextContainsKontoregulering(r.forklaringRaw)) ko.push(r)
+      else main.push(r)
+    }
+    const out: {
+      key: string
+      showHeading: boolean
+      title: string
+      subtitle: string | null
+      rows: BankParsedRow[]
+      total: number
+    }[] = []
+    if (main.length > 0) {
+      out.push({
+        key: 'main',
+        showHeading: ko.length > 0,
+        title: 'Øvrige transaksjoner',
+        subtitle: null,
+        rows: main.slice(0, 100),
+        total: main.length,
+      })
+    }
+    if (ko.length > 0) {
+      out.push({
+        key: 'kontoreg',
+        showHeading: true,
+        title: 'Kontoregulering',
+        subtitle: 'Typisk overføringer mellom egne kontoer — samme import som øvrige, men samlet for oversikt.',
+        rows: ko.slice(0, 100),
+        total: ko.length,
+      })
+    }
+    return out
+  }, [bankParsedRowsEffective])
+
+  const rowsIncludedInImport = useMemo(
+    () => parsedRows.filter((r) => !excludedCsvFileLines.has(r.fileLine)),
+    [parsedRows, excludedCsvFileLines],
+  )
+
+  const pendingCsvImportTransactions = useMemo(() => {
+    if (!person || rowsIncludedInImport.length === 0) return []
+    const effectivePicker = buildEffectivePickerCategoriesForCsvImport(
+      person,
+      unknownList,
+      unknownApproval,
+      parsedRows,
+    )
+    const rejected = new Set(unknownList.filter((u) => unknownApproval[u] === false))
+    const canonicalForRaw = (raw: string): string | null => {
+      const t = raw.trim()
+      if (rejected.has(t)) return null
+      const r = resolveCategoryForImport(raw, effectivePicker)
+      return r.kind === 'matched' ? r.canonical : null
+    }
+    return buildTransactionsFromImportRows(rowsIncludedInImport, canonicalForRaw, importProfileId)
+  }, [person, rowsIncludedInImport, unknownList, unknownApproval, parsedRows, importProfileId])
+
+  const budgetAdjustEligibilityCsv = useMemo(
+    () => canApplyLedgerBudgetAdjust(pendingCsvImportTransactions, budgetYear),
+    [pendingCsvImportTransactions, budgetYear],
+  )
+
+  const budgetDeltaPreviewCsv = useMemo(() => {
+    if (!person || pendingCsvImportTransactions.length === 0 || !budgetAdjustEligibilityCsv.ok) return null
+    const effectivePicker = buildEffectivePickerCategoriesForCsvImport(
+      person,
+      unknownList,
+      unknownApproval,
+      parsedRows,
+    )
+    return computeLedgerImportBudgetDeltas(pendingCsvImportTransactions, effectivePicker)
+  }, [person, pendingCsvImportTransactions, budgetAdjustEligibilityCsv.ok, unknownList, unknownApproval, parsedRows])
+
+  const budgetAdjustBlockedMsgCsv = useMemo(() => {
+    if (budgetAdjustEligibilityCsv.ok) return ''
+    return ledgerBudgetAdjustBlockedUserMessage(budgetAdjustEligibilityCsv.reason, budgetYear)
+  }, [budgetAdjustEligibilityCsv, budgetYear])
+
+  useEffect(() => {
+    if (!budgetAdjustEligibilityCsv.ok) setAlsoApplyToBudgetCsv(false)
+  }, [budgetAdjustEligibilityCsv.ok])
+
+  const bankRowsForImportPreview = useMemo(
+    () => bankParsedRowsEffective.filter((r) => !excludedBankFileLines.has(r.fileLine)),
+    [bankParsedRowsEffective, excludedBankFileLines],
+  )
+
+  const pendingBankImportTransactions = useMemo(() => {
+    if (!person || bankRowsForImportPreview.length === 0) return []
+    const merged = mergeBudgetCategoriesForTransactionPicker(
+      person.budgetCategories,
+      labelListsForPerson(person),
+    )
+    const getCategoryName = (row: BankParsedRow) => resolveBankMappingCategoryName(bankMaps, row)
+    return buildTransactionsFromBankRows(
+      bankRowsForImportPreview,
+      getCategoryName,
+      merged,
+      importProfileId,
+    ).transactions
+  }, [person, bankRowsForImportPreview, bankMaps, importProfileId])
+
+  const budgetAdjustEligibilityBank = useMemo(
+    () => canApplyLedgerBudgetAdjust(pendingBankImportTransactions, budgetYear),
+    [pendingBankImportTransactions, budgetYear],
+  )
+
+  const budgetDeltaPreviewBank = useMemo(() => {
+    if (!person || pendingBankImportTransactions.length === 0 || !budgetAdjustEligibilityBank.ok) return null
+    const merged = mergeBudgetCategoriesForTransactionPicker(
+      person.budgetCategories,
+      labelListsForPerson(person),
+    )
+    return computeLedgerImportBudgetDeltas(pendingBankImportTransactions, merged)
+  }, [person, pendingBankImportTransactions, budgetAdjustEligibilityBank.ok])
+
+  const budgetAdjustBlockedMsgBank = useMemo(() => {
+    if (budgetAdjustEligibilityBank.ok) return ''
+    return ledgerBudgetAdjustBlockedUserMessage(budgetAdjustEligibilityBank.reason, budgetYear)
+  }, [budgetAdjustEligibilityBank, budgetYear])
+
+  useEffect(() => {
+    if (!budgetAdjustEligibilityBank.ok) setAlsoApplyToBudgetBank(false)
+  }, [budgetAdjustEligibilityBank.ok])
 
   const bankMappingExpandBackdropDismiss = useModalBackdropDismiss(() => setBankMappingExpanded(false))
 
@@ -500,6 +685,8 @@ export default function ImporterTransaksjonerPage() {
         return
       }
       setBankAmountOverridesByLine({})
+      setExcludedBankFileLines(new Set())
+      setAlsoApplyToBudgetBank(false)
       setBankParsedRows(result.rows)
       setBankRowErrors(result.rowErrors)
       setBankFileLabel(name)
@@ -514,53 +701,65 @@ export default function ImporterTransaksjonerPage() {
   )
 
   const fetchBankAiSuggestions = useCallback(async () => {
-    if (!unmappedBankKeysForAi.length) return
+    const unmapped = bankAggregates.filter((a) => !isBankKeyMapped(a.mappingKey, a.transactionType))
+    if (!unmapped.length) return
     setBankAiError(null)
     setBankAiBusy(true)
+    const batchSize = BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST
+    const totalBatches = Math.ceil(unmapped.length / batchSize)
     try {
       const incomeCategories = pickerCategories.filter((c) => c.type === 'income').map((c) => c.name)
       const expenseCategories = pickerCategories.filter((c) => c.type === 'expense').map((c) => c.name)
-      const keys = unmappedBankKeysForAi.map((a) => ({
-        key: a.mappingKey,
-        kind: a.transactionType,
-        forklaring: a.exampleForklaring,
-      }))
-      const res = await fetch('/api/bank-import-suggest', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ keys, incomeCategories, expenseCategories }),
-      })
-      const data = (await res.json().catch(() => null)) as
-        | { suggestions?: { key: string; category: string | null }[]; error?: string }
-        | null
-      if (!res.ok) {
-        setBankAiError(data?.error ?? 'KI-forslag feilet.')
-        return
-      }
-      const suggestions = data?.suggestions ?? []
-      for (const s of suggestions) {
-        if (!s.category) continue
-        const existing =
-          useStore.getState().bankImportMappings[BANK_SOURCE_ID]?.[s.key]?.categoryName?.trim()
-        if (existing) continue
-        const rule = { categoryName: s.category }
-        setBankImportMapping(BANK_SOURCE_ID, s.key, rule)
-        const legs = legacyKeysByPrimary.get(s.key)
-        if (legs) {
-          for (const leg of legs) {
-            setBankImportMapping(BANK_SOURCE_ID, leg, rule)
+      let openedList = false
+      for (let b = 0; b < totalBatches; b++) {
+        setBankAiProgress(totalBatches > 1 ? `KI-steg ${b + 1} av ${totalBatches} …` : 'Henter forslag …')
+        const chunk = unmapped.slice(b * batchSize, (b + 1) * batchSize)
+        const keys = chunk.map((a) => ({
+          key: a.mappingKey,
+          kind: a.transactionType,
+          forklaring: a.exampleForklaring,
+        }))
+        const res = await fetch('/api/bank-import-suggest', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ keys, incomeCategories, expenseCategories }),
+        })
+        const data = (await res.json().catch(() => null)) as
+          | { suggestions?: { key: string; category: string | null }[]; error?: string }
+          | null
+        if (!res.ok) {
+          setBankAiError(
+            data?.error ?? `KI-forslag feilet (steg ${b + 1} av ${totalBatches}).`,
+          )
+          return
+        }
+        const suggestions = data?.suggestions ?? []
+        for (const s of suggestions) {
+          if (!s.category) continue
+          const existing =
+            useStore.getState().bankImportMappings[BANK_SOURCE_ID]?.[s.key]?.categoryName?.trim()
+          if (existing) continue
+          const rule = { categoryName: s.category }
+          setBankImportMapping(BANK_SOURCE_ID, s.key, rule)
+          const legs = legacyKeysByPrimary.get(s.key)
+          if (legs) {
+            for (const leg of legs) {
+              setBankImportMapping(BANK_SOURCE_ID, leg, rule)
+            }
           }
+          openedList = true
         }
       }
-      if (suggestions.length > 0) {
+      if (openedList) {
         setShowOnlyUnmapped(false)
       }
     } catch {
       setBankAiError('Nettverksfeil ved KI-forslag.')
     } finally {
       setBankAiBusy(false)
+      setBankAiProgress(null)
     }
-  }, [unmappedBankKeysForAi, pickerCategories, setBankImportMapping, legacyKeysByPrimary])
+  }, [bankAggregates, isBankKeyMapped, pickerCategories, setBankImportMapping, legacyKeysByPrimary])
 
   const runBankImport = () => {
     if (!person || !bankCanGoPreview) return
@@ -576,17 +775,44 @@ export default function ImporterTransaksjonerPage() {
     const runId = generateId()
     const liveMaps = useStore.getState().bankImportMappings[BANK_SOURCE_ID] ?? {}
     const getCategoryName = (row: BankParsedRow) => resolveBankMappingCategoryName(liveMaps, row)
+
+    const bankRowsToImport = bankParsedRowsEffective.filter((r) => !excludedBankFileLines.has(r.fileLine))
+    const userExcludedBank = bankParsedRowsEffective.filter((r) => excludedBankFileLines.has(r.fileLine)).length
+
     const {
       transactions,
       skippedUnmapped,
       skippedUnknownCategory,
       skippedTypeMismatch,
       importedLineSnapshots,
-    } = buildTransactionsFromBankRows(bankParsedRowsEffective, getCategoryName, merged, pid, runId)
+    } = buildTransactionsFromBankRows(bankRowsToImport, getCategoryName, merged, pid, runId)
 
-    const rowSkipped = skippedUnmapped + skippedUnknownCategory + skippedTypeMismatch
+    const rowSkipped = skippedUnmapped + skippedUnknownCategory + skippedTypeMismatch + userExcludedBank
+
+    let budgetAdjustment: LedgerBudgetAdjustmentSnapshot | undefined
+    let splitSkippedForBudget = 0
+    if (alsoApplyToBudgetBank) {
+      const elig = canApplyLedgerBudgetAdjust(transactions, budgetYear)
+      if (elig.ok) {
+        const computed = computeLedgerImportBudgetDeltas(transactions, merged)
+        splitSkippedForBudget = computed.skippedHouseholdSplitCount
+        if (computed.entries.length > 0) {
+          const existingIds = new Set(pBefore.budgetCategories.map((c) => c.id))
+          const entryCatIds = new Set(computed.entries.map((e) => e.categoryId))
+          const backfillCategories = merged.filter(
+            (c) => entryCatIds.has(c.id) && !existingIds.has(c.id),
+          )
+          budgetAdjustment = {
+            profileId: pid,
+            entries: computed.entries,
+            ...(backfillCategories.length ? { backfillCategories } : {}),
+          }
+        }
+      }
+    }
+
     const existingDup = countPotentialDuplicateBankRows(
-      bankParsedRowsEffective,
+      bankRowsToImport,
       (row) => getCategoryName(row) ?? null,
       pBefore.transactions,
     )
@@ -605,6 +831,7 @@ export default function ImporterTransaksjonerPage() {
         rowCountSkipped: rowSkipped,
         errorSummary: null,
         importedLines: importedLineSnapshots,
+        budgetAdjustment,
       },
       transactions,
     )
@@ -618,6 +845,14 @@ export default function ImporterTransaksjonerPage() {
 
     const parts: string[] = [`${transactions.length} transaksjon${transactions.length === 1 ? '' : 'er'} lagt til.`]
     if (rowSkipped > 0) parts.push(`${rowSkipped} rad${rowSkipped === 1 ? '' : 'er'} hoppet over.`)
+    if (budgetAdjustment) {
+      parts.push('Planlagte budsjettbeløp er økt for tilhørende måneder og kategorier.')
+    }
+    if (alsoApplyToBudgetBank && splitSkippedForBudget > 0) {
+      parts.push(
+        `${splitSkippedForBudget} linje(r) på delt husstandsbudsjett ble ikke lagt til i budsjettplanen.`,
+      )
+    }
     if (existingDup > 0) {
       parts.push(
         `${existingDup} mulig${existingDup === 1 ? '' : 'e'} duplikat mot eksisterende data før import.`,
@@ -667,11 +902,50 @@ export default function ImporterTransaksjonerPage() {
       return null
     }
 
-    const txs = buildTransactionsFromImportRows(parsedRows, canonicalForRaw, pid)
+    const rowsToImport = parsedRows.filter((r) => !excludedCsvFileLines.has(r.fileLine))
+    const runId = generateId()
+    const txs = buildTransactionsFromImportRows(rowsToImport, canonicalForRaw, pid, runId)
 
-    const existingDup = countPotentialDuplicateRows(parsedRows, canonicalForRaw, pFinal.transactions)
+    const existingDup = countPotentialDuplicateRows(rowsToImport, canonicalForRaw, pFinal.transactions)
 
-    addTransactions(txs)
+    let budgetAdjustment: LedgerBudgetAdjustmentSnapshot | undefined
+    let splitSkippedForBudget = 0
+    if (alsoApplyToBudgetCsv) {
+      const elig = canApplyLedgerBudgetAdjust(txs, budgetYear)
+      if (elig.ok) {
+        const computed = computeLedgerImportBudgetDeltas(txs, merged)
+        splitSkippedForBudget = computed.skippedHouseholdSplitCount
+        if (computed.entries.length > 0) {
+          const existingIds = new Set(pFinal.budgetCategories.map((c) => c.id))
+          const entryCatIds = new Set(computed.entries.map((e) => e.categoryId))
+          const backfillCategories = merged.filter(
+            (c) => entryCatIds.has(c.id) && !existingIds.has(c.id),
+          )
+          budgetAdjustment = {
+            profileId: pid,
+            entries: computed.entries,
+            ...(backfillCategories.length ? { backfillCategories } : {}),
+          }
+        }
+      }
+    }
+
+    addTemplateCsvImportRunWithTransactions(
+      {
+        id: runId,
+        createdAt: new Date().toISOString(),
+        profileId: pid,
+        csvProfileId: TEMPLATE_CSV_IMPORT_PROFILE_ID,
+        fileName: fileLabel,
+        displayName: null,
+        rowCountParsed: parsedRows.length,
+        rowCountImported: txs.length,
+        rowCountSkipped: parsedRows.length - txs.length,
+        errorSummary: null,
+        budgetAdjustment,
+      },
+      txs,
+    )
 
     setSkippedImportRows(parsedRows.length - txs.length)
     setDupWarn(existingDup)
@@ -682,7 +956,15 @@ export default function ImporterTransaksjonerPage() {
 
     const skipped = parsedRows.length - txs.length
     const parts: string[] = [`${txs.length} transaksjon${txs.length === 1 ? '' : 'er'} lagt til.`]
-    if (skipped > 0) parts.push(`${skipped} rad${skipped === 1 ? '' : 'er'} hoppet over (kategori).`)
+    if (skipped > 0) parts.push(`${skipped} rad${skipped === 1 ? '' : 'er'} hoppet over (kategori / valgt bort).`)
+    if (budgetAdjustment) {
+      parts.push('Planlagte budsjettbeløp er økt for tilhørende måneder og kategorier.')
+    }
+    if (alsoApplyToBudgetCsv && splitSkippedForBudget > 0) {
+      parts.push(
+        `${splitSkippedForBudget} linje(r) på delt husstandsbudsjett ble ikke lagt til i budsjettplanen.`,
+      )
+    }
     if (existingDup > 0) parts.push(`${existingDup} mulig${existingDup === 1 ? '' : 'e'} duplikat mot eksisterende data.`)
     addAppNotification({
       title: 'Import av data fullført',
@@ -690,13 +972,6 @@ export default function ImporterTransaksjonerPage() {
       kind: 'budget',
     })
   }
-
-  const transactionsHref = useMemo(() => {
-    if (!summary?.dateMin) return '/transaksjoner'
-    const y = parseInt(summary.dateMin.slice(0, 4), 10)
-    if (Number.isFinite(y)) return `/transaksjoner?year=${y}`
-    return '/transaksjoner'
-  }, [summary])
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -990,6 +1265,7 @@ export default function ImporterTransaksjonerPage() {
             <table className="w-full text-sm">
               <thead className="sticky top-0">
                 <tr style={{ background: 'var(--bg)' }}>
+                  <th className="text-center px-2 py-2 font-medium whitespace-nowrap w-12">Med</th>
                   <th className="text-left px-3 py-2 font-medium">Dato</th>
                   <th className="text-left px-3 py-2 font-medium">Kategori</th>
                   <th className="text-left px-3 py-2 font-medium">Type</th>
@@ -997,31 +1273,76 @@ export default function ImporterTransaksjonerPage() {
                   <th className="text-left px-3 py-2 font-medium">Beskrivelse</th>
                 </tr>
               </thead>
-              <tbody>
-                {previewRows.map((r) => (
-                  <tr key={`${r.fileLine}-${r.dateIso}`} style={{ borderTop: '1px solid var(--border)' }}>
-                    <td className="px-3 py-2 whitespace-nowrap">{formatIsoDateDdMmYyyy(r.dateIso)}</td>
-                    <td className="px-3 py-2">{r.categoryRaw}</td>
-                    <td
-                      className="px-3 py-2 text-xs"
-                      style={{ color: r.transactionType === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                    >
-                      {r.transactionType === 'income' ? 'Inntekt' : 'Utgift'}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatNOKImport(r.amount)}</td>
-                    <td className="px-3 py-2" style={{ color: 'var(--text-muted)' }}>
-                      {r.description || '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
+              {csvPreviewSections.map((sec) => (
+                <tbody key={sec.key}>
+                  {sec.showHeading && (
+                    <tr style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
+                      <td colSpan={6} className="px-3 py-2 align-top">
+                        <p className="text-xs font-semibold m-0" style={{ color: 'var(--text)' }}>
+                          {sec.title}
+                        </p>
+                        {sec.subtitle && (
+                          <p
+                            className="text-[11px] m-0 mt-1 leading-snug min-w-0"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            {sec.subtitle}
+                          </p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  {sec.rows.map((r) => (
+                    <tr key={`${sec.key}-${r.fileLine}-${r.dateIso}`} style={{ borderTop: '1px solid var(--border)' }}>
+                      <td className="px-2 py-2 text-center align-middle">
+                        <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation mx-auto">
+                          <input
+                            type="checkbox"
+                            className="rounded border touch-manipulation"
+                            style={{ borderColor: 'var(--border)' }}
+                            checked={!excludedCsvFileLines.has(r.fileLine)}
+                            onChange={(e) => {
+                              const on = e.target.checked
+                              setExcludedCsvFileLines((prev) => {
+                                const next = new Set(prev)
+                                if (on) next.delete(r.fileLine)
+                                else next.add(r.fileLine)
+                                return next
+                              })
+                            }}
+                            aria-label={`Ta med rad ${r.fileLine} i importen`}
+                          />
+                        </label>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">{formatIsoDateDdMmYyyy(r.dateIso)}</td>
+                      <td className="px-3 py-2">{r.categoryRaw}</td>
+                      <td
+                        className="px-3 py-2 text-xs"
+                        style={{ color: r.transactionType === 'income' ? 'var(--success)' : 'var(--danger)' }}
+                      >
+                        {r.transactionType === 'income' ? 'Inntekt' : 'Utgift'}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{formatNOKImport(r.amount)}</td>
+                      <td className="px-3 py-2 min-w-0" style={{ color: 'var(--text-muted)' }}>
+                        {r.description || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
             </table>
           </div>
-          {parsedRows.length > 100 && (
+          {csvPreviewSections.some((s) => s.total > 100) ? (
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Viser 100 av {parsedRows.length} rader.
+              Maks 100 rader vises per gruppe i forhåndsvisning.
+              {csvPreviewSections.map((s) => (
+                <span key={`hint-${s.key}`} className="block mt-0.5">
+                  {s.title}: {s.total} rad{s.total === 1 ? '' : 'er'}
+                  {s.total > 100 ? ' (viser 100)' : ''}
+                </span>
+              ))}
             </p>
-          )}
+          ) : null}
           {rowParseErrors.length > 0 && (
             <details className="text-sm">
               <summary className="cursor-pointer font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -1038,9 +1359,45 @@ export default function ImporterTransaksjonerPage() {
               </ul>
             </details>
           )}
+          <div
+            className="rounded-xl border px-4 py-3 space-y-2"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+          >
+            <label className="flex items-start gap-3 cursor-pointer touch-manipulation min-h-[44px]">
+              <input
+                type="checkbox"
+                className="mt-1 shrink-0 rounded border touch-manipulation"
+                style={{ borderColor: 'var(--border)' }}
+                checked={alsoApplyToBudgetCsv}
+                disabled={!budgetAdjustEligibilityCsv.ok}
+                onChange={(e) => setAlsoApplyToBudgetCsv(e.target.checked)}
+              />
+              <span className="text-sm leading-snug min-w-0" style={{ color: 'var(--text)' }}>
+                <span className="font-medium">Legg også til i budsjett</span>
+                <span className="block mt-1 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                  Øker planlagte månedbeløp for samme kategori og måned som transaksjonene (budsjettår {budgetYear}).
+                  Inntekt med trekk i budsjettet justeres til brutto. Felles husstandsbudsjettlinjer oppdateres ikke
+                  automatisk.
+                </span>
+              </span>
+            </label>
+            {!budgetAdjustEligibilityCsv.ok && budgetAdjustBlockedMsgCsv && (
+              <p className="text-xs pl-7 sm:pl-8" style={{ color: 'var(--text-muted)' }}>
+                {budgetAdjustBlockedMsgCsv}
+              </p>
+            )}
+            {budgetAdjustEligibilityCsv.ok &&
+              budgetDeltaPreviewCsv &&
+              budgetDeltaPreviewCsv.skippedHouseholdSplitCount > 0 && (
+                <p className="text-xs pl-7 sm:pl-8" style={{ color: '#b45309' }}>
+                  {budgetDeltaPreviewCsv.skippedHouseholdSplitCount} linje(r) på delt husstandsbudsjett blir ikke lagt til i
+                  budsjettplanen.
+                </p>
+              )}
+          </div>
           <button
             type="button"
-            className="rounded-xl px-4 py-2 text-sm font-medium text-white"
+            className="rounded-xl px-4 py-2 text-sm font-medium text-white min-h-[44px] touch-manipulation"
             style={{ background: 'var(--primary)' }}
             onClick={runImport}
           >
@@ -1086,7 +1443,7 @@ export default function ImporterTransaksjonerPage() {
               <Maximize2 size={18} aria-hidden />
               Utvid kartlegging
             </button>
-            {unmappedBankKeysForAi.length > 0 && (
+            {bankUnmappedAggregates.length > 0 && (
               <button
                 type="button"
                 disabled={bankAiBusy}
@@ -1099,10 +1456,16 @@ export default function ImporterTransaksjonerPage() {
                 onClick={() => void fetchBankAiSuggestions()}
               >
                 <Sparkles size={18} aria-hidden />
-                {bankAiBusy ? 'Henter forslag …' : 'Foreslå kategorier med KI'}
+                {bankAiBusy ? bankAiProgress ?? 'Henter forslag …' : 'Foreslå kategorier med KI'}
               </button>
             )}
           </div>
+          {bankUnmappedAggregates.length > BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST && (
+            <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>
+              KI kan kjøre flere steg automatisk (maks {BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST} typer per steg). Hvert steg
+              teller som én melding mot AI-kvoten denne måneden.
+            </p>
+          )}
           <div
             className="rounded-2xl border overflow-hidden max-h-[min(55vh,24rem)] overflow-y-auto"
             style={{ borderColor: 'var(--border)' }}
@@ -1186,7 +1549,7 @@ export default function ImporterTransaksjonerPage() {
                     Kartlegging
                   </h3>
                   <div className="flex flex-wrap items-center gap-2 shrink-0 min-w-0">
-                    {unmappedBankKeysForAi.length > 0 && (
+                    {bankUnmappedAggregates.length > 0 && (
                       <button
                         type="button"
                         disabled={bankAiBusy}
@@ -1199,7 +1562,7 @@ export default function ImporterTransaksjonerPage() {
                         onClick={() => void fetchBankAiSuggestions()}
                       >
                         <Sparkles size={18} aria-hidden />
-                        {bankAiBusy ? 'Henter forslag …' : 'Foreslå kategorier med KI'}
+                        {bankAiBusy ? bankAiProgress ?? 'Henter forslag …' : 'Foreslå kategorier med KI'}
                       </button>
                     )}
                   </div>
@@ -1285,6 +1648,7 @@ export default function ImporterTransaksjonerPage() {
             <table className="w-full text-sm min-w-0">
               <thead className="sticky top-0">
                 <tr style={{ background: 'var(--bg)' }}>
+                  <th className="text-center px-2 py-2 font-medium whitespace-nowrap w-12">Med</th>
                   <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Dato</th>
                   <th className="text-left px-3 py-2 font-medium min-w-[12rem]">Kategori</th>
                   <th className="text-left px-3 py-2 font-medium">Type</th>
@@ -1292,78 +1656,129 @@ export default function ImporterTransaksjonerPage() {
                   <th className="text-left px-3 py-2 font-medium min-w-0">Forklaring</th>
                 </tr>
               </thead>
-              <tbody>
-                {bankPreviewRows.map((r) => {
-                  const parsedAmount = bankParsedRowByFileLine.get(r.fileLine)?.amount ?? r.amount
-                  return (
-                  <tr
-                    key={`${r.fileLine}-${r.dateIso}-${r.mappingKey}`}
-                    style={{ borderTop: '1px solid var(--border)' }}
-                  >
-                    <td className="px-3 py-2 whitespace-nowrap align-top">{formatIsoDateDdMmYyyy(r.dateIso)}</td>
-                    <td className="px-3 py-2 min-w-0 align-top w-full max-w-[min(100%,20rem)] sm:max-w-none sm:w-auto">
-                      {person ? (
-                        <ImportCategoryPicker
-                          fieldId={`bank-preview-${r.fileLine}-${r.mappingKey}`}
-                          value={resolveBankMappingCategoryName(bankMaps, r) ?? ''}
-                          onChange={(name) =>
-                            applyBankMappingWithLegacyFanout(
-                              r.mappingKey,
-                              name?.trim() ? { categoryName: name.trim() } : null,
-                            )
-                          }
-                          categories={pickerCategories.filter((c) => c.type === r.transactionType)}
-                          budgetCategories={person.budgetCategories}
-                          customBudgetLabels={labelListsForPerson(person).customBudgetLabels}
-                          addBudgetCategory={addBudgetCategory}
-                          addCustomBudgetLabel={addCustomBudgetLabel}
-                        />
-                      ) : (
-                        <span className="inline-block py-2">{resolveBankMappingCategoryName(bankMaps, r) ?? '—'}</span>
-                      )}
-                    </td>
-                    <td
-                      className="px-3 py-2 text-xs align-top"
-                      style={{ color: r.transactionType === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                    >
-                      {r.transactionType === 'income' ? 'Inntekt' : 'Utgift'}
-                    </td>
-                    <td className="px-3 py-2 align-top min-w-0">
-                      {person ? (
-                        <div className="flex flex-col gap-1 items-end min-w-0">
-                          <BankImportPreviewAmountCell
-                            fileLine={r.fileLine}
-                            parsedAmount={parsedAmount}
-                            effectiveAmount={r.amount}
-                            onCommit={setBankLineAmountOverride}
-                          />
-                          {bankAmountOverridesByLine[r.fileLine] !== undefined && (
-                            <span
-                              className="text-[10px] tabular-nums leading-tight text-right break-words max-w-[12rem]"
-                              style={{ color: 'var(--text-muted)' }}
-                            >
-                              Fra fil: {formatNOKImport(parsedAmount)}
+              {bankPreviewSections.map((sec) => (
+                <tbody key={sec.key}>
+                  {sec.showHeading && (
+                    <tr style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
+                      <td colSpan={6} className="px-3 py-2 align-top">
+                        <p className="text-xs font-semibold m-0" style={{ color: 'var(--text)' }}>
+                          {sec.title}
+                        </p>
+                        {sec.subtitle && (
+                          <p
+                            className="text-[11px] m-0 mt-1 leading-snug min-w-0"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            {sec.subtitle}
+                          </p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  {sec.rows.map((r) => {
+                    const parsedAmount = bankParsedRowByFileLine.get(r.fileLine)?.amount ?? r.amount
+                    return (
+                      <tr
+                        key={`${sec.key}-${r.fileLine}-${r.dateIso}-${r.mappingKey}`}
+                        style={{ borderTop: '1px solid var(--border)' }}
+                      >
+                        <td className="px-2 py-2 text-center align-top">
+                          <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation mx-auto">
+                            <input
+                              type="checkbox"
+                              className="rounded border touch-manipulation"
+                              style={{ borderColor: 'var(--border)' }}
+                              checked={!excludedBankFileLines.has(r.fileLine)}
+                              onChange={(e) => {
+                                const on = e.target.checked
+                                setExcludedBankFileLines((prev) => {
+                                  const next = new Set(prev)
+                                  if (on) next.delete(r.fileLine)
+                                  else next.add(r.fileLine)
+                                  return next
+                                })
+                              }}
+                              aria-label={`Ta med rad ${r.fileLine} i importen`}
+                            />
+                          </label>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap align-top">
+                          {formatIsoDateDdMmYyyy(r.dateIso)}
+                        </td>
+                        <td className="px-3 py-2 min-w-0 align-top w-full max-w-[min(100%,20rem)] sm:max-w-none sm:w-auto">
+                          {person ? (
+                            <ImportCategoryPicker
+                              fieldId={`bank-preview-${r.fileLine}-${r.mappingKey}`}
+                              value={resolveBankMappingCategoryName(bankMaps, r) ?? ''}
+                              onChange={(name) =>
+                                applyBankMappingWithLegacyFanout(
+                                  r.mappingKey,
+                                  name?.trim() ? { categoryName: name.trim() } : null,
+                                )
+                              }
+                              categories={pickerCategories.filter((c) => c.type === r.transactionType)}
+                              budgetCategories={person.budgetCategories}
+                              customBudgetLabels={labelListsForPerson(person).customBudgetLabels}
+                              addBudgetCategory={addBudgetCategory}
+                              addCustomBudgetLabel={addCustomBudgetLabel}
+                            />
+                          ) : (
+                            <span className="inline-block py-2">
+                              {resolveBankMappingCategoryName(bankMaps, r) ?? '—'}
                             </span>
                           )}
-                        </div>
-                      ) : (
-                        <span className="inline-block py-2 tabular-nums text-right w-full">{formatNOKImport(r.amount)}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 min-w-0 break-words align-top" style={{ color: 'var(--text-muted)' }}>
-                      {r.forklaringRaw || '—'}
-                    </td>
-                  </tr>
-                  )
-                })}
-              </tbody>
+                        </td>
+                        <td
+                          className="px-3 py-2 text-xs align-top"
+                          style={{ color: r.transactionType === 'income' ? 'var(--success)' : 'var(--danger)' }}
+                        >
+                          {r.transactionType === 'income' ? 'Inntekt' : 'Utgift'}
+                        </td>
+                        <td className="px-3 py-2 align-top min-w-0">
+                          {person ? (
+                            <div className="flex flex-col gap-1 items-end min-w-0">
+                              <BankImportPreviewAmountCell
+                                fileLine={r.fileLine}
+                                parsedAmount={parsedAmount}
+                                effectiveAmount={r.amount}
+                                onCommit={setBankLineAmountOverride}
+                              />
+                              {bankAmountOverridesByLine[r.fileLine] !== undefined && (
+                                <span
+                                  className="text-[10px] tabular-nums leading-tight text-right break-words max-w-[12rem]"
+                                  style={{ color: 'var(--text-muted)' }}
+                                >
+                                  Fra fil: {formatNOKImport(parsedAmount)}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-block py-2 tabular-nums text-right w-full">
+                              {formatNOKImport(r.amount)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 min-w-0 break-words align-top" style={{ color: 'var(--text-muted)' }}>
+                          {r.forklaringRaw || '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              ))}
             </table>
           </div>
-          {bankParsedRows.length > 100 && (
+          {bankPreviewSections.some((s) => s.total > 100) ? (
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Viser 100 av {bankParsedRows.length} rader.
+              Maks 100 rader vises per gruppe i forhåndsvisning.
+              {bankPreviewSections.map((s) => (
+                <span key={`bank-hint-${s.key}`} className="block mt-0.5">
+                  {s.title}: {s.total} rad{s.total === 1 ? '' : 'er'}
+                  {s.total > 100 ? ' (viser 100)' : ''}
+                </span>
+              ))}
             </p>
-          )}
+          ) : null}
           {bankRowErrors.length > 0 && (
             <details className="text-sm">
               <summary className="cursor-pointer font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -1380,6 +1795,42 @@ export default function ImporterTransaksjonerPage() {
               </ul>
             </details>
           )}
+          <div
+            className="rounded-xl border px-4 py-3 space-y-2"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+          >
+            <label className="flex items-start gap-3 cursor-pointer touch-manipulation min-h-[44px]">
+              <input
+                type="checkbox"
+                className="mt-1 shrink-0 rounded border touch-manipulation"
+                style={{ borderColor: 'var(--border)' }}
+                checked={alsoApplyToBudgetBank}
+                disabled={!budgetAdjustEligibilityBank.ok}
+                onChange={(e) => setAlsoApplyToBudgetBank(e.target.checked)}
+              />
+              <span className="text-sm leading-snug min-w-0" style={{ color: 'var(--text)' }}>
+                <span className="font-medium">Legg også til i budsjett</span>
+                <span className="block mt-1 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                  Øker planlagte månedbeløp for samme kategori og måned som transaksjonene (budsjettår {budgetYear}).
+                  Inntekt med trekk i budsjettet justeres til brutto. Felles husstandsbudsjettlinjer oppdateres ikke
+                  automatisk.
+                </span>
+              </span>
+            </label>
+            {!budgetAdjustEligibilityBank.ok && budgetAdjustBlockedMsgBank && (
+              <p className="text-xs pl-7 sm:pl-8" style={{ color: 'var(--text-muted)' }}>
+                {budgetAdjustBlockedMsgBank}
+              </p>
+            )}
+            {budgetAdjustEligibilityBank.ok &&
+              budgetDeltaPreviewBank &&
+              budgetDeltaPreviewBank.skippedHouseholdSplitCount > 0 && (
+                <p className="text-xs pl-7 sm:pl-8" style={{ color: '#b45309' }}>
+                  {budgetDeltaPreviewBank.skippedHouseholdSplitCount} linje(r) på delt husstandsbudsjett blir ikke lagt til i
+                  budsjettplanen.
+                </p>
+              )}
+          </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="button"
@@ -1413,6 +1864,18 @@ export default function ImporterTransaksjonerPage() {
         </section>
       )}
 
+      {importMode === 'template_csv' && (
+        <section
+          className="rounded-2xl p-6 sm:p-8 space-y-4 max-w-3xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        >
+          <h2 className="text-lg font-semibold m-0" style={{ color: 'var(--text)' }}>
+            Tidligere Excel-importer
+          </h2>
+          <TemplateCsvImportHistoryList runs={templateCsvImportHistory} />
+        </section>
+      )}
+
       <TransactionImportSummaryModal
         open={summaryOpen}
         onClose={() => {
@@ -1424,7 +1887,6 @@ export default function ImporterTransaksjonerPage() {
         skippedCategoryRows={skippedImportRows}
         parseErrorCount={summaryParseErrorCount}
         duplicateWarningCount={dupWarn}
-        transactionsHref={transactionsHref}
       />
     </div>
   )

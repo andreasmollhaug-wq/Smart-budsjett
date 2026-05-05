@@ -5,6 +5,7 @@ import {
   subscriptionForbiddenUnlessAccess,
 } from '@/lib/stripe/subscriptionAccess'
 import { currentYearMonthOslo, getMonthlyMessageLimit } from '@/lib/aiUsage'
+import { BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST } from '@/lib/bankImport/bankImport.constants'
 
 export const dynamic = 'force-dynamic'
 
@@ -149,8 +150,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ suggestions: [], usage: { used: usedBefore, limit, bonusCredits: bonusBefore } })
   }
 
-  if (keysIn.length > 80) {
-    return NextResponse.json({ error: 'For mange rader i ett KI-kall (maks 80).' }, { status: 400 })
+  if (keysIn.length > BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST) {
+    return NextResponse.json(
+      {
+        error: `For mange typer i ett KI-kall (maks ${BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST}).`,
+      },
+      { status: 400 },
+    )
   }
 
   const requestKeySet = new Set<string>()
@@ -171,11 +177,6 @@ export async function POST(req: Request) {
     )
   }
 
-  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
-  const temperature = resolveOpenAiTemperature()
-  const maxOutTokens = 1200
-  const useCompletionTokenLimit = /^gpt-5/i.test(model) || /^o[0-9]/i.test(model)
-
   const userPayload = {
     keys: keysIn
       .filter((k) => k && typeof k.key === 'string' && (k.kind === 'income' || k.kind === 'expense'))
@@ -191,6 +192,13 @@ export async function POST(req: Request) {
   if (userPayload.keys.length === 0) {
     return NextResponse.json({ suggestions: [], usage: { used: usedBefore, limit, bonusCredits: bonusBefore } })
   }
+
+  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+  const temperature = resolveOpenAiTemperature()
+  const keyCount = userPayload.keys.length
+  /** JSON-svar med mange forslag krever mer plass; skalerer med antall nøkler (inntil modellens tak). */
+  const maxOutTokens = Math.min(32_768, Math.max(900, 400 + keyCount * 110))
+  const useCompletionTokenLimit = /^gpt-5/i.test(model) || /^o[0-9]/i.test(model)
 
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

@@ -66,6 +66,8 @@ import {
   poolForTask,
 } from '@/features/hjemflyt/hjemflytLogic'
 import { BANK_IMPORT_HISTORY_MAX } from '@/lib/bankImport/bankImport.constants'
+import { TEMPLATE_CSV_IMPORT_HISTORY_MAX } from '@/lib/transactionImport/transactionImport.constants'
+import type { TemplateCsvImportRun } from '@/lib/transactionImport/templateCsvImportRun'
 import type {
   BankImportMappingRule,
   BankImportMappingsState,
@@ -252,6 +254,8 @@ export interface Transaction {
   ledgerImportRunId?: string
   /** Knytning til rad i `bankImportHistory` (bankimport). */
   bankImportRunId?: string
+  /** Knytning til rad i `templateCsvImportHistory` (Excel-mal CSV). */
+  templateCsvImportRunId?: string
 }
 
 export interface BudgetCategory {
@@ -804,6 +808,16 @@ interface AppState {
    * `historyOnly`: fjern kun historikkposten.
    */
   removeBankImportRun: (runId: string, mode: LedgerImportRemovalMode) => RemoveLedgerImportRunResult
+
+  /** Excel-mal CSV: siste import-kjøringer (metadata). */
+  templateCsvImportHistory: TemplateCsvImportRun[]
+  /** Én atomisk kjøring: valgfritt budsjett-tillegg, deretter transaksjoner og historikk. */
+  addTemplateCsvImportRunWithTransactions: (run: TemplateCsvImportRun, transactions: Transaction[]) => void
+  /**
+   * `full`: fjern historikk + transaksjoner med templateCsvImportRunId + eventuelt budsjett-justering.
+   * `historyOnly`: fjern kun historikkposten.
+   */
+  removeTemplateCsvImportRun: (runId: string, mode: LedgerImportRemovalMode) => RemoveLedgerImportRunResult
 }
 
 /** Ytre nøkkel årstall som string, indre er profilId. */
@@ -836,6 +850,7 @@ export type PersistedAppSlice = Pick<
   | 'ledgerImportHistory'
   | 'bankImportMappings'
   | 'bankImportHistory'
+  | 'templateCsvImportHistory'
 >
 
 /** Tidligere nøkkel for Zustand persist (brukes til engangsmigrering til Supabase). */
@@ -869,6 +884,7 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     ledgerImportHistory: [],
     bankImportMappings: {},
     bankImportHistory: [],
+    templateCsvImportHistory: [],
   }
 }
 
@@ -898,6 +914,7 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     ledgerImportHistory: state.ledgerImportHistory,
     bankImportMappings: state.bankImportMappings,
     bankImportHistory: state.bankImportHistory,
+    templateCsvImportHistory: state.templateCsvImportHistory,
   }
 }
 
@@ -1072,6 +1089,7 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     base.bankImportMappings = {}
   }
   if (!Array.isArray(base.bankImportHistory)) base.bankImportHistory = []
+  if (!Array.isArray(base.templateCsvImportHistory)) base.templateCsvImportHistory = []
   if (base.peopleBeforeDemo === undefined) base.peopleBeforeDemo = null
   const pbd = base.peopleBeforeDemo
   if (pbd != null && (typeof pbd !== 'object' || Array.isArray(pbd))) base.peopleBeforeDemo = null
@@ -1837,6 +1855,7 @@ export const useStore = create<AppState>()((set, get) => {
         ledgerImportHistory: [] as LedgerImportRun[],
         bankImportMappings: {} as BankImportMappingsState,
         bankImportHistory: [] as BankImportRun[],
+        templateCsvImportHistory: [] as TemplateCsvImportRun[],
 
         setBankImportMapping: (sourceId, mappingKey, rule) => {
           const key = mappingKey.trim()
@@ -1866,10 +1885,30 @@ export const useStore = create<AppState>()((set, get) => {
         addBankImportRunWithTransactions: (run, incoming) => {
           set((s) => {
             const historySlice = [run, ...s.bankImportHistory].slice(0, BANK_IMPORT_HISTORY_MAX)
-            if (!incoming.length) {
-              return { bankImportHistory: historySlice }
-            }
+
             let nextPeople = { ...s.people }
+            const adj = run.budgetAdjustment
+            if (adj?.entries?.length && adj.profileId === run.profileId) {
+              const person = nextPeople[run.profileId]
+              if (person) {
+                const mergedForApply = mergeBudgetCategoriesWithAdjustmentBackfill(
+                  person.budgetCategories,
+                  adj.entries,
+                  adj.backfillCategories,
+                )
+                nextPeople = {
+                  ...nextPeople,
+                  [run.profileId]: {
+                    ...person,
+                    budgetCategories: applyLedgerBudgetAdjustmentToCategories(mergedForApply, adj.entries),
+                  },
+                }
+              }
+            }
+
+            if (!incoming.length) {
+              return { people: nextPeople, bankImportHistory: historySlice }
+            }
             const groups = new Map<string, Transaction[]>()
             for (const t of incoming) {
               const pid = resolveTransactionOwnerProfileId(s, t.profileId)
@@ -1920,10 +1959,19 @@ export const useStore = create<AppState>()((set, get) => {
               return { bankImportHistory: nextHistory }
             }
 
-            const nextTx = person.transactions.filter((t) => t.bankImportRunId !== runId)
-            const txsRemoved = person.transactions.length - nextTx.length
+            let cats = person.budgetCategories
+            const adj = run.budgetAdjustment
+            if (adj?.entries?.length && adj.profileId === run.profileId) {
+              cats = subtractLedgerBudgetAdjustmentFromCategories(cats, adj.entries)
+            }
 
-            if (txsRemoved === 0) {
+            let merged: PersonData = { ...person, budgetCategories: cats }
+            const nextTx = merged.transactions.filter((t) => t.bankImportRunId !== runId)
+            const txsChanged = nextTx.length !== merged.transactions.length
+            const budgetChanged = !!(adj?.entries?.length && adj.profileId === run.profileId)
+            const txsRemoved = merged.transactions.length - nextTx.length
+
+            if (!txsChanged && !budgetChanged) {
               result = {
                 ok: true,
                 mode: 'full',
@@ -1934,13 +1982,13 @@ export const useStore = create<AppState>()((set, get) => {
               return { bankImportHistory: nextHistory }
             }
 
-            let merged = syncLinkedSavingsGoalsCurrent({ ...person, transactions: nextTx }, run.profileId)
+            merged = syncLinkedSavingsGoalsCurrent({ ...merged, transactions: nextTx }, run.profileId)
             merged = recalcPersonBudgetSpentForYear(merged, run.profileId, s.budgetYear)
             result = {
               ok: true,
               mode: 'full',
               transactionsRemoved: txsRemoved,
-              removedBudgetAdjustment: false,
+              removedBudgetAdjustment: budgetChanged,
               orphanFullRemoval: false,
             }
             return {
@@ -1949,6 +1997,128 @@ export const useStore = create<AppState>()((set, get) => {
                 [run.profileId]: merged,
               },
               bankImportHistory: nextHistory,
+            }
+          })
+          get().syncInsightNotifications()
+          return result
+        },
+
+        addTemplateCsvImportRunWithTransactions: (run, incoming) => {
+          set((s) => {
+            const historySlice = [run, ...s.templateCsvImportHistory].slice(0, TEMPLATE_CSV_IMPORT_HISTORY_MAX)
+
+            let nextPeople = { ...s.people }
+            const adj = run.budgetAdjustment
+            if (adj?.entries?.length && adj.profileId === run.profileId) {
+              const person = nextPeople[run.profileId]
+              if (person) {
+                const mergedForApply = mergeBudgetCategoriesWithAdjustmentBackfill(
+                  person.budgetCategories,
+                  adj.entries,
+                  adj.backfillCategories,
+                )
+                nextPeople = {
+                  ...nextPeople,
+                  [run.profileId]: {
+                    ...person,
+                    budgetCategories: applyLedgerBudgetAdjustmentToCategories(mergedForApply, adj.entries),
+                  },
+                }
+              }
+            }
+
+            if (!incoming.length) {
+              return { people: nextPeople, templateCsvImportHistory: historySlice }
+            }
+
+            const groups = new Map<string, Transaction[]>()
+            for (const t of incoming) {
+              const pid = resolveTransactionOwnerProfileId(s, t.profileId)
+              const tx: Transaction = { ...t, profileId: pid }
+              const arr = groups.get(pid) ?? []
+              arr.push(tx)
+              groups.set(pid, arr)
+            }
+            for (const [pid, txs] of groups) {
+              const person = nextPeople[pid]
+              if (!person) continue
+              const next = syncLinkedSavingsGoalsCurrent(
+                { ...person, transactions: [...txs, ...person.transactions] },
+                pid,
+              )
+              nextPeople = {
+                ...nextPeople,
+                [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
+              }
+            }
+            return { people: nextPeople, templateCsvImportHistory: historySlice }
+          })
+          get().syncInsightNotifications()
+        },
+
+        removeTemplateCsvImportRun: (runId, mode) => {
+          let result: RemoveLedgerImportRunResult = { ok: false, reason: 'not_found' }
+          set((s) => {
+            const run = s.templateCsvImportHistory.find((r) => r.id === runId)
+            if (!run) return s
+
+            const nextHistory = s.templateCsvImportHistory.filter((r) => r.id !== runId)
+
+            if (mode === 'historyOnly') {
+              result = { ok: true, mode: 'historyOnly' }
+              return { templateCsvImportHistory: nextHistory }
+            }
+
+            const person = s.people[run.profileId]
+            if (!person) {
+              result = {
+                ok: true,
+                mode: 'full',
+                transactionsRemoved: 0,
+                removedBudgetAdjustment: false,
+                orphanFullRemoval: true,
+              }
+              return { templateCsvImportHistory: nextHistory }
+            }
+
+            let cats = person.budgetCategories
+            const adj = run.budgetAdjustment
+            if (adj?.entries?.length && adj.profileId === run.profileId) {
+              cats = subtractLedgerBudgetAdjustmentFromCategories(cats, adj.entries)
+            }
+
+            let merged: PersonData = { ...person, budgetCategories: cats }
+            const nextTx = merged.transactions.filter((t) => t.templateCsvImportRunId !== runId)
+            const txsRemoved = merged.transactions.length - nextTx.length
+            const budgetChanged = !!(adj?.entries?.length && adj.profileId === run.profileId)
+            const txsChanged = nextTx.length !== merged.transactions.length
+
+            if (!txsChanged && !budgetChanged) {
+              result = {
+                ok: true,
+                mode: 'full',
+                transactionsRemoved: 0,
+                removedBudgetAdjustment: false,
+                orphanFullRemoval: true,
+              }
+              return { templateCsvImportHistory: nextHistory }
+            }
+
+            merged = syncLinkedSavingsGoalsCurrent({ ...merged, transactions: nextTx }, run.profileId)
+            merged = recalcPersonBudgetSpentForYear(merged, run.profileId, s.budgetYear)
+            result = {
+              ok: true,
+              mode: 'full',
+              transactionsRemoved: txsRemoved,
+              removedBudgetAdjustment: budgetChanged,
+              orphanFullRemoval: false,
+            }
+            return {
+              people: {
+                ...s.people,
+                [run.profileId]: merged,
+              },
+              templateCsvImportHistory: nextHistory,
             }
           })
           get().syncInsightNotifications()
@@ -4975,6 +5145,7 @@ export function resetStoreForLogout() {
     ledgerImportHistory: [],
     bankImportMappings: {},
     bankImportHistory: [],
+    templateCsvImportHistory: [],
   })
   clearLegacyLocalStorage()
 }

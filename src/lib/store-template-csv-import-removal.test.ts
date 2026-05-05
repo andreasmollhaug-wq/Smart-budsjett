@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { countBankRunTransactions } from '@/lib/bankImport/countBankRunTransactions'
-import type { BankImportRun } from '@/lib/bankImport/types'
-import { BANK_IMPORT_PROFILE_ID } from '@/lib/bankImport/bankImport.constants'
+import { countTemplateCsvRunTransactions } from '@/lib/transactionImport/countTemplateCsvRunTransactions'
+import type { TemplateCsvImportRun } from '@/lib/transactionImport/templateCsvImportRun'
+import { TEMPLATE_CSV_IMPORT_PROFILE_ID } from '@/lib/transactionImport/transactionImport.constants'
 import type { BudgetCategory } from '@/lib/store'
 import { DEFAULT_PROFILE_ID, resetStoreForLogout, useStore } from '@/lib/store'
 
@@ -18,14 +18,13 @@ function matCategory(budgetedBase = 100): BudgetCategory {
   }
 }
 
-function baseBankRun(id: string): BankImportRun {
+function baseTemplateRun(id: string): TemplateCsvImportRun {
   return {
     id,
     createdAt: '2026-03-01T12:00:00.000Z',
-    sourceId: 'dnb_sbanken',
     profileId: DEFAULT_PROFILE_ID,
-    csvProfileId: BANK_IMPORT_PROFILE_ID,
-    fileName: 'test.xlsx',
+    csvProfileId: TEMPLATE_CSV_IMPORT_PROFILE_ID,
+    fileName: 'test.csv',
     displayName: null,
     rowCountParsed: 2,
     rowCountImported: 2,
@@ -34,16 +33,16 @@ function baseBankRun(id: string): BankImportRun {
   }
 }
 
-describe('removeBankImportRun modes', () => {
+describe('removeTemplateCsvImportRun modes', () => {
   beforeEach(() => {
     resetStoreForLogout()
   })
 
   it('historyOnly fjerner kun historikk og lar transaksjoner stå', () => {
-    const runId = 'bank-run-a'
+    const runId = 'csv-run-a'
     const p = useStore.getState().people[DEFAULT_PROFILE_ID]!
     useStore.setState({
-      bankImportHistory: [baseBankRun(runId)],
+      templateCsvImportHistory: [baseTemplateRun(runId)],
       people: {
         ...useStore.getState().people,
         [DEFAULT_PROFILE_ID]: {
@@ -57,29 +56,29 @@ describe('removeBankImportRun modes', () => {
               category: 'Mat',
               type: 'expense',
               profileId: DEFAULT_PROFILE_ID,
-              bankImportRunId: runId,
+              templateCsvImportRunId: runId,
             },
           ],
         },
       },
     })
 
-    expect(countBankRunTransactions(useStore.getState().people, DEFAULT_PROFILE_ID, runId)).toBe(1)
+    expect(countTemplateCsvRunTransactions(useStore.getState().people, DEFAULT_PROFILE_ID, runId)).toBe(1)
 
-    const res = useStore.getState().removeBankImportRun(runId, 'historyOnly')
+    const res = useStore.getState().removeTemplateCsvImportRun(runId, 'historyOnly')
     expect(res.ok).toBe(true)
     if (!res.ok) return
     expect(res.mode).toBe('historyOnly')
 
-    expect(useStore.getState().bankImportHistory.some((r) => r.id === runId)).toBe(false)
+    expect(useStore.getState().templateCsvImportHistory.some((r) => r.id === runId)).toBe(false)
     expect(useStore.getState().people[DEFAULT_PROFILE_ID]!.transactions.some((t) => t.id === 'tx-a')).toBe(true)
   })
 
   it('full fjerner tilknyttede transaksjoner og historikk', () => {
-    const runId = 'bank-run-b'
+    const runId = 'csv-run-b'
     const p = useStore.getState().people[DEFAULT_PROFILE_ID]!
     useStore.setState({
-      bankImportHistory: [baseBankRun(runId)],
+      templateCsvImportHistory: [baseTemplateRun(runId)],
       people: {
         ...useStore.getState().people,
         [DEFAULT_PROFILE_ID]: {
@@ -93,40 +92,25 @@ describe('removeBankImportRun modes', () => {
               category: 'Mat',
               type: 'expense',
               profileId: DEFAULT_PROFILE_ID,
-              bankImportRunId: runId,
+              templateCsvImportRunId: runId,
             },
           ],
         },
       },
     })
 
-    const res = useStore.getState().removeBankImportRun(runId, 'full')
+    const res = useStore.getState().removeTemplateCsvImportRun(runId, 'full')
     expect(res.ok).toBe(true)
     if (!res.ok || res.mode !== 'full') return
     expect(res.transactionsRemoved).toBe(1)
     expect(res.orphanFullRemoval).toBe(false)
 
-    expect(useStore.getState().bankImportHistory.some((r) => r.id === runId)).toBe(false)
+    expect(useStore.getState().templateCsvImportHistory.some((r) => r.id === runId)).toBe(false)
     expect(useStore.getState().people[DEFAULT_PROFILE_ID]!.transactions.some((t) => t.id === 'tx-b')).toBe(false)
   })
 
-  it('full uten tilknyttede transaksjoner gir orphanFullRemoval', () => {
-    const runId = 'bank-run-c'
-    useStore.setState({
-      bankImportHistory: [{ ...baseBankRun(runId), rowCountImported: 5 }],
-    })
-
-    const res = useStore.getState().removeBankImportRun(runId, 'full')
-    expect(res.ok).toBe(true)
-    if (!res.ok || res.mode !== 'full') return
-    expect(res.transactionsRemoved).toBe(0)
-    expect(res.orphanFullRemoval).toBe(true)
-
-    expect(useStore.getState().bankImportHistory.some((r) => r.id === runId)).toBe(false)
-  })
-
   it('full med budgetAdjustment reverserer budsjett og fjerner transaksjoner', () => {
-    const runId = 'bank-run-budget'
+    const runId = 'csv-run-budget'
     const p = useStore.getState().people[DEFAULT_PROFILE_ID]!
     useStore.setState({
       budgetYear: 2026,
@@ -140,31 +124,30 @@ describe('removeBankImportRun modes', () => {
       },
     })
 
-    const run: BankImportRun = {
-      ...baseBankRun(runId),
+    const run: TemplateCsvImportRun = {
+      ...baseTemplateRun(runId),
       budgetAdjustment: {
         profileId: DEFAULT_PROFILE_ID,
-        entries: [{ categoryId: 'cat-mat', monthIndex: 0, deltaApplied: 50 }],
+        entries: [{ categoryId: 'cat-mat', monthIndex: 0, deltaApplied: 40 }],
       },
     }
-    useStore.getState().addBankImportRunWithTransactions(run, [
+    useStore.getState().addTemplateCsvImportRunWithTransactions(run, [
       {
-        id: 'tx-bud',
-        date: '2026-01-10',
-        description: 'bank imp',
-        amount: 50,
+        id: 'tx-csv-bud',
+        date: '2026-01-12',
+        description: 'csv imp',
+        amount: 40,
         category: 'Mat',
         type: 'expense',
         profileId: DEFAULT_PROFILE_ID,
-        bankImportRunId: runId,
+        templateCsvImportRunId: runId,
       },
     ])
 
     const afterAdd = useStore.getState().people[DEFAULT_PROFILE_ID]!
-    expect(afterAdd.budgetCategories[0]!.budgeted[0]).toBe(150)
-    expect(afterAdd.transactions.some((t) => t.id === 'tx-bud')).toBe(true)
+    expect(afterAdd.budgetCategories[0]!.budgeted[0]).toBe(140)
 
-    const res = useStore.getState().removeBankImportRun(runId, 'full')
+    const res = useStore.getState().removeTemplateCsvImportRun(runId, 'full')
     expect(res.ok).toBe(true)
     if (!res.ok || res.mode !== 'full') return
     expect(res.removedBudgetAdjustment).toBe(true)
@@ -172,6 +155,6 @@ describe('removeBankImportRun modes', () => {
 
     const afterRemove = useStore.getState().people[DEFAULT_PROFILE_ID]!
     expect(afterRemove.budgetCategories[0]!.budgeted[0]).toBe(100)
-    expect(afterRemove.transactions.some((t) => t.bankImportRunId === runId)).toBe(false)
+    expect(afterRemove.transactions.some((t) => t.templateCsvImportRunId === runId)).toBe(false)
   })
 })

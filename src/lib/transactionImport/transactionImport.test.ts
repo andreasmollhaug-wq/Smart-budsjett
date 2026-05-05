@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseTransactionCsvText, splitCsvLine } from '@/lib/transactionImport/parseTransactionCsv'
+import { importTextContainsKontoregulering } from '@/lib/transactionImport/kontoreguleringImport'
 import {
   collectUnknownCategoryNames,
   countPotentialDuplicateRows,
@@ -159,5 +160,15 @@ describe('countPotentialDuplicateRows', () => {
       existing,
     )
     expect(n).toBe(1)
+  })
+})
+
+describe('importTextContainsKontoregulering', () => {
+  it('matcher norsk tekst uavhengig av kasse og mellomrom', () => {
+    expect(importTextContainsKontoregulering('Kontoregulering til brukskonto')).toBe(true)
+    expect(importTextContainsKontoregulering('  kontoregulering  ')).toBe(true)
+    expect(importTextContainsKontoregulering('Nettbank Konto regulering inn')).toBe(true)
+    expect(importTextContainsKontoregulering('Dagligvarer')).toBe(false)
+    expect(importTextContainsKontoregulering('')).toBe(false)
   })
 })

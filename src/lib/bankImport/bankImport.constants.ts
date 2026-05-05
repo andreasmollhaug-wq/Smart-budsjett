@@ -7,3 +7,9 @@ export const BANK_IMPORT_MAX_DATA_ROWS = 10_000
 export const BANK_IMPORT_HISTORY_MAX = 50
 
 export const BANK_IMPORT_PROFILE_ID = 'dnb_sbanken_v1'
+
+/**
+ * Maks unike forklaringstyper (mapping-nøkler) per KI-kall.
+ * Klienten sender flere kall automatisk når det er flere uklassifiserte typer.
+ */
+export const BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST = 250

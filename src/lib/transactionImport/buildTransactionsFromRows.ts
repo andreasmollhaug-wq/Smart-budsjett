@@ -11,6 +11,7 @@ export function buildTransactionsFromImportRows(
   rows: ParsedTransactionRow[],
   canonicalNameForCategoryRaw: (categoryRaw: string) => string | null,
   profileId: string,
+  templateCsvImportRunId?: string,
 ): Transaction[] {
   const out: Transaction[] = []
   for (const r of rows) {
@@ -25,6 +26,7 @@ export function buildTransactionsFromImportRows(
       category: canonical,
       type: r.transactionType,
       profileId,
+      ...(templateCsvImportRunId ? { templateCsvImportRunId } : {}),
       ...(pf ? { plannedFollowUp: true } : {}),
     })
   }

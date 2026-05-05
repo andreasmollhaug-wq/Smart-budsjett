@@ -1,43 +1,40 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import BankImportRunDetailModal from '@/components/konto/BankImportRunDetailModal'
-import { countBankRunTransactions } from '@/lib/bankImport/countBankRunTransactions'
-import type { BankImportRun } from '@/lib/bankImport/types'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
+import { countTemplateCsvRunTransactions } from '@/lib/transactionImport/countTemplateCsvRunTransactions'
+import type { TemplateCsvImportRun } from '@/lib/transactionImport/templateCsvImportRun'
 import type { RemoveLedgerImportRunResult } from '@/lib/store'
 import { useStore } from '@/lib/store'
 import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { ChevronRight, Trash2, X } from 'lucide-react'
 
-const SOURCE_LABEL: Record<string, string> = {
-  dnb_sbanken: 'DNB / Sbanken',
-}
-
 type Props = {
-  runs: BankImportRun[]
+  runs: TemplateCsvImportRun[]
 }
 
-export default function BankImportHistoryList({ runs }: Props) {
+export default function TemplateCsvImportHistoryList({ runs }: Props) {
   const people = useStore((s) => s.people)
   const profiles = useStore((s) => s.profiles)
-  const removeBankImportRun = useStore((s) => s.removeBankImportRun)
+  const removeTemplateCsvImportRun = useStore((s) => s.removeTemplateCsvImportRun)
   const addAppNotification = useStore((s) => s.addAppNotification)
-  const [selectedRun, setSelectedRun] = useState<BankImportRun | null>(null)
-  const [runToDelete, setRunToDelete] = useState<BankImportRun | null>(null)
+  const [selectedRun, setSelectedRun] = useState<TemplateCsvImportRun | null>(null)
+  const [runToDelete, setRunToDelete] = useState<TemplateCsvImportRun | null>(null)
 
   const deleteBackdropDismiss = useModalBackdropDismiss(() => setRunToDelete(null))
+  const detailBackdropDismiss = useModalBackdropDismiss(() => setSelectedRun(null))
 
   const linkedTxCountForDelete = useMemo(() => {
     if (!runToDelete) return 0
-    return countBankRunTransactions(people, runToDelete.profileId, runToDelete.id)
+    return countTemplateCsvRunTransactions(people, runToDelete.profileId, runToDelete.id)
   }, [runToDelete, people])
 
   const importedForSelected = useMemo(() => {
     if (!selectedRun) return []
     const person = people[selectedRun.profileId]
     return (person?.transactions ?? [])
-      .filter((t) => t.bankImportRunId === selectedRun.id)
+      .filter((t) => t.templateCsvImportRunId === selectedRun.id)
       .slice()
       .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
   }, [selectedRun, people])
@@ -58,7 +55,7 @@ export default function BankImportHistoryList({ runs }: Props) {
     if (res.mode === 'historyOnly') {
       addAppNotification({
         title: 'Fjernet fra historikk',
-        body: 'Transaksjonene fra bankimporten er beholdt. Budsjett du økte ved denne importen er også uendret — juster budsjett manuelt ved behov.',
+        body: 'Transaksjonene er beholdt. Budsjett du økte ved denne importen er også uendret — juster budsjett manuelt ved behov.',
         kind: 'budget',
       })
       return
@@ -84,7 +81,7 @@ export default function BankImportHistoryList({ runs }: Props) {
       parts.push('Planlagte budsjettbeløp fra importen er tilbakestilt.')
     }
     addAppNotification({
-      title: 'Bankimport slettet',
+      title: 'Excel-import slettet',
       body: parts.join(' '),
       kind: 'budget',
     })
@@ -93,7 +90,7 @@ export default function BankImportHistoryList({ runs }: Props) {
   const executeDelete = (mode: 'full' | 'historyOnly') => {
     if (!runToDelete) return
     const id = runToDelete.id
-    const res = removeBankImportRun(id, mode)
+    const res = removeTemplateCsvImportRun(id, mode)
     if (!res.ok) {
       addAppNotification({
         title: 'Kunne ikke slette',
@@ -111,7 +108,7 @@ export default function BankImportHistoryList({ runs }: Props) {
   if (runs.length === 0) {
     return (
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-        Ingen tidligere bankimporter ennå.
+        Ingen Excel-import fra mal ennå.
       </p>
     )
   }
@@ -133,7 +130,7 @@ export default function BankImportHistoryList({ runs }: Props) {
               className="flex-1 min-w-0 text-left px-4 py-3 text-sm transition-opacity hover:opacity-90 touch-manipulation min-h-[44px]"
               style={{ color: 'inherit', background: 'transparent' }}
               onClick={() => setSelectedRun(r)}
-              aria-label={`Vis detaljer for import ${formatIsoDateDdMmYyyy(r.createdAt.slice(0, 10))}`}
+              aria-label={`Vis detaljer for Excel-import ${formatIsoDateDdMmYyyy(r.createdAt.slice(0, 10))}`}
             >
               {r.displayName?.trim() && (
                 <p className="text-sm font-semibold mb-1 m-0" style={{ color: 'var(--text)' }}>
@@ -146,7 +143,7 @@ export default function BankImportHistoryList({ runs }: Props) {
                   <span className="min-w-0">
                     {formatIsoDateDdMmYyyy(r.createdAt.slice(0, 10))}{' '}
                     <span style={{ color: 'var(--text-muted)' }} className="font-normal">
-                      {SOURCE_LABEL[r.sourceId] ?? r.sourceId}
+                      Excel-mal (CSV)
                     </span>
                   </span>
                 </span>
@@ -173,7 +170,7 @@ export default function BankImportHistoryList({ runs }: Props) {
                 type="button"
                 className="flex-1 min-h-[44px] min-w-[48px] sm:min-w-[52px] px-2 inline-flex items-center justify-center touch-manipulation transition-opacity hover:opacity-85"
                 style={{ color: '#b91c1c' }}
-                aria-label={`Slett eller fjern import fra ${formatIsoDateDdMmYyyy(r.createdAt.slice(0, 10))}`}
+                aria-label={`Slett eller fjern Excel-import fra ${formatIsoDateDdMmYyyy(r.createdAt.slice(0, 10))}`}
                 onClick={() => setRunToDelete(r)}
               >
                 <Trash2 size={18} strokeWidth={1.75} aria-hidden />
@@ -183,13 +180,60 @@ export default function BankImportHistoryList({ runs }: Props) {
         ))}
       </ul>
 
-      <BankImportRunDetailModal
-        open={selectedRun !== null}
-        onClose={() => setSelectedRun(null)}
-        run={selectedRun}
-        profileName={profileNameForSelected}
-        importedTransactions={importedForSelected}
-      />
+      {selectedRun !== null && (
+        <div
+          className="fixed inset-0 z-[210] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ background: 'rgba(15, 23, 42, 0.45)' }}
+          role="presentation"
+          {...detailBackdropDismiss}
+        >
+          <div
+            className="w-full max-w-lg min-w-0 rounded-t-2xl sm:rounded-2xl p-5 sm:p-6 shadow-xl max-h-[85vh] overflow-y-auto pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+            onPointerDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="template-csv-detail-title"
+          >
+            <div className="flex items-start justify-between gap-3 mb-3 min-w-0">
+              <h3 id="template-csv-detail-title" className="font-semibold text-lg pr-2" style={{ color: 'var(--text)' }}>
+                Excel-import
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedRun(null)}
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded-lg shrink-0 touch-manipulation"
+                style={{ color: 'var(--text-muted)' }}
+                aria-label="Lukk"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+              Profil: <span style={{ color: 'var(--text)' }}>{profileNameForSelected}</span>
+              {' · '}
+              {importedForSelected.length} transaksjon{importedForSelected.length === 1 ? '' : 'er'}
+            </p>
+            <ul className="text-sm space-y-2 max-h-[50vh] overflow-y-auto m-0 p-0 list-none">
+              {importedForSelected.map((t) => (
+                <li
+                  key={t.id}
+                  className="rounded-lg border px-3 py-2"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <div className="flex justify-between gap-2">
+                    <span style={{ color: 'var(--text)' }}>{formatIsoDateDdMmYyyy(t.date)}</span>
+                    <span className="tabular-nums shrink-0">{formatNokCurrencyDisplay(t.amount, true)}</span>
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {t.category} · {t.description || '—'}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       {runToDelete && (
         <div
@@ -204,11 +248,11 @@ export default function BankImportHistoryList({ runs }: Props) {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="bank-import-delete-title"
+            aria-labelledby="template-csv-delete-title"
           >
             <div className="flex items-start justify-between gap-3 mb-3 min-w-0">
-              <h3 id="bank-import-delete-title" className="font-semibold text-lg pr-2" style={{ color: 'var(--text)' }}>
-                Slette bankimport?
+              <h3 id="template-csv-delete-title" className="font-semibold text-lg pr-2" style={{ color: 'var(--text)' }}>
+                Slette Excel-import?
               </h3>
               <button
                 type="button"

@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { ImportSummary } from '@/lib/transactionImport/summarizeImport'
 import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
@@ -14,7 +13,6 @@ type Props = {
   skippedCategoryRows: number
   parseErrorCount: number
   duplicateWarningCount: number
-  transactionsHref: string
 }
 
 export default function TransactionImportSummaryModal({
@@ -24,7 +22,6 @@ export default function TransactionImportSummaryModal({
   skippedCategoryRows,
   parseErrorCount,
   duplicateWarningCount,
-  transactionsHref,
 }: Props) {
   const formatNOKImport = (amount: number) => formatNokCurrencyDisplay(amount, true)
   const backdropDismiss = useModalBackdropDismiss(onClose)
@@ -118,23 +115,15 @@ export default function TransactionImportSummaryModal({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row flex-wrap gap-2 sm:justify-end">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:justify-end">
           <button
             type="button"
             className="min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium w-full sm:w-auto touch-manipulation"
-            style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+            style={{ background: 'var(--primary)', color: 'white' }}
             onClick={onClose}
           >
             Lukk
           </button>
-          <Link
-            href={transactionsHref}
-            className="min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium inline-flex items-center justify-center w-full sm:w-auto touch-manipulation"
-            style={{ background: 'var(--primary)', color: 'white' }}
-            onClick={onClose}
-          >
-            Gå til transaksjoner
-          </Link>
         </div>
       </div>
     </div>

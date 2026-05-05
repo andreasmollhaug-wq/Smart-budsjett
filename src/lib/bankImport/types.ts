@@ -1,3 +1,5 @@
+import type { LedgerBudgetAdjustmentSnapshot } from '@/lib/ledgerImport/types'
+
 export type BankSourceId = 'dnb_sbanken'
 
 export interface BankImportMappingRule {
@@ -32,6 +34,7 @@ export interface BankImportRun {
   rowCountSkipped: number
   errorSummary: string | null
   importedLines?: BankImportLineSnapshot[]
+  budgetAdjustment?: LedgerBudgetAdjustmentSnapshot
 }
 
 export type BankParseRowErrorReason =
