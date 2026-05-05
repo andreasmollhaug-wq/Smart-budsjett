@@ -65,6 +65,13 @@ import {
   periodKeyForRecurrence,
   poolForTask,
 } from '@/features/hjemflyt/hjemflytLogic'
+import { BANK_IMPORT_HISTORY_MAX } from '@/lib/bankImport/bankImport.constants'
+import type {
+  BankImportMappingRule,
+  BankImportMappingsState,
+  BankImportRun,
+  BankSourceId,
+} from '@/lib/bankImport/types'
 import { LEDGER_IMPORT_HISTORY_MAX } from '@/lib/ledgerImport/ledgerImport.constants'
 import {
   applyLedgerBudgetAdjustmentToCategories,
@@ -243,6 +250,8 @@ export interface Transaction {
   plannedFollowUp?: boolean
   /** Knytning til rad i `ledgerImportHistory` (regnskapsimport) for detaljvisning i historikk. */
   ledgerImportRunId?: string
+  /** Knytning til rad i `bankImportHistory` (bankimport). */
+  bankImportRunId?: string
 }
 
 export interface BudgetCategory {
@@ -780,6 +789,21 @@ interface AppState {
    * `historyOnly`: fjern kun historikkposten; transaksjoner og budsjett belastes ikke herfra.
    */
   removeLedgerImportRun: (runId: string, mode: LedgerImportRemovalMode) => RemoveLedgerImportRunResult
+
+  /** Bankimport (DNB/Sbanken m.fl.): lagret mapping-nøkkel → budsjettkategori per kilde. */
+  bankImportMappings: BankImportMappingsState
+  bankImportHistory: BankImportRun[]
+  setBankImportMapping: (
+    sourceId: BankSourceId,
+    mappingKey: string,
+    rule: BankImportMappingRule | null,
+  ) => void
+  addBankImportRunWithTransactions: (run: BankImportRun, transactions: Transaction[]) => void
+  /**
+   * `full`: fjern historikk + transaksjoner med bankImportRunId.
+   * `historyOnly`: fjern kun historikkposten.
+   */
+  removeBankImportRun: (runId: string, mode: LedgerImportRemovalMode) => RemoveLedgerImportRunResult
 }
 
 /** Ytre nøkkel årstall som string, indre er profilId. */
@@ -810,6 +834,8 @@ export type PersistedAppSlice = Pick<
   | 'uiColorPalette'
   | 'ledgerAccountMappings'
   | 'ledgerImportHistory'
+  | 'bankImportMappings'
+  | 'bankImportHistory'
 >
 
 /** Tidligere nøkkel for Zustand persist (brukes til engangsmigrering til Supabase). */
@@ -841,6 +867,8 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     dismissedDuplicateSubscriptionPresetKeys: [],
     ledgerAccountMappings: {},
     ledgerImportHistory: [],
+    bankImportMappings: {},
+    bankImportHistory: [],
   }
 }
 
@@ -868,6 +896,8 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     dismissedDuplicateSubscriptionPresetKeys: state.dismissedDuplicateSubscriptionPresetKeys,
     ledgerAccountMappings: state.ledgerAccountMappings,
     ledgerImportHistory: state.ledgerImportHistory,
+    bankImportMappings: state.bankImportMappings,
+    bankImportHistory: state.bankImportHistory,
   }
 }
 
@@ -1038,6 +1068,10 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     base.ledgerAccountMappings = {}
   }
   if (!Array.isArray(base.ledgerImportHistory)) base.ledgerImportHistory = []
+  if (!base.bankImportMappings || typeof base.bankImportMappings !== 'object') {
+    base.bankImportMappings = {}
+  }
+  if (!Array.isArray(base.bankImportHistory)) base.bankImportHistory = []
   if (base.peopleBeforeDemo === undefined) base.peopleBeforeDemo = null
   const pbd = base.peopleBeforeDemo
   if (pbd != null && (typeof pbd !== 'object' || Array.isArray(pbd))) base.peopleBeforeDemo = null
@@ -1801,6 +1835,125 @@ export const useStore = create<AppState>()((set, get) => {
         uiColorPalette: 'default' as UiColorPaletteId,
         ledgerAccountMappings: {} as LedgerAccountMappingsState,
         ledgerImportHistory: [] as LedgerImportRun[],
+        bankImportMappings: {} as BankImportMappingsState,
+        bankImportHistory: [] as BankImportRun[],
+
+        setBankImportMapping: (sourceId, mappingKey, rule) => {
+          const key = mappingKey.trim()
+          if (!key) return
+          set((s) => {
+            const next: BankImportMappingsState = { ...s.bankImportMappings }
+            const inner = { ...(next[sourceId] ?? {}) }
+            if (rule == null) {
+              delete inner[key]
+            } else {
+              const n = rule.categoryName.trim()
+              if (!n) {
+                delete inner[key]
+              } else {
+                inner[key] = { categoryName: n }
+              }
+            }
+            if (Object.keys(inner).length === 0) {
+              delete next[sourceId]
+            } else {
+              next[sourceId] = inner
+            }
+            return { bankImportMappings: next }
+          })
+        },
+
+        addBankImportRunWithTransactions: (run, incoming) => {
+          set((s) => {
+            const historySlice = [run, ...s.bankImportHistory].slice(0, BANK_IMPORT_HISTORY_MAX)
+            if (!incoming.length) {
+              return { bankImportHistory: historySlice }
+            }
+            let nextPeople = { ...s.people }
+            const groups = new Map<string, Transaction[]>()
+            for (const t of incoming) {
+              const pid = resolveTransactionOwnerProfileId(s, t.profileId)
+              const tx: Transaction = { ...t, profileId: pid }
+              const arr = groups.get(pid) ?? []
+              arr.push(tx)
+              groups.set(pid, arr)
+            }
+            for (const [pid, txs] of groups) {
+              const person = nextPeople[pid]
+              if (!person) continue
+              const next = syncLinkedSavingsGoalsCurrent(
+                { ...person, transactions: [...txs, ...person.transactions] },
+                pid,
+              )
+              nextPeople = {
+                ...nextPeople,
+                [pid]: recalcPersonBudgetSpentForYear(next, pid, s.budgetYear),
+              }
+            }
+            return { people: nextPeople, bankImportHistory: historySlice }
+          })
+          get().syncInsightNotifications()
+        },
+
+        removeBankImportRun: (runId, mode) => {
+          let result: RemoveLedgerImportRunResult = { ok: false, reason: 'not_found' }
+          set((s) => {
+            const run = s.bankImportHistory.find((r) => r.id === runId)
+            if (!run) return s
+
+            const nextHistory = s.bankImportHistory.filter((r) => r.id !== runId)
+
+            if (mode === 'historyOnly') {
+              result = { ok: true, mode: 'historyOnly' }
+              return { bankImportHistory: nextHistory }
+            }
+
+            const person = s.people[run.profileId]
+            if (!person) {
+              result = {
+                ok: true,
+                mode: 'full',
+                transactionsRemoved: 0,
+                removedBudgetAdjustment: false,
+                orphanFullRemoval: true,
+              }
+              return { bankImportHistory: nextHistory }
+            }
+
+            const nextTx = person.transactions.filter((t) => t.bankImportRunId !== runId)
+            const txsRemoved = person.transactions.length - nextTx.length
+
+            if (txsRemoved === 0) {
+              result = {
+                ok: true,
+                mode: 'full',
+                transactionsRemoved: 0,
+                removedBudgetAdjustment: false,
+                orphanFullRemoval: true,
+              }
+              return { bankImportHistory: nextHistory }
+            }
+
+            let merged = syncLinkedSavingsGoalsCurrent({ ...person, transactions: nextTx }, run.profileId)
+            merged = recalcPersonBudgetSpentForYear(merged, run.profileId, s.budgetYear)
+            result = {
+              ok: true,
+              mode: 'full',
+              transactionsRemoved: txsRemoved,
+              removedBudgetAdjustment: false,
+              orphanFullRemoval: false,
+            }
+            return {
+              people: {
+                ...s.people,
+                [run.profileId]: merged,
+              },
+              bankImportHistory: nextHistory,
+            }
+          })
+          get().syncInsightNotifications()
+          return result
+        },
 
         setLedgerAccountMapping: (sourceId, accountCode, rule) => {
           const code = normalizeLedgerAccountCode(accountCode)
@@ -4820,6 +4973,8 @@ export function resetStoreForLogout() {
     uiColorPalette: 'default',
     ledgerAccountMappings: {},
     ledgerImportHistory: [],
+    bankImportMappings: {},
+    bankImportHistory: [],
   })
   clearLegacyLocalStorage()
 }

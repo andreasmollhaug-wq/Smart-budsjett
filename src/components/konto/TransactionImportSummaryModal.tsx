@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { ImportSummary } from '@/lib/transactionImport/summarizeImport'
-import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
 import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { X } from 'lucide-react'
 
@@ -26,7 +26,7 @@ export default function TransactionImportSummaryModal({
   duplicateWarningCount,
   transactionsHref,
 }: Props) {
-  const { formatNOK } = useNokDisplayFormatters()
+  const formatNOKImport = (amount: number) => formatNokCurrencyDisplay(amount, true)
   const backdropDismiss = useModalBackdropDismiss(onClose)
   if (!open || !summary) return null
 
@@ -65,7 +65,7 @@ export default function TransactionImportSummaryModal({
             <strong>{summary.importedCount}</strong> transaksjoner importert
           </li>
           <li>
-            Sum beløp: <strong>{formatNOK(summary.totalAmount)}</strong>
+            Sum beløp: <strong>{formatNOKImport(summary.totalAmount)}</strong>
           </li>
           {summary.dateMin && summary.dateMax && (
             <li>
@@ -110,7 +110,7 @@ export default function TransactionImportSummaryModal({
                 <tr key={row.category} style={{ borderTop: '1px solid var(--border)' }}>
                   <td className="px-3 py-2">{row.category}</td>
                   <td className="px-3 py-2 text-right">{row.count}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{formatNOK(row.sum)}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{formatNOKImport(row.sum)}</td>
                 </tr>
               ))}
             </tbody>

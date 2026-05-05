@@ -123,6 +123,17 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.ledgerImportHistory.length).toBe(0)
   })
 
+  it('normaliserer bankImport-felter når lagret verdi er ugyldig', () => {
+    const slice = createDefaultPersistedSlice()
+    const merged = mergePersistedIntoFullState(
+      { ...slice, bankImportMappings: null as unknown as undefined, bankImportHistory: null as unknown as undefined },
+      useStore.getState(),
+    )
+    expect(merged.bankImportMappings).toEqual({})
+    expect(Array.isArray(merged.bankImportHistory)).toBe(true)
+    expect(merged.bankImportHistory.length).toBe(0)
+  })
+
   it('bevarer dismissedDuplicateSubscriptionPresetKeys fra lagret slice', () => {
     const slice = createDefaultPersistedSlice()
     const merged = mergePersistedIntoFullState(

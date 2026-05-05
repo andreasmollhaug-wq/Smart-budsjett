@@ -124,7 +124,7 @@ export default function ImportCategoryPicker({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Søk i kategorier…"
-              className="min-w-0 flex-1 min-h-[40px] py-2 text-sm bg-transparent outline-none"
+              className="min-w-0 flex-1 min-h-[44px] py-2 text-sm bg-transparent outline-none"
               style={{ color: 'var(--text)' }}
               aria-label="Søk i kategorier"
             />
@@ -136,7 +136,7 @@ export default function ImportCategoryPicker({
                 type="button"
                 role="option"
                 aria-selected={!value}
-                className="w-full text-left px-3 py-2.5 text-sm touch-manipulation rounded-lg mx-1"
+                className="w-full text-left px-3 py-3 min-h-[44px] text-sm touch-manipulation rounded-lg mx-1 flex items-center"
                 style={{ color: 'var(--text-muted)' }}
                 onClick={() => {
                   onChange(null)
@@ -158,7 +158,7 @@ export default function ImportCategoryPicker({
                     type="button"
                     role="option"
                     aria-selected={value === c.name}
-                    className="w-full text-left px-3 py-2.5 text-sm touch-manipulation rounded-lg mx-1 hover:opacity-95"
+                    className="w-full text-left px-3 py-3 min-h-[44px] text-sm touch-manipulation rounded-lg mx-1 flex items-center gap-1 hover:opacity-95"
                     style={{
                       background: value === c.name ? 'var(--primary-pale)' : 'transparent',
                       color: 'var(--text)',

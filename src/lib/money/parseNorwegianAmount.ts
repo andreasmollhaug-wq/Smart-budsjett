@@ -1,6 +1,10 @@
 /**
  * Delte nb-NO-regler for pengebeløp (mellomrom/NBSP/tynt mellomrom som tusen,
  * komma som desimal, punktum som tusen sammen med desimal, kr/NOK/,- bort).
+ *
+ * Uten komma i strengen: ett enkelt punktum med 1–2 siffer etter tolkes som desimal
+ * (typisk Excel/engelsk locale, f.eks. «499.5»). Flere punktum eller tre desimalsiffer
+ * etter enkelt punktum behandles som norsk tusenskille (punktum fjernes).
  */
 
 import { caretIndexAfterDigitCount } from '@/lib/utils'
@@ -45,6 +49,20 @@ export function normalizeNorwegianAmountToPlainDecimalString(
     const intPart = commaMatch[1]!.replace(/\./g, '')
     const decPart = commaMatch[2]!
     s = intPart + '.' + decPart
+  } else if (!s.includes(',')) {
+    const dots = s.match(/\./g) ?? []
+    if (dots.length === 1) {
+      const [intRaw, decRaw] = s.split('.')
+      const intPart = intRaw ?? ''
+      const decPart = decRaw ?? ''
+      if (/^\d+$/.test(intPart) && /^\d{1,2}$/.test(decPart)) {
+        s = `${intPart}.${decPart}`
+      } else {
+        s = s.replace(/\./g, '')
+      }
+    } else {
+      s = s.replace(/\./g, '')
+    }
   } else {
     s = s.replace(/\./g, '')
   }

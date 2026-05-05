@@ -224,6 +224,7 @@ export function useTransaksjonerFilters() {
     isHouseholdAggregate: finance.isHouseholdAggregate,
     profiles: finance.profiles,
     customBudgetLabels: finance.customBudgetLabels,
+    hiddenBudgetLabels: finance.hiddenBudgetLabels,
     addBudgetCategory: finance.addBudgetCategory,
     addCustomBudgetLabel: finance.addCustomBudgetLabel,
     activeProfileId,

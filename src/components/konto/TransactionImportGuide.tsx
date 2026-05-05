@@ -23,6 +23,7 @@ const STEPS: GuideStep[] = [
     bullets: [
       'Lagre som CSV UTF-8 (Excel: «Lagre som» → CSV UTF-8 eller tilsvarende).',
       'Du kan laste ned vår tomme mal fra knappen på importsiden og lime inn egne rader.',
+      'Har du kontoutskrift fra DNB eller Sbanken: velg modus «DNB / Sbanken (.xlsx)» på importsiden og last opp Excel-eksporten fra nettbanken (eller CSV med samme kolonner).',
       'Kolonnen TRANSAKSJON styrer om raden blir inntekt eller utgift: «Inntekt» → inntekt; alt annet (Regning, Utgift, …) → utgift.',
       'BELØP kan inneholde tusenskille og komma som desimal (f.eks. 1 050,66). Appen avrunder til hele kroner.',
     ],

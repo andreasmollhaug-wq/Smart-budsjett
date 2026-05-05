@@ -12,6 +12,7 @@ import SameDayBatchTransactionForm from '@/components/transactions/SameDayBatchT
 import { useTransaksjonPageQuery } from '@/components/transactions/useTransaksjonPageQuery'
 import { useTransaksjonerFilters } from '@/components/transactions/useTransaksjonerFilters'
 import { buildCategoryActualsYearMatrix, REPORT_GROUP_LABELS, REPORT_GROUP_ORDER } from '@/lib/bankReportData'
+import { mergeBudgetCategoriesWithTransactionsInYear } from '@/lib/mergeBudgetCategoriesWithTransactionsInYear'
 import { mergeBudgetCategoriesFromSnapshots, useStore } from '@/lib/store'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import type { Transaction } from '@/lib/store'
@@ -79,6 +80,7 @@ function TransaksjonerPageInner() {
     profiles,
     activeProfileId,
     customBudgetLabels,
+    hiddenBudgetLabels,
     addBudgetCategory,
     addCustomBudgetLabel,
     budgetYear,
@@ -212,7 +214,7 @@ function TransaksjonerPageInner() {
     [transactions],
   )
 
-  const displayCategories = useMemo(() => {
+  const budgetCategoriesForYear = useMemo(() => {
     if (filterYear === budgetYear) return budgetCategories
     const snap = archivedBudgetsByYear[String(filterYear)]
     if (!snap) return []
@@ -228,6 +230,23 @@ function TransaksjonerPageInner() {
     isHouseholdAggregate,
     profiles,
     activeProfileId,
+  ])
+
+  const displayCategories = useMemo(() => {
+    if (vis !== 'oversikt') return budgetCategoriesForYear
+    return mergeBudgetCategoriesWithTransactionsInYear(
+      budgetCategoriesForYear,
+      transactions,
+      filterYear,
+      { customBudgetLabels, hiddenBudgetLabels },
+    )
+  }, [
+    vis,
+    budgetCategoriesForYear,
+    transactions,
+    filterYear,
+    customBudgetLabels,
+    hiddenBudgetLabels,
   ])
 
   const filteredCategoriesForOverview = useMemo(() => {
@@ -1331,11 +1350,16 @@ function TransaksjonerPageInner() {
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
               >
                 <p className="font-medium mb-1" style={{ color: 'var(--text)' }}>
-                  Ingen budsjett for {filterYear}
+                  Ingen data å vise for {filterYear}
                 </p>
                 <p>
-                  Det finnes ikke budsjettlinjer for dette året (ikke aktivt budsjett og ikke i arkiv). Velg aktivt budsjettår{' '}
-                  <strong>{budgetYear}</strong> eller et år du har arkivert fra budsjett-siden.
+                  Det finnes verken budsjettlinjer (aktivt år eller arkiv) eller transaksjoner i dette kalenderåret. Velg
+                  et år fra nedtrekket{filterYear !== budgetYear ? (
+                    <>
+                      , bytt til aktivt budsjettår <strong>{budgetYear}</strong>
+                    </>
+                  ) : null}
+                  {' '}eller legg inn transaksjoner i listen.
                 </p>
               </div>
             ) : !hasOverviewGridContent && filtersActive ? (

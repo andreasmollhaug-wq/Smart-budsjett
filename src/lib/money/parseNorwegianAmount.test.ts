@@ -15,6 +15,16 @@ describe('normalizeNorwegianAmountToPlainDecimalString', () => {
     expect(normalizeNorwegianAmountToPlainDecimalString('100,')).toBeNull()
     expect(normalizeNorwegianAmountToPlainDecimalString('100,', { allowTrailingComma: true })).toBe('100.0')
   })
+
+  it('treats single dot with 1–2 fraction digits as decimal when no comma', () => {
+    expect(normalizeNorwegianAmountToPlainDecimalString('499.5')).toBe('499.5')
+    expect(normalizeNorwegianAmountToPlainDecimalString('116.9')).toBe('116.9')
+    expect(normalizeNorwegianAmountToPlainDecimalString('499.50')).toBe('499.50')
+  })
+
+  it('keeps Norwegian thousands with dot when fraction has three digits', () => {
+    expect(normalizeNorwegianAmountToPlainDecimalString('1.050')).toBe('1050')
+  })
 })
 
 describe('parseNonNegativeMoneyAmount2Decimals', () => {

@@ -600,7 +600,7 @@ export default function ImporterFraRegnskapPage() {
                         <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 w-full sm:w-auto">
                           <button
                             type="button"
-                            className="text-xs font-medium inline-flex items-center gap-1 py-1.5 px-2 min-h-[40px] sm:min-h-[36px] touch-manipulation rounded-lg -mr-1 sm:mr-0"
+                            className="text-xs font-medium inline-flex items-center gap-1 py-2 px-2 min-h-[44px] touch-manipulation rounded-lg -mr-1 sm:mr-0"
                             style={{ color: 'var(--primary)' }}
                             aria-expanded={expanded}
                             aria-controls={linesPanelId}
@@ -623,7 +623,7 @@ export default function ImporterFraRegnskapPage() {
                           </button>
                           <button
                             type="button"
-                            className="text-xs font-medium inline-flex items-center py-1.5 px-2.5 min-h-[40px] sm:min-h-[36px] rounded-lg touch-manipulation whitespace-nowrap"
+                            className="text-xs font-medium inline-flex items-center py-2 px-2.5 min-h-[44px] rounded-lg touch-manipulation whitespace-nowrap"
                             style={{
                               color: 'var(--text-muted)',
                               border: '1px solid var(--border)',
@@ -663,7 +663,7 @@ export default function ImporterFraRegnskapPage() {
                             {isExcluded ? (
                               <button
                                 type="button"
-                                className="shrink-0 rounded-md px-2 py-1 text-[10px] font-medium touch-manipulation min-h-[36px] sm:min-h-0"
+                                className="shrink-0 rounded-md px-2 py-2 text-[10px] font-medium touch-manipulation min-h-[44px]"
                                 style={{ border: '1px solid var(--border)', color: 'var(--primary)', background: 'var(--surface)' }}
                                 onClick={() => setLineExcluded(l.fileLine, false)}
                               >
@@ -672,7 +672,7 @@ export default function ImporterFraRegnskapPage() {
                             ) : (
                               <button
                                 type="button"
-                                className="shrink-0 rounded-md p-1.5 min-h-[36px] min-w-[36px] inline-flex items-center justify-center touch-manipulation"
+                                className="shrink-0 rounded-md min-h-[44px] min-w-[44px] inline-flex items-center justify-center touch-manipulation"
                                 style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', background: 'var(--surface)' }}
                                 aria-label="Ekskluder linje fra import"
                                 onClick={() => setLineExcluded(l.fileLine, true)}
@@ -774,7 +774,7 @@ export default function ImporterFraRegnskapPage() {
                         </span>
                         <button
                           type="button"
-                          className="shrink-0 text-xs font-medium rounded-lg px-3 py-2 min-h-[40px] sm:min-h-[36px] touch-manipulation"
+                          className="shrink-0 text-xs font-medium rounded-lg px-3 py-2 min-h-[44px] touch-manipulation"
                           style={{ border: '1px solid var(--border)', color: 'var(--primary)', background: 'var(--surface)' }}
                           onClick={() => includeAllForAccount(exCode)}
                         >
@@ -852,10 +852,7 @@ export default function ImporterFraRegnskapPage() {
                   </ul>
                 </details>
               )}
-              <div
-                className="flex flex-col sm:flex-row gap-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]"
-                style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
-              >
+              <div className="flex flex-col sm:flex-row gap-3 pt-2 pb-[max(1rem,env(safe-area-inset-bottom))]">
                 <button
                   type="button"
                   disabled={previewSummary.unmappedLineCount > 0 || linesIncluded.length === 0}
