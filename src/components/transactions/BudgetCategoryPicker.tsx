@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { BudgetCategory } from '@/lib/store'
 import { ChevronDown, Search } from 'lucide-react'
@@ -32,6 +32,7 @@ export default function BudgetCategoryPicker({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const list = useMemo(
     () =>
@@ -74,6 +75,12 @@ export default function BudgetCategoryPicker({
 
   useEffect(() => {
     if (open) setSearchQuery('')
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const t = window.setTimeout(() => searchRef.current?.focus(), 0)
+    return () => window.clearTimeout(t)
   }, [open])
 
   const btnClass =
@@ -123,6 +130,7 @@ export default function BudgetCategoryPicker({
                   aria-hidden
                 />
                 <input
+                  ref={searchRef}
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
