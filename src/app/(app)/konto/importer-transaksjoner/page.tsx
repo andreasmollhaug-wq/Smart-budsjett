@@ -6,9 +6,12 @@ import BankImportHistoryList from '@/components/konto/BankImportHistoryList'
 import TemplateCsvImportHistoryList from '@/components/konto/TemplateCsvImportHistoryList'
 import BankImportMappingAggregateLists from '@/components/konto/BankImportMappingAggregateLists'
 import BankTransactionImportDropzone from '@/components/konto/BankTransactionImportDropzone'
-import ImportCategoryPicker from '@/components/konto/ImportCategoryPicker'
 import TransactionImportDropzone from '@/components/konto/TransactionImportDropzone'
 import TransactionImportGuideModal from '@/components/konto/TransactionImportGuide'
+import {
+  BankTransactionImportPreviewTable,
+  CsvTransactionImportPreviewTable,
+} from '@/components/konto/transactionImportPreviewTables'
 import TransactionImportSummaryModal from '@/components/konto/TransactionImportSummaryModal'
 import { buildZeroBudgetCategory, shouldRegisterCustomLabel } from '@/lib/createBudgetCategoryZero'
 import { emptyLabelLists } from '@/lib/budgetCategoryCatalog'
@@ -45,13 +48,9 @@ import {
 import type { BankParsedRow, BankParseRowError, BankSourceId, ParseBankFileResult } from '@/lib/bankImport/types'
 import { useStore } from '@/lib/store'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
-import { formatIsoDateDdMmYyyy, generateId } from '@/lib/utils'
-import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
-import {
-  formatMoneyInputFromNumber,
-  normalizeNorwegianAmountToPlainDecimalString,
-  roundMoney2,
-} from '@/lib/money/parseNorwegianAmount'
+import { generateId } from '@/lib/utils'
+import { formatNokCurrencyDisplayTwoDecimals } from '@/lib/money/nokDisplayFormat'
+import { roundMoney2 } from '@/lib/money/parseNorwegianAmount'
 import { ArrowLeft, BookOpen, ChevronRight, Maximize2, RotateCcw, Sparkles } from 'lucide-react'
 
 type Step = 'upload' | 'unknowns' | 'preview'
@@ -87,69 +86,9 @@ function labelListsForPerson(person: {
   }
 }
 
-function parseBankPreviewAmountCommitted(raw: string): number | null {
-  const plain = normalizeNorwegianAmountToPlainDecimalString(raw.trim(), { allowTrailingComma: true })
-  if (plain == null) return null
-  const n = roundMoney2(Number(plain))
-  if (!Number.isFinite(n) || n <= 0) return null
-  return n
-}
-
-/** Redigerbart beløp (inntil to desimaler) før bankimport; null i onCommit = tilbakestill til fil. */
-function BankImportPreviewAmountCell({
-  fileLine,
-  parsedAmount,
-  effectiveAmount,
-  onCommit,
-}: {
-  fileLine: number
-  parsedAmount: number
-  effectiveAmount: number
-  onCommit: (fileLine: number, amount: number | null) => void
-}) {
-  const [text, setText] = useState(() => formatMoneyInputFromNumber(effectiveAmount))
-
-  useEffect(() => {
-    setText(formatMoneyInputFromNumber(effectiveAmount))
-  }, [fileLine, effectiveAmount])
-
-  return (
-    <input
-      type="text"
-      inputMode="decimal"
-      autoComplete="off"
-      aria-label={`Beløp i kroner, linje ${fileLine}`}
-      className="w-full min-w-[4.5rem] max-w-[9rem] rounded-lg border px-2 py-2 text-sm tabular-nums text-right min-h-[44px] touch-manipulation ml-auto"
-      style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-      value={text}
-      onChange={(e) => {
-        const v = e.target.value.replace(/[^\d,.\s]/g, '')
-        setText(v)
-      }}
-      onBlur={() => {
-        if (text.trim() === '') {
-          setText(formatMoneyInputFromNumber(parsedAmount))
-          onCommit(fileLine, null)
-          return
-        }
-        const n = parseBankPreviewAmountCommitted(text)
-        if (n === null) {
-          setText(formatMoneyInputFromNumber(effectiveAmount))
-          return
-        }
-        setText(formatMoneyInputFromNumber(n))
-        onCommit(
-          fileLine,
-          roundMoney2(n) === roundMoney2(parsedAmount) ? null : n,
-        )
-      }}
-    />
-  )
-}
-
 export default function ImporterTransaksjonerPage() {
   /** Importflyt: alltid inntil to desimaler uavhengig av «vis desimaler» i innstillinger. */
-  const formatNOKImport = useCallback((amount: number) => formatNokCurrencyDisplay(amount, true), [])
+  const formatNOKImport = useCallback((amount: number) => formatNokCurrencyDisplayTwoDecimals(amount), [])
   const profiles = useStore((s) => s.profiles)
   const people = useStore((s) => s.people)
   const activeProfileId = useStore((s) => s.activeProfileId)
@@ -180,6 +119,10 @@ export default function ImporterTransaksjonerPage() {
   const [skippedImportRows, setSkippedImportRows] = useState(0)
   const [dupWarn, setDupWarn] = useState(0)
   const [guideOpen, setGuideOpen] = useState(false)
+  const [importDisplayNameCsv, setImportDisplayNameCsv] = useState('')
+  const [importDisplayNameBank, setImportDisplayNameBank] = useState('')
+  const [csvPreviewExpanded, setCsvPreviewExpanded] = useState(false)
+  const [bankPreviewExpanded, setBankPreviewExpanded] = useState(false)
 
   const [bankStep, setBankStep] = useState<BankStep>('upload')
   const [bankParseError, setBankParseError] = useState<string | null>(null)
@@ -232,6 +175,8 @@ export default function ImporterTransaksjonerPage() {
     setDupWarn(0)
     setExcludedCsvFileLines(new Set())
     setAlsoApplyToBudgetCsv(false)
+    setImportDisplayNameCsv('')
+    setCsvPreviewExpanded(false)
   }, [])
 
   const resetBankFlow = useCallback(() => {
@@ -247,6 +192,8 @@ export default function ImporterTransaksjonerPage() {
     setBankAmountOverridesByLine({})
     setExcludedBankFileLines(new Set())
     setAlsoApplyToBudgetBank(false)
+    setImportDisplayNameBank('')
+    setBankPreviewExpanded(false)
   }, [])
 
   const switchImportMode = useCallback(
@@ -281,6 +228,7 @@ export default function ImporterTransaksjonerPage() {
       setFileLabel(name)
       setExcludedCsvFileLines(new Set())
       setAlsoApplyToBudgetCsv(false)
+      setImportDisplayNameCsv('')
 
       const unknowns = collectUnknownCategoryNames(result.rows, pickerCategories)
       const approve: Record<string, boolean> = {}
@@ -660,6 +608,26 @@ export default function ImporterTransaksjonerPage() {
   }, [budgetAdjustEligibilityBank.ok])
 
   const bankMappingExpandBackdropDismiss = useModalBackdropDismiss(() => setBankMappingExpanded(false))
+  const csvPreviewExpandBackdropDismiss = useModalBackdropDismiss(() => setCsvPreviewExpanded(false))
+  const bankPreviewExpandBackdropDismiss = useModalBackdropDismiss(() => setBankPreviewExpanded(false))
+
+  useEffect(() => {
+    const previewOpen = csvPreviewExpanded || bankPreviewExpanded
+    if (!previewOpen) return
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setCsvPreviewExpanded(false)
+        setBankPreviewExpanded(false)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [csvPreviewExpanded, bankPreviewExpanded])
 
   const onBankParsed = useCallback(
     (result: ParseBankFileResult, name: string) => {
@@ -673,6 +641,7 @@ export default function ImporterTransaksjonerPage() {
         setBankRowErrors(result.rowErrors)
         setBankFileLabel(name)
         setBankAmountOverridesByLine({})
+        setImportDisplayNameBank('')
         setBankStep('upload')
         return
       }
@@ -684,6 +653,7 @@ export default function ImporterTransaksjonerPage() {
         setBankRowErrors(result.rowErrors)
         setBankFileLabel(name)
         setBankAmountOverridesByLine({})
+        setImportDisplayNameBank('')
         setBankStep('upload')
         return
       }
@@ -693,6 +663,7 @@ export default function ImporterTransaksjonerPage() {
       setBankParsedRows(result.rows)
       setBankRowErrors(result.rowErrors)
       setBankFileLabel(name)
+      setImportDisplayNameBank('')
       setBankStep('mapping')
       addAppNotification({
         title: 'Bankfil er lastet opp',
@@ -770,6 +741,7 @@ export default function ImporterTransaksjonerPage() {
     const pid = importProfileId
     const pBefore = useStore.getState().people[pid]
     if (!pBefore) return
+    const labelTrim = importDisplayNameBank.trim()
 
     const merged = mergeBudgetCategoriesForTransactionPicker(
       pBefore.budgetCategories,
@@ -828,7 +800,7 @@ export default function ImporterTransaksjonerPage() {
         profileId: pid,
         csvProfileId: BANK_IMPORT_PROFILE_ID,
         fileName: bankFileLabel,
-        displayName: null,
+        displayName: labelTrim ? labelTrim : null,
         rowCountParsed: bankParsedRows.length,
         rowCountImported: transactions.length,
         rowCountSkipped: rowSkipped,
@@ -873,6 +845,7 @@ export default function ImporterTransaksjonerPage() {
     setActiveProfileId(importProfileId)
     const pid = importProfileId
     if (!useStore.getState().people[pid]) return
+    const labelTrim = importDisplayNameCsv.trim()
 
     const rejected = new Set(unknownList.filter((u) => unknownApproval[u] === false))
 
@@ -940,7 +913,7 @@ export default function ImporterTransaksjonerPage() {
         profileId: pid,
         csvProfileId: TEMPLATE_CSV_IMPORT_PROFILE_ID,
         fileName: fileLabel,
-        displayName: null,
+        displayName: labelTrim ? labelTrim : null,
         rowCountParsed: parsedRows.length,
         rowCountImported: txs.length,
         rowCountSkipped: parsedRows.length - txs.length,
@@ -1027,7 +1000,7 @@ export default function ImporterTransaksjonerPage() {
             .
           </p>
         )}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <button
             type="button"
             className="inline-flex items-center gap-2 text-sm font-medium rounded-xl px-3 py-2 min-h-[44px] touch-manipulation"
@@ -1076,7 +1049,11 @@ export default function ImporterTransaksjonerPage() {
         )}
       </div>
 
-      <TransactionImportGuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <TransactionImportGuideModal
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        mode={importMode}
+      />
 
       <div id="import-opplasting" className="scroll-mt-24 space-y-4 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
       {profiles.length >= 2 && (
@@ -1114,13 +1091,31 @@ export default function ImporterTransaksjonerPage() {
           boxShadow: '0 1px 2px rgba(15, 23, 42, 0.06)',
         }}
       >
-        <label
-          htmlFor="import-transaksjon-kilde"
-          className="block text-xs font-medium mb-2"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          Importkilde
-        </label>
+        <div className="mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+          <label
+            htmlFor="import-transaksjon-kilde"
+            className="text-xs font-medium m-0"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Importkilde
+          </label>
+          <span className="text-xs opacity-50 select-none" style={{ color: 'var(--text-muted)' }} aria-hidden>
+            ·
+          </span>
+          <button
+            type="button"
+            className="text-xs font-medium m-0 p-1 -m-1 rounded-md touch-manipulation min-h-[44px] min-w-[44px] inline-flex items-center justify-center sm:min-h-0 sm:min-w-0 sm:p-0 sm:inline sm:underline-offset-2 sm:hover:underline"
+            style={{ color: 'var(--primary)' }}
+            onClick={() => setGuideOpen(true)}
+            aria-label={
+              importMode === 'template_csv'
+                ? 'Hjelp for valgt importkilde (Excel-mal)'
+                : 'Hjelp for valgt importkilde (DNB / Sbanken)'
+            }
+          >
+            Hjelp
+          </button>
+        </div>
         <select
           id="import-transaksjon-kilde"
           value={importMode}
@@ -1264,76 +1259,31 @@ export default function ImporterTransaksjonerPage() {
               ))}
           </div>
 
-          <div className="rounded-2xl overflow-hidden border max-h-[min(60vh,28rem)] overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
-            <table className="w-full text-sm">
-              <thead className="sticky top-0">
-                <tr style={{ background: 'var(--bg)' }}>
-                  <th className="text-center px-2 py-2 font-medium whitespace-nowrap w-12">Med</th>
-                  <th className="text-left px-3 py-2 font-medium">Dato</th>
-                  <th className="text-left px-3 py-2 font-medium">Kategori</th>
-                  <th className="text-left px-3 py-2 font-medium">Type</th>
-                  <th className="text-right px-3 py-2 font-medium">Beløp</th>
-                  <th className="text-left px-3 py-2 font-medium">Beskrivelse</th>
-                </tr>
-              </thead>
-              {csvPreviewSections.map((sec) => (
-                <tbody key={sec.key}>
-                  {sec.showHeading && (
-                    <tr style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
-                      <td colSpan={6} className="px-3 py-2 align-top">
-                        <p className="text-xs font-semibold m-0" style={{ color: 'var(--text)' }}>
-                          {sec.title}
-                        </p>
-                        {sec.subtitle && (
-                          <p
-                            className="text-[11px] m-0 mt-1 leading-snug min-w-0"
-                            style={{ color: 'var(--text-muted)' }}
-                          >
-                            {sec.subtitle}
-                          </p>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                  {sec.rows.map((r) => (
-                    <tr key={`${sec.key}-${r.fileLine}-${r.dateIso}`} style={{ borderTop: '1px solid var(--border)' }}>
-                      <td className="px-2 py-2 text-center align-middle">
-                        <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation mx-auto">
-                          <input
-                            type="checkbox"
-                            className="rounded border touch-manipulation"
-                            style={{ borderColor: 'var(--border)' }}
-                            checked={!excludedCsvFileLines.has(r.fileLine)}
-                            onChange={(e) => {
-                              const on = e.target.checked
-                              setExcludedCsvFileLines((prev) => {
-                                const next = new Set(prev)
-                                if (on) next.delete(r.fileLine)
-                                else next.add(r.fileLine)
-                                return next
-                              })
-                            }}
-                            aria-label={`Ta med rad ${r.fileLine} i importen`}
-                          />
-                        </label>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">{formatIsoDateDdMmYyyy(r.dateIso)}</td>
-                      <td className="px-3 py-2">{r.categoryRaw}</td>
-                      <td
-                        className="px-3 py-2 text-xs"
-                        style={{ color: r.transactionType === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                      >
-                        {r.transactionType === 'income' ? 'Inntekt' : 'Utgift'}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{formatNOKImport(r.amount)}</td>
-                      <td className="px-3 py-2 min-w-0" style={{ color: 'var(--text-muted)' }}>
-                        {r.description || '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              ))}
-            </table>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium min-h-[44px] touch-manipulation w-full sm:w-auto"
+              style={{
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+              onClick={() => setCsvPreviewExpanded(true)}
+            >
+              <Maximize2 size={18} aria-hidden />
+              Utvid forhåndsvisning
+            </button>
+          </div>
+
+          <div
+            className="rounded-2xl overflow-hidden border max-h-[min(60vh,28rem)] overflow-y-auto"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <CsvTransactionImportPreviewTable
+              sections={csvPreviewSections}
+              excludedCsvFileLines={excludedCsvFileLines}
+              setExcludedCsvFileLines={setExcludedCsvFileLines}
+              formatNOKImport={formatNOKImport}
+            />
           </div>
           {csvPreviewSections.some((s) => s.total > 100) ? (
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -1398,6 +1348,33 @@ export default function ImporterTransaksjonerPage() {
                 </p>
               )}
           </div>
+          <div className="space-y-1.5">
+            <label
+              htmlFor="csv-import-display-name"
+              className="block text-sm font-medium"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Navn på import (valgfritt)
+            </label>
+            <input
+              id="csv-import-display-name"
+              type="text"
+              value={importDisplayNameCsv}
+              onChange={(e) => setImportDisplayNameCsv(e.target.value)}
+              maxLength={120}
+              placeholder="F.eks. Januarutlegg 2026"
+              autoComplete="off"
+              className="w-full max-w-md rounded-xl border px-3 py-2.5 text-sm min-h-[44px] touch-manipulation"
+              style={{
+                borderColor: 'var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+              }}
+            />
+            <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>
+              Vises i «Tidligere importer» så du lettere finner riktig kjøring.
+            </p>
+          </div>
           <button
             type="button"
             className="rounded-xl px-4 py-2 text-sm font-medium text-white min-h-[44px] touch-manipulation"
@@ -1406,6 +1383,75 @@ export default function ImporterTransaksjonerPage() {
           >
             Bekreft import
           </button>
+
+          {csvPreviewExpanded && (
+            <div
+              className="fixed inset-0 z-[210] flex items-center justify-center sm:p-5"
+              style={{
+                background: 'rgba(15, 23, 42, 0.45)',
+                paddingLeft: 'max(0.75rem, calc(env(safe-area-inset-left) + 0.5rem))',
+                paddingRight: 'max(0.75rem, calc(env(safe-area-inset-right) + 0.5rem))',
+                paddingTop: 'max(0.75rem, calc(env(safe-area-inset-top) + 0.5rem))',
+                paddingBottom: 'max(0.75rem, calc(env(safe-area-inset-bottom) + 0.5rem))',
+              }}
+              role="presentation"
+              {...csvPreviewExpandBackdropDismiss}
+            >
+              <div
+                className="w-full max-w-5xl min-w-0 min-h-0 flex flex-col rounded-2xl shadow-xl overflow-hidden"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  maxHeight:
+                    'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="csv-preview-expand-title"
+              >
+                <div
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 sm:px-6 shrink-0 border-b"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <h3
+                    id="csv-preview-expand-title"
+                    className="font-semibold text-lg min-w-0 pr-2 m-0"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    Forhåndsvisning
+                  </h3>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6">
+                  <div className="py-3">
+                    <CsvTransactionImportPreviewTable
+                      sections={csvPreviewSections}
+                      excludedCsvFileLines={excludedCsvFileLines}
+                      setExcludedCsvFileLines={setExcludedCsvFileLines}
+                      formatNOKImport={formatNOKImport}
+                    />
+                  </div>
+                </div>
+                <div
+                  className="shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-4 py-3 sm:px-6 border-t"
+                  style={{
+                    borderColor: 'var(--border)',
+                    paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+                    background: 'var(--surface)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCsvPreviewExpanded(false)}
+                    className="min-h-[44px] w-full sm:w-auto rounded-xl px-4 py-3 text-sm font-medium text-white touch-manipulation"
+                    style={{ background: 'var(--primary)' }}
+                  >
+                    Lukk
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1644,132 +1690,45 @@ export default function ImporterTransaksjonerPage() {
               beløp, beskrivelse og kategori).
             </p>
           )}
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center mt-6">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium min-h-[44px] touch-manipulation w-full sm:w-auto"
+              style={{
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+              onClick={() => setBankPreviewExpanded(true)}
+            >
+              <Maximize2 size={18} aria-hidden />
+              Utvid forhåndsvisning
+            </button>
+          </div>
           <div
             className="rounded-2xl overflow-hidden border max-h-[min(60vh,28rem)] overflow-y-auto overflow-x-auto min-w-0"
             style={{ borderColor: 'var(--border)' }}
           >
-            <table className="w-full text-sm min-w-0">
-              <thead className="sticky top-0">
-                <tr style={{ background: 'var(--bg)' }}>
-                  <th className="text-center px-2 py-2 font-medium whitespace-nowrap w-12">Med</th>
-                  <th className="text-left px-3 py-2 font-medium whitespace-nowrap">Dato</th>
-                  <th className="text-left px-3 py-2 font-medium min-w-[12rem]">Kategori</th>
-                  <th className="text-left px-3 py-2 font-medium">Type</th>
-                  <th className="text-right px-3 py-2 font-medium whitespace-nowrap min-w-0">Beløp (kr)</th>
-                  <th className="text-left px-3 py-2 font-medium min-w-0">Forklaring</th>
-                </tr>
-              </thead>
-              {bankPreviewSections.map((sec) => (
-                <tbody key={sec.key}>
-                  {sec.showHeading && (
-                    <tr style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
-                      <td colSpan={6} className="px-3 py-2 align-top">
-                        <p className="text-xs font-semibold m-0" style={{ color: 'var(--text)' }}>
-                          {sec.title}
-                        </p>
-                        {sec.subtitle && (
-                          <p
-                            className="text-[11px] m-0 mt-1 leading-snug min-w-0"
-                            style={{ color: 'var(--text-muted)' }}
-                          >
-                            {sec.subtitle}
-                          </p>
-                        )}
-                      </td>
-                    </tr>
-                  )}
-                  {sec.rows.map((r) => {
-                    const parsedAmount = bankParsedRowByFileLine.get(r.fileLine)?.amount ?? r.amount
-                    return (
-                      <tr
-                        key={`${sec.key}-${r.fileLine}-${r.dateIso}-${r.mappingKey}`}
-                        style={{ borderTop: '1px solid var(--border)' }}
-                      >
-                        <td className="px-2 py-2 text-center align-top">
-                          <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer touch-manipulation mx-auto">
-                            <input
-                              type="checkbox"
-                              className="rounded border touch-manipulation"
-                              style={{ borderColor: 'var(--border)' }}
-                              checked={!excludedBankFileLines.has(r.fileLine)}
-                              onChange={(e) => {
-                                const on = e.target.checked
-                                setExcludedBankFileLines((prev) => {
-                                  const next = new Set(prev)
-                                  if (on) next.delete(r.fileLine)
-                                  else next.add(r.fileLine)
-                                  return next
-                                })
-                              }}
-                              aria-label={`Ta med rad ${r.fileLine} i importen`}
-                            />
-                          </label>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap align-top">
-                          {formatIsoDateDdMmYyyy(r.dateIso)}
-                        </td>
-                        <td className="px-3 py-2 min-w-0 align-top w-full max-w-[min(100%,20rem)] sm:max-w-none sm:w-auto">
-                          {person ? (
-                            <ImportCategoryPicker
-                              fieldId={`bank-preview-${r.fileLine}-${r.mappingKey}`}
-                              value={resolveBankMappingCategoryName(bankMaps, r) ?? ''}
-                              onChange={(name) =>
-                                applyBankMappingWithLegacyFanout(
-                                  r.mappingKey,
-                                  name?.trim() ? { categoryName: name.trim() } : null,
-                                )
-                              }
-                              categories={pickerCategories.filter((c) => c.type === r.transactionType)}
-                              budgetCategories={person.budgetCategories}
-                              customBudgetLabels={labelListsForPerson(person).customBudgetLabels}
-                              addBudgetCategory={addBudgetCategory}
-                              addCustomBudgetLabel={addCustomBudgetLabel}
-                            />
-                          ) : (
-                            <span className="inline-block py-2">
-                              {resolveBankMappingCategoryName(bankMaps, r) ?? '—'}
-                            </span>
-                          )}
-                        </td>
-                        <td
-                          className="px-3 py-2 text-xs align-top"
-                          style={{ color: r.transactionType === 'income' ? 'var(--success)' : 'var(--danger)' }}
-                        >
-                          {r.transactionType === 'income' ? 'Inntekt' : 'Utgift'}
-                        </td>
-                        <td className="px-3 py-2 align-top min-w-0">
-                          {person ? (
-                            <div className="flex flex-col gap-1 items-end min-w-0">
-                              <BankImportPreviewAmountCell
-                                fileLine={r.fileLine}
-                                parsedAmount={parsedAmount}
-                                effectiveAmount={r.amount}
-                                onCommit={setBankLineAmountOverride}
-                              />
-                              {bankAmountOverridesByLine[r.fileLine] !== undefined && (
-                                <span
-                                  className="text-[10px] tabular-nums leading-tight text-right break-words max-w-[12rem]"
-                                  style={{ color: 'var(--text-muted)' }}
-                                >
-                                  Fra fil: {formatNOKImport(parsedAmount)}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="inline-block py-2 tabular-nums text-right w-full">
-                              {formatNOKImport(r.amount)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 min-w-0 break-words align-top" style={{ color: 'var(--text-muted)' }}>
-                          {r.forklaringRaw || '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              ))}
-            </table>
+            <BankTransactionImportPreviewTable
+              sections={bankPreviewSections}
+              excludedBankFileLines={excludedBankFileLines}
+              setExcludedBankFileLines={setExcludedBankFileLines}
+              bankParsedRowByFileLine={bankParsedRowByFileLine}
+              person={person ?? null}
+              bankMaps={bankMaps}
+              pickerCategories={pickerCategories}
+              resolveBankMappingCategoryName={resolveBankMappingCategoryName}
+              applyBankMappingWithLegacyFanout={applyBankMappingWithLegacyFanout}
+              budgetCategories={person?.budgetCategories ?? []}
+              customBudgetLabels={
+                person ? labelListsForPerson(person).customBudgetLabels : emptyLabelLists().customBudgetLabels
+              }
+              addBudgetCategory={addBudgetCategory}
+              addCustomBudgetLabel={addCustomBudgetLabel}
+              bankAmountOverridesByLine={bankAmountOverridesByLine}
+              setBankLineAmountOverride={setBankLineAmountOverride}
+              formatNOKImport={formatNOKImport}
+              fieldIdScope="bank-preview-inline"
+            />
           </div>
           {bankPreviewSections.some((s) => s.total > 100) ? (
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -1834,6 +1793,33 @@ export default function ImporterTransaksjonerPage() {
                 </p>
               )}
           </div>
+          <div className="space-y-1.5">
+            <label
+              htmlFor="bank-import-display-name"
+              className="block text-sm font-medium"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Navn på import (valgfritt)
+            </label>
+            <input
+              id="bank-import-display-name"
+              type="text"
+              value={importDisplayNameBank}
+              onChange={(e) => setImportDisplayNameBank(e.target.value)}
+              maxLength={120}
+              placeholder="F.eks. DNB januar 2026"
+              autoComplete="off"
+              className="w-full max-w-md rounded-xl border px-3 py-2.5 text-sm min-h-[44px] touch-manipulation"
+              style={{
+                borderColor: 'var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--text)',
+              }}
+            />
+            <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>
+              Vises i «Tidligere importer» så du lettere finner riktig kjøring.
+            </p>
+          </div>
           <div className="flex flex-col sm:flex-row gap-2">
             <button
               type="button"
@@ -1853,6 +1839,97 @@ export default function ImporterTransaksjonerPage() {
               Bekreft import
             </button>
           </div>
+
+          {bankPreviewExpanded && (
+            <div
+              className="fixed inset-0 z-[210] flex items-center justify-center sm:p-5"
+              style={{
+                background: 'rgba(15, 23, 42, 0.45)',
+                paddingLeft: 'max(0.75rem, calc(env(safe-area-inset-left) + 0.5rem))',
+                paddingRight: 'max(0.75rem, calc(env(safe-area-inset-right) + 0.5rem))',
+                paddingTop: 'max(0.75rem, calc(env(safe-area-inset-top) + 0.5rem))',
+                paddingBottom: 'max(0.75rem, calc(env(safe-area-inset-bottom) + 0.5rem))',
+              }}
+              role="presentation"
+              {...bankPreviewExpandBackdropDismiss}
+            >
+              <div
+                className="w-full max-w-5xl min-w-0 min-h-0 flex flex-col rounded-2xl shadow-xl overflow-hidden"
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  maxHeight:
+                    'calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 2rem)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="bank-preview-expand-title"
+              >
+                <div
+                  className="flex flex-col gap-0.5 px-4 py-3 sm:px-6 shrink-0 border-b"
+                  style={{ borderColor: 'var(--border)' }}
+                >
+                  <h3
+                    id="bank-preview-expand-title"
+                    className="font-semibold text-lg min-w-0 pr-2 m-0"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    Forhåndsvisning
+                  </h3>
+                  <p className="text-xs m-0 leading-snug" style={{ color: 'var(--text-muted)' }}>
+                    Gruppert etter valgt kategori innen hver blokk (øvrige / kontoregulering). Inline-forhåndsvisning er
+                    uendret.
+                  </p>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6">
+                  <div className="py-3 overflow-x-auto min-w-0">
+                    <BankTransactionImportPreviewTable
+                      sections={bankPreviewSections}
+                      excludedBankFileLines={excludedBankFileLines}
+                      setExcludedBankFileLines={setExcludedBankFileLines}
+                      bankParsedRowByFileLine={bankParsedRowByFileLine}
+                      person={person ?? null}
+                      bankMaps={bankMaps}
+                      pickerCategories={pickerCategories}
+                      resolveBankMappingCategoryName={resolveBankMappingCategoryName}
+                      applyBankMappingWithLegacyFanout={applyBankMappingWithLegacyFanout}
+                      budgetCategories={person?.budgetCategories ?? []}
+                      customBudgetLabels={
+                        person
+                          ? labelListsForPerson(person).customBudgetLabels
+                          : emptyLabelLists().customBudgetLabels
+                      }
+                      addBudgetCategory={addBudgetCategory}
+                      addCustomBudgetLabel={addCustomBudgetLabel}
+                      bankAmountOverridesByLine={bankAmountOverridesByLine}
+                      setBankLineAmountOverride={setBankLineAmountOverride}
+                      formatNOKImport={formatNOKImport}
+                      fieldIdScope="bank-preview-utvid"
+                      groupRowsByCategory
+                    />
+                  </div>
+                </div>
+                <div
+                  className="shrink-0 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-4 py-3 sm:px-6 border-t"
+                  style={{
+                    borderColor: 'var(--border)',
+                    paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))',
+                    background: 'var(--surface)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setBankPreviewExpanded(false)}
+                    className="min-h-[44px] w-full sm:w-auto rounded-xl px-4 py-3 text-sm font-medium text-white touch-manipulation"
+                    style={{ background: 'var(--primary)' }}
+                  >
+                    Lukk
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       </div>

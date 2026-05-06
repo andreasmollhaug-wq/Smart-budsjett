@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import type { BankImportLineSnapshot, BankImportRun } from '@/lib/bankImport/types'
 import type { Transaction } from '@/lib/store'
+import { useStore } from '@/lib/store'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { X } from 'lucide-react'
@@ -82,8 +83,27 @@ export default function BankImportRunDetailModal({
 }: Props) {
   const { formatNOK } = useNokDisplayFormatters()
   const backdropDismiss = useModalBackdropDismiss(onClose)
+  const updateBankImportRunDisplayName = useStore((s) => s.updateBankImportRunDisplayName)
+  const liveFromStore = useStore((s) => (run?.id ? s.bankImportHistory.find((r) => r.id === run.id) : undefined))
+  const displayRun = liveFromStore ?? run ?? null
+  const [editingDisplayName, setEditingDisplayName] = useState(false)
+  const [displayNameDraft, setDisplayNameDraft] = useState('')
 
-  const snapshots = run?.importedLines
+  useEffect(() => {
+    if (!open || !run) {
+      setEditingDisplayName(false)
+      setDisplayNameDraft('')
+      return
+    }
+    setEditingDisplayName(false)
+  }, [open, run])
+
+  useEffect(() => {
+    if (!displayRun || editingDisplayName) return
+    setDisplayNameDraft(displayRun.displayName?.trim() ?? '')
+  }, [displayRun?.displayName, displayRun?.id, editingDisplayName, displayRun])
+
+  const snapshots = displayRun?.importedLines
   const hasSnapshots = (snapshots?.length ?? 0) > 0
 
   const sortedSnapshots = useMemo(() => {
@@ -106,11 +126,11 @@ export default function BankImportRunDetailModal({
     return `/transaksjoner?year=${encodeURIComponent(y)}&month=all`
   }, [dateMin, dateMax])
 
-  if (!open || !run) return null
+  if (!open || !run || !displayRun) return null
 
   const hasLineDetails = hasSnapshots || importedTransactions.length > 0
-  const sourceLabel = SOURCE_LABEL[run.sourceId] ?? run.sourceId
-  const titleDate = formatIsoDateDdMmYyyy(run.createdAt.slice(0, 10))
+  const sourceLabel = SOURCE_LABEL[displayRun.sourceId] ?? displayRun.sourceId
+  const titleDate = formatIsoDateDdMmYyyy(displayRun.createdAt.slice(0, 10))
   const txLinkedCount = importedTransactions.length
 
   return (
@@ -129,18 +149,81 @@ export default function BankImportRunDetailModal({
         aria-labelledby="bank-import-run-detail-title"
       >
         <div className="flex items-start justify-between gap-3 mb-4 min-w-0">
-          <div className="min-w-0 pr-2">
-            <h3 id="bank-import-run-detail-title" className="font-semibold text-lg" style={{ color: 'var(--text)' }}>
-              {run.displayName?.trim() ? run.displayName.trim() : `Bankimport ${titleDate}`}
-            </h3>
+          <div className="min-w-0 pr-2 flex-1">
+            {editingDisplayName ? (
+              <div className="space-y-2">
+                <h3 id="bank-import-run-detail-title" className="sr-only">
+                  Rediger visningsnavn for import
+                </h3>
+                <label htmlFor="bank-import-edit-display-name" className="sr-only">
+                  Visningsnavn for import
+                </label>
+                <input
+                  id="bank-import-edit-display-name"
+                  type="text"
+                  value={displayNameDraft}
+                  onChange={(e) => setDisplayNameDraft(e.target.value)}
+                  maxLength={120}
+                  autoComplete="off"
+                  className="w-full max-w-md rounded-xl border px-3 py-2.5 text-sm min-h-[44px] touch-manipulation"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                  }}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="rounded-xl px-4 py-2 text-sm font-medium text-white min-h-[44px] touch-manipulation"
+                    style={{ background: 'var(--primary)' }}
+                    onClick={() => {
+                      const t = displayNameDraft.trim()
+                      updateBankImportRunDisplayName(displayRun.id, t.length ? t : null)
+                      setEditingDisplayName(false)
+                    }}
+                  >
+                    Lagre
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-xl px-4 py-2 text-sm font-medium min-h-[44px] touch-manipulation"
+                    style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+                    onClick={() => {
+                      setDisplayNameDraft(displayRun.displayName?.trim() ?? '')
+                      setEditingDisplayName(false)
+                    }}
+                  >
+                    Avbryt
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h3 id="bank-import-run-detail-title" className="font-semibold text-lg m-0" style={{ color: 'var(--text)' }}>
+                  {displayRun.displayName?.trim() ? displayRun.displayName.trim() : `Bankimport ${titleDate}`}
+                </h3>
+                <button
+                  type="button"
+                  className="mt-2 text-sm font-medium touch-manipulation min-h-[44px] px-1 -ml-1 text-left"
+                  style={{ color: 'var(--primary)' }}
+                  onClick={() => {
+                    setDisplayNameDraft(displayRun.displayName?.trim() ?? '')
+                    setEditingDisplayName(true)
+                  }}
+                >
+                  Rediger navn
+                </button>
+              </>
+            )}
             <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-              {run.displayName?.trim() ? `Import ${titleDate} · ` : ''}
+              {displayRun.displayName?.trim() ? `Import ${titleDate} · ` : ''}
               {sourceLabel}
-              {run.fileName ? ` · ${run.fileName}` : ''}
+              {displayRun.fileName ? ` · ${displayRun.fileName}` : ''}
             </p>
             <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
               Profil: <span style={{ color: 'var(--text)' }}>{profileName}</span>
-              {run.csvProfileId ? ` · Profil-ID: ${run.csvProfileId}` : ''}
+              {displayRun.csvProfileId ? ` · Profil-ID: ${displayRun.csvProfileId}` : ''}
             </p>
           </div>
           <button
@@ -167,7 +250,7 @@ export default function BankImportRunDetailModal({
                 Rader i opplasting
               </div>
               <div className="tabular-nums font-semibold mt-0.5" style={{ color: 'var(--text)' }}>
-                {run.rowCountParsed}
+                {displayRun.rowCountParsed}
               </div>
             </div>
             <div>
@@ -175,7 +258,7 @@ export default function BankImportRunDetailModal({
                 Importert
               </div>
               <div className="tabular-nums font-semibold mt-0.5" style={{ color: 'var(--text)' }}>
-                {run.rowCountImported}
+                {displayRun.rowCountImported}
               </div>
             </div>
             <div>
@@ -183,13 +266,13 @@ export default function BankImportRunDetailModal({
                 Hoppet over
               </div>
               <div className="tabular-nums font-semibold mt-0.5" style={{ color: 'var(--text)' }}>
-                {run.rowCountSkipped}
+                {displayRun.rowCountSkipped}
               </div>
             </div>
           </div>
-          {run.errorSummary && (
+          {displayRun.errorSummary && (
             <p className="text-xs mt-2 rounded-lg px-2 py-2" style={{ background: '#fef2f2', color: '#991b1b' }}>
-              {run.errorSummary}
+              {displayRun.errorSummary}
             </p>
           )}
         </section>
@@ -386,7 +469,7 @@ export default function BankImportRunDetailModal({
               </section>
             )}
 
-            <p className="text-sm">
+            <p className="text-sm m-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               <Link
                 href={transaksjonerHref}
                 className="font-medium underline-offset-2 hover:underline touch-manipulation"
@@ -395,6 +478,7 @@ export default function BankImportRunDetailModal({
               >
                 Åpne transaksjoner for dette året
               </Link>
+              {' — '}Juster enkelttransaksjoner der.
             </p>
           </>
         ) : (

@@ -1,9 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
+import { BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST } from '@/lib/bankImport/bankImport.constants'
 import { ArrowRight, BookOpen, X } from 'lucide-react'
+
+export type TransactionImportGuideMode = 'template_csv' | 'bank_dnb'
 
 type GuideStep = {
   id: string
@@ -14,25 +17,24 @@ type GuideStep = {
   pitfall: string
 }
 
-const STEPS: GuideStep[] = [
+const GUIDE_STEPS_CSV: GuideStep[] = [
   {
-    id: 'import-steg-1',
+    id: 'import-csv-steg-1',
     title: 'Forbered CSV-filen fra Excel',
     lead:
       'Importen forventer samme oppsett som vår mal: overskriftsrad med DATO, TRANSAKSJON, KATEGORI og BELØP, pluss valgfri beskrivelse i femte kolonne.',
     bullets: [
       'Lagre som CSV UTF-8 (Excel: «Lagre som» → CSV UTF-8 eller tilsvarende).',
       'Du kan laste ned vår tomme mal fra knappen på importsiden og lime inn egne rader.',
-      'Har du kontoutskrift fra DNB eller Sbanken: velg modus «DNB / Sbanken (.xlsx)» på importsiden og last opp Excel-eksporten fra nettbanken (eller CSV med samme kolonner).',
       'Kolonnen TRANSAKSJON styrer om raden blir inntekt eller utgift: «Inntekt» → inntekt; alt annet (Regning, Utgift, …) → utgift.',
-      'BELØP kan inneholde tusenskille og komma som desimal (f.eks. 1 050,66). Appen avrunder til hele kroner.',
+      'BELØP kan ha tusenskille og komma som desimal; beløp lagres med inntil to desimaler.',
     ],
     primary: { href: '#import-opplasting', label: 'Hopp til opplasting' },
     pitfall:
       'Hvis overskriftsraden mangler eller er på feil rad, finner ikke appen kolonnene. Sjekk at første kolonne heter DATO og at du ikke har ekstra tomme kolonner som forskyver alt.',
   },
   {
-    id: 'import-steg-2',
+    id: 'import-csv-steg-2',
     title: 'Velg riktig profil (familie)',
     lead:
       'Transaksjoner knyttes til den profilen som er valgt når du importerer. Feil profil gir feil eierskap i husholdningen.',
@@ -44,30 +46,102 @@ const STEPS: GuideStep[] = [
       'Bytter du profil etter at du har parsert filen, bør du starte på nytt og laste opp igjen så kategorimatching og summer stemmer.',
   },
   {
-    id: 'import-steg-3',
-    title: 'Last opp og følg stegene i skjermbildet',
+    id: 'import-csv-steg-3',
+    title: 'Opplasting, ukjente kategorier og forhåndsvisning',
     lead:
       'Etter opplasting leser appen filen og tar deg videre automatisk når det trengs.',
     bullets: [
-      'Nye kategorinavn som ikke finnes i budsjettet ditt: du får liste med Ja/Nei — vi oppretter inntekts- eller utgiftskategori etter det som står i TRANSAKSJON-kolonnen.',
-      'Deretter ser du forhåndsvisning med tabell og summer per budsjettgruppe (inntekter, regninger, utgifter, gjeld, sparing) til sammenligning med Excel.',
+      'Nye kategorinavn som ikke finnes i budsjettet: du får liste med Ja/Nei — vi oppretter inntekts- eller utgiftskategori etter det som står i TRANSAKSJON-kolonnen.',
+      'Forhåndsvisning viser summer per budsjettgruppe og tabell med alle rader. Kontoregulering (typisk egne overføringer) ligger i egen seksjon — samme import, samlet for oversikt.',
+      'Bruk «Utvid forhåndsvisning» om du trenger mer plass på skjermen.',
     ],
     primary: { href: '#import-opplasting', label: 'Gå til opplasting' },
     pitfall:
       'Rader med ugyldig dato eller beløp vises i parser-feillisten og importeres ikke — rett i Excel og prøv på nytt.',
   },
   {
-    id: 'import-steg-4',
-    title: 'Bekreft og kontroller etterpå',
+    id: 'import-csv-steg-4',
+    title: 'Navn, budsjett og bekreft import',
     lead:
-      'Når du trykker «Bekreft import», får du en oppsummering. Åpne deretter transaksjonslisten og se at alt ser riktig ut.',
+      'Når alt ser riktig ut, kan du legge inn et valgfritt navn, eventuelt krysse av for budsjettjustering, og trykke «Bekreft import».',
     bullets: [
-      'Fra oppsummeringen kan du gå rett til Transaksjoner med filter på år.',
-      'Ved tvil: sammenlign totaler med filen din før du legger inn mer manuelt.',
+      '«Navn på import (valgfritt)» vises under «Tidligere Excel-importer».',
+      '«Legg også til i budsjett» øker planlagte månedsbeløp for treffende kategorier og måneder (med kjente begrensninger for delt husstandsbudsjett).',
+      'Du får oppsummering etter import; åpne transaksjonslisten for å dobbeltsjekke.',
     ],
     primary: { href: '/transaksjoner', label: 'Åpne transaksjoner' },
     pitfall:
       'Mulige duplikater advares i forhåndsvisning — samme dato, beløp, beskrivelse og kategori som allerede finnes. Vurder om du importerer to ganger.',
+  },
+]
+
+const GUIDE_STEPS_BANK: GuideStep[] = [
+  {
+    id: 'import-bank-steg-1',
+    title: 'Fil fra DNB eller Sbanken',
+    lead:
+      'Last opp Excel (.xlsx) fra nettbanken eller en CSV med samme kolonner (Dato, Forklaring, Rentedato, Ut fra konto, Inn på konto).',
+    bullets: [
+      'Beløp og dato tolkes ut fra bankens eksport; beløp lagres med inntil to desimaler.',
+      'Punktum som desimal fra Excel (f.eks. 499.5) støttes.',
+      'Har du hovedbok fra regnskap i stedet for bankkontoutskrifter, bruk egen flyt under Import fra regnskap.',
+    ],
+    primary: { href: '#import-opplasting', label: 'Hopp til opplasting' },
+    pitfall:
+      'Mangler overskriftsraden eller kolonnene, får du feil ved lesing — eksporter på nytt fra banken og sjekk at første rad er kolonnenavn.',
+  },
+  {
+    id: 'import-bank-steg-2',
+    title: 'Velg riktig profil (familie)',
+    lead:
+      'Transaksjoner knyttes til den profilen som er valgt ved import. Feil profil gir feil eierskap i husholdningen.',
+    bullets: [
+      'Med flere profiler: velg «Importer til profil» før du laster opp filen.',
+      'Med én profil er valget allerede satt.',
+    ],
+    pitfall:
+      'Bytter du profil etter opplasting, bør du starte på nytt slik at kartlegging og summer stemmer.',
+  },
+  {
+    id: 'import-bank-steg-3',
+    title: 'Kartlegging per forklaring og KI',
+    lead:
+      'Hver unike forklaringstekst skal knyttes til en budsjettkategori. Filteret «Trenger kartlegging» viser bare det som ikke er mappet ennå.',
+    bullets: [
+      '«Utvid kartlegging» åpner hele listen i fullskjerm når du har mange linjer.',
+      '«Foreslå kategorier med KI» sender forklaringstekster (og kategorilister) til modellen — ikke enkeltbeløp eller dato per rad.',
+      `Mange uklassifiserte typer deles i batcher (maks ${BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST} unike nøkler per API-kall). Appen kjører flere kall automatisk ved behov; hvert steg teller som én melding mot AI-kvoten denne måneden.`,
+    ],
+    primary: { href: '#import-opplasting', label: 'Gå til opplasting' },
+    pitfall:
+      'KI kan foreslå feil kategori — kontroller alltid mot egne vaner før du går videre til forhåndsvisning.',
+  },
+  {
+    id: 'import-bank-steg-4',
+    title: 'Forhåndsvisning før du bekrefter',
+    lead:
+      'Her kan du justere kategori og beløp per rad. Kategoriendring for en forklaringstype gjenbrukes neste gang du importerer samme tekstmønster.',
+    bullets: [
+      'Beløpsendring i tabellen gjelder bare denne importen.',
+      'Kontoregulering samles i egen seksjon som i Excel-flyten.',
+      '«Utvid forhåndsvisning» gir samme tabell i fullskjerm.',
+      '«Navn på import (valgfritt)» og «Legg også til i budsjett» fungerer som for Excel-mal.',
+    ],
+    pitfall:
+      'Husk å sjekke advarsel om mulige duplikater mot eksisterende transaksjoner før du bekrefter.',
+  },
+  {
+    id: 'import-bank-steg-5',
+    title: 'Etter import og tidligere kjøringer',
+    lead:
+      'Når importen er fullført, ligger den under «Tidligere bankimporter». Derfra kan du åpne detaljer eller rette visningsnavn.',
+    bullets: [
+      '«Rediger» (visningsnavn) gjør det lettere å kjenne igjen riktig kjøring i listen.',
+      'For enkeltposter: åpne Transaksjoner og juster der.',
+    ],
+    primary: { href: '/transaksjoner', label: 'Åpne transaksjoner' },
+    pitfall:
+      'Sletter du en import, velg om transaksjoner skal fjernes eller bare historikkposten — valget påvirker ikke nødvendigvis budsjett du allerede har justert manuelt.',
   },
 ]
 
@@ -178,9 +252,14 @@ function PrimaryAction({
 export type TransactionImportGuideModalProps = {
   open: boolean
   onClose: () => void
+  mode: TransactionImportGuideMode
 }
 
-export default function TransactionImportGuideModal({ open, onClose }: TransactionImportGuideModalProps) {
+export default function TransactionImportGuideModal({ open, onClose, mode }: TransactionImportGuideModalProps) {
+  const steps = useMemo(
+    () => (mode === 'template_csv' ? GUIDE_STEPS_CSV : GUIDE_STEPS_BANK),
+    [mode],
+  )
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -226,10 +305,12 @@ export default function TransactionImportGuideModal({ open, onClose }: Transacti
               Steg for steg
             </p>
             <h2 id="import-guide-modal-title" className="text-lg font-semibold mt-1" style={{ color: 'var(--text)' }}>
-              Slik importerer du transaksjoner
+              {mode === 'template_csv' ? 'Slik importerer du fra Excel-mal' : 'Slik importerer du fra DNB / Sbanken'}
             </h2>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Samme struktur som «Kom i gang» — anbefalt rekkefølge fra Excel til ferdige transaksjoner.
+              {mode === 'template_csv'
+                ? 'Veiledningen følger CSV-mal-flyten på denne siden — fra fil til ferdige transaksjoner.'
+                : 'Veiledningen følger bank-flyten — kartlegging, valgfritt KI, forhåndsvisning og import.'}
             </p>
           </div>
           <button
@@ -244,7 +325,7 @@ export default function TransactionImportGuideModal({ open, onClose }: Transacti
         </div>
 
         <nav className="shrink-0 flex flex-wrap gap-2 px-5 py-3 border-b" style={{ borderColor: 'var(--border)' }} aria-label="Hurtiglenker til steg">
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <a
               key={s.id}
               href={`#${s.id}`}
@@ -274,8 +355,8 @@ export default function TransactionImportGuideModal({ open, onClose }: Transacti
               }}
               aria-hidden
             />
-            <div className="space-y-6 sm:space-y-8">
-              {STEPS.map((step, index) => (
+            <div key={mode} className="space-y-6 sm:space-y-8">
+              {steps.map((step, index) => (
                 <GuideStepCard
                   key={step.id}
                   step={step}

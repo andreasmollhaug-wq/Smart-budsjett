@@ -818,6 +818,9 @@ interface AppState {
    * `historyOnly`: fjern kun historikkposten.
    */
   removeTemplateCsvImportRun: (runId: string, mode: LedgerImportRemovalMode) => RemoveLedgerImportRunResult
+  /** Kun metadata: visningsnavn i historikk (påvirker ikke transaksjoner). */
+  updateTemplateCsvImportRunDisplayName: (runId: string, displayName: string | null) => void
+  updateBankImportRunDisplayName: (runId: string, displayName: string | null) => void
 }
 
 /** Ytre nøkkel årstall som string, indre er profilId. */
@@ -2123,6 +2126,30 @@ export const useStore = create<AppState>()((set, get) => {
           })
           get().syncInsightNotifications()
           return result
+        },
+
+        updateTemplateCsvImportRunDisplayName: (runId, displayName) => {
+          const trimmed = displayName?.trim() ?? ''
+          const nextVal = trimmed ? trimmed.slice(0, 120) : null
+          set((s) => {
+            const idx = s.templateCsvImportHistory.findIndex((r) => r.id === runId)
+            if (idx === -1) return s
+            const next = [...s.templateCsvImportHistory]
+            next[idx] = { ...next[idx]!, displayName: nextVal }
+            return { templateCsvImportHistory: next }
+          })
+        },
+
+        updateBankImportRunDisplayName: (runId, displayName) => {
+          const trimmed = displayName?.trim() ?? ''
+          const nextVal = trimmed ? trimmed.slice(0, 120) : null
+          set((s) => {
+            const idx = s.bankImportHistory.findIndex((r) => r.id === runId)
+            if (idx === -1) return s
+            const next = [...s.bankImportHistory]
+            next[idx] = { ...next[idx]!, displayName: nextVal }
+            return { bankImportHistory: next }
+          })
         },
 
         setLedgerAccountMapping: (sourceId, accountCode, rule) => {

@@ -17,6 +17,19 @@ export function formatNokCurrencyDisplay(amount: number, showAmountDecimals: boo
 }
 
 /**
+ * NOK med alltid to desimaler (passer import-forhåndsvisning der blanding av heltall og øre er vanlig).
+ */
+export function formatNokCurrencyDisplayTwoDecimals(amount: number): string {
+  if (!Number.isFinite(amount)) return ''
+  return new Intl.NumberFormat('nb-NO', {
+    style: 'currency',
+    currency: 'NOK',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+/**
  * Som formatNokCurrencyDisplay, men 0/NaN → tankestrek.
  */
 export function formatNokOrDashDisplay(amount: number, showAmountDecimals: boolean): string {

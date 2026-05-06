@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
 import { countTemplateCsvRunTransactions } from '@/lib/transactionImport/countTemplateCsvRunTransactions'
@@ -18,9 +19,31 @@ export default function TemplateCsvImportHistoryList({ runs }: Props) {
   const people = useStore((s) => s.people)
   const profiles = useStore((s) => s.profiles)
   const removeTemplateCsvImportRun = useStore((s) => s.removeTemplateCsvImportRun)
+  const updateTemplateCsvImportRunDisplayName = useStore((s) => s.updateTemplateCsvImportRunDisplayName)
   const addAppNotification = useStore((s) => s.addAppNotification)
   const [selectedRun, setSelectedRun] = useState<TemplateCsvImportRun | null>(null)
   const [runToDelete, setRunToDelete] = useState<TemplateCsvImportRun | null>(null)
+  const [editingDisplayName, setEditingDisplayName] = useState(false)
+  const [displayNameDraft, setDisplayNameDraft] = useState('')
+
+  const detailRun = useMemo(() => {
+    if (!selectedRun) return null
+    return runs.find((r) => r.id === selectedRun.id) ?? selectedRun
+  }, [runs, selectedRun])
+
+  useEffect(() => {
+    if (!selectedRun) {
+      setEditingDisplayName(false)
+      setDisplayNameDraft('')
+      return
+    }
+    setEditingDisplayName(false)
+  }, [selectedRun])
+
+  useEffect(() => {
+    if (!detailRun || editingDisplayName) return
+    setDisplayNameDraft(detailRun.displayName?.trim() ?? '')
+  }, [detailRun?.displayName, detailRun?.id, editingDisplayName, detailRun])
 
   const deleteBackdropDismiss = useModalBackdropDismiss(() => setRunToDelete(null))
   const detailBackdropDismiss = useModalBackdropDismiss(() => setSelectedRun(null))
@@ -31,18 +54,18 @@ export default function TemplateCsvImportHistoryList({ runs }: Props) {
   }, [runToDelete, people])
 
   const importedForSelected = useMemo(() => {
-    if (!selectedRun) return []
-    const person = people[selectedRun.profileId]
+    if (!detailRun) return []
+    const person = people[detailRun.profileId]
     return (person?.transactions ?? [])
-      .filter((t) => t.templateCsvImportRunId === selectedRun.id)
+      .filter((t) => t.templateCsvImportRunId === detailRun.id)
       .slice()
       .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
-  }, [selectedRun, people])
+  }, [detailRun, people])
 
   const profileNameForSelected = useMemo(() => {
-    if (!selectedRun) return ''
-    return profiles.find((p) => p.id === selectedRun.profileId)?.name?.trim() || selectedRun.profileId
-  }, [selectedRun, profiles])
+    if (!detailRun) return ''
+    return profiles.find((p) => p.id === detailRun.profileId)?.name?.trim() || detailRun.profileId
+  }, [detailRun, profiles])
 
   const profileNameForDelete = useMemo(() => {
     if (!runToDelete) return ''
@@ -180,7 +203,7 @@ export default function TemplateCsvImportHistoryList({ runs }: Props) {
         ))}
       </ul>
 
-      {selectedRun !== null && (
+      {detailRun !== null && (
         <div
           className="fixed inset-0 z-[210] flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ background: 'rgba(15, 23, 42, 0.45)' }}
@@ -196,9 +219,72 @@ export default function TemplateCsvImportHistoryList({ runs }: Props) {
             aria-labelledby="template-csv-detail-title"
           >
             <div className="flex items-start justify-between gap-3 mb-3 min-w-0">
-              <h3 id="template-csv-detail-title" className="font-semibold text-lg pr-2" style={{ color: 'var(--text)' }}>
-                Excel-import
-              </h3>
+              <div className="min-w-0 flex-1 pr-2">
+                <h3 id="template-csv-detail-title" className="font-semibold text-lg m-0" style={{ color: 'var(--text)' }}>
+                  {detailRun.displayName?.trim()
+                    ? detailRun.displayName.trim()
+                    : `Excel-import ${formatIsoDateDdMmYyyy(detailRun.createdAt.slice(0, 10))}`}
+                </h3>
+                {editingDisplayName ? (
+                  <div className="mt-3 space-y-2">
+                    <label htmlFor="template-csv-edit-display-name" className="sr-only">
+                      Visningsnavn for import
+                    </label>
+                    <input
+                      id="template-csv-edit-display-name"
+                      type="text"
+                      value={displayNameDraft}
+                      onChange={(e) => setDisplayNameDraft(e.target.value)}
+                      maxLength={120}
+                      autoComplete="off"
+                      className="w-full rounded-xl border px-3 py-2.5 text-sm min-h-[44px] touch-manipulation"
+                      style={{
+                        borderColor: 'var(--border)',
+                        background: 'var(--bg)',
+                        color: 'var(--text)',
+                      }}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="rounded-xl px-4 py-2 text-sm font-medium text-white min-h-[44px] touch-manipulation"
+                        style={{ background: 'var(--primary)' }}
+                        onClick={() => {
+                          if (!detailRun) return
+                          const t = displayNameDraft.trim()
+                          updateTemplateCsvImportRunDisplayName(detailRun.id, t.length ? t : null)
+                          setEditingDisplayName(false)
+                        }}
+                      >
+                        Lagre
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-xl px-4 py-2 text-sm font-medium min-h-[44px] touch-manipulation"
+                        style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
+                        onClick={() => {
+                          setDisplayNameDraft(detailRun.displayName?.trim() ?? '')
+                          setEditingDisplayName(false)
+                        }}
+                      >
+                        Avbryt
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="mt-2 text-sm font-medium touch-manipulation min-h-[44px] px-1 -ml-1 text-left"
+                    style={{ color: 'var(--primary)' }}
+                    onClick={() => {
+                      setDisplayNameDraft(detailRun.displayName?.trim() ?? '')
+                      setEditingDisplayName(true)
+                    }}
+                  >
+                    Rediger navn
+                  </button>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => setSelectedRun(null)}
@@ -231,6 +317,17 @@ export default function TemplateCsvImportHistoryList({ runs }: Props) {
                 </li>
               ))}
             </ul>
+            <p className="text-sm mt-4 m-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              <Link
+                href="/transaksjoner"
+                className="font-medium underline-offset-2 hover:underline touch-manipulation"
+                style={{ color: 'var(--primary)' }}
+                onClick={() => setSelectedRun(null)}
+              >
+                Åpne transaksjoner
+              </Link>
+              {' — '}Juster enkelttransaksjoner der.
+            </p>
           </div>
         </div>
       )}

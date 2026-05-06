@@ -26,6 +26,11 @@ export default function BankImportHistoryList({ runs }: Props) {
   const [selectedRun, setSelectedRun] = useState<BankImportRun | null>(null)
   const [runToDelete, setRunToDelete] = useState<BankImportRun | null>(null)
 
+  const detailRun = useMemo(() => {
+    if (!selectedRun) return null
+    return runs.find((r) => r.id === selectedRun.id) ?? selectedRun
+  }, [runs, selectedRun])
+
   const deleteBackdropDismiss = useModalBackdropDismiss(() => setRunToDelete(null))
 
   const linkedTxCountForDelete = useMemo(() => {
@@ -34,18 +39,18 @@ export default function BankImportHistoryList({ runs }: Props) {
   }, [runToDelete, people])
 
   const importedForSelected = useMemo(() => {
-    if (!selectedRun) return []
-    const person = people[selectedRun.profileId]
+    if (!detailRun) return []
+    const person = people[detailRun.profileId]
     return (person?.transactions ?? [])
-      .filter((t) => t.bankImportRunId === selectedRun.id)
+      .filter((t) => t.bankImportRunId === detailRun.id)
       .slice()
       .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))
-  }, [selectedRun, people])
+  }, [detailRun, people])
 
   const profileNameForSelected = useMemo(() => {
-    if (!selectedRun) return ''
-    return profiles.find((p) => p.id === selectedRun.profileId)?.name?.trim() || selectedRun.profileId
-  }, [selectedRun, profiles])
+    if (!detailRun) return ''
+    return profiles.find((p) => p.id === detailRun.profileId)?.name?.trim() || detailRun.profileId
+  }, [detailRun, profiles])
 
   const profileNameForDelete = useMemo(() => {
     if (!runToDelete) return ''
@@ -186,7 +191,7 @@ export default function BankImportHistoryList({ runs }: Props) {
       <BankImportRunDetailModal
         open={selectedRun !== null}
         onClose={() => setSelectedRun(null)}
-        run={selectedRun}
+        run={detailRun}
         profileName={profileNameForSelected}
         importedTransactions={importedForSelected}
       />

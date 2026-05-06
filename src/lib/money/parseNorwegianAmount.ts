@@ -97,6 +97,12 @@ export function formatMoneyInputFromNumber(n: number): string {
   return n.toLocaleString('nb-NO', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
+/** Som formatMoneyInputFromNumber, men alltid to desimaler (import-forhåndsvisning). */
+export function formatMoneyInputFromNumberTwoDecimals(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return ''
+  return n.toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 /** Inkl. `0` (f.eks. budsjettlinje / referanse uden positivkraft). */
 export function formatMoneyInputFromNonNegativeNumber(n: number): string {
   if (!Number.isFinite(n) || n < 0) return ''
