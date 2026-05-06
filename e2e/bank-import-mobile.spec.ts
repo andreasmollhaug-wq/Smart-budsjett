@@ -35,4 +35,31 @@ test.describe('Bankimport DNB (mobil)', () => {
     })
     expect(overflow).toBeLessThanOrEqual(2)
   })
+
+  test('Sparebank 1-modus: CSV-opplasting viser kartlegging', async ({ page }) => {
+    await page.route('**/api/bank-import-suggest', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ suggestions: [] }),
+      })
+    })
+
+    await page.goto('/konto/importer-transaksjoner')
+    if (page.url().includes('logg-inn')) {
+      test.skip()
+    }
+
+    await page.locator('#import-transaksjon-kilde').selectOption('bank_sparebank1')
+
+    await expect(page.getByText(/Dra og slipp Sparebank 1-fil/i)).toBeVisible()
+
+    const fixturePath = path.join(__dirname, 'fixtures', 'sparebank1-minimal.csv')
+    await page.getByRole('button', { name: 'Velg fil' }).click()
+    const fileInput = page.locator('input[type="file"]').first()
+    await fileInput.setInputFiles(fixturePath)
+
+    await expect(page.getByText('E2E Sparebank1 rad')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText(/kartlegg hver forklaring/i)).toBeVisible()
+  })
 })

@@ -3,63 +3,19 @@ import { BANK_IMPORT_MAX_DATA_ROWS } from '@/lib/bankImport/bankImport.constants
 import { buildBankRowMappingKeys } from '@/lib/bankImport/bankMappingKeys'
 import { normalizeBankHeaderCell } from '@/lib/bankImport/headerNormalize'
 import type { BankParseRowError, BankParsedRow, ParseBankFileResult } from '@/lib/bankImport/types'
+import { parseBankDateFlexible } from '@/lib/bankImport/parseDnbGrid'
 
-function parseDdMmYyyyToIso(raw: string): string | null {
-  const t = raw.trim()
-  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/.exec(t)
-  if (!m) return null
-  const day = parseInt(m[1]!, 10)
-  const month = parseInt(m[2]!, 10)
-  let year = parseInt(m[3]!, 10)
-  if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null
-  if (m[3]!.length === 2) {
-    year = year < 70 ? 2000 + year : 1900 + year
-  }
-  if (month < 1 || month > 12 || day < 1 || day > 31) return null
-  const d = new Date(year, month - 1, day)
-  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null
-  const mm = String(month).padStart(2, '0')
-  const dd = String(day).padStart(2, '0')
-  return `${year}-${mm}-${dd}`
-}
-
-function parseYyyyMmDdToIso(raw: string): string | null {
-  const t = raw.trim()
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t)
-  if (!m) return null
-  const year = parseInt(m[1]!, 10)
-  const month = parseInt(m[2]!, 10)
-  const day = parseInt(m[3]!, 10)
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null
-  const d = new Date(year, month - 1, day)
-  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null
-  return t
-}
-
-export function parseBankDateFlexible(raw: string): string | null {
-  if (!raw.trim()) return null
-  const iso = parseYyyyMmDdToIso(raw)
-  if (iso) return iso
-  return parseDdMmYyyyToIso(raw)
-}
-
-function findDnbColumnMap(headerCells: string[]) {
+export function findSparebank1ColumnMap(headerCells: string[]) {
   const norm = headerCells.map((c) => normalizeBankHeaderCell(c))
   const date = norm.findIndex((n) => n === 'dato')
-  const forklaring = norm.findIndex((n) => n === 'forklaring')
+  const beskrivelse = norm.findIndex((n) => n === 'beskrivelse')
   const rentedato = norm.findIndex((n) => n === 'rentedato')
-  const ut = norm.findIndex(
-    (n) => n === 'ut fra konto' || (n.includes('ut fra') && n.includes('konto')),
-  )
-  const inn = norm.findIndex(
-    (n) =>
-      n === 'inn pa konto' ||
-      (n.includes('inn') && n.includes('pa') && n.includes('konto')),
-  )
-  if (date < 0 || forklaring < 0 || ut < 0 || inn < 0) return null
+  const ut = norm.findIndex((n) => n === 'ut')
+  const inn = norm.findIndex((n) => n === 'inn')
+  if (date < 0 || beskrivelse < 0 || ut < 0 || inn < 0) return null
   return {
     date,
-    forklaring,
+    beskrivelse,
     rentedato: rentedato >= 0 ? rentedato : null,
     ut,
     inn,
@@ -67,19 +23,19 @@ function findDnbColumnMap(headerCells: string[]) {
 }
 
 /**
- * Tolker DNB/Sbanken-tabell som 2D-strenger (header funnet automatisk blant første 30 rader).
+ * Tolker Sparebank 1-tabell som 2D-strenger (header funnet automatisk blant første 30 rader).
  */
-export function parseDnbGrid(grid: string[][], fileLineOffset = 0): ParseBankFileResult {
+export function parseSparebank1Grid(grid: string[][], fileLineOffset = 0): ParseBankFileResult {
   const rows: BankParsedRow[] = []
   const rowErrors: BankParseRowError[] = []
 
   let headerIdx = -1
-  let colMap: NonNullable<ReturnType<typeof findDnbColumnMap>> | null = null
+  let colMap: NonNullable<ReturnType<typeof findSparebank1ColumnMap>> | null = null
 
   const maxScan = Math.min(grid.length, 30)
   for (let i = 0; i < maxScan; i++) {
     const cells = grid[i] ?? []
-    const map = findDnbColumnMap(cells)
+    const map = findSparebank1ColumnMap(cells)
     if (map) {
       headerIdx = i
       colMap = map
@@ -95,7 +51,7 @@ export function parseDnbGrid(grid: string[][], fileLineOffset = 0): ParseBankFil
           fileLine: fileLineOffset + 1,
           reason: 'empty_row',
           detail:
-            'Fant ikke DNB/Sbanken-overskrifter (Dato, Forklaring, Ut fra konto, Inn på konto).',
+            'Fant ikke Sparebank 1-overskrifter (Dato, Beskrivelse, Inn, Ut). Valgfrie kolonner: Rentedato, Til konto, Fra konto.',
         },
       ],
     }
@@ -116,7 +72,7 @@ export function parseDnbGrid(grid: string[][], fileLineOffset = 0): ParseBankFil
     const get = (idx: number) => (idx >= 0 && idx < cells.length ? String(cells[idx]).trim() : '')
 
     const dateRaw = get(colMap.date)
-    const forklaringRaw = get(colMap.forklaring)
+    const forklaringRaw = get(colMap.beskrivelse)
     const rentedatoRaw = colMap.rentedato !== null ? get(colMap.rentedato) : ''
     const utRaw = get(colMap.ut)
     const innRaw = get(colMap.inn)

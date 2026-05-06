@@ -8,6 +8,7 @@ import BankImportMappingAggregateLists from '@/components/konto/BankImportMappin
 import BankTransactionImportDropzone from '@/components/konto/BankTransactionImportDropzone'
 import TransactionImportDropzone from '@/components/konto/TransactionImportDropzone'
 import TransactionImportGuideModal from '@/components/konto/TransactionImportGuide'
+import type { TransactionImportGuideMode } from '@/components/konto/TransactionImportGuide'
 import {
   BankTransactionImportPreviewTable,
   CsvTransactionImportPreviewTable,
@@ -40,7 +41,7 @@ import type { LedgerBudgetAdjustmentSnapshot } from '@/lib/ledgerImport/types'
 import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
 import { buildTransactionsFromBankRows } from '@/lib/bankImport/buildTransactionsFromBankRows'
 import { resolveBankMappingCategoryName } from '@/lib/bankImport/bankMappingKeys'
-import { BANK_IMPORT_PROFILE_ID, BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST } from '@/lib/bankImport/bankImport.constants'
+import { BANK_IMPORT_PROFILE_ID, BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST, SPAREBANK1_IMPORT_PROFILE_ID } from '@/lib/bankImport/bankImport.constants'
 import {
   buildBankMappingAggregates,
   countPotentialDuplicateBankRows,
@@ -54,14 +55,17 @@ import { roundMoney2 } from '@/lib/money/parseNorwegianAmount'
 import { ArrowLeft, BookOpen, ChevronRight, Maximize2, RotateCcw, Sparkles } from 'lucide-react'
 
 type Step = 'upload' | 'unknowns' | 'preview'
-type ImportMode = 'template_csv' | 'bank_dnb'
+type ImportMode = TransactionImportGuideMode
 type BankStep = 'upload' | 'mapping' | 'preview'
 
-const BANK_SOURCE_ID: BankSourceId = 'dnb_sbanken'
+function isBankImportMode(m: ImportMode): m is 'bank_dnb' | 'bank_sparebank1' {
+  return m === 'bank_dnb' || m === 'bank_sparebank1'
+}
 
 const IMPORT_SOURCE_OPTIONS: { value: ImportMode; label: string }[] = [
   { value: 'template_csv', label: 'Excel-mal (CSV)' },
-  { value: 'bank_dnb', label: 'DNB / Sbanken (.xlsx)' },
+  { value: 'bank_dnb', label: 'DNB / Sbanken (.csv / .xlsx)' },
+  { value: 'bank_sparebank1', label: 'Sparebank 1 (.csv / .xlsx)' },
 ]
 
 const DEFAULT_EXPENSE_PARENT: ParentCategory = 'utgifter'
@@ -140,6 +144,17 @@ export default function ImporterTransaksjonerPage() {
   const [alsoApplyToBudgetCsv, setAlsoApplyToBudgetCsv] = useState(false)
   const [alsoApplyToBudgetBank, setAlsoApplyToBudgetBank] = useState(false)
 
+  const activeBankSourceId = useMemo<BankSourceId>(
+    () => (importMode === 'bank_sparebank1' ? 'sparebank1' : 'dnb_sbanken'),
+    [importMode],
+  )
+
+  const activeBankCsvProfileId = useMemo(
+    () =>
+      importMode === 'bank_sparebank1' ? SPAREBANK1_IMPORT_PROFILE_ID : BANK_IMPORT_PROFILE_ID,
+    [importMode],
+  )
+
   useEffect(() => {
     setImportProfileId(activeProfileId)
   }, [activeProfileId])
@@ -151,8 +166,8 @@ export default function ImporterTransaksjonerPage() {
   }, [person])
 
   const bankMaps = useMemo(
-    () => bankImportMappingsRoot[BANK_SOURCE_ID] ?? {},
-    [bankImportMappingsRoot],
+    () => bankImportMappingsRoot[activeBankSourceId] ?? {},
+    [bankImportMappingsRoot, activeBankSourceId],
   )
 
   const handleProfileChange = (pid: string) => {
@@ -199,6 +214,13 @@ export default function ImporterTransaksjonerPage() {
   const switchImportMode = useCallback(
     (next: ImportMode) => {
       if (next === importMode) return
+      const fromBank = isBankImportMode(importMode)
+      const toBank = isBankImportMode(next)
+      if (fromBank && toBank) {
+        setImportMode(next)
+        resetBankFlow()
+        return
+      }
       setImportMode(next)
       resetFlow()
       resetBankFlow()
@@ -408,14 +430,14 @@ export default function ImporterTransaksjonerPage() {
 
   const applyBankMappingWithLegacyFanout = useCallback(
     (primaryKey: string, rule: { categoryName: string } | null) => {
-      setBankImportMapping(BANK_SOURCE_ID, primaryKey, rule)
+      setBankImportMapping(activeBankSourceId, primaryKey, rule)
       const legs = legacyKeysByPrimary.get(primaryKey)
       if (!legs) return
       for (const leg of legs) {
-        setBankImportMapping(BANK_SOURCE_ID, leg, rule)
+        setBankImportMapping(activeBankSourceId, leg, rule)
       }
     },
-    [setBankImportMapping, legacyKeysByPrimary],
+    [setBankImportMapping, legacyKeysByPrimary, activeBankSourceId],
   )
 
   const bankAggregates = useMemo(
@@ -647,7 +669,9 @@ export default function ImporterTransaksjonerPage() {
       }
       if (result.rows.length === 0) {
         setBankParseError(
-          'Ingen transaksjonsrader funnet. Sjekk at filen har riktig overskriftsrad (Dato, Forklaring, …).',
+          importMode === 'bank_sparebank1'
+            ? 'Ingen transaksjonsrader funnet. Sjekk at filen har riktig overskriftsrad (Dato, Beskrivelse, Inn, Ut).'
+            : 'Ingen transaksjonsrader funnet. Sjekk at filen har riktig overskriftsrad (Dato, Forklaring, …).',
         )
         setBankParsedRows([])
         setBankRowErrors(result.rowErrors)
@@ -671,7 +695,7 @@ export default function ImporterTransaksjonerPage() {
         kind: 'budget',
       })
     },
-    [addAppNotification],
+    [addAppNotification, importMode],
   )
 
   const fetchBankAiSuggestions = useCallback(async () => {
@@ -711,14 +735,14 @@ export default function ImporterTransaksjonerPage() {
         for (const s of suggestions) {
           if (!s.category) continue
           const existing =
-            useStore.getState().bankImportMappings[BANK_SOURCE_ID]?.[s.key]?.categoryName?.trim()
+            useStore.getState().bankImportMappings[activeBankSourceId]?.[s.key]?.categoryName?.trim()
           if (existing) continue
           const rule = { categoryName: s.category }
-          setBankImportMapping(BANK_SOURCE_ID, s.key, rule)
+          setBankImportMapping(activeBankSourceId, s.key, rule)
           const legs = legacyKeysByPrimary.get(s.key)
           if (legs) {
             for (const leg of legs) {
-              setBankImportMapping(BANK_SOURCE_ID, leg, rule)
+              setBankImportMapping(activeBankSourceId, leg, rule)
             }
           }
           openedList = true
@@ -733,7 +757,7 @@ export default function ImporterTransaksjonerPage() {
       setBankAiBusy(false)
       setBankAiProgress(null)
     }
-  }, [bankAggregates, isBankKeyMapped, pickerCategories, setBankImportMapping, legacyKeysByPrimary])
+  }, [bankAggregates, isBankKeyMapped, pickerCategories, setBankImportMapping, legacyKeysByPrimary, activeBankSourceId])
 
   const runBankImport = () => {
     if (!person || !bankCanGoPreview) return
@@ -748,7 +772,7 @@ export default function ImporterTransaksjonerPage() {
       labelListsForPerson(pBefore),
     )
     const runId = generateId()
-    const liveMaps = useStore.getState().bankImportMappings[BANK_SOURCE_ID] ?? {}
+    const liveMaps = useStore.getState().bankImportMappings[activeBankSourceId] ?? {}
     const getCategoryName = (row: BankParsedRow) => resolveBankMappingCategoryName(liveMaps, row)
 
     const bankRowsToImport = bankParsedRowsEffective.filter((r) => !excludedBankFileLines.has(r.fileLine))
@@ -796,9 +820,9 @@ export default function ImporterTransaksjonerPage() {
       {
         id: runId,
         createdAt: new Date().toISOString(),
-        sourceId: BANK_SOURCE_ID,
+        sourceId: activeBankSourceId,
         profileId: pid,
-        csvProfileId: BANK_IMPORT_PROFILE_ID,
+        csvProfileId: activeBankCsvProfileId,
         fileName: bankFileLabel,
         displayName: labelTrim ? labelTrim : null,
         rowCountParsed: bankParsedRows.length,
@@ -974,7 +998,11 @@ export default function ImporterTransaksjonerPage() {
       >
       <div>
         <h1 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text)' }}>
-          {importMode === 'template_csv' ? 'Importer transaksjoner fra CSV' : 'Importer fra DNB / Sbanken'}
+          {importMode === 'template_csv'
+            ? 'Importer transaksjoner fra CSV'
+            : importMode === 'bank_sparebank1'
+              ? 'Importer fra Sparebank 1'
+              : 'Importer fra DNB / Sbanken'}
         </h1>
         {importMode === 'template_csv' ? (
           <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
@@ -982,6 +1010,17 @@ export default function ImporterTransaksjonerPage() {
             appen), KATEGORI, BELØP, valgfri beskrivelse. Format {IMPORT_FORMAT_V1}. BELØP kan ha tusenskille og komma som
             desimal (f.eks. 1&nbsp;050,66); beløp lagres med inntil to desimaler (øre). Har du flere profiler i husholdningen, velg
             riktig profil nedenfor før du laster opp. Har du hovedbok fra regnskapssystem, bruk{' '}
+            <Link href="/konto/importer-fra-regnskap" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
+              Import fra regnskap
+            </Link>
+            .
+          </p>
+        ) : importMode === 'bank_sparebank1' ? (
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+            Last opp Excel (.xlsx) eller CSV fra Sparebank 1 med kolonnene Dato, Beskrivelse, Rentedato, Inn og Ut (Til konto /
+            Fra konto ignoreres for beløp). Velg kategori per beskrivelse; samme tekst kan mapes ulikt for inntekt og utgift.
+            Beløp lagres med inntil to desimaler (øre). Punktum som desimal fra Excel støttes. «Foreslå kategorier med KI»
+            sender bare beskrivelsestekstene til modellen — ikke beløp eller dato. Har du regnskap som hovedbok, bruk{' '}
             <Link href="/konto/importer-fra-regnskap" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
               Import fra regnskap
             </Link>
@@ -1034,7 +1073,7 @@ export default function ImporterTransaksjonerPage() {
             )}
           </div>
         )}
-        {importMode === 'bank_dnb' && bankStep !== 'upload' && (
+        {isBankImportMode(importMode) && bankStep !== 'upload' && (
           <div className="flex flex-wrap gap-2 mb-6">
             <button
               type="button"
@@ -1110,7 +1149,9 @@ export default function ImporterTransaksjonerPage() {
             aria-label={
               importMode === 'template_csv'
                 ? 'Hjelp for valgt importkilde (Excel-mal)'
-                : 'Hjelp for valgt importkilde (DNB / Sbanken)'
+                : importMode === 'bank_sparebank1'
+                  ? 'Hjelp for valgt importkilde (Sparebank 1)'
+                  : 'Hjelp for valgt importkilde (DNB / Sbanken)'
             }
           >
             Hjelp
@@ -1130,7 +1171,8 @@ export default function ImporterTransaksjonerPage() {
           ))}
         </select>
         <p className="text-xs mt-2 m-0" style={{ color: 'var(--text-muted)' }}>
-          Bytte kilde nullstiller påbegynt import.
+          Bytte mellom Excel-mal og bank nullstiller påbegynt import. Bytte mellom DNB og Sparebank 1 nullstiller bare
+          bank-steg.
         </p>
       </div>
 
@@ -1140,7 +1182,7 @@ export default function ImporterTransaksjonerPage() {
         </div>
       )}
 
-      {importMode === 'bank_dnb' && bankParseError && (
+      {isBankImportMode(importMode) && bankParseError && (
         <div className="rounded-xl p-4 text-sm" style={{ background: '#fef2f2', color: '#991b1b' }}>
           {bankParseError}
         </div>
@@ -1455,11 +1497,15 @@ export default function ImporterTransaksjonerPage() {
         </div>
       )}
 
-      {importMode === 'bank_dnb' && bankStep === 'upload' && (
-        <BankTransactionImportDropzone onBankParsed={onBankParsed} disabled={!person} />
+      {isBankImportMode(importMode) && bankStep === 'upload' && (
+        <BankTransactionImportDropzone
+          variant={importMode === 'bank_sparebank1' ? 'sparebank1' : 'dnb_sbanken'}
+          onBankParsed={onBankParsed}
+          disabled={!person}
+        />
       )}
 
-      {importMode === 'bank_dnb' && bankStep === 'mapping' && person && (
+      {isBankImportMode(importMode) && bankStep === 'mapping' && person && (
         <div className="space-y-4 min-w-0">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
             Fil: <strong style={{ color: 'var(--text)' }}>{bankFileLabel}</strong> — {bankParsedRows.length} rader.
@@ -1670,7 +1716,7 @@ export default function ImporterTransaksjonerPage() {
         </div>
       )}
 
-      {importMode === 'bank_dnb' && bankStep === 'preview' && (
+      {isBankImportMode(importMode) && bankStep === 'preview' && (
         <div className="space-y-4">
           {bankFileLabel && (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -1935,7 +1981,7 @@ export default function ImporterTransaksjonerPage() {
       </div>
       </div>
 
-      {importMode === 'bank_dnb' && (
+      {isBankImportMode(importMode) && (
         <section className="rounded-2xl p-6 sm:p-8 space-y-4 max-w-3xl" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="text-lg font-semibold m-0" style={{ color: 'var(--text)' }}>
             Tidligere bankimporter

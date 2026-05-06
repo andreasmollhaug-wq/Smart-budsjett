@@ -6,7 +6,7 @@ import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import { BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST } from '@/lib/bankImport/bankImport.constants'
 import { ArrowRight, BookOpen, X } from 'lucide-react'
 
-export type TransactionImportGuideMode = 'template_csv' | 'bank_dnb'
+export type TransactionImportGuideMode = 'template_csv' | 'bank_dnb' | 'bank_sparebank1'
 
 type GuideStep = {
   id: string
@@ -145,6 +145,27 @@ const GUIDE_STEPS_BANK: GuideStep[] = [
   },
 ]
 
+const GUIDE_STEPS_BANK_SPAREBANK1: GuideStep[] = [
+  {
+    id: 'import-bank-sb1-steg-1',
+    title: 'Fil fra Sparebank 1',
+    lead:
+      'Velg «Sparebank 1» som importkilde på denne siden. Last opp Excel (.xlsx) eller CSV med overskrifter som i nettbank-eksport: Dato, Beskrivelse, Rentedato, Inn, Ut (og eventuelt Til konto / Fra konto — sistnevnte brukes ikke til beløp).',
+    bullets: [
+      'Beskrivelse brukes som tekst for kategori-kartlegging (samme rolle som «Forklaring» hos DNB).',
+      'Beløp leses fra Inn eller Ut; én av kolonnene skal være tom per rad.',
+      'Har du hovedbok fra regnskap i stedet for bankkontoutskrifter, bruk egen flyt under Import fra regnskap.',
+    ],
+    primary: { href: '#import-opplasting', label: 'Hopp til opplasting' },
+    pitfall:
+      'Feil importkilde (DNB vs Sparebank 1) gir feil kolonneoppsett. Velg riktig bank under «Importkilde» før du laster opp.',
+  },
+  ...GUIDE_STEPS_BANK.slice(1).map((step, i) => ({
+    ...step,
+    id: `import-bank-sb1-steg-${i + 2}`,
+  })),
+]
+
 function GuideStepCard({
   step,
   index,
@@ -256,10 +277,11 @@ export type TransactionImportGuideModalProps = {
 }
 
 export default function TransactionImportGuideModal({ open, onClose, mode }: TransactionImportGuideModalProps) {
-  const steps = useMemo(
-    () => (mode === 'template_csv' ? GUIDE_STEPS_CSV : GUIDE_STEPS_BANK),
-    [mode],
-  )
+  const steps = useMemo(() => {
+    if (mode === 'template_csv') return GUIDE_STEPS_CSV
+    if (mode === 'bank_sparebank1') return GUIDE_STEPS_BANK_SPAREBANK1
+    return GUIDE_STEPS_BANK
+  }, [mode])
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -305,7 +327,11 @@ export default function TransactionImportGuideModal({ open, onClose, mode }: Tra
               Steg for steg
             </p>
             <h2 id="import-guide-modal-title" className="text-lg font-semibold mt-1" style={{ color: 'var(--text)' }}>
-              {mode === 'template_csv' ? 'Slik importerer du fra Excel-mal' : 'Slik importerer du fra DNB / Sbanken'}
+              {mode === 'template_csv'
+                ? 'Slik importerer du fra Excel-mal'
+                : mode === 'bank_sparebank1'
+                  ? 'Slik importerer du fra Sparebank 1'
+                  : 'Slik importerer du fra DNB / Sbanken'}
             </h2>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               {mode === 'template_csv'

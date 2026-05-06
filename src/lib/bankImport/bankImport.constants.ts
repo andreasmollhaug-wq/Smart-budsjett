@@ -8,6 +8,8 @@ export const BANK_IMPORT_HISTORY_MAX = 50
 
 export const BANK_IMPORT_PROFILE_ID = 'dnb_sbanken_v1'
 
+export const SPAREBANK1_IMPORT_PROFILE_ID = 'sparebank1_v1'
+
 /**
  * Maks unike forklaringstyper (mapping-nøkler) per KI-kall.
  * Klienten sender flere kall automatisk når det er flere uklassifiserte typer.

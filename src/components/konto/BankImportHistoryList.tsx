@@ -12,6 +12,7 @@ import { ChevronRight, Trash2, X } from 'lucide-react'
 
 const SOURCE_LABEL: Record<string, string> = {
   dnb_sbanken: 'DNB / Sbanken',
+  sparebank1: 'Sparebank 1',
 }
 
 type Props = {

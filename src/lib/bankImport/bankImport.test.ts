@@ -5,6 +5,11 @@ import { buildBankRowMappingKeys } from '@/lib/bankImport/bankMappingKeys'
 import { normalizeMappingKeyText } from '@/lib/bankImport/normalizeMappingKey'
 import { parseDnbGrid } from '@/lib/bankImport/parseDnbGrid'
 import { parseDnbSbankenCsvText } from '@/lib/bankImport/parseDnbFile'
+import {
+  findSparebank1ColumnMap,
+  parseSparebank1Grid,
+} from '@/lib/bankImport/parseSparebank1Grid'
+import { parseSparebank1CsvText } from '@/lib/bankImport/parseSparebank1File'
 import type { BudgetCategory } from '@/lib/store'
 
 describe('normalizeMappingKeyText', () => {
@@ -74,6 +79,78 @@ describe('parseDnbSbankenCsvText', () => {
     const r = parseDnbSbankenCsvText(csv)
     expect(r.rows.length).toBe(1)
     expect(r.rows[0]!.amount).toBe(45.5)
+  })
+})
+
+describe('findSparebank1ColumnMap', () => {
+  it('gjenkjenner standardoverskrifter', () => {
+    const m = findSparebank1ColumnMap([
+      'Dato',
+      'Beskrivelse',
+      'Rentedato',
+      'Inn',
+      'Ut',
+      'Til konto',
+      'Fra konto',
+    ])
+    expect(m).not.toBeNull()
+    expect(m!.date).toBe(0)
+    expect(m!.beskrivelse).toBe(1)
+    expect(m!.rentedato).toBe(2)
+    expect(m!.inn).toBe(3)
+    expect(m!.ut).toBe(4)
+  })
+
+  it('returnerer null uten påkrevde kolonner', () => {
+    expect(findSparebank1ColumnMap(['Dato', 'Beskrivelse', 'Inn'])).toBeNull()
+  })
+})
+
+describe('parseSparebank1Grid', () => {
+  it('tolker inn/ut og beskrivelse', () => {
+    const grid = [
+      ['Dato', 'Beskrivelse', 'Rentedato', 'Inn', 'Ut'],
+      ['5.5.2026', 'Butikk', '5.5.2026', '', '99,50'],
+      ['5.5.2026', 'Lønn', '5.5.2026', '2 000,00', ''],
+    ]
+    const r = parseSparebank1Grid(grid, 0)
+    expect(r.rows.length).toBe(2)
+    expect(r.rows[0]!.transactionType).toBe('expense')
+    expect(r.rows[0]!.amount).toBe(99.5)
+    expect(r.rows[1]!.transactionType).toBe('income')
+    expect(r.rows[1]!.amount).toBe(2000)
+  })
+
+  it('flagger tvetydig beløp', () => {
+    const grid = [
+      ['Dato', 'Beskrivelse', 'Inn', 'Ut'],
+      ['5.5.2026', 'X', '10,00', '10,00'],
+    ]
+    const r = parseSparebank1Grid(grid, 0)
+    expect(r.rows.length).toBe(0)
+    expect(r.rowErrors.some((e) => e.reason === 'ambiguous_amount')).toBe(true)
+  })
+})
+
+describe('parseSparebank1CsvText', () => {
+  it('dekoder semikolon-CSV', () => {
+    const csv =
+      'Dato;Beskrivelse;Rentedato;Inn;Ut\n' +
+      '5.5.2026;Kaffe;5.5.2026;;45,50\n'
+    const r = parseSparebank1CsvText(csv)
+    expect(r.rows.length).toBe(1)
+    expect(r.rows[0]!.amount).toBe(45.5)
+    expect(r.rows[0]!.transactionType).toBe('expense')
+  })
+
+  it('dekoder komma-CSV med anførselstegn rundt beløp med komma som desimal', () => {
+    const csv =
+      'Dato,Beskrivelse,Inn,Ut\n' +
+      '5.5.2026,Overføring,,"100,00"\n'
+    const r = parseSparebank1CsvText(csv)
+    expect(r.rows.length).toBe(1)
+    expect(r.rows[0]!.transactionType).toBe('expense')
+    expect(r.rows[0]!.amount).toBe(100)
   })
 })
 

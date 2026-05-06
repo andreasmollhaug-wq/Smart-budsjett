@@ -3,13 +3,18 @@
 import { useCallback, useRef, useState } from 'react'
 import { FileUp } from 'lucide-react'
 import { parseDnbSbankenCsvText, parseDnbSbankenXlsxBuffer } from '@/lib/bankImport/parseDnbFile'
+import { parseSparebank1CsvText, parseSparebank1XlsxBuffer } from '@/lib/bankImport/parseSparebank1File'
+import type { ParseBankFileResult } from '@/lib/bankImport/types'
+
+export type BankImportDropzoneVariant = 'dnb_sbanken' | 'sparebank1'
 
 type Props = {
-  onBankParsed: (result: ReturnType<typeof parseDnbSbankenCsvText>, fileName: string) => void
+  variant: BankImportDropzoneVariant
+  onBankParsed: (result: ParseBankFileResult, fileName: string) => void
   disabled?: boolean
 }
 
-export default function BankTransactionImportDropzone({ onBankParsed, disabled }: Props) {
+export default function BankTransactionImportDropzone({ variant, onBankParsed, disabled }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -19,7 +24,11 @@ export default function BankTransactionImportDropzone({ onBankParsed, disabled }
       const nameLower = file.name.toLowerCase()
       if (nameLower.endsWith('.csv') || file.type === 'text/csv' || file.type.includes('text')) {
         const text = await file.text()
-        onBankParsed(parseDnbSbankenCsvText(text), file.name)
+        if (variant === 'sparebank1') {
+          onBankParsed(parseSparebank1CsvText(text), file.name)
+        } else {
+          onBankParsed(parseDnbSbankenCsvText(text), file.name)
+        }
         return
       }
       if (
@@ -29,7 +38,10 @@ export default function BankTransactionImportDropzone({ onBankParsed, disabled }
         setBusy(true)
         try {
           const buf = await file.arrayBuffer()
-          const result = await parseDnbSbankenXlsxBuffer(buf)
+          const result =
+            variant === 'sparebank1'
+              ? await parseSparebank1XlsxBuffer(buf)
+              : await parseDnbSbankenXlsxBuffer(buf)
           onBankParsed(result, file.name)
         } finally {
           setBusy(false)
@@ -37,7 +49,7 @@ export default function BankTransactionImportDropzone({ onBankParsed, disabled }
         return
       }
     },
-    [onBankParsed],
+    [onBankParsed, variant],
   )
 
   const onDrop = useCallback(
@@ -50,6 +62,15 @@ export default function BankTransactionImportDropzone({ onBankParsed, disabled }
     },
     [disabled, busy, processFile],
   )
+
+  const titleLine =
+    variant === 'sparebank1'
+      ? 'Dra og slipp Sparebank 1-fil her'
+      : 'Dra og slipp DNB/Sbanken-fil her'
+  const subLine =
+    variant === 'sparebank1'
+      ? 'Excel (.xlsx) fra nettbank, eller CSV med Dato, Beskrivelse, Inn, Ut'
+      : 'Excel (.xlsx) fra nettbank, eller CSV lagret med samme kolonner'
 
   return (
     <div
@@ -67,10 +88,10 @@ export default function BankTransactionImportDropzone({ onBankParsed, disabled }
     >
       <FileUp className="mx-auto mb-3 opacity-70" size={36} style={{ color: 'var(--text-muted)' }} />
       <p className="text-sm font-medium mb-1" style={{ color: 'var(--text)' }}>
-        Dra og slipp DNB/Sbanken-fil her
+        {titleLine}
       </p>
       <p className="text-xs mb-4" style={{ color: 'var(--text-muted)' }}>
-        Excel (.xlsx) fra nettbank, eller CSV lagret med samme kolonner
+        {subLine}
       </p>
       <input
         ref={inputRef}

@@ -1,7 +1,7 @@
 import type { ParseBankFileResult } from '@/lib/bankImport/types'
 import { BANK_IMPORT_MAX_FILE_BYTES } from '@/lib/bankImport/bankImport.constants'
 import { formatBankCellValue } from '@/lib/bankImport/bankGridCellFormat'
-import { parseDnbGrid } from '@/lib/bankImport/parseDnbGrid'
+import { parseSparebank1Grid } from '@/lib/bankImport/parseSparebank1Grid'
 import { splitCsvLine } from '@/lib/transactionImport/parseTransactionCsv'
 
 function detectDelimiter(line: string): ';' | ',' {
@@ -16,9 +16,9 @@ function stripBom(text: string): string {
 }
 
 /**
- * DNB/Sbanken eksportert som CSV (samme kolonner som xlsx-ark).
+ * Sparebank 1 eksportert som CSV (samme kolonner som typisk xlsx-eksport).
  */
-export function parseDnbSbankenCsvText(text: string): ParseBankFileResult {
+export function parseSparebank1CsvText(text: string): ParseBankFileResult {
   const stripped = stripBom(text)
   const byteLen = new TextEncoder().encode(stripped).length
   if (byteLen > BANK_IMPORT_MAX_FILE_BYTES) {
@@ -40,13 +40,13 @@ export function parseDnbSbankenCsvText(text: string): ParseBankFileResult {
   const firstNonEmpty = lines.find((l) => l.trim()) ?? lines[0]!
   const delimiter = detectDelimiter(firstNonEmpty)
   const grid = lines.map((line) => splitCsvLine(line, delimiter))
-  return parseDnbGrid(grid, 0)
+  return parseSparebank1Grid(grid, 0)
 }
 
 /**
- * Leser .xlsx (første ark) som DNB/Sbanken-posteringer.
+ * Leser .xlsx (første ark) som Sparebank 1-posteringer.
  */
-export async function parseDnbSbankenXlsxBuffer(buf: ArrayBuffer): Promise<ParseBankFileResult> {
+export async function parseSparebank1XlsxBuffer(buf: ArrayBuffer): Promise<ParseBankFileResult> {
   if (buf.byteLength > BANK_IMPORT_MAX_FILE_BYTES) {
     return {
       rows: [],
@@ -80,5 +80,5 @@ export async function parseDnbSbankenXlsxBuffer(buf: ArrayBuffer): Promise<Parse
     grid.push(values)
   }
 
-  return parseDnbGrid(grid, 0)
+  return parseSparebank1Grid(grid, 0)
 }
