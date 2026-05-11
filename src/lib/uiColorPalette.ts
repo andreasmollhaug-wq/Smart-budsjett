@@ -1,4 +1,12 @@
-/** Fargepalett for innlogget app (UI + diagrammer som trenger hex). Standard er dagens blå tema. */
+/**
+ * Fargepaletter for innlogget app (CSS-variabler + diagrammer).
+ *
+ * **`fjord` … `wine` («Sen kveld») — Premium logofamilie**
+ * Alle deler merkevare-aksent `#004B6B` på primærhandlinger (knapper, CTA, viktige lenker).
+ * `--primary-light` og diagram-hjelpelinje er **samme** tone for hele familien (ett produkt, flere rom).
+ * Variasjon = sidebakgrunn, kort-skygger (`--primary-pale`), rammer og Chrome-gradient — ikke nye aksentfarger.
+ * Urelatert til «Klassisk blå», Excel-grønn eller Rose.
+ */
 
 export type UiColorPaletteId =
   | 'default'
@@ -33,41 +41,44 @@ export const UI_COLOR_PALETTE_OPTIONS: UiColorPaletteOption[] = [
   {
     id: 'fjord',
     label: 'Fjordblå',
-    hint: 'Rent uttrykk rundt logosignaturen (#004B6B) — «referanse-blå-grønn»',
+    hint: 'Premium logofamilie — klar referanse (#004B6B på handlingsknapper): mest luft, kald isdis',
   },
   {
     id: 'sand',
     label: 'Sand',
-    hint: 'Lys varm «papir»-flate med logo-blå aksent og dempete gråblå toner',
+    hint: 'Premium logofamilie — varm, nesten hvit lysflate rundt aksent (#004B6B); ro og overskudd',
   },
   {
     id: 'slate',
     label: 'Skifer',
-    hint: 'Kjølig gråbla bakgrunn; samme hue som logo (#004B6B), skarpere struktur mellom felter',
+    hint: 'Premium logofamilie — arkitektonisk kjølig rom; aksent på knapper beholdes #004B6B',
   },
   {
     id: 'sage',
     label: 'Salvie',
-    hint: 'Litt grønnere lys skygger og flater rundt samme logosignatur — rolig økonomispråk',
+    hint: 'Premium logofamilie — myk mint-dugg i flater; samme knappespråk som logo (#004B6B)',
   },
   {
     id: 'wine',
     label: 'Sen kveld',
-    hint: 'Dybere skylag og gradient ut fra logo-tonen — mest dramatikk, fortsatt nøkternt',
+    hint: 'Premium logofamilie — dypest lysrom og rik sidebar; handlingsfarge uendret #004B6B',
   },
 ]
+
+/** Graf-linjer for logofamilien: aksent (#004B6B) og éi felles hjelpelinje («premium»: eitt språk). */
+const LOGO_CHART_PRIMARY = '#004B6B'
+const LOGO_CHART_PRIMARY_LIGHT = '#2499B9'
 
 const CHART: Record<UiColorPaletteId, { primary: string; primaryLight: string }> = {
   default: { primary: '#3B5BDB', primaryLight: '#4C6EF5' },
   green: { primary: '#217346', primaryLight: '#107C41' },
   rose: { primary: '#C2255C', primaryLight: '#E64980' },
   dark: { primary: '#748FFC', primaryLight: '#91A7FF' },
-  fjord: { primary: '#004B6B', primaryLight: '#196B87' },
-  /** Lysere logo-linje til grafer på alle paletter tuktet inn mot #004B6B. */
-  sand: { primary: '#004B6B', primaryLight: '#2086A4' },
-  slate: { primary: '#004B6B', primaryLight: '#1C86A5' },
-  sage: { primary: '#004B6B', primaryLight: '#2498AC' },
-  wine: { primary: '#004B6B', primaryLight: '#187E99' },
+  fjord: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
+  sand: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
+  slate: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
+  sage: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
+  wine: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
 }
 
 export function normalizeUiColorPaletteId(value: unknown): UiColorPaletteId {
@@ -101,15 +112,15 @@ export function ctaGradientForUiPalette(id: UiColorPaletteId): string {
     case 'dark':
       return 'linear-gradient(135deg, #5c7cfa, #748ffc)'
     case 'fjord':
-      return 'linear-gradient(135deg, #003852, #004B6B)'
+      return 'linear-gradient(135deg, #00334b, #004B6B)'
     case 'sand':
-      return 'linear-gradient(135deg, #00324a, #004b6b)'
+      return 'linear-gradient(135deg, #003f58, #004B6B)'
     case 'slate':
-      return 'linear-gradient(135deg, #003854, #004b6b)'
+      return 'linear-gradient(135deg, #003045, #004B6B)'
     case 'sage':
-      return 'linear-gradient(135deg, #003851, #004b6b)'
+      return 'linear-gradient(135deg, #003a4a, #004B6B)'
     case 'wine':
-      return 'linear-gradient(135deg, #002636, #004b6b)'
+      return 'linear-gradient(135deg, #00161c, #004B6B)'
     default:
       return 'linear-gradient(135deg, #3B5BDB, #4C6EF5)'
   }
