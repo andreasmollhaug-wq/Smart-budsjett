@@ -14,6 +14,11 @@ describe('normalizeUiColorPaletteId', () => {
     expect(normalizeUiColorPaletteId('green')).toBe('green')
     expect(normalizeUiColorPaletteId('rose')).toBe('rose')
     expect(normalizeUiColorPaletteId('dark')).toBe('dark')
+    expect(normalizeUiColorPaletteId('fjord')).toBe('fjord')
+    expect(normalizeUiColorPaletteId('sand')).toBe('sand')
+    expect(normalizeUiColorPaletteId('slate')).toBe('slate')
+    expect(normalizeUiColorPaletteId('sage')).toBe('sage')
+    expect(normalizeUiColorPaletteId('wine')).toBe('wine')
   })
 
   it('mapper legacy teal til dark', () => {

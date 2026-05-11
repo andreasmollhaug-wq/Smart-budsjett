@@ -1,6 +1,15 @@
 /** Fargepalett for innlogget app (UI + diagrammer som trenger hex). Standard er dagens blå tema. */
 
-export type UiColorPaletteId = 'default' | 'green' | 'rose' | 'dark'
+export type UiColorPaletteId =
+  | 'default'
+  | 'green'
+  | 'rose'
+  | 'dark'
+  | 'fjord'
+  | 'sand'
+  | 'slate'
+  | 'sage'
+  | 'wine'
 
 export type UiColorPaletteOption = {
   id: UiColorPaletteId
@@ -21,6 +30,31 @@ export const UI_COLOR_PALETTE_OPTIONS: UiColorPaletteOption[] = [
     label: 'Mørk modus',
     hint: 'Mørk bakgrunn og lys tekst — godt for kveldsbruk og OLED-skjermer',
   },
+  {
+    id: 'fjord',
+    label: 'Fjordblå',
+    hint: 'Rent uttrykk rundt logosignaturen (#004B6B) — «referanse-blå-grønn»',
+  },
+  {
+    id: 'sand',
+    label: 'Sand',
+    hint: 'Lys varm «papir»-flate med logo-blå aksent og dempete gråblå toner',
+  },
+  {
+    id: 'slate',
+    label: 'Skifer',
+    hint: 'Kjølig gråbla bakgrunn; samme hue som logo (#004B6B), skarpere struktur mellom felter',
+  },
+  {
+    id: 'sage',
+    label: 'Salvie',
+    hint: 'Litt grønnere lys skygger og flater rundt samme logosignatur — rolig økonomispråk',
+  },
+  {
+    id: 'wine',
+    label: 'Sen kveld',
+    hint: 'Dybere skylag og gradient ut fra logo-tonen — mest dramatikk, fortsatt nøkternt',
+  },
 ]
 
 const CHART: Record<UiColorPaletteId, { primary: string; primaryLight: string }> = {
@@ -28,11 +62,27 @@ const CHART: Record<UiColorPaletteId, { primary: string; primaryLight: string }>
   green: { primary: '#217346', primaryLight: '#107C41' },
   rose: { primary: '#C2255C', primaryLight: '#E64980' },
   dark: { primary: '#748FFC', primaryLight: '#91A7FF' },
+  fjord: { primary: '#004B6B', primaryLight: '#196B87' },
+  /** Lysere logo-linje til grafer på alle paletter tuktet inn mot #004B6B. */
+  sand: { primary: '#004B6B', primaryLight: '#2086A4' },
+  slate: { primary: '#004B6B', primaryLight: '#1C86A5' },
+  sage: { primary: '#004B6B', primaryLight: '#2498AC' },
+  wine: { primary: '#004B6B', primaryLight: '#187E99' },
 }
 
 export function normalizeUiColorPaletteId(value: unknown): UiColorPaletteId {
   if (value === 'teal') return 'dark'
-  if (value === 'green' || value === 'rose' || value === 'dark') return value
+  if (
+    value === 'green' ||
+    value === 'rose' ||
+    value === 'dark' ||
+    value === 'fjord' ||
+    value === 'sand' ||
+    value === 'slate' ||
+    value === 'sage' ||
+    value === 'wine'
+  )
+    return value
   return 'default'
 }
 
@@ -50,6 +100,16 @@ export function ctaGradientForUiPalette(id: UiColorPaletteId): string {
       return 'linear-gradient(135deg, #A61E4D, #E64980)'
     case 'dark':
       return 'linear-gradient(135deg, #5c7cfa, #748ffc)'
+    case 'fjord':
+      return 'linear-gradient(135deg, #003852, #004B6B)'
+    case 'sand':
+      return 'linear-gradient(135deg, #00324a, #004b6b)'
+    case 'slate':
+      return 'linear-gradient(135deg, #003854, #004b6b)'
+    case 'sage':
+      return 'linear-gradient(135deg, #003851, #004b6b)'
+    case 'wine':
+      return 'linear-gradient(135deg, #002636, #004b6b)'
     default:
       return 'linear-gradient(135deg, #3B5BDB, #4C6EF5)'
   }

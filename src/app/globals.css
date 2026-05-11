@@ -56,6 +56,72 @@
   --cta-gradient: linear-gradient(135deg, #5c7cfa, #748ffc);
 }
 
+[data-ui-palette="fjord"] {
+  --bg: #f3f9fb;
+  --surface: #ffffff;
+  --primary: #004b6b;
+  --primary-light: #196b87;
+  --primary-pale: #e5f2f7;
+  --accent: #8eb8c9;
+  --text: #172a31;
+  --text-muted: #5a6e78;
+  --border: #cde4ed;
+  --cta-gradient: linear-gradient(135deg, #003852, #004b6b);
+}
+
+/** Logo-baserte varianter: primær er alltid #004b6b; variasjon = bakgrunn/skyer/skyggelag langs samme hue. */
+[data-ui-palette="sand"] {
+  --bg: #faf7f3;
+  --surface: #ffffff;
+  --primary: #004b6b;
+  --primary-light: #2086a4;
+  --primary-pale: #eaf0f4;
+  --accent: #7eabbd;
+  --text: #152d36;
+  --text-muted: #596770;
+  --border: #dbe9ef;
+  --cta-gradient: linear-gradient(135deg, #00324a, #004b6b);
+}
+
+[data-ui-palette="slate"] {
+  --bg: #eef6fa;
+  --surface: #ffffff;
+  --primary: #004b6b;
+  --primary-light: #1c86a5;
+  --primary-pale: #e4eef5;
+  --accent: #6da1b7;
+  --text: #102a34;
+  --text-muted: #516a75;
+  --border: #c8dae6;
+  --cta-gradient: linear-gradient(135deg, #003854, #004b6b);
+}
+
+[data-ui-palette="sage"] {
+  --bg: #f3faf8;
+  --surface: #ffffff;
+  --primary: #004b6b;
+  --primary-light: #2498ac;
+  --primary-pale: #e6f7f8;
+  --accent: #6dafbb;
+  --text: #102f35;
+  --text-muted: #4a6971;
+  --border: #c8eae8;
+  --cta-gradient: linear-gradient(135deg, #003851, #004b6b);
+}
+
+[data-ui-palette="wine"] {
+  --bg: #e9f4fa;
+  --surface: #ffffff;
+  --primary: #004b6b;
+  --primary-light: #187e99;
+  --primary-pale: #daeaf4;
+  --accent: #5f94ad;
+  --text: #0d2731;
+  --text-muted: #466375;
+  --border: #b7d9eb;
+  --cta-gradient: linear-gradient(135deg, #002636, #004b6b);
+}
+
 body {
   background-color: var(--bg);
   color: var(--text);
