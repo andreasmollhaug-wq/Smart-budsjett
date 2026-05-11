@@ -44,13 +44,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
         <header
-          className="flex shrink-0 items-center gap-3 border-b px-3 py-2.5 md:hidden"
+          className="relative grid shrink-0 grid-cols-[2.75rem_1fr_2.75rem] items-center gap-1 border-b px-2 py-2.5 md:hidden"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors hover:opacity-90"
+            className="flex h-11 w-11 shrink-0 items-center justify-center justify-self-start rounded-xl transition-colors hover:opacity-90"
             style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }}
             aria-expanded={mobileOpen}
             aria-controls="app-mobile-nav"
@@ -61,10 +61,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <Link
             href="/dashboard"
             aria-label={PRODUCT_DISPLAY_NAME}
-            className={`flex shrink-0 items-center rounded-xl py-1 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${demoLogoRing}`.trim()}
+            className={`flex min-w-0 justify-center justify-self-center rounded-xl py-1 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${demoLogoRing}`.trim()}
           >
-            <BrandLogoMark size="sm" alt="" />
+            <BrandLogoMark heightClass="h-14 w-auto" alt="" />
           </Link>
+          <span className="w-11 shrink-0 justify-self-end" aria-hidden />
         </header>
 
         <aside

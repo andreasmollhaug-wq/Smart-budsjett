@@ -229,7 +229,7 @@ export default function LandingHeader() {
             aria-label={PRODUCT_DISPLAY_NAME}
             className="flex shrink-0 items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:gap-3"
           >
-            <BrandLogoMark size="sm" fetchPriority="high" alt="" />
+            <BrandLogoMark size="xl" fetchPriority="high" alt="" />
           </Link>
 
           <nav className="ml-auto flex min-w-0 flex-nowrap items-center justify-end gap-0.5 sm:gap-2">

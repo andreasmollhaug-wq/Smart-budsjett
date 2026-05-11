@@ -36,7 +36,7 @@ export default function LandingHero({ variant = 'default' }: Props) {
           Ryddig oversikt på økonomien — uten forkunnskaper
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed sm:text-lg" style={{ color: 'var(--text-muted)' }}>
-          Smart Budsjett er et enkelt og strukturert budsjettverktøy som hjelper deg å se inntekter, utgifter og hva du har igjen
+          Dottir er et enkelt og strukturert budsjettverktøy som hjelper deg å se inntekter, utgifter og hva du har igjen
           — med ferdig oppsett, så du bare fyller inn dine egne tall.
         </p>
         {partnerCampaign && (
@@ -80,7 +80,7 @@ export default function LandingHero({ variant = 'default' }: Props) {
               I samarbeid med Iris Eyfjord
             </a>
             <span className="mx-1">·</span>
-            Partner som deler erfaring — Smart Budsjett er et produkt fra EnkelExcel.
+            Partner som deler erfaring — Dottir er et produkt fra EnkelExcel.
           </p>
         )}
       </div>

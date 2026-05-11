@@ -11,7 +11,7 @@ export default function LandingFinalCTA() {
         <h2 className="text-2xl font-bold sm:text-3xl">Klar for oversikt?</h2>
         <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed opacity-95 sm:text-base">
           Start 14 dagers gratis prøveperiode med kortregistrering. Ingen trekk før prøveperioden er over — deretter får du full
-          tilgang til Smart Budsjett til månedlig pris.
+          tilgang til Dottir til månedlig pris.
         </p>
         <Link
           href={CTA_HREF}

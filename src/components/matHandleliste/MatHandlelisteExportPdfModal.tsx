@@ -176,7 +176,7 @@ export function MatHandlelisteExportPdfModal({
           <div className="space-y-2">
             <LayoutCheckbox
               id={`${titleId}-brand`}
-              label="Smart Budsjett-merke"
+              label="Dottir-merke"
               checked={layout.showBrand}
               onChange={(c) => patch({ showBrand: c })}
             />

@@ -15,10 +15,10 @@ export const metadata: Metadata = {
   /** Ikke indeksert til merkenavn er offentlig lansert — fjern når dere går live. */
   robots: { index: false, follow: false },
   openGraph: {
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
     url: canonical,
-    siteName: 'Smart Budsjett',
+    siteName: 'Dottir',
     locale: 'nb_NO',
     type: 'website',
   },

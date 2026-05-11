@@ -6,6 +6,9 @@ import './globals.css'
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
+/** Bumper når favicon/PWA-PNG byttes, så nettlesere ikke viser gammel tab-ikon-cache. */
+const FAVICON_CACHE_QUERY = '?v=fav02'
+
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -22,10 +25,10 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: '/pwa-icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/pwa-icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: `/pwa-icon-192.png${FAVICON_CACHE_QUERY}`, sizes: '192x192', type: 'image/png' },
+      { url: `/pwa-icon-512.png${FAVICON_CACHE_QUERY}`, sizes: '512x512', type: 'image/png' },
     ],
-    apple: '/apple-icon.png',
+    apple: `/apple-icon.png${FAVICON_CACHE_QUERY}`,
   },
 }
 

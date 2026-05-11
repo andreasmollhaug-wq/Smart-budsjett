@@ -306,7 +306,7 @@ export default function KomIGangJourney() {
           <li>Juster budsjettet når livet endrer seg — planen skal tjene deg, ikke omvendt.</li>
           <li>Hold transaksjoner oppdatert; selv små beløp gir bedre innsikt over tid.</li>
           <li>Test gjerne med demodata under Innstillinger, slik at du ser sammenhengen før du legger inn alt selv.</li>
-          <li>Smart Budsjett er et planleggingsverktøy, ikke personlig økonomisk eller skatterådgivning.</li>
+          <li>Dottir er et planleggingsverktøy, ikke personlig økonomisk eller skatterådgivning.</li>
         </ul>
       </section>
 

@@ -24,7 +24,7 @@ function resolveOpenAiTemperature(): number {
 }
 
 const SYSTEM_PROMPT = [
-  'Du hjelper med å foreslå budsjettkategori for banktransaksjoner i appen Smart Budsjett.',
+  'Du hjelper med å foreslå budsjettkategori for banktransaksjoner i appen Dottir.',
   'Svar KUN med kompakt JSON-objekt, ingen markdown, ingen forklarende tekst rundt.',
   'Nøyaktig dette skjemaet: {"suggestions":[{"key":"<eksakt key fra forespørselen>","category":"<kategorinavn fra riktig liste eller null>"}]}',
   'Hver "key" må være nøyaktig lik en key du fikk. Ikke endre, forkorte eller normalisere key.',

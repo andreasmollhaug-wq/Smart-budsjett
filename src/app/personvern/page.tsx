@@ -5,19 +5,19 @@ import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal
 
 export const metadata: Metadata = {
   title: 'Personvern',
-  description: `Personvernerklæring for Smart Budsjett fra ${COMPANY_NAME}.`,
+  description: `Personvernerklæring for Dottir fra ${COMPANY_NAME}.`,
 }
 
 export default function PersonvernPage() {
   return (
     <LegalArticle
       title="Personvernerklæring"
-      description={`Sist oppdatert: 23. april 2026 · Smart Budsjett er levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
+      description={`Sist oppdatert: 23. april 2026 · Dottir er levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
     >
       <LegalSection title="1. Innledning">
         <LegalP>
           Denne personvernerklæringen beskriver hvordan {COMPANY_NAME} («vi», «oss») behandler personopplysninger når du bruker
-          nettjenesten Smart Budsjett («Tjenesten»). Vi respekterer personvernet ditt og behandler opplysninger i tråd med
+          nettjenesten Dottir («Tjenesten»). Vi respekterer personvernet ditt og behandler opplysninger i tråd med
           personopplysningsloven og EU-forordning 2016/679 (GDPR).
         </LegalP>
         <LegalP>
@@ -28,7 +28,7 @@ export default function PersonvernPage() {
 
       <LegalSection title="2. Behandlingsansvarlig">
         <LegalP>
-          Behandlingsansvarlig for personopplysningene knyttet til Smart Budsjett er {COMPANY_NAME}, org.nr.{' '}
+          Behandlingsansvarlig for personopplysningene knyttet til Dottir er {COMPANY_NAME}, org.nr.{' '}
           {COMPANY_ORG_NR_DISPLAY}. For spørsmål om personvern, kontakt oss på{' '}
           <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
             {CONTACT_EMAIL}
@@ -156,7 +156,7 @@ export default function PersonvernPage() {
           Ingen overføring over internett kan garanteres fullstendig risikofri. Du bruker Tjenesten på eget ansvar når det
           gjelder sikker bruk av passord og enheter. En praktisk oversikt over sikkerhetsdesign finner du på siden{' '}
           <Link href="/sikkerhet" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
-            Sikkerhet i Smart Budsjett
+            Sikkerhet i Dottir
           </Link>
           .
         </LegalP>

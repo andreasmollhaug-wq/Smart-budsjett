@@ -7,22 +7,22 @@ import { getSiteUrl } from '@/lib/site-url'
 
 const title = 'Enkel oversikt på økonomien'
 const description =
-  'Smart Budsjett hjelper privatpersoner med oversikt over inntekter og utgifter — enkelt budsjettverktøy med ferdig struktur og 14 dagers gratis prøveperiode.'
+  'Dottir hjelper privatpersoner med oversikt over inntekter og utgifter — enkelt budsjettverktøy med ferdig struktur og 14 dagers gratis prøveperiode.'
 
 export const metadata: Metadata = {
   title,
   description,
   openGraph: {
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
     url: `${getSiteUrl()}/`,
-    siteName: 'Smart Budsjett',
+    siteName: 'Dottir',
     locale: 'nb_NO',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
   },
   alternates: {

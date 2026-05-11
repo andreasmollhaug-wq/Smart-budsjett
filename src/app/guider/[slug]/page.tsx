@@ -34,10 +34,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: article.title,
     description: article.description,
     openGraph: {
-      title: `${article.title} · Smart Budsjett`,
+      title: `${article.title} · Dottir`,
       description: article.description,
       url,
-      siteName: 'Smart Budsjett',
+      siteName: 'Dottir',
       locale: 'nb_NO',
       type: 'article',
       publishedTime: `${article.publishedAt}T12:00:00.000Z`,
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${article.title} · Smart Budsjett`,
+      title: `${article.title} · Dottir`,
       description: article.description,
     },
     alternates: {

@@ -251,7 +251,7 @@ function BetalingerContent() {
           }}
           role="alert"
         >
-          Abonnementet er ikke aktivt. Registrer betaling under for å fortsette å bruke Smart Budsjett med dine egne
+          Abonnementet er ikke aktivt. Registrer betaling under for å fortsette å bruke Dottir med dine egne
           tall. Dataene dine er lagret.
         </div>
       )}

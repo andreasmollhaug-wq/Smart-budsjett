@@ -1,7 +1,9 @@
 export { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 
-/** Merke (filer under `public/marketing`, mellomrom URL-kodes) */
-export const BRAND_LOGO_SVG_SRC = '/marketing/Logo%20v01_SVG.svg'
+/** Primær merke-SVG (kvadrat / vertikal – navigasjon og felles bruk). */
+export const BRAND_LOGO_SVG_SRC = '/marketing/Logo%20v02_vertikal.svg'
+/** Horisontalt ordmerke ved behov (landing-variant, eldre eksport). */
+export const BRAND_LOGO_WORDMARK_SVG_SRC = '/marketing/Logo%20v01_SVG.svg'
 export const BRAND_LOGO_PNG_SRC = '/marketing/Logo%20v01.png'
 
 /** Innlogging og registrering */

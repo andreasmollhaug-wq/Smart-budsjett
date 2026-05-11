@@ -6,7 +6,7 @@ import ProductFlowJourney from '@/components/marketing/ProductFlowJourney'
 import { CTA_HREF } from '@/components/marketing/constants'
 import { getSiteUrl } from '@/lib/site-url'
 
-const title = 'Slik henger Smart Budsjett sammen'
+const title = 'Slik henger Dottir sammen'
 const description =
   'Se hele flyten fra budsjett og transaksjoner til oversikt, sparing, gjeld, rapporter og EnkelExcel AI — med tydelig utfall per steg, før du logger inn.'
 
@@ -14,16 +14,16 @@ export const metadata: Metadata = {
   title,
   description,
   openGraph: {
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
     url: `${getSiteUrl()}/produktflyt`,
-    siteName: 'Smart Budsjett',
+    siteName: 'Dottir',
     locale: 'nb_NO',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
   },
   alternates: {
@@ -93,7 +93,7 @@ export default function ProduktflytPage() {
             <li>Juster budsjettet når livet endrer seg — planen skal tjene deg.</li>
             <li>Små, jevnlige transaksjonsoppdateringer gir bedre innsikt enn sjeldne «store oppryddinger».</li>
             <li>Bruk rapportene når du trenger dokumentasjon — tallene kommer fra det du allerede har lagt inn.</li>
-            <li>Smart Budsjett er et planleggingsverktøy, ikke personlig økonomisk eller skatterådgivning.</li>
+            <li>Dottir er et planleggingsverktøy, ikke personlig økonomisk eller skatterådgivning.</li>
           </ul>
         </section>
 
@@ -113,7 +113,7 @@ export default function ProduktflytPage() {
             className="mt-5 inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-95 sm:min-h-[44px] sm:w-auto"
             style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
           >
-            Kom i gang med Smart Budsjett
+            Kom i gang med Dottir
           </Link>
         </section>
       </main>

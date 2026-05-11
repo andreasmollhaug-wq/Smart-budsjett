@@ -148,7 +148,7 @@ export default function OnboardingWizard() {
         {step === 0 && (
           <div>
             <h2 id="onboarding-title" className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
-              Velkommen til Smart Budsjett
+              Velkommen til Dottir
             </h2>
             <p className="text-sm mt-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Her får du oversikt over inntekter og utgifter, budsjett per måned, transaksjoner og sparing — på ett

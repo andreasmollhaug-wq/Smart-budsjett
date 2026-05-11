@@ -5,6 +5,7 @@ import {
   DOTTIR_OM_OSS_HREF,
   DOTTIR_UTFORSK_HREF,
   LOGIN_HREF,
+  PRODUCT_DISPLAY_NAME,
   landingHorizontalPadding,
 } from './constants'
 
@@ -14,7 +15,7 @@ type LandingFooterProps = {
 }
 
 export default function LandingFooter({ variant = 'default' }: LandingFooterProps) {
-  const productTitle = variant === 'dottir' ? 'Dottir' : 'Smart Budsjett'
+  const productTitle = PRODUCT_DISPLAY_NAME
 
   return (
     <footer

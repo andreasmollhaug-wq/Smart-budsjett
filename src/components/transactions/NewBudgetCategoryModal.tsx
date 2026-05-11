@@ -28,6 +28,8 @@ type Props = {
   /** Når satt ved åpning: forhåndsvelg type / utgift-hovedgruppe (f.eks. fra transaksjonsskjema). */
   initialKind?: 'income' | 'expense'
   initialExpenseParent?: ParentCategory
+  /** Forhåndsutfyll navn (f.eks. fra kategori-søk uten treff). */
+  initialName?: string
   /** Standard: «Ny budsjettkategori». Bruk f.eks. «Ny kategori» ved import. */
   dialogTitle?: string
   /** Standard: kort hjelpetekst om 0 kr budsjett. */
@@ -46,6 +48,7 @@ export default function NewBudgetCategoryModal({
   addBudgetCategory,
   initialKind,
   initialExpenseParent,
+  initialName,
   dialogTitle = 'Ny budsjettkategori',
   dialogDescription = 'Opprettes med 0 kr budsjett for alle måneder. Du kan justere budsjettet under Budsjett.',
   submitLabel = 'Opprett og velg',
@@ -56,10 +59,11 @@ export default function NewBudgetCategoryModal({
 
   useEffect(() => {
     if (!open) return
-    setName('')
+    const trimmedInitial = initialName?.trim() ?? ''
     if (initialKind === 'income') {
       setKind('income')
       setExpenseParent('utgifter')
+      setName(trimmedInitial)
       return
     }
     if (initialKind === 'expense') {
@@ -69,11 +73,13 @@ export default function NewBudgetCategoryModal({
           ? initialExpenseParent
           : 'utgifter'
       setExpenseParent(parent)
+      setName(trimmedInitial)
       return
     }
     setKind('expense')
     setExpenseParent('utgifter')
-  }, [open, initialKind, initialExpenseParent])
+    setName(trimmedInitial)
+  }, [open, initialKind, initialExpenseParent, initialName])
 
   useEffect(() => {
     if (!open) return

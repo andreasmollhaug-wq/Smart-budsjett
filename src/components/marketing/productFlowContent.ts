@@ -162,7 +162,7 @@ export const PRODUCT_FLOW_PHASES: ProductFlowPhase[] = [
     title: 'Spør om tall og appen',
     outcome: 'Du får hjelp til å forstå appen og tallene dine — innenfor det produktet faktisk støtter.',
     lead:
-      'EnkelExcel AI svarer innenfor det Smart Budsjett faktisk gjør — med kontekst fra dine tall når du er innlogget.',
+      'EnkelExcel AI svarer innenfor det Dottir faktisk gjør — med kontekst fra dine tall når du er innlogget.',
     bullets: [
       'Typisk: forklaringer av funksjoner, hvor du finner noe, og sammenhenger mellom budsjett, transaksjoner og oversikt.',
       'Hjelpeverktøy i appen — ikke personlig økonomisk, juridisk eller skatterådgivning.',

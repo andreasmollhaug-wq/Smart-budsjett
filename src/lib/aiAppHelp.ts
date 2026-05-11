@@ -1,12 +1,12 @@
 /**
- * Offisiell bruksveiledning for EnkelExcel AI (Smart Budsjett).
+ * Offisiell bruksveiledning for EnkelExcel AI (Dottir).
  * Oppdater når UI, flyter eller produkttekst endres.
  */
-export const AI_APP_HELP_TEXT = `--- Bruksveiledning for Smart Budsjett (offisiell referanse for AI) ---
+export const AI_APP_HELP_TEXT = `--- Bruksveiledning for Dottir (offisiell referanse for AI) ---
 
 Om denne teksten og ansvar
 - Bruk denne teksten når brukeren spør hvordan appen fungerer, hvor noe finnes, eller hva som er støttet.
-- Smart Budsjett er et verktøy for oversikt og planlegging — ikke personlig økonomisk, juridisk, skattemessig eller investeringsrådgivning. AI-svar i appen er automatisert hjelp.
+- Dottir er et verktøy for oversikt og planlegging — ikke personlig økonomisk, juridisk, skattemessig eller investeringsrådgivning. AI-svar i appen er automatisert hjelp.
 - Konkrete neste steg som krever handling i appen (menyer, ruter, knapper) skal kun bygge på det som står beskrevet her — ikke antatte funksjoner eller skjermbilder.
 - Ikke finn opp skjermbilder, knapper eller menyer som ikke står beskrevet her.
 - Vær på brukerens lag: svar konkret med neste steg i appen der det er naturlig, og praktiske tips som passer innholdet her og brukerens tall — uten nedlatende tone.
@@ -233,6 +233,6 @@ Formuebyggeren PRO (/sparing/formuebygger)
 Viktig for svar i chat
 - Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; **sparing analyse** og «Vis meg rundt» på /sparing/analyse → Sparing-seksjonen over; **Oppussing** / hoved vs rom → seksjonen «Oppussing og prosjekt» (/prosjekt); faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement og Stripe → Betalinger /konto/betalinger; gjeld per person / diagram / modal på husholdningssiden → Gjeld-seksjonen over, rute /gjeld/husholdning med forutsetning Familie + minst to profiler). **Ikke bland inn konkrete prosjekt­beløp fra tallblokk** — oppussing er ikke automatisk dér.
 - Når brukeren spør «hvordan gjør jeg …», gi steg som finnes i appen her — ikke finn opp nye knapper.
-- Skille mellom generell økonomiteori og det Smart Budsjett faktisk gjør.
+- Skille mellom generell økonomiteori og det Dottir faktisk gjør.
 - Ved spørsmål om husholdning og fordeling: bruk profilmerket data og aggregater som beskrevet under EnkelExcel AI og Profiler — ikke anta tall som ikke står i tallteksten. Gjeld-husholdningssiden viser **ikke** en egen «rettferdig fordeling» av hvem som bør betale — bare registrerte lån og avdrag per profil.
 - Ved tvil om hva som er implementert: si at brukeren kan sjekke siden i appen eller kontakte post@enkelexcel.no.`

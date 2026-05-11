@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import LandingFooter from '@/components/marketing/LandingFooter'
+import BrandLogoMark from '@/components/brand/BrandLogoMark'
 import {
   CTA_HREF,
   DOTTIR_OM_OSS_HREF,
@@ -27,6 +28,7 @@ import {
   LOGIN_HREF,
   landingHorizontalPadding,
 } from '@/components/marketing/constants'
+import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 
 const NAV = [
   { href: DOTTIR_OM_OSS_HREF, label: 'Om oss' },
@@ -183,7 +185,7 @@ export default function DottirLanding() {
               className="flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium touch-manipulation"
               style={{ color: 'var(--text-muted)' }}
             >
-              Smart Budsjett — hovedforside
+              Hovedforside
             </Link>
           </div>
         </aside>
@@ -204,11 +206,10 @@ export default function DottirLanding() {
         >
           <Link
             href={DOTTIR_HOME_HREF}
-            aria-label="Dottir"
-            className="inline-flex min-h-[44px] shrink-0 items-center rounded-xl px-1 py-1 text-lg font-bold tracking-tight outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
-            style={{ color: 'var(--text)' }}
+            aria-label={PRODUCT_DISPLAY_NAME}
+            className="inline-flex min-h-[44px] shrink-0 items-center rounded-xl px-1 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
           >
-            Dottir
+            <BrandLogoMark size="xl" fetchPriority="high" alt="" />
           </Link>
 
           <nav className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">

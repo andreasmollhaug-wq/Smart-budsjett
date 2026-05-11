@@ -20,7 +20,7 @@ export default function LandingTrust() {
             Trygghet og personvern
           </h2>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Økonomidata er sensitivt. Smart Budsjett er bygget for at du skal eie oversikten din — med tydelige innstillinger og
+            Økonomidata er sensitivt. Dottir er bygget for at du skal eie oversikten din — med tydelige innstillinger og
             respekt for personvern. Les mer om{' '}
             <Link href="/sikkerhet" className="font-medium underline underline-offset-2 transition-opacity hover:opacity-90" style={{ color: 'var(--primary)' }}>
               sikkerhet i tjenesten

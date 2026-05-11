@@ -62,7 +62,7 @@ const SavingsGoalsReportDocument = forwardRef<HTMLDivElement, SavingsGoalsReport
       >
         <header className="mb-8 pb-6 border-b" style={{ borderColor: 'var(--border)' }}>
           <p className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>
-            Smart Budsjett
+            Dottir
           </p>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
             Sparemålrapport
@@ -273,7 +273,7 @@ const SavingsGoalsReportDocument = forwardRef<HTMLDivElement, SavingsGoalsReport
 
         <footer className="mt-10 pt-6 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           <p>
-            Tallene i denne rapporten bygger på opplysninger du har registrert i Smart Budsjett. De er ment som
+            Tallene i denne rapporten bygger på opplysninger du har registrert i Dottir. De er ment som
             oversikt og er ikke juridisk eller regnskapsmessig dokumentasjon.
           </p>
         </footer>

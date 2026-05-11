@@ -19,11 +19,11 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: 'Hvordan sier jeg opp?',
-    a: 'Du administrerer abonnementet fra kontoinnstillingene i Smart Budsjett. Ingen binding utover det du allerede har betalt for inneværende periode.',
+    a: 'Du administrerer abonnementet fra kontoinnstillingene i Dottir. Ingen binding utover det du allerede har betalt for inneværende periode.',
   },
   {
     q: 'Hva skjer med dataene mine?',
-    a: 'Dataene dine brukes til å vise budsjett og oversikt i Smart Budsjett. Vi selger ikke personopplysninger til tredjeparter. Mer finner du i personvernerklæringen.',
+    a: 'Dataene dine brukes til å vise budsjett og oversikt i Dottir. Vi selger ikke personopplysninger til tredjeparter. Mer finner du i personvernerklæringen.',
   },
 ]
 

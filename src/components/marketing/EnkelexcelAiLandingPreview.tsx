@@ -126,7 +126,7 @@ export default function EnkelexcelAiLandingPreview() {
             href="/"
             className="flex min-w-0 max-w-[min(100%,12rem)] shrink items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:max-w-none sm:gap-3"
           >
-            <BrandLogoMark size="sm" fetchPriority="high" alt="" />
+            <BrandLogoMark size="xl" fetchPriority="high" alt="" />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
                 EnkelExcel AI

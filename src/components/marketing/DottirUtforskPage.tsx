@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, ChevronDown, Sparkles } from 'lucide-react'
 import LandingFooter from '@/components/marketing/LandingFooter'
+import BrandLogoMark from '@/components/brand/BrandLogoMark'
 import { CTA_HREF, DOTTIR_HOME_HREF, landingHorizontalPadding } from '@/components/marketing/constants'
+import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 import {
   DOTTIR_SHOWCASE_CATEGORIES,
   DOTTIR_SHOWCASE_MODULES,
@@ -32,9 +34,18 @@ export default function DottirUtforskPage() {
         <div
           className={`mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-3 py-3 sm:py-4 ${landingHorizontalPadding}`}
         >
-          <p className="min-w-0 truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
-            Utforsk alt
-          </p>
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Link
+              href={DOTTIR_HOME_HREF}
+              aria-label={PRODUCT_DISPLAY_NAME}
+              className="inline-flex shrink-0 rounded-lg outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+            >
+              <BrandLogoMark heightClass="h-10 w-auto" alt="" />
+            </Link>
+            <p className="min-w-0 truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
+              Utforsk alt
+            </p>
+          </div>
           <Link
             href={DOTTIR_HOME_HREF}
             className="inline-flex min-h-[44px] shrink-0 touch-manipulation items-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold transition-opacity hover:opacity-90"

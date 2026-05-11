@@ -65,7 +65,7 @@ export const articles: Article[] = [
       {
         type: 'p',
         text:
-          'I Smart Budsjett er strukturen lagt inn på forhånd, slik at du kan fokusere på tallene dine og oversikten — ikke på ' +
+          'I Dottir er strukturen lagt inn på forhånd, slik at du kan fokusere på tallene dine og oversikten — ikke på ' +
           'å bygge mal fra bunnen av. Når du er klar, kan du prøve appen gratis i 14 dager og se om rytmen passer deg.',
       },
     ],
@@ -110,7 +110,7 @@ export const articles: Article[] = [
         text:
           'Oversikt alene endrer ingenting — men den gjør det mulig å ta ett grep av gangen. Kanskje du justerer ett abonnement, ' +
           'øker matbudsjettet fordi du ser at det var for lavt, eller setter av litt ekstra til sparing når du ser overskudd. ' +
-          'Smart Budsjett er laget for å gi deg den oversikten i en ryddig flate, med rom for både hverdag og langsiktige mål.',
+          'Dottir er laget for å gi deg den oversikten i en ryddig flate, med rom for både hverdag og langsiktige mål.',
       },
     ],
   },
@@ -153,7 +153,7 @@ export const articles: Article[] = [
       {
         type: 'p',
         text:
-          'I Smart Budsjett finnes støtte for å følge gjeld og snøball i samme oversikt som budsjettet ditt, slik at du ser ' +
+          'I Dottir finnes støtte for å følge gjeld og snøball i samme oversikt som budsjettet ditt, slik at du ser ' +
           'sammenhengen mellom hverdagsutgifter og nedbetaling — uten å hoppe mellom flere verktøy.',
       },
     ],

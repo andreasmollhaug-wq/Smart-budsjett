@@ -31,7 +31,7 @@ const shared: NextConfig = {
       /** Klienter som fortsatt ber om rot-«favicon.ico» får PNG med etablert type (ingen tom .ico-fil i public/). */
       {
         source: '/favicon.ico',
-        destination: '/pwa-icon-192.png',
+        destination: '/pwa-icon-192.png?v=fav02',
         permanent: false,
       },
       {
@@ -68,6 +68,16 @@ const shared: NextConfig = {
         source: '/intern/prosjekt/:projectId',
         destination: '/prosjekt/:projectId',
         permanent: true,
+      },
+      {
+        source: '/intern/forum',
+        destination: '/intern/forum-beta',
+        permanent: false,
+      },
+      {
+        source: '/intern/forum/:path*',
+        destination: '/intern/forum-beta/:path*',
+        permanent: false,
       },
     ]
   },

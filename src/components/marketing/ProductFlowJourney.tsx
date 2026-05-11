@@ -123,7 +123,7 @@ export default function ProductFlowJourney() {
           className="mb-2 animate-[komIgangHero_0.55s_ease-out_both] text-xs font-medium uppercase tracking-wide"
           style={{ color: 'var(--text-muted)' }}
         >
-          Din flyt i Smart Budsjett
+          Din flyt i Dottir
         </p>
         <h2
           className="animate-[komIgangHero_0.55s_ease-out_both] text-xl font-semibold sm:text-2xl"

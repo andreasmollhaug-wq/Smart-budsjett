@@ -5,7 +5,7 @@ import NotificationBell from '@/components/layout/NotificationBell'
 
 interface HeaderProps {
   title: string
-  subtitle?: string
+  subtitle?: ReactNode
   /** Ikon eller knapp ved siden av tittel (f.eks. hjelpeikon). */
   titleAddon?: ReactNode
 }
@@ -29,12 +29,12 @@ export default function Header({ title, subtitle, titleAddon }: HeaderProps) {
         <h1 className="min-w-0 truncate text-lg font-bold sm:text-xl" style={{ color: 'var(--text)' }}>
           {title}
         </h1>
-        <p
+        <div
           className="mt-0.5 min-w-0 max-w-full text-xs sm:text-sm leading-snug break-words"
           style={{ color: 'var(--text-muted)' }}
         >
-          {subtitle ?? now}
-        </p>
+          {subtitle != null ? subtitle : now}
+        </div>
       </div>
       <div
         className={

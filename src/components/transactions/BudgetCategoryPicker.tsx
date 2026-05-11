@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { BudgetCategory } from '@/lib/store'
-import { ChevronDown, Search } from 'lucide-react'
+import { ChevronDown, Plus, Search } from 'lucide-react'
 
 type Props = {
   value: string
@@ -17,6 +17,8 @@ type Props = {
   /** Når false, behold rekkefølgen fra `categories` (f.eks. gruppert etter hovedkategori). */
   sortAlphabetically?: boolean
   id?: string
+  /** Ved «pick»: åpne ny-kategori-flyt med foreslått navn (vanligvis fra søk uten treff). Lukker picker først. */
+  onRequestNewCategory?: (suggestedName: string) => void
 }
 
 export default function BudgetCategoryPicker({
@@ -29,6 +31,7 @@ export default function BudgetCategoryPicker({
   variant = 'pick',
   sortAlphabetically = true,
   id,
+  onRequestNewCategory,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -54,6 +57,13 @@ export default function BudgetCategoryPicker({
     (!queryNorm || 'alle kategorier'.toLowerCase().includes(queryNorm))
 
   const showPickPlaceholderRow = variant === 'pick' && !queryNorm
+
+  const showCreateFromSearch =
+    variant === 'pick' &&
+    Boolean(onRequestNewCategory) &&
+    Boolean(queryNorm) &&
+    filteredList.length === 0 &&
+    !showFilterAllRow
 
   const displayLabel = useMemo(() => {
     if (variant === 'filter') {
@@ -199,9 +209,32 @@ export default function BudgetCategoryPicker({
                   </button>
                 ))}
                 {queryNorm && filteredList.length === 0 && !showFilterAllRow && (
-                  <p className="px-3 py-4 text-sm text-center" style={{ color: 'var(--text-muted)' }}>
-                    Ingen treff. Prøv et annet søk.
-                  </p>
+                  <div className="px-3 py-4 space-y-3">
+                    <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>
+                      Ingen treff. Prøv et annet søk
+                      {showCreateFromSearch ? ', eller opprett en ny kategori.' : '.'}
+                    </p>
+                    {showCreateFromSearch && onRequestNewCategory ? (
+                      <button
+                        type="button"
+                        className="w-full min-h-[44px] flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium touch-manipulation"
+                        style={{
+                          border: '1px dashed var(--border)',
+                          color: 'var(--primary)',
+                          background: 'var(--bg)',
+                        }}
+                        onClick={() => {
+                          const suggested = searchQuery.trim()
+                          if (!suggested) return
+                          setOpen(false)
+                          onRequestNewCategory(suggested)
+                        }}
+                      >
+                        <Plus size={18} aria-hidden />
+                        Opprett «{searchQuery.trim()}»
+                      </button>
+                    ) : null}
+                  </div>
                 )}
               </div>
             </div>

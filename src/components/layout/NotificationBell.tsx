@@ -6,6 +6,7 @@ import { Bell } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '@/lib/store'
 import { APP_VERSION_LABEL } from '@/lib/version'
+import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 
 const MOBILE_MAX = '(max-width: 767px)'
 
@@ -193,7 +194,7 @@ export default function NotificationBell({ panelZClass }: { panelZClass?: string
             className="px-3 py-2 text-[11px] text-center border-t"
             style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
           >
-            Smart Budsjett {APP_VERSION_LABEL}
+            {PRODUCT_DISPLAY_NAME} {APP_VERSION_LABEL}
           </div>
         </div>
       )}

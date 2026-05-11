@@ -11,7 +11,7 @@ export function downloadBudgetVsCsv(
 ): void {
   const header = ['Kategori', 'Gruppe', 'Type', 'Budsjett', 'Faktisk', 'Avvik']
   const lines: string[] = [
-    `# Smart Budsjett — ${meta.year} — ${meta.periodLabel}`,
+    `# Dottir — ${meta.year} — ${meta.periodLabel}`,
     header.join(';'),
     ...rows.map((r) =>
       [

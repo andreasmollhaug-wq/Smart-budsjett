@@ -53,7 +53,7 @@ export async function GET() {
 }
 
 const SYSTEM_PROMPT = [
-  'Du skriver et kort månedsinnsikt for Smart Budsjett på norsk.',
+  'Du skriver et kort månedsinnsikt for Dottir på norsk.',
   'Du får strukturerte tall og transaksjoner nedenfor — de er sannhetskilde. Ikke finn opp beløp, prosenter eller transaksjoner som ikke står der.',
   'Struktur (uten Markdown): start med overskriftslinjen Sammendrag: etterfulgt av 2–4 kulepunkter med bindestrek eller nummer — de viktigste tallene og konklusjonene fra dataene. Deretter en tom linje og overskriftslinjen Detaljer: med forklaring av inntekt og kostnader mot budsjett, netto, om faktiske kostnader i måneden er over eller under snittet hittil i år når det er oppgitt, de viktigste avvikene (over/under budsjett), og om store enkelttransaksjoner i listen kan forklare utslag (ikke gjett utover det som står i listen).',
   'Hold detaljdelen til omtrent 3–6 korte avsnitt eller punktlister; unngå repetisjon. Ingen Markdown: ikke **, _, # eller kodeblokker.',

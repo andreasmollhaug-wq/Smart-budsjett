@@ -14,7 +14,7 @@ export default function KontoKontaktPage() {
           Kontakt oss
         </h2>
         <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-          Har du spørsmål om Smart Budsjett eller trenger hjelp? Send oss en e-post, så tar vi kontakt så snart vi kan.
+          Har du spørsmål om Dottir eller trenger hjelp? Send oss en e-post, så tar vi kontakt så snart vi kan.
         </p>
         <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
           <span style={{ color: 'var(--text)' }}>{COMPANY_NAME}</span>

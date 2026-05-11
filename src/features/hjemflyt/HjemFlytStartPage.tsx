@@ -36,7 +36,7 @@ export function HjemFlytStartPage() {
         </h2>
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           Poeng i HjemFlyt er bare motivasjon her i modulen. De kobles ikke til kroner, budsjett eller transaksjoner i
-          Smart Budsjett.
+          Dottir.
         </p>
       </section>
 

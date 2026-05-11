@@ -2568,7 +2568,7 @@ export const useStore = create<AppState>()((set, get) => {
                   id: ROADMAP_INVITE_NOTIFICATION_ID,
                   title: 'Har du et forslag?',
                   body:
-                    'Du har brukt Smart Budsjett en stund. Gå til Min konto → Roadmap for å stemme på forbedringer og foreslå egne.',
+                    'Du har brukt Dottir en stund. Gå til Min konto → Roadmap for å stemme på forbedringer og foreslå egne.',
                   kind: 'product' as const,
                   createdAt: new Date().toISOString(),
                   read: false,

@@ -79,7 +79,7 @@ const MonthlyInsightDocument = forwardRef<HTMLDivElement, MonthlyInsightDocument
       >
         <header className="mb-8 pb-6 border-b" style={{ borderColor: 'var(--border)' }}>
           <p className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>
-            Smart Budsjett
+            Dottir
           </p>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>
             Månedsinnsikt

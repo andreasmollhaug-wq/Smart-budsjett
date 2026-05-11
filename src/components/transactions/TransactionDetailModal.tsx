@@ -98,6 +98,7 @@ export default function TransactionDetailModal({
   const [draft, setDraft] = useState<Draft | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [newCatOpen, setNewCatOpen] = useState(false)
+  const [newCatInitialName, setNewCatInitialName] = useState('')
 
   const allCats = [...expenseCategories, ...incomeCategories]
 
@@ -361,12 +362,23 @@ export default function TransactionDetailModal({
                     categories={allCats}
                     disabled={readOnly}
                     variant="pick"
+                    onRequestNewCategory={
+                      canCreateCategory
+                        ? (suggestedName) => {
+                            setNewCatInitialName(suggestedName)
+                            setNewCatOpen(true)
+                          }
+                        : undefined
+                    }
                   />
                 </div>
                 {canCreateCategory && (
                   <button
                     type="button"
-                    onClick={() => setNewCatOpen(true)}
+                    onClick={() => {
+                      setNewCatInitialName('')
+                      setNewCatOpen(true)
+                    }}
                     className="min-h-[44px] px-3 py-2 rounded-xl text-sm font-medium shrink-0 whitespace-nowrap w-full sm:w-auto touch-manipulation"
                     style={{ background: 'var(--bg)', color: 'var(--primary)', border: '1px solid var(--border)' }}
                   >
@@ -507,12 +519,20 @@ export default function TransactionDetailModal({
       {createCategory && (
         <NewBudgetCategoryModal
           open={newCatOpen}
-          onClose={() => setNewCatOpen(false)}
+          onClose={() => {
+            setNewCatOpen(false)
+            setNewCatInitialName('')
+          }}
           onCreated={({ name }) => setDraft((d) => (d ? { ...d, category: name } : d))}
           customBudgetLabels={createCategory.customBudgetLabels}
           budgetCategories={createCategory.budgetCategories}
           addCustomBudgetLabel={createCategory.addCustomBudgetLabel}
           addBudgetCategory={createCategory.addBudgetCategory}
+          initialKind={txType === 'income' ? 'income' : 'expense'}
+          initialExpenseParent={
+            txType === 'expense' && selectedCat?.parentCategory ? selectedCat.parentCategory : undefined
+          }
+          initialName={newCatInitialName}
         />
       )}
     </>

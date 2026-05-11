@@ -90,7 +90,7 @@ const features: FeatureItem[] = [
     color: '#7048E8',
     paragraphs: [
       'Snøballmetoden handler om å prioritere ekstra innsats mot ett lån av gangen, i en fastlagt rekkefølge, for å bygge motivasjon og spare renter over tid.',
-      'Verktøyet i Smart Budsjett støtter planlegging — du må selv vurdere hva som passer din situasjon og eventuelle lånevilkår.',
+      'Verktøyet i Dottir støtter planlegging — du må selv vurdere hva som passer din situasjon og eventuelle lånevilkår.',
     ],
   },
   {
@@ -100,7 +100,7 @@ const features: FeatureItem[] = [
     text: 'Enkel oversikt over investeringer du registrerer.',
     color: '#0B7285',
     paragraphs: [
-      'Registrer posisjoner du ønsker å følge med på, slik at verdi og utvikling vises samlet i Smart Budsjett der det er støttet.',
+      'Registrer posisjoner du ønsker å følge med på, slik at verdi og utvikling vises samlet i Dottir der det er støttet.',
       'Dette er oversikt og struktur — ikke personlig investeringsrådgivning. Vurder alltid egen risiko og vilkår hos megler/bank.',
     ],
   },
@@ -112,17 +112,17 @@ const features: FeatureItem[] = [
     color: '#495057',
     paragraphs: [
       'Hent ut rapporter og sammendrag som gjør det lettere å se trender over tid eller dele oversikt med noen i husholdningen (der det er relevant for din plan).',
-      'Innholdet bygger på data du har lagt inn i Smart Budsjett.',
+      'Innholdet bygger på data du har lagt inn i Dottir.',
     ],
   },
   {
     id: 'enkelexcel-ai',
     icon: MessageSquare,
     title: 'EnkelExcel AI',
-    text: 'Spør om tall og budsjett i Smart Budsjett — et hjelpeverktøy, ikke personlig rådgivning.',
+    text: 'Spør om tall og budsjett i Dottir — et hjelpeverktøy, ikke personlig rådgivning.',
     color: '#364FC7',
     paragraphs: [
-      'EnkelExcel AI lar deg stille spørsmål om tallene og strukturen i Smart Budsjett, for eksempel hvordan kategorier henger sammen eller hvordan du finner noe i grensesnittet.',
+      'EnkelExcel AI lar deg stille spørsmål om tallene og strukturen i Dottir, for eksempel hvordan kategorier henger sammen eller hvordan du finner noe i grensesnittet.',
       'Svarene er automatiserte og kan ta feil — bruk dem som hjelp, ikke som juridisk, skattemessig eller personlig økonomisk rådgivning. Ved viktige valg bør du kontakte fagfolk.',
     ],
   },
@@ -165,7 +165,7 @@ export default function LandingAppFeatures() {
     <section id="funksjoner" className={`scroll-mt-24 py-14 ${landingHorizontalPadding}`}>
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
-          Funksjoner i Smart Budsjett
+          Funksjoner i Dottir
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
           Samme moduler som i menyen etter innlogging — én oversikt fra tall til sparing og gjeld.
@@ -210,7 +210,7 @@ export default function LandingAppFeatures() {
         </div>
 
         <h3 className="mt-12 text-center text-lg font-semibold sm:text-xl" style={{ color: 'var(--text)' }}>
-          Mer i Smart Budsjett
+          Mer i Dottir
         </h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {secondaryFeatures.map(({ id, icon: Icon, title, text, color }) => (

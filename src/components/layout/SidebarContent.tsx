@@ -49,18 +49,32 @@ export default function SidebarContent({ onNavigate, endSlot }: Props) {
 
   return (
     <>
-      <div className="px-6 py-6 border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="flex items-start justify-between gap-2">
-          <Link
-            href="/dashboard"
-            onClick={onNavigate}
-            aria-label={PRODUCT_DISPLAY_NAME}
-            className={`flex shrink-0 items-center rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${demoLogoRing}`.trim()}
-          >
-            <BrandLogoMark size="sm" alt="" />
-          </Link>
-          {endSlot}
-        </div>
+      <div className="border-b px-6 py-6" style={{ borderColor: 'var(--border)' }}>
+        {endSlot ? (
+          <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-x-1">
+            <span className="block w-11 shrink-0" aria-hidden />
+            <Link
+              href="/dashboard"
+              onClick={onNavigate}
+              aria-label={PRODUCT_DISPLAY_NAME}
+              className={`flex min-w-0 justify-center justify-self-center rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${demoLogoRing}`.trim()}
+            >
+              <BrandLogoMark heightClass="h-14 w-auto" alt="" />
+            </Link>
+            <div className="flex justify-end">{endSlot}</div>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <Link
+              href="/dashboard"
+              onClick={onNavigate}
+              aria-label={PRODUCT_DISPLAY_NAME}
+              className={`inline-flex rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${demoLogoRing}`.trim()}
+            >
+              <BrandLogoMark heightClass="h-14 w-auto" alt="" />
+            </Link>
+          </div>
+        )}
       </div>
 
       <PersonSwitcher />

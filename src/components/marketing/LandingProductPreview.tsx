@@ -30,19 +30,19 @@ const SHOTS: ShotConfig[] = [
     images: [
       {
         src: '/marketing/oversikt%20alt%201.png',
-        alt: 'Oversikt i Smart Budsjett — visning 1 av 3.',
+        alt: 'Oversikt i Dottir — visning 1 av 3.',
         intrinsicWidth: 1905,
         intrinsicHeight: 823,
       },
       {
         src: '/marketing/oversikt%20alt%202.png',
-        alt: 'Oversikt i Smart Budsjett — visning 2 av 3.',
+        alt: 'Oversikt i Dottir — visning 2 av 3.',
         intrinsicWidth: 1662,
         intrinsicHeight: 720,
       },
       {
         src: '/marketing/oversikt%20alt%203.png',
-        alt: 'Oversikt i Smart Budsjett — visning 3 av 3.',
+        alt: 'Oversikt i Dottir — visning 3 av 3.',
         intrinsicWidth: 1678,
         intrinsicHeight: 886,
       },
@@ -55,25 +55,25 @@ const SHOTS: ShotConfig[] = [
     images: [
       {
         src: '/marketing/Budsjett%20alt%201.png',
-        alt: 'Budsjett i Smart Budsjett — visning 1 av 4.',
+        alt: 'Budsjett i Dottir — visning 1 av 4.',
         intrinsicWidth: 1911,
         intrinsicHeight: 942,
       },
       {
         src: '/marketing/Budsjett%20alt%202.png',
-        alt: 'Budsjett i Smart Budsjett — visning 2 av 4.',
+        alt: 'Budsjett i Dottir — visning 2 av 4.',
         intrinsicWidth: 1691,
         intrinsicHeight: 901,
       },
       {
         src: '/marketing/Budsjett%20alt%203.png',
-        alt: 'Budsjett i Smart Budsjett — visning 3 av 4.',
+        alt: 'Budsjett i Dottir — visning 3 av 4.',
         intrinsicWidth: 1889,
         intrinsicHeight: 899,
       },
       {
         src: '/marketing/Budsjett%20alt%204.png',
-        alt: 'Budsjett i Smart Budsjett — visning 4 av 4.',
+        alt: 'Budsjett i Dottir — visning 4 av 4.',
         intrinsicWidth: 1559,
         intrinsicHeight: 954,
       },
@@ -86,19 +86,19 @@ const SHOTS: ShotConfig[] = [
     images: [
       {
         src: '/marketing/Transaksjoner%20alt%201.png',
-        alt: 'Transaksjoner i Smart Budsjett — visning 1 av 3.',
+        alt: 'Transaksjoner i Dottir — visning 1 av 3.',
         intrinsicWidth: 1892,
         intrinsicHeight: 946,
       },
       {
         src: '/marketing/Transaksjoner%20alt%202.png',
-        alt: 'Transaksjoner i Smart Budsjett — visning 2 av 3.',
+        alt: 'Transaksjoner i Dottir — visning 2 av 3.',
         intrinsicWidth: 1654,
         intrinsicHeight: 580,
       },
       {
         src: '/marketing/Transaksjoner%20alt%203.png',
-        alt: 'Transaksjoner i Smart Budsjett — visning 3 av 3.',
+        alt: 'Transaksjoner i Dottir — visning 3 av 3.',
         intrinsicWidth: 1896,
         intrinsicHeight: 952,
       },
@@ -110,7 +110,7 @@ const SHOTS: ShotConfig[] = [
     images: [
       {
         src: '/marketing/Excel%20AI%20alt%201.png',
-        alt: 'Skjermbilde av EnkelExcel AI i Smart Budsjett.',
+        alt: 'Skjermbilde av EnkelExcel AI i Dottir.',
         intrinsicWidth: 1478,
         intrinsicHeight: 950,
       },
@@ -422,7 +422,7 @@ export default function LandingProductPreview() {
         </div>
 
         <p className="mx-auto mt-4 max-w-2xl text-center text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-          Tallene i Smart Budsjett baseres på dine egne registreringer.
+          Tallene i Dottir baseres på dine egne registreringer.
         </p>
       </div>
     </section>

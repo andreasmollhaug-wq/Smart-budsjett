@@ -42,7 +42,7 @@ export default function LandingValueProps() {
     >
       <div className="mx-auto max-w-5xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl" style={{ color: 'var(--text)' }}>
-          Hva du får med Smart Budsjett
+          Hva du får med Dottir
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
           Struktur og kategorier er satt opp på forhånd. Du legger inn tallene dine — resten er samlet på ett sted.

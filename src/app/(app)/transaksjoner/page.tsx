@@ -109,6 +109,7 @@ function TransaksjonerPageInner() {
   const [dateSort, setDateSort] = useState<'desc' | 'asc'>('desc')
   const [listSortMode, setListSortMode] = useState<'date' | 'parent'>('date')
   const [newCatOpen, setNewCatOpen] = useState(false)
+  const [newCatInitialName, setNewCatInitialName] = useState('')
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -639,7 +640,10 @@ function TransaksjonerPageInner() {
       {createCategoryProps && (
         <NewBudgetCategoryModal
           open={newCatOpen}
-          onClose={() => setNewCatOpen(false)}
+          onClose={() => {
+            setNewCatOpen(false)
+            setNewCatInitialName('')
+          }}
           onCreated={({ name }) => setForm((f) => ({ ...f, category: name }))}
           customBudgetLabels={createCategoryProps.customBudgetLabels}
           budgetCategories={createCategoryProps.budgetCategories}
@@ -651,6 +655,7 @@ function TransaksjonerPageInner() {
           initialExpenseParent={
             formParent !== 'all' && formParent !== 'inntekter' ? formParent : undefined
           }
+          initialName={newCatInitialName}
         />
       )}
       <TransactionDetailModal
@@ -1178,13 +1183,24 @@ function TransaksjonerPageInner() {
                           categories={categoriesForAddForm}
                           variant="pick"
                           sortAlphabetically={false}
+                          onRequestNewCategory={
+                            createCategoryProps
+                              ? (suggestedName) => {
+                                  setNewCatInitialName(suggestedName)
+                                  setNewCatOpen(true)
+                                }
+                              : undefined
+                          }
                         />
                       </div>
                       {createCategoryProps && (
                         <div className="flex items-end shrink-0">
                           <button
                             type="button"
-                            onClick={() => setNewCatOpen(true)}
+                            onClick={() => {
+                              setNewCatInitialName('')
+                              setNewCatOpen(true)
+                            }}
                             className="w-full sm:w-auto px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap min-h-[44px]"
                             style={{ background: 'var(--bg)', color: 'var(--primary)', border: '1px solid var(--border)' }}
                           >

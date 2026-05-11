@@ -7,22 +7,22 @@ import { getSiteUrl } from '@/lib/site-url'
 
 const title = 'Guider om budsjett og økonomi'
 const description =
-  'Praktiske guider om månedlig budsjett, oversikt over utgifter og nedbetaling av gjeld — fra Smart Budsjett · EnkelExcel.'
+  'Praktiske guider om månedlig budsjett, oversikt over utgifter og nedbetaling av gjeld — fra Dottir · EnkelExcel.'
 
 export const metadata: Metadata = {
   title,
   description,
   openGraph: {
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
     url: `${getSiteUrl()}/guider`,
-    siteName: 'Smart Budsjett',
+    siteName: 'Dottir',
     locale: 'nb_NO',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
   },
   alternates: {

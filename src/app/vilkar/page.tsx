@@ -5,18 +5,18 @@ import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal
 
 export const metadata: Metadata = {
   title: 'Vilkår',
-  description: `Bruksvilkår for Smart Budsjett fra ${COMPANY_NAME}.`,
+  description: `Bruksvilkår for Dottir fra ${COMPANY_NAME}.`,
 }
 
 export default function VilkarPage() {
   return (
     <LegalArticle
-      title="Vilkår for bruk av Smart Budsjett"
+      title="Vilkår for bruk av Dottir"
       description={`Sist oppdatert: 6. april 2026 · Tjenesten levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
     >
       <LegalSection title="1. Partene og aksept">
         <LegalP>
-          Disse vilkårene («Vilkårene») regulerer bruk av nettjenesten Smart Budsjett («Tjenesten»), levert av {COMPANY_NAME},{' '}
+          Disse vilkårene («Vilkårene») regulerer bruk av nettjenesten Dottir («Tjenesten»), levert av {COMPANY_NAME},{' '}
           org.nr. {COMPANY_ORG_NR_DISPLAY} («vi», «oss»). Ved å opprette konto, registrere deg for prøveperiode eller på annen måte
           ta Tjenesten i bruk, erklærer du
           at du har lest og aksepterer Vilkårene. Hvis du ikke aksepterer Vilkårene, skal du ikke bruke Tjenesten.
@@ -29,7 +29,7 @@ export default function VilkarPage() {
 
       <LegalSection title="2. Beskrivelse av Tjenesten">
         <LegalP>
-          Smart Budsjett er et digitalt verktøy for oversikt over privat økonomi, herunder blant annet budsjett, transaksjoner,
+          Dottir er et digitalt verktøy for oversikt over privat økonomi, herunder blant annet budsjett, transaksjoner,
           sparing, gjeld, rapporter og valgfrie tilleggsfunksjoner som EnkelExcel AI. Funksjonalitet kan endres over tid.
           Tjenesten er et hjelpeverktøy; den erstatter ikke profesjonell økonomisk, juridisk eller skattemessig rådgivning.
         </LegalP>

@@ -4,17 +4,17 @@ import { getSiteUrl } from '@/lib/site-url'
 
 const title = 'EnkelExcel AI (forhåndsvisning)'
 const description =
-  'Forhåndsvisning av landing for EnkelExcel AI — spør om tallene dine i Smart Budsjett. Ikke indeksert; hovedforsiden er uendret.'
+  'Forhåndsvisning av landing for EnkelExcel AI — spør om tallene dine i Dottir. Ikke indeksert; hovedforsiden er uendret.'
 
 export const metadata: Metadata = {
-  title: `${title} · Smart Budsjett`,
+  title: `${title} · Dottir`,
   description,
   robots: { index: false, follow: false },
   openGraph: {
-    title: `${title} · Smart Budsjett`,
+    title: `${title} · Dottir`,
     description,
     url: `${getSiteUrl()}/preview/enkelexcel-landing`,
-    siteName: 'Smart Budsjett',
+    siteName: 'Dottir',
     locale: 'nb_NO',
     type: 'website',
   },

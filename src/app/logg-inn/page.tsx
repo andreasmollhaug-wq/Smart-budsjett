@@ -77,7 +77,7 @@ function LoggInnForm() {
       >
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex justify-center">
-            <BrandLogoMark size="lg" alt="" />
+            <BrandLogoMark size="xl" alt="" />
           </div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
             Logg inn

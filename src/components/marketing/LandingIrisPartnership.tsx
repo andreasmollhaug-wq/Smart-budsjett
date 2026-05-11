@@ -34,7 +34,7 @@ export default function LandingIrisPartnership({ tightBottom = false }: Props) {
             partnerskapet.
           </p>
           <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Smart Budsjett bygger på samme tanke: enkel struktur og trygghet i tallene.
+            Dottir bygger på samme tanke: enkel struktur og trygghet i tallene.
           </p>
           <p className="mt-4">
             <a

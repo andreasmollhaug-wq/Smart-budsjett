@@ -5,18 +5,18 @@ import { COMPANY_NAME, COMPANY_ORG_NR_DISPLAY, CONTACT_EMAIL } from '@/lib/legal
 
 export const metadata: Metadata = {
   title: 'Sikkerhet',
-  description: `Slik tenker vi sikkerhet og tilgang i Smart Budsjett fra ${COMPANY_NAME}.`,
+  description: `Slik tenker vi sikkerhet og tilgang i Dottir fra ${COMPANY_NAME}.`,
 }
 
 export default function SikkerhetPage() {
   return (
     <LegalArticle
-      title="Sikkerhet i Smart Budsjett"
-      description={`Sist oppdatert: 23. april 2026 · Smart Budsjett er levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
+      title="Sikkerhet i Dottir"
+      description={`Sist oppdatert: 23. april 2026 · Dottir er levert av ${COMPANY_NAME} (org.nr. ${COMPANY_ORG_NR_DISPLAY}).`}
     >
       <LegalSection title="Innledning">
         <LegalP>
-          Her beskriver vi — i korte trekk — hvordan Smart Budsjett er utformet for å beskytte dataene dine og gi deg forutsigbar
+          Her beskriver vi — i korte trekk — hvordan Dottir er utformet for å beskytte dataene dine og gi deg forutsigbar
           tilgang til egen konto. Siden er ment som praktisk orientering for deg som bruker tjenesten; den erstatter ikke
           personvernerklæringen eller vilkårene.
         </LegalP>
@@ -48,7 +48,7 @@ export default function SikkerhetPage() {
           vertsplattform (typisk Vercel eller tilsvarende, jf. personvernerklæringen).
         </LegalP>
         <LegalP>
-          Appdelen av Smart Budsjett krever gyldig innlogging. Offentlige sider — forsiden, guider og disse juridiske sidene —
+          Appdelen av Dottir krever gyldig innlogging. Offentlige sider — forsiden, guider og disse juridiske sidene —
           kan leses uten konto. Uten aktiv, gyldig økt blir du bedt om å logge inn før du kan bruke funksjoner som lagrer
           personlig økonomidata.
         </LegalP>
@@ -75,7 +75,7 @@ export default function SikkerhetPage() {
 
       <LegalSection title="Abonnement og økonomidata">
         <LegalP>
-          Smart Budsjett er en abonnementstjeneste. For å ivareta både tjenestens integritet og vernet av lagret økonomidata, kan
+          Dottir er en abonnementstjeneste. For å ivareta både tjenestens integritet og vernet av lagret økonomidata, kan
           varig lagring og synkronisering av slike data i appen forutsette gyldig abonnement eller annen tilgang vi uttrykkelig
           har åpnet for. Uten det vil du normalt kunne bruke grensesnittet i begrenset omfang, men ikke få varige endringer
           lagret — i tråd med hvordan produktet er satt opp.

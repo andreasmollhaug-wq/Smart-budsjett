@@ -1,5 +1,6 @@
 /**
- * Genererer PWA- og Apple-ikoner fra `public/marketing/Logo v01.png`.
+ * Genererer PWA- og Apple-ikoner fra favicon-motiv (skilt fra full logo i UI).
+ * Kilde: `public/marketing/Favcon v02 _ BG.svg`
  * Kjør: node scripts/generate-brand-icons.mjs
  */
 import { readFileSync, writeFileSync } from 'fs'
@@ -9,13 +10,14 @@ import sharp from 'sharp'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
-const srcPath = join(root, 'public', 'marketing', 'Logo v01.png')
+const srcPath = join(root, 'public', 'marketing', 'Favcon v02 _ BG.svg')
+/** Matcher manifest / merke-SVG bakgrunn der favicon-SVG har transparent kant. */
 const bg = '#fcf9f2'
 
-const logoBuf = readFileSync(srcPath)
+const iconBuf = readFileSync(srcPath)
 
 async function squareContain(size, innerMax) {
-  const inner = await sharp(logoBuf)
+  const inner = await sharp(iconBuf, { density: 300 })
     .resize(innerMax, innerMax, { fit: 'inside', withoutEnlargement: true })
     .toBuffer()
   return sharp({
@@ -39,4 +41,4 @@ writeFileSync(join(root, 'public', 'pwa-icon-192.png'), icon192)
 writeFileSync(join(root, 'public', 'pwa-icon-512.png'), icon512)
 writeFileSync(join(root, 'src', 'app', 'apple-icon.png'), apple180)
 
-console.log('Wrote pwa-icon-192.png, pwa-icon-512.png, src/app/apple-icon.png')
+console.log('Wrote pwa-icon-192.png, pwa-icon-512.png, src/app/apple-icon.png (from Favcon v02 _ BG.svg)')

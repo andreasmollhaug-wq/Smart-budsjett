@@ -221,7 +221,7 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
               style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text)' }}
             >
               <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                Basert på innstillingene i Smart Budsjett (forenklet modell, ikke offisiell skatteberegning). Kolonnene
+                Basert på innstillingene i Dottir (forenklet modell, ikke offisiell skatteberegning). Kolonnene
                 «Budsjett» og «Faktisk» under Inntekter bruker <strong>netto</strong> slik at avvik sammenlignes med
                 utbetalt beløp fra bank der transaksjonene er netto.
               </p>
@@ -530,7 +530,7 @@ const BankReportDocument = forwardRef<HTMLDivElement, BankReportDocumentProps>(
 
         <footer className="mt-10 pt-6 border-t text-xs" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
           <p>
-            Tallene i denne rapporten bygger på opplysninger du har registrert i Smart Budsjett. De er ment som
+            Tallene i denne rapporten bygger på opplysninger du har registrert i Dottir. De er ment som
             oversikt og er ikke juridisk eller regnskapsmessig dokumentasjon.
           </p>
         </footer>
