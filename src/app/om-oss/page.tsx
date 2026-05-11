@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import DottirOmOssPage from '@/components/marketing/DottirOmOssPage'
+import { DottirSmoothScroll } from '@/components/marketing/DottirSmoothScroll'
 import { DOTTIR_OM_OSS_HREF } from '@/components/marketing/constants'
 import { getSiteUrl } from '@/lib/site-url'
 
-const title = 'Om oss · Dottir'
+const title = 'Om oss'
 const description =
   'Hvem står bak Dottir — teamet, Dottir, EnkelExcel og samarbeidet med Iris Eyfjord.'
 
@@ -12,8 +13,6 @@ const canonical = `${getSiteUrl()}${DOTTIR_OM_OSS_HREF}`
 export const metadata: Metadata = {
   title,
   description,
-  /** Ikke indeksert til merkenavn er offentlig lansert — fjern når dere går live. */
-  robots: { index: false, follow: false },
   openGraph: {
     title: `${title} · Dottir`,
     description,
@@ -27,6 +26,10 @@ export const metadata: Metadata = {
   },
 }
 
-export default function DottirOmOssRoutePage() {
-  return <DottirOmOssPage />
+export default function OmOssPage() {
+  return (
+    <DottirSmoothScroll>
+      <DottirOmOssPage />
+    </DottirSmoothScroll>
+  )
 }

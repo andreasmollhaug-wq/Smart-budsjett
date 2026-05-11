@@ -13,10 +13,10 @@ export const REGISTER_HREF = '/registrer'
 /** Primær CTA på landing (prøveperiode) */
 export const CTA_HREF = '/registrer'
 
-/** Dottir landing på /dottir. Metadata har noindex til merket lanseres — se app/dottir. */
-export const DOTTIR_HOME_HREF = '/dottir'
-export const DOTTIR_OM_OSS_HREF = `${DOTTIR_HOME_HREF}/om-oss`
-export const DOTTIR_UTFORSK_HREF = `${DOTTIR_HOME_HREF}/utforsk`
+/** Offentlig Dottir-forside (rot) og støttesider — eldre /dottir-* viderekobles i next.config. */
+export const DOTTIR_HOME_HREF = '/'
+export const DOTTIR_OM_OSS_HREF = '/om-oss'
+export const DOTTIR_UTFORSK_HREF = '/utforsk'
 
 /**
  * Erstatter typisk `px-4 sm:px-6` på landingssider:

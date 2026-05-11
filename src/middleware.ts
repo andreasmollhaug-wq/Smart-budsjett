@@ -9,6 +9,7 @@ import { safeRedirectPath } from '@/lib/safeRedirectPath'
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true
   if (pathname === '/iris') return true
+  if (pathname === '/om-oss' || pathname === '/utforsk') return true
   if (pathname === '/dottir' || pathname.startsWith('/dottir/')) return true
   if (pathname === '/preview/dottir' || pathname.startsWith('/preview/dottir/')) return true
   if (pathname.startsWith('/guider')) return true
@@ -91,7 +92,7 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getUser()
     user = u
   } catch {
-    /** Ugyldig session/cookie skal ikke ta ned offentlige sider (f.eks. /dottir). */
+    /** Ugyldig session/cookie skal ikke ta ned offentlige markedsføringssider. */
     user = null
   }
 

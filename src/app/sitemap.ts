@@ -4,6 +4,8 @@ import { getSiteUrl } from '@/lib/site-url'
 
 const staticPaths: { path: string; changeFrequency: MetadataRoute.Sitemap[0]['changeFrequency']; priority: number }[] = [
   { path: '/', changeFrequency: 'weekly', priority: 1 },
+  { path: '/om-oss', changeFrequency: 'monthly', priority: 0.9 },
+  { path: '/utforsk', changeFrequency: 'weekly', priority: 0.9 },
   { path: '/iris', changeFrequency: 'monthly', priority: 0.85 },
   { path: '/guider', changeFrequency: 'weekly', priority: 0.85 },
   { path: '/produktflyt', changeFrequency: 'monthly', priority: 0.8 },

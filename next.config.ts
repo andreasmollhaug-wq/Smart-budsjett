@@ -35,13 +35,33 @@ const shared: NextConfig = {
         permanent: false,
       },
       {
+        source: '/dottir',
+        destination: '/',
+        permanent: true,
+      },
+      {
+        source: '/dottir/om-oss',
+        destination: '/om-oss',
+        permanent: true,
+      },
+      {
+        source: '/dottir/utforsk',
+        destination: '/utforsk',
+        permanent: true,
+      },
+      {
         source: '/preview/dottir',
-        destination: '/dottir',
+        destination: '/',
         permanent: true,
       },
       {
         source: '/preview/dottir/om-oss',
-        destination: '/dottir/om-oss',
+        destination: '/om-oss',
+        permanent: true,
+      },
+      {
+        source: '/preview/dottir/utforsk',
+        destination: '/utforsk',
         permanent: true,
       },
       {

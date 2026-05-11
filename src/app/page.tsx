@@ -1,13 +1,14 @@
 import type { Metadata } from 'next'
 import RecoveryHashRedirect from '@/components/auth/RecoveryHashRedirect'
-import LandingHeader from '@/components/marketing/LandingHeader'
-import LandingMain from '@/components/marketing/LandingMain'
-import LandingFooter from '@/components/marketing/LandingFooter'
+import DottirLanding from '@/components/marketing/DottirLanding'
+import { DottirSmoothScroll } from '@/components/marketing/DottirSmoothScroll'
 import { getSiteUrl } from '@/lib/site-url'
 
 const title = 'Enkel oversikt på økonomien'
 const description =
   'Dottir hjelper privatpersoner med oversikt over inntekter og utgifter — enkelt budsjettverktøy med ferdig struktur og 14 dagers gratis prøveperiode.'
+
+const canonical = `${getSiteUrl()}/`
 
 export const metadata: Metadata = {
   title,
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: `${title} · Dottir`,
     description,
-    url: `${getSiteUrl()}/`,
+    url: canonical,
     siteName: 'Dottir',
     locale: 'nb_NO',
     type: 'website',
@@ -26,17 +27,17 @@ export const metadata: Metadata = {
     description,
   },
   alternates: {
-    canonical: `${getSiteUrl()}/`,
+    canonical,
   },
 }
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--bg)' }}>
-      <RecoveryHashRedirect />
-      <LandingHeader />
-      <LandingMain variant="default" />
-      <LandingFooter />
-    </div>
+    <DottirSmoothScroll>
+      <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--bg)' }}>
+        <RecoveryHashRedirect />
+        <DottirLanding />
+      </div>
+    </DottirSmoothScroll>
   )
 }
