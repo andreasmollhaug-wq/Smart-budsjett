@@ -11,6 +11,7 @@ import {
 import ForumAttachmentPicker from '@/components/forum/ForumAttachmentPicker'
 import { partitionForumAttachments, uploadForumPostAttachments } from '@/lib/forum/uploadAttachments'
 import { createClient } from '@/lib/supabase/client'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 
 /** Kategori som sendes til skjemaet (fra forum_category). */
@@ -119,7 +120,7 @@ export default function ForumNewThreadForm({
       setFilter('')
       setThreadFiles([])
       onPublished?.()
-      router.push(`/intern/forum-beta/trad/${result.threadId}`)
+      router.push(`${FORUM_BASE_PATH}/trad/${result.threadId}`)
       router.refresh()
     })
   }

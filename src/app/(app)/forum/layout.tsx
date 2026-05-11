@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import ForumBetaNav from './ForumBetaNav'
 
 export const metadata: Metadata = {
-  title: 'Forum (beta)',
+  title: 'Forum',
   robots: {
     index: false,
     follow: false,

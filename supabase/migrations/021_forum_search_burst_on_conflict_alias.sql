@@ -1,23 +1,5 @@
--- Forum: fulltekstsøk + enkel rate-limit per bruker/minutt.
--- Tittel vektes høyere enn brødtekst via ts_rank_cd-multiplikator på titteltreff.
-
-CREATE INDEX IF NOT EXISTS forum_thread_title_fts_idx
-  ON public.forum_thread USING gin (to_tsvector('norwegian', title));
-
-CREATE INDEX IF NOT EXISTS forum_post_body_fts_idx
-  ON public.forum_post USING gin (to_tsvector('norwegian', body));
-
-CREATE TABLE IF NOT EXISTS public.forum_search_burst (
-  user_id uuid NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  minute_bucket timestamptz NOT NULL,
-  search_count integer NOT NULL DEFAULT 0,
-  PRIMARY KEY (user_id, minute_bucket)
-);
-
-ALTER TABLE public.forum_search_burst ENABLE ROW LEVEL SECURITY;
-
-COMMENT ON TABLE public.forum_search_burst IS
-  'Teller forum-søk per bruker/minutt; oppdateres fra forum_search_threads (SECURITY DEFINER).';
+-- Fix: ON CONFLICT DO UPDATE must reference the INSERT target row via alias `b`,
+-- not bare table name forum_search_burst (PostgreSQL: invalid FROM-clause entry).
 
 CREATE OR REPLACE FUNCTION public.forum_search_threads(
   p_query text,
@@ -168,8 +150,3 @@ BEGIN
   LIMIT v_lim OFFSET v_off;
 END;
 $$;
-
-COMMENT ON FUNCTION public.forum_search_threads(text, integer, integer, uuid) IS
-  'Forum fulltekstsøk (tittel vektet). Krever innlogget bruker. Rate-limit: forum_search_burst.';
-
-GRANT EXECUTE ON FUNCTION public.forum_search_threads(text, integer, integer, uuid) TO authenticated;

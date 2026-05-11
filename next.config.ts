@@ -90,14 +90,24 @@ const shared: NextConfig = {
         permanent: true,
       },
       {
+        source: '/intern/forum-beta',
+        destination: '/forum',
+        permanent: true,
+      },
+      {
+        source: '/intern/forum-beta/:path*',
+        destination: '/forum/:path*',
+        permanent: true,
+      },
+      {
         source: '/intern/forum',
-        destination: '/intern/forum-beta',
-        permanent: false,
+        destination: '/forum',
+        permanent: true,
       },
       {
         source: '/intern/forum/:path*',
-        destination: '/intern/forum-beta/:path*',
-        permanent: false,
+        destination: '/forum/:path*',
+        permanent: true,
       },
     ]
   },

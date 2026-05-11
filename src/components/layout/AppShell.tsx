@@ -14,7 +14,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { appReadOnly, loading: readOnlyLoading } = useSubscriptionReadOnly()
   const kontoSection = pathname.startsWith('/konto')
-  const forumSection = pathname.startsWith('/intern/forum-beta')
+  const forumSection = pathname.startsWith('/forum')
   const mainReadOnly = !readOnlyLoading && appReadOnly && !kontoSection && !forumSection
   const [mobileOpen, setMobileOpen] = useState(false)
   const demoDataEnabled = useStore((s) => s.demoDataEnabled)

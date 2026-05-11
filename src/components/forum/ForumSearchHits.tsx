@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { formatForumActivityTs } from '@/lib/forum/home'
 import type { ForumSearchHitRow } from '@/lib/forum/search'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 function SnippetMarks({ text }: { text: string }) {
   const parts = text.split(/\*\*/)
@@ -48,7 +49,7 @@ export default function ForumSearchHits({ rows }: { rows: ForumSearchHitRow[] })
         >
           <div className="min-w-0 flex flex-wrap items-baseline justify-between gap-2">
             <Link
-              href={`/intern/forum-beta/trad/${r.thread_id}`}
+              href={`${FORUM_BASE_PATH}/trad/${r.thread_id}`}
               className="text-base font-semibold leading-snug underline-offset-2 hover:underline min-w-0 break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded-sm"
               style={{ color: 'var(--text)' }}
               prefetch={false}
@@ -67,7 +68,7 @@ export default function ForumSearchHits({ rows }: { rows: ForumSearchHitRow[] })
               <>
                 {' · '}
                 <Link
-                  href={`/intern/forum-beta/kategori/${encodeURIComponent(r.category_slug)}`}
+                  href={`${FORUM_BASE_PATH}/kategori/${encodeURIComponent(r.category_slug)}`}
                   className="underline font-medium min-h-[44px] inline-flex items-center touch-manipulation"
                   style={{ color: 'var(--primary)' }}
                   prefetch={false}

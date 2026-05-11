@@ -6,6 +6,7 @@ import {
   forumHomeSortHeadingNb,
   forumHomeSortSubtitleNb,
 } from '@/lib/forum/home'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 interface ForumHomeTopicsProps {
   rows: ForumHomeThreadRow[]
@@ -86,13 +87,13 @@ export default function ForumHomeTopics({ rows, activeSort }: ForumHomeTopicsPro
           boxShadow: 'inset 0 1px 2px rgba(30,43,79,0.04)',
         }}
       >
-        <SegmentLink href={`/intern/forum-beta${qSiste}`} active={activeSort === 'latest'}>
+        <SegmentLink href={`${FORUM_BASE_PATH}${qSiste}`} active={activeSort === 'latest'}>
           Siste aktivitet
         </SegmentLink>
-        <SegmentLink href={`/intern/forum-beta${qDisk}`} active={activeSort === 'hot'}>
+        <SegmentLink href={`${FORUM_BASE_PATH}${qDisk}`} active={activeSort === 'hot'}>
           Mest diskutert
         </SegmentLink>
-        <SegmentLink href={`/intern/forum-beta${qLest}`} active={activeSort === 'views'}>
+        <SegmentLink href={`${FORUM_BASE_PATH}${qLest}`} active={activeSort === 'views'}>
           Mest lest
         </SegmentLink>
       </nav>
@@ -160,7 +161,7 @@ export default function ForumHomeTopics({ rows, activeSort }: ForumHomeTopicsPro
                   >
                     <td className="min-w-0 px-4 py-3.5 align-top">
                       <Link
-                        href={`/intern/forum-beta/trad/${r.thread_id}`}
+                        href={`${FORUM_BASE_PATH}/trad/${r.thread_id}`}
                         prefetch={false}
                         className={
                           '-mx-1 block min-w-0 rounded-lg px-1 py-1 font-semibold leading-snug break-words ' +
@@ -182,7 +183,7 @@ export default function ForumHomeTopics({ rows, activeSort }: ForumHomeTopicsPro
                     </td>
                     <td className="hidden align-top px-3 py-3.5 lg:table-cell">
                       <Link
-                        href={`/intern/forum-beta/kategori/${r.category_slug}`}
+                        href={`${FORUM_BASE_PATH}/kategori/${r.category_slug}`}
                         prefetch={false}
                         className="inline-block max-w-full truncate rounded-lg px-2.5 py-1 text-xs font-medium"
                         style={{
@@ -240,7 +241,7 @@ export default function ForumHomeTopics({ rows, activeSort }: ForumHomeTopicsPro
                 }}
               >
                 <Link
-                  href={`/intern/forum-beta/trad/${r.thread_id}`}
+                  href={`${FORUM_BASE_PATH}/trad/${r.thread_id}`}
                   prefetch={false}
                   className="-mx-1 block min-w-0 rounded-lg px-1 py-1 text-base font-bold leading-snug break-words text-[var(--text)] underline-offset-4 transition-[color,background-color] duration-200 ease-out active:bg-[color-mix(in_srgb,var(--primary-pale)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--primary-pale)_70%,transparent)] hover:text-[var(--primary)] hover:underline hover:decoration-[var(--primary)] motion-reduce:transition-none touch-manipulation"
                 >
@@ -256,7 +257,7 @@ export default function ForumHomeTopics({ rows, activeSort }: ForumHomeTopicsPro
                 ) : null}
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3 text-xs" style={{ borderColor: 'var(--border)' }}>
                   <Link
-                    href={`/intern/forum-beta/kategori/${r.category_slug}`}
+                    href={`${FORUM_BASE_PATH}/kategori/${r.category_slug}`}
                     className="inline-flex max-w-full items-center truncate rounded-lg px-2 py-1 font-semibold min-h-[44px] min-w-0 shrink"
                     style={{
                       background: 'var(--primary-pale)',

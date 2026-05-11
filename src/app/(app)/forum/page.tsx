@@ -10,6 +10,7 @@ import {
   forumHomeSortFromSearchParam,
   parseForumHomeRows,
 } from '@/lib/forum/home'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 const HOME_LIMIT = 10
 
@@ -124,7 +125,7 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto pb-24 sm:pb-28">
-      <Header title="Forum (beta)" subtitle="Emneliste med sortering — inspirert av Discourse." />
+      <Header title="Forum" subtitle="Deler du med lenke — ikke i hovedmenyen." />
 
       <div className="min-w-0 flex-1 space-y-6 px-[max(1rem,env(safe-area-inset-left))] py-5 pb-8 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:py-8">
         <ForumInfoBanner />
@@ -212,7 +213,7 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
               return (
                 <Link
                   key={tid || slug || titleOk}
-                  href={`/intern/forum-beta/kategori/${slug}`}
+                  href={`${FORUM_BASE_PATH}/kategori/${slug}`}
                   prefetch={false}
                   className="group block min-w-0 rounded-xl border p-4 transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
                   style={{

@@ -8,6 +8,7 @@ import {
   ForumNewThreadDialogHost,
   ForumNewThreadModalOpenButton,
 } from '@/components/forum/ForumNewThreadModal'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 const PAGE_SIZE = 20
 
@@ -61,7 +62,9 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
 
   /** URL uten legacy `ny=1`; beholder aktiv side for paginering */
   const cleanupNavigateHref =
-    page > 1 ? `/intern/forum-beta/kategori/${encodeURIComponent(slug)}?page=${page}` : `/intern/forum-beta/kategori/${encodeURIComponent(slug)}`
+    page > 1
+      ? `${FORUM_BASE_PATH}/kategori/${encodeURIComponent(slug)}?page=${page}`
+      : `${FORUM_BASE_PATH}/kategori/${encodeURIComponent(slug)}`
 
   const openNewNy = q.ny === '1'
 
@@ -93,7 +96,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
         subtitle={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Link
-              href="/intern/forum-beta"
+              href={FORUM_BASE_PATH}
               className="underline font-medium"
               style={{ color: 'var(--primary)' }}
             >
@@ -141,7 +144,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
               return (
                 <li key={tid} className="min-w-0">
                   <Link
-                    href={`/intern/forum-beta/trad/${tid}`}
+                    href={`${FORUM_BASE_PATH}/trad/${tid}`}
                     prefetch={false}
                     className="block min-w-0 px-4 py-3.5 hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:inset focus-visible:ring-[var(--primary)] touch-manipulation"
                   >
@@ -170,7 +173,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
           <nav aria-label="Trådlister paging" className="mt-6 flex flex-wrap items-center gap-3 text-sm">
             {page > 1 ? (
               <Link
-                href={`/intern/forum-beta/kategori/${slug}?page=${page - 1}`}
+                href={`${FORUM_BASE_PATH}/kategori/${slug}?page=${page - 1}`}
                 className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-3 rounded-xl font-medium touch-manipulation"
                 style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               >
@@ -182,7 +185,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
             </span>
             {page < totalPages ? (
               <Link
-                href={`/intern/forum-beta/kategori/${slug}?page=${page + 1}`}
+                href={`${FORUM_BASE_PATH}/kategori/${slug}?page=${page + 1}`}
                 className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center px-3 rounded-xl font-medium touch-manipulation"
                 style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               >

@@ -7,6 +7,7 @@ import ForumSearchStripe from '@/components/forum/ForumSearchStripe'
 import { createClient } from '@/lib/supabase/server'
 import { forumSearchRpcParams, parseForumSearchRpcRows } from '@/lib/forum/search'
 import { forumSearchUrlSchema } from '@/lib/forum/searchSchema'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 type Props = {
   searchParams: Promise<{ q?: string; page?: string; kategori?: string }>
@@ -29,7 +30,7 @@ export default async function ForumSearchPage({ searchParams }: Props) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect(`/logg-inn?redirectTo=${encodeURIComponent('/intern/forum-beta/sok')}`)
+    redirect(`/logg-inn?redirectTo=${encodeURIComponent(`${FORUM_BASE_PATH}/sok`)}`)
   }
 
   const rawQ = (sp.q ?? '').trim()
@@ -49,7 +50,7 @@ export default async function ForumSearchPage({ searchParams }: Props) {
         <Header
           title="Søk i forum"
           subtitle={
-            <Link href="/intern/forum-beta" className="font-medium underline" style={{ color: 'var(--primary)' }}>
+            <Link href={FORUM_BASE_PATH} className="font-medium underline" style={{ color: 'var(--primary)' }}>
               Tilbake til forum
             </Link>
           }
@@ -100,11 +101,11 @@ export default async function ForumSearchPage({ searchParams }: Props) {
 
   const nextHref =
     parsed.success && hasNext
-      ? `/intern/forum-beta/sok?q=${encodeURIComponent(parsed.data.q)}&page=${parsed.data.page + 1}${slug ? `&kategori=${encodeURIComponent(slug)}` : ''}`
+      ? `${FORUM_BASE_PATH}/sok?q=${encodeURIComponent(parsed.data.q)}&page=${parsed.data.page + 1}${slug ? `&kategori=${encodeURIComponent(slug)}` : ''}`
       : null
   const prevHref =
     parsed.success && hasPrev
-      ? `/intern/forum-beta/sok?q=${encodeURIComponent(parsed.data.q)}&page=${parsed.data.page - 1}${slug ? `&kategori=${encodeURIComponent(slug)}` : ''}`
+      ? `${FORUM_BASE_PATH}/sok?q=${encodeURIComponent(parsed.data.q)}&page=${parsed.data.page - 1}${slug ? `&kategori=${encodeURIComponent(slug)}` : ''}`
       : null
 
   return (
@@ -113,12 +114,12 @@ export default async function ForumSearchPage({ searchParams }: Props) {
         title="Søk i forum"
         subtitle={
           <span className="flex flex-wrap gap-x-3 gap-y-1">
-            <Link href="/intern/forum-beta" className="font-medium underline" style={{ color: 'var(--primary)' }}>
+            <Link href={FORUM_BASE_PATH} className="font-medium underline" style={{ color: 'var(--primary)' }}>
               Alle kategorier
             </Link>
             {slug ? (
               <Link
-                href={`/intern/forum-beta/kategori/${encodeURIComponent(slug)}`}
+                href={`${FORUM_BASE_PATH}/kategori/${encodeURIComponent(slug)}`}
                 className="font-medium underline"
                 style={{ color: 'var(--primary)' }}
               >

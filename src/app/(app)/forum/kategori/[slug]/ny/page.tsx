@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -7,5 +8,5 @@ type Props = { params: Promise<{ slug: string }> }
  */
 export default async function ForumNewThreadLegacyRedirect({ params }: Props) {
   const { slug } = await params
-  redirect(`/intern/forum-beta/kategori/${encodeURIComponent(slug)}?ny=1`)
+  redirect(`${FORUM_BASE_PATH}/kategori/${encodeURIComponent(slug)}?ny=1`)
 }

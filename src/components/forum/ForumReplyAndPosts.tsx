@@ -755,6 +755,45 @@ export default function ForumReplyAndPosts({
           </div>
         </section>
 
+        <footer className="mt-5 min-w-0 border-t pt-5" style={{ borderColor: 'var(--border)' }}>
+          {!canReply ? (
+            <p className="text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
+              {isThreadLocked
+                ? 'Tråden er låst — du kan ikke legge til flere svar.'
+                : 'Du kan ikke legge til svar i skrivebeskyttet modus.'}
+            </p>
+          ) : (
+            <form onSubmit={onReply} className="space-y-3 min-w-0">
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                Nytt svar
+              </h3>
+              <ForumAttachmentPicker id={replyAttachId} disabled={pending} files={replyFiles} onChangeFiles={setReplyFiles} />
+              <textarea
+                id="forum-reply-body"
+                rows={5}
+                disabled={pending}
+                value={replyBody}
+                onChange={(ev) => setReplyBody(ev.target.value)}
+                className="w-full min-h-[120px] px-3 py-2.5 rounded-xl text-sm resize-y min-w-0 max-w-full touch-manipulation border"
+                style={{
+                  borderColor: 'var(--border)',
+                  background: 'var(--bg)',
+                  color: 'var(--text)',
+                }}
+                placeholder="Markdown støttes (liste, fet, lenker …)"
+              />
+              <button
+                type="submit"
+                disabled={pending || replyBody.trim().length < 1}
+                className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 touch-manipulation"
+                style={{ background: 'var(--cta-gradient)' }}
+              >
+                {pending ? 'Sender…' : 'Send svar'}
+              </button>
+            </form>
+          )}
+        </footer>
+
         <section
           className="mt-5 rounded-xl border p-4 min-w-0"
           style={{
@@ -840,45 +879,6 @@ export default function ForumReplyAndPosts({
             />
           ) : null}
         </section>
-
-        <footer className="mt-5 min-w-0 border-t pt-5" style={{ borderColor: 'var(--border)' }}>
-          {!canReply ? (
-            <p className="text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
-              {isThreadLocked
-                ? 'Tråden er låst — du kan ikke legge til flere svar.'
-                : 'Du kan ikke legge til svar i skrivebeskyttet modus.'}
-            </p>
-          ) : (
-            <form onSubmit={onReply} className="space-y-3 min-w-0">
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                Nytt svar
-              </h3>
-              <ForumAttachmentPicker id={replyAttachId} disabled={pending} files={replyFiles} onChangeFiles={setReplyFiles} />
-              <textarea
-                id="forum-reply-body"
-                rows={5}
-                disabled={pending}
-                value={replyBody}
-                onChange={(ev) => setReplyBody(ev.target.value)}
-                className="w-full min-h-[120px] px-3 py-2.5 rounded-xl text-sm resize-y min-w-0 max-w-full touch-manipulation border"
-                style={{
-                  borderColor: 'var(--border)',
-                  background: 'var(--bg)',
-                  color: 'var(--text)',
-                }}
-                placeholder="Markdown støttes (liste, fet, lenker …)"
-              />
-              <button
-                type="submit"
-                disabled={pending || replyBody.trim().length < 1}
-                className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 touch-manipulation"
-                style={{ background: 'var(--cta-gradient)' }}
-              >
-                {pending ? 'Sender…' : 'Send svar'}
-              </button>
-            </form>
-          )}
-        </footer>
       </article>
     </div>
   )

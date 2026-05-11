@@ -10,7 +10,7 @@ export default function ForumInfoBanner() {
       aria-label="Om forumet"
     >
       <p className="font-medium" style={{ color: 'var(--text)' }}>
-        Intern testflate — ikke lenket fra menyen eller søkemotorer.
+        Direkte lenke — ikke i hovedmenyen (del URL med dem som skal inn).
       </p>
       <p className="mt-2" style={{ color: 'var(--text-muted)' }}>
         Ikke del sensitive personopplysninger, kontonumre eller detaljer som kan identifisere deg offentlig.{' '}
