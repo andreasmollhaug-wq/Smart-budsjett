@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import BrandLogoMark from '@/components/brand/BrandLogoMark'
 
 const schema = z
   .object({
@@ -73,17 +74,14 @@ export default function RegistrerPage() {
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <div className="mb-8 text-center">
-          <div
-            className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-lg font-bold text-white"
-            style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
-          >
-            SB
+          <div className="mx-auto mb-4 flex justify-center">
+            <BrandLogoMark size="lg" alt="" />
           </div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>
             Opprett konto
           </h1>
           <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-            Smart Budsjett — gratis å starte
+            Gratis å starte
           </p>
         </div>
 

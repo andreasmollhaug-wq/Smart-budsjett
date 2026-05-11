@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { ChevronDown, Menu, X } from 'lucide-react'
-import { CTA_HREF, LOGIN_HREF, landingHorizontalPadding } from './constants'
+import BrandLogoMark from '@/components/brand/BrandLogoMark'
+import { CTA_HREF, LOGIN_HREF, PRODUCT_DISPLAY_NAME, landingHorizontalPadding } from './constants'
 
 /** Synlige lenker på én linje (stor skjerm). */
 const MAIN_NAV = [
@@ -225,22 +226,10 @@ export default function LandingHeader() {
         >
           <Link
             href="/"
+            aria-label={PRODUCT_DISPLAY_NAME}
             className="flex shrink-0 items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:gap-3"
           >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
-            >
-              SB
-            </div>
-            <div className="min-w-0 leading-tight">
-              <p className="whitespace-nowrap text-sm font-bold" style={{ color: 'var(--text)' }}>
-                Smart Budsjett
-              </p>
-              <p className="hidden text-xs sm:block" style={{ color: 'var(--text-muted)' }}>
-                av EnkelExcel
-              </p>
-            </div>
+            <BrandLogoMark size="sm" fetchPriority="high" alt="" />
           </Link>
 
           <nav className="ml-auto flex min-w-0 flex-nowrap items-center justify-end gap-0.5 sm:gap-2">

@@ -1,3 +1,9 @@
+export { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
+
+/** Merke (filer under `public/marketing`, mellomrom URL-kodes) */
+export const BRAND_LOGO_SVG_SRC = '/marketing/Logo%20v01_SVG.svg'
+export const BRAND_LOGO_PNG_SRC = '/marketing/Logo%20v01.png'
+
 /** Innlogging og registrering */
 export const LOGIN_HREF = '/logg-inn'
 export const REGISTER_HREF = '/registrer'

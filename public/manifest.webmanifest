@@ -1,17 +1,23 @@
-{
-  "name": "Smart Budsjett · EnkelExcel",
-  "short_name": "Smart Budsjett",
-  "description": "Budsjett, sparing og investering — én app.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#EEF2FF",
-  "theme_color": "#3B5BDB",
-  "icons": [
-    {
-      "src": "/favicon.ico",
-      "type": "image/x-icon",
-      "sizes": "48x48",
-      "purpose": "any"
-    }
-  ]
-}
+{
+  "name": "Dottir · EnkelExcel",
+  "short_name": "Dottir",
+  "description": "Budsjett, sparing og investering — én app.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fcf9f2",
+  "theme_color": "#3B5BDB",
+  "icons": [
+    {
+      "src": "/pwa-icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

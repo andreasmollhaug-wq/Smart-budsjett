@@ -28,6 +28,12 @@ const shared: NextConfig = {
   },
   async redirects() {
     return [
+      /** Klienter som fortsatt ber om rot-«favicon.ico» får PNG med etablert type (ingen tom .ico-fil i public/). */
+      {
+        source: '/favicon.ico',
+        destination: '/pwa-icon-192.png',
+        permanent: false,
+      },
       {
         source: '/preview/dottir',
         destination: '/dottir',

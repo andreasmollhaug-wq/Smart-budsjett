@@ -4,8 +4,10 @@ import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import PersonSwitcher from '@/components/account/PersonSwitcher'
+import BrandLogoMark from '@/components/brand/BrandLogoMark'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import { ChevronRight, X } from 'lucide-react'
+import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 import { SIDEBAR_NAV, isSidebarNavActive } from '@/lib/sidebarNav'
 
 function SubscriptionFooter() {
@@ -43,7 +45,7 @@ type Props = {
 export default function SidebarContent({ onNavigate, endSlot }: Props) {
   const pathname = usePathname()
   const demoDataEnabled = useStore((s) => s.demoDataEnabled)
-  const logoBg = demoDataEnabled ? 'linear-gradient(135deg, #EA580C, #F97316)' : 'var(--cta-gradient)'
+  const demoLogoRing = demoDataEnabled ? 'ring-2 ring-[#EA580C] ring-offset-2 ring-offset-[var(--surface)]' : ''
 
   return (
     <>
@@ -52,18 +54,10 @@ export default function SidebarContent({ onNavigate, endSlot }: Props) {
           <Link
             href="/dashboard"
             onClick={onNavigate}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+            aria-label={PRODUCT_DISPLAY_NAME}
+            className={`flex shrink-0 items-center rounded-xl outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${demoLogoRing}`.trim()}
           >
-            <div
-              className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-white font-bold text-sm"
-              style={{ background: logoBg }}
-            >
-              SB
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold text-sm" style={{ color: 'var(--text)' }}>Smart Budsjett</p>
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>by EnkelExcel</p>
-            </div>
+            <BrandLogoMark size="sm" alt="" />
           </Link>
           {endSlot}
         </div>

@@ -1,21 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import BrandLogoMark from '@/components/brand/BrandLogoMark'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import SidebarContent, { SidebarDrawerCloseButton } from '@/components/layout/SidebarContent'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
+import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { appReadOnly, loading: readOnlyLoading } = useSubscriptionReadOnly()
   const kontoSection = pathname.startsWith('/konto')
-  const mainReadOnly = !readOnlyLoading && appReadOnly && !kontoSection
+  const forumSection = pathname.startsWith('/intern/forum-beta')
+  const mainReadOnly = !readOnlyLoading && appReadOnly && !kontoSection && !forumSection
   const [mobileOpen, setMobileOpen] = useState(false)
   const demoDataEnabled = useStore((s) => s.demoDataEnabled)
-  const logoBg = demoDataEnabled ? 'linear-gradient(135deg, #EA580C, #F97316)' : 'var(--cta-gradient)'
+  const demoLogoRing = demoDataEnabled ? 'ring-2 ring-[#EA580C] ring-offset-2 ring-offset-[var(--surface)]' : ''
 
   const close = () => setMobileOpen(false)
 
@@ -57,17 +60,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <Link
             href="/dashboard"
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2"
+            aria-label={PRODUCT_DISPLAY_NAME}
+            className={`flex shrink-0 items-center rounded-xl py-1 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 ${demoLogoRing}`.trim()}
           >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-              style={{ background: logoBg }}
-            >
-              SB
-            </div>
-            <span className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
-              Smart Budsjett
-            </span>
+            <BrandLogoMark size="sm" alt="" />
           </Link>
         </header>
 

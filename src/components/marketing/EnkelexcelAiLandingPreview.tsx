@@ -18,6 +18,7 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
+import BrandLogoMark from '@/components/brand/BrandLogoMark'
 import LandingFooter from '@/components/marketing/LandingFooter'
 import { CTA_HREF, LOGIN_HREF } from '@/components/marketing/constants'
 
@@ -38,7 +39,7 @@ const MODULES = [
 ] as const
 
 const STEPS = [
-  { n: '1', title: 'Opprett konto', text: 'Start prøveperiode og fyll inn dine tall i Smart Budsjett — ferdig struktur, enkelt oppsett.' },
+  { n: '1', title: 'Opprett konto', text: 'Start prøveperiode og fyll inn dine tall i Dottir — ferdig struktur, enkelt oppsett.' },
   { n: '2', title: 'Bruk appen som vanlig', text: 'Transaksjoner, budsjett og mål. Jo mer som ligger inne, desto nyttigere blir spørsmålene dine.' },
   { n: '3', title: 'Spør EnkelExcel AI', text: 'Åpne assistenten og få svar med utgangspunkt i dataene dine — som hjelp, ikke personlig rådgivning.' },
 ] as const
@@ -125,12 +126,7 @@ export default function EnkelexcelAiLandingPreview() {
             href="/"
             className="flex min-w-0 max-w-[min(100%,12rem)] shrink items-center gap-2 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 sm:max-w-none sm:gap-3"
           >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
-            >
-              SB
-            </div>
+            <BrandLogoMark size="sm" fetchPriority="high" alt="" />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
                 EnkelExcel AI
@@ -197,7 +193,7 @@ export default function EnkelexcelAiLandingPreview() {
               style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}
             >
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              Assistenten som kjenner tallene dine i Smart Budsjett
+              Assistenten som kjenner tallene dine i Dottir
             </p>
             <h1
               className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-[2.6rem]"
@@ -216,7 +212,7 @@ export default function EnkelexcelAiLandingPreview() {
               style={{ color: 'var(--text-muted)' }}
             >
               EnkelExcel AI er inne i appen: still spørsmål om budsjett, mønster, kategorier og veien videre — bygget på
-              strukturert utdrag fra Smart Budsjett, ikke gjetting.
+              strukturert utdrag fra Dottir, ikke gjetting.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
@@ -270,7 +266,7 @@ export default function EnkelexcelAiLandingPreview() {
                 'Får med kontekst fra appen: budsjett, transaksjoner, mål og mer (etter hva som finnes hos deg).',
                 'Forslag til spørsmål hvis du lurer på hvor du skal begynne.',
                 'Designet som hjelpeverktøy — ikke personlig økonomisk, juridisk eller skattemessig rådgivning.',
-                'Deler økosystem med Smart Budsjett — når modulen er tilgjengelig for kontoen din.',
+                'Deler økosystem med Dottir — når modulen er tilgjengelig for kontoen din.',
               ].map((line) => (
                 <li
                   key={line}
@@ -305,7 +301,7 @@ export default function EnkelexcelAiLandingPreview() {
                   Modulene assistenten bygger på
                 </h2>
                 <p className="mx-auto mt-3 max-w-2xl text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
-                  Spørsmål og svar knyttes til data du har i Smart Budsjett — for eksempel slik (avhengig av hva som er
+                  Spørsmål og svar knyttes til data du har i Dottir — for eksempel slik (avhengig av hva som er
                   registrert):
                 </p>
               </div>
