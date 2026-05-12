@@ -124,7 +124,7 @@ export default function DottirOmOssPage() {
               <span
                 className="bg-clip-text pb-0.5 text-transparent md:pb-1"
                 style={{
-                  backgroundImage: 'linear-gradient(115deg, #3B5BDB 0%, #7048E8 50%, #4C6EF5 100%)',
+                  backgroundImage: 'var(--marketing-hero-heading-gradient)',
                   WebkitBackgroundClip: 'text',
                   backgroundClip: 'text',
                 }}
@@ -210,7 +210,7 @@ export default function DottirOmOssPage() {
               style={{
                 borderColor: 'color-mix(in srgb, var(--primary) 18%, var(--border))',
                 background:
-                  'linear-gradient(145deg, color-mix(in srgb, var(--primary) 12%, var(--surface)), color-mix(in srgb, #7048E8 8%, var(--surface)))',
+                  'linear-gradient(145deg, color-mix(in srgb, var(--primary) 12%, var(--surface)), color-mix(in srgb, var(--primary-light) 10%, var(--surface)))',
               }}
             >
               <BookOpen className="h-9 w-9 opacity-90" style={{ color: 'var(--primary)' }} aria-hidden />
@@ -282,7 +282,7 @@ export default function DottirOmOssPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex min-h-[44px] flex-1 touch-manipulation items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95 sm:flex-initial sm:justify-start sm:px-5"
-                    style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+                    style={{ background: 'var(--cta-gradient)' }}
                   >
                     Les reportasjen i DinSide
                     <ExternalLink className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
@@ -351,7 +351,7 @@ export default function DottirOmOssPage() {
               style={{
                 borderColor: 'color-mix(in srgb, var(--primary) 22%, var(--border))',
                 background:
-                  'linear-gradient(155deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), color-mix(in srgb, #7048E8 10%, var(--surface)))',
+                  'linear-gradient(155deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), color-mix(in srgb, var(--primary-light) 12%, var(--surface)))',
               }}
             >
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
@@ -390,7 +390,7 @@ export default function DottirOmOssPage() {
                   <Link
                     href={CTA_HREF}
                     className="inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95"
-                    style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+                    style={{ background: 'var(--primary)' }}
                   >
                     Start gratis prøveperiode
                     <ArrowRight className="h-4 w-4" aria-hidden />

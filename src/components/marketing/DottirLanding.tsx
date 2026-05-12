@@ -255,7 +255,7 @@ export default function DottirLanding() {
             <Link
               href={CTA_HREF}
               className="inline-flex min-h-[44px] max-w-[11rem] flex-col items-center justify-center rounded-xl px-2 py-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-opacity hover:opacity-95 touch-manipulation sm:max-w-none sm:px-4 sm:text-sm"
-              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+              style={{ background: 'var(--primary)' }}
             >
               <span className="sm:hidden">Prøv gratis</span>
               <span className="hidden sm:inline">Start gratis prøveperiode</span>
@@ -277,7 +277,7 @@ export default function DottirLanding() {
               className="absolute inset-0"
               style={{
                 background:
-                  'linear-gradient(165deg, color-mix(in srgb, var(--primary) 16%, transparent) 0%, transparent 42%), radial-gradient(ellipse 85% 65% at 15% 15%, rgba(112, 72, 232, 0.14), transparent), radial-gradient(ellipse 75% 55% at 92% 78%, rgba(76, 110, 245, 0.12), transparent)',
+                  'linear-gradient(165deg, color-mix(in srgb, var(--primary) 16%, transparent) 0%, transparent 42%), radial-gradient(ellipse 85% 65% at 15% 15%, rgba(36, 153, 185, 0.14), transparent), radial-gradient(ellipse 75% 55% at 92% 78%, rgba(0, 75, 107, 0.1), transparent)',
               }}
             />
             <div
@@ -307,7 +307,7 @@ export default function DottirLanding() {
               <span
                 className="mt-2 inline-block bg-clip-text pb-1 text-transparent sm:mt-3 md:pb-1.5"
                 style={{
-                  backgroundImage: 'linear-gradient(120deg, #3B5BDB 0%, #7048E8 55%, #4C6EF5 100%)',
+                  backgroundImage: 'var(--marketing-hero-heading-gradient)',
                   WebkitBackgroundClip: 'text',
                   backgroundClip: 'text',
                 }}
@@ -352,7 +352,7 @@ export default function DottirLanding() {
               <Link
                 href={CTA_HREF}
                 className="inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-95 sm:w-auto"
-                style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+                style={{ background: 'var(--primary)' }}
               >
                 Start gratis prøveperiode
                 <ArrowRight className="h-4 w-4" aria-hidden />
@@ -495,7 +495,7 @@ export default function DottirLanding() {
                   <li key={line} className="flex min-w-0 gap-2 text-sm sm:text-base">
                     <span
                       className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-white"
-                      style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+                      style={{ background: 'var(--cta-gradient)' }}
                     >
                       <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
                     </span>
@@ -610,7 +610,7 @@ export default function DottirLanding() {
                 >
                   <span
                     className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-white"
-                    style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+                    style={{ background: 'var(--cta-gradient)' }}
                   >
                     <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />
                   </span>
@@ -676,7 +676,7 @@ export default function DottirLanding() {
             className="mx-auto max-w-3xl min-w-0 overflow-hidden rounded-2xl border p-8 text-center shadow-lg sm:p-10"
             style={{
               background:
-                'linear-gradient(145deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), color-mix(in srgb, #7048E8 10%, var(--surface)))',
+                'linear-gradient(145deg, color-mix(in srgb, var(--primary) 14%, var(--surface)), color-mix(in srgb, var(--primary-light) 12%, var(--surface)))',
               borderColor: 'color-mix(in srgb, var(--primary) 25%, var(--border))',
             }}
           >
@@ -691,7 +691,7 @@ export default function DottirLanding() {
               <Link
                 href={CTA_HREF}
                 className="inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-md transition-opacity hover:opacity-95"
-                style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+                style={{ background: 'var(--primary)' }}
               >
                 Start gratis prøveperiode
                 <ArrowRight className="h-4 w-4" aria-hidden />

@@ -96,7 +96,7 @@ export default function DottirUtforskPage() {
               <span
                 className="bg-clip-text pb-0.5 text-transparent md:pb-1"
                 style={{
-                  backgroundImage: 'linear-gradient(115deg, #3B5BDB 0%, #7048E8 50%, #4C6EF5 100%)',
+                  backgroundImage: 'var(--marketing-hero-heading-gradient)',
                   WebkitBackgroundClip: 'text',
                   backgroundClip: 'text',
                 }}

@@ -75,6 +75,7 @@
   --text-muted: #5c6f7a;
   --border: #cbe6f2;
   --cta-gradient: linear-gradient(135deg, #00334b, #004b6b);
+  --marketing-hero-heading-gradient: linear-gradient(120deg, #00334b 0%, #004b6b 55%, #2499b9 100%);
 }
 
 [data-ui-palette="sand"] {
@@ -88,6 +89,7 @@
   --text-muted: #5c6f7a;
   --border: #d0e7f2;
   --cta-gradient: linear-gradient(135deg, #003f58, #004b6b);
+  --marketing-hero-heading-gradient: linear-gradient(120deg, #003f58 0%, #004b6b 55%, #2499b9 100%);
 }
 
 [data-ui-palette="slate"] {
