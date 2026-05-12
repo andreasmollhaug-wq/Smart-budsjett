@@ -6,13 +6,13 @@ import ForumHomeSidebar from '@/components/forum/ForumHomeSidebar'
 import ForumInfoBanner from '@/components/forum/ForumInfoBanner'
 import ForumSearchStripe from '@/components/forum/ForumSearchStripe'
 import { ForumNewThreadHomeButton } from '@/components/forum/ForumNewThreadModal'
-import { fetchForumContributionCounts } from '@/lib/forum/counts'
 import {
   forumHomeSortFromSearchParam,
   mapForumFirstPostExcerpts,
   parseForumHomeRows,
 } from '@/lib/forum/home'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
+import { hasEligibleForumDisplayName } from '@/lib/forum/forumDisplayName'
 
 const HOME_LIMIT = 10
 const SIDEBAR_POPULAR_LIMIT = 8
@@ -43,11 +43,17 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
     supabase.rpc('forum_home_threads', { p_mode: activeSort, p_limit: HOME_LIMIT }),
     supabase.from('forum_thread').select('*', { count: 'exact', head: true }).is('deleted_at', null),
     supabase.from('forum_post').select('*', { count: 'exact', head: true }).is('deleted_at', null),
-    supabase.from('forum_profile').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('forum_profile')
+      .select('*', { count: 'exact', head: true })
+      .not('display_name', 'is', null)
+      .like('display_name', '__%'),
     supabase.rpc('forum_home_threads', { p_mode: 'hot', p_limit: SIDEBAR_POPULAR_LIMIT }),
     supabase
       .from('forum_profile')
       .select('user_id, display_name, created_at')
+      .not('display_name', 'is', null)
+      .like('display_name', '__%')
       .order('created_at', { ascending: false })
       .limit(10),
     supabase.from('forum_category').select('id, slug, title, description, sort_order').order('sort_order', {
@@ -140,10 +146,22 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
         createdAt,
       }
     })
-    .filter((m) => m.userId.length > 0)
+    .filter((m) => m.userId.length > 0 && hasEligibleForumDisplayName(m.displayName))
   const newMembersOk = !newestProfilesRes.error
 
-  const contrib = user ? await fetchForumContributionCounts(supabase, user.id) : null
+  let viewerHasForumDisplayName = false
+  if (user?.id) {
+    const { data: vProf } = await supabase
+      .from('forum_profile')
+      .select('display_name')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    const vdn =
+      vProf && typeof (vProf as { display_name?: unknown }).display_name === 'string'
+        ? (vProf as { display_name: string }).display_name
+        : null
+    viewerHasForumDisplayName = hasEligibleForumDisplayName(vdn)
+  }
 
   const counts = new Map<string, number>()
   for (const r of threadRows ?? []) {
@@ -213,24 +231,13 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
           </div>
         ) : null}
 
-        {user && contrib && (
-          <div
-            className="rounded-xl px-4 py-3 flex flex-wrap items-center gap-2 justify-between text-sm"
-            style={{ background: '#f8fafc', border: '1px solid var(--border)' }}
-          >
-            <span style={{ color: 'var(--text-muted)' }}>
-              <span className="font-medium text-[var(--text)]">Dine bidrag:</span>{' '}
-              {contrib.threadCount} tråder · {contrib.replyCount} svar
-            </span>
-          </div>
-        )}
-
         {!catErr && forumCategoriesForModal.length > 0 && defaultNewCategoryId ? (
           <div className="flex min-w-0 flex-wrap items-center justify-start gap-2">
             <ForumNewThreadHomeButton
               categories={forumCategoriesForModal}
               defaultCategoryId={defaultNewCategoryId}
               label="Opprett innlegg"
+              viewerHasForumDisplayName={viewerHasForumDisplayName}
             />
           </div>
         ) : null}

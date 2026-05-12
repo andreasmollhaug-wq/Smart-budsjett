@@ -76,7 +76,7 @@ export default async function ForumProfilPage() {
               {publicLabel}
             </p>
             <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-              Endre visningsnavn under — tomt felt gir kort kode i stedet for navn.
+              Endre visningsnavn under — trenger minst to tegn for å skrive og stemme i forumet.
             </p>
           </section>
 

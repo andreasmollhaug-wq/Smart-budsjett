@@ -16,6 +16,7 @@ import {
   mapForumFirstPostExcerpts,
   parseForumHomeRows,
 } from '@/lib/forum/home'
+import { hasEligibleForumDisplayName } from '@/lib/forum/forumDisplayName'
 
 const PAGE_SIZE = 20
 
@@ -49,6 +50,24 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
 
   const categoryTitle = cat.title as string
   const categoryId = cat.id as string
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let viewerHasForumDisplayName = false
+  if (user?.id) {
+    const { data: vProf } = await supabase
+      .from('forum_profile')
+      .select('display_name')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    const vdn =
+      vProf && typeof (vProf as { display_name?: unknown }).display_name === 'string'
+        ? (vProf as { display_name: string }).display_name
+        : null
+    viewerHasForumDisplayName = hasEligibleForumDisplayName(vdn)
+  }
 
   const { data: allCats } = await supabase
     .from('forum_category')
@@ -171,7 +190,12 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
             >
               Alle kategorier
             </Link>
-            <ForumNewThreadModalOpenButton dialogId={dialogId} label="Ny tråd" variant="link" />
+            <ForumNewThreadModalOpenButton
+              dialogId={dialogId}
+              label="Ny tråd"
+              variant="link"
+              viewerHasForumDisplayName={viewerHasForumDisplayName}
+            />
           </span>
         }
       />
@@ -185,6 +209,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
           defaultCategoryId={categoryId}
           autoOpenNy={openNewNy}
           cleanupNavigateHref={cleanupNavigateHref}
+          viewerHasForumDisplayName={viewerHasForumDisplayName}
         />
 
         {cat.description ? (
@@ -216,7 +241,12 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
           {total === 0 ? (
             <p className="text-sm flex flex-wrap items-center gap-x-2 gap-y-2" style={{ color: 'var(--text-muted)' }}>
               Ingen tråder ennå.{' '}
-              <ForumNewThreadModalOpenButton dialogId={dialogId} label="Start den første" variant="link" />
+              <ForumNewThreadModalOpenButton
+                dialogId={dialogId}
+                label="Start den første"
+                variant="link"
+                viewerHasForumDisplayName={viewerHasForumDisplayName}
+              />
             </p>
           ) : null}
 

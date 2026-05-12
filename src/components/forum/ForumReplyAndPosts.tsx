@@ -28,6 +28,7 @@ import ForumReportForm from '@/components/forum/ForumReportForm'
 import ForumPostUpvoteButton from '@/components/forum/ForumPostUpvoteButton'
 import ForumThreadAboutPanel from '@/components/forum/ForumThreadAboutPanel'
 import type { ForumThreadAboutData } from '@/components/forum/ForumThreadAboutPanel'
+import ForumDisplayNameRequiredDialog from '@/components/forum/ForumDisplayNameRequiredDialog'
 
 export type ForumThreadPaginationInfo = {
   page: number
@@ -55,6 +56,8 @@ interface ForumReplyAndPostsProps {
   upvoteCountByPostId?: Record<string, number>
   /** Post-ider brukeren har stemt på (gjeldende side). */
   viewerUpvotedPostIds?: string[]
+  /** Minst to tegn i forum_profile.display_name — kreves for svar og nye stemmer. */
+  viewerHasForumDisplayName: boolean
 }
 
 function formatForumDate(iso: string): string {
@@ -234,6 +237,7 @@ export default function ForumReplyAndPosts({
   threadAbout,
   upvoteCountByPostId = {},
   viewerUpvotedPostIds = [],
+  viewerHasForumDisplayName,
 }: ForumReplyAndPostsProps) {
   const viewerVoteSet = new Set(viewerUpvotedPostIds)
   void _isPinned
@@ -242,6 +246,8 @@ export default function ForumReplyAndPosts({
   const { hasSubscriptionAccess, appReadOnly } = useSubscriptionReadOnly()
   const canWriteBase = hasSubscriptionAccess && !appReadOnly
   const canReply = canWriteBase && !isThreadLocked
+
+  const [displayNameDialogOpen, setDisplayNameDialogOpen] = useState(false)
 
   const [replyBody, setReplyBody] = useState('')
   const [replyFiles, setReplyFiles] = useState<File[]>([])
@@ -435,6 +441,10 @@ export default function ForumReplyAndPosts({
 
   return (
     <div className="min-w-0 space-y-4">
+      <ForumDisplayNameRequiredDialog
+        open={displayNameDialogOpen}
+        onClose={() => setDisplayNameDialogOpen(false)}
+      />
       <ForumHashScroll />
 
       {msg ? (
@@ -560,6 +570,10 @@ export default function ForumReplyAndPosts({
                       <button
                         type="button"
                         onPointerDown={() => {
+                          if (!viewerHasForumDisplayName) {
+                            setDisplayNameDialogOpen(true)
+                            return
+                          }
                           setTitleEditOpen(true)
                           setTitleDraft(threadTitle)
                         }}
@@ -625,6 +639,10 @@ export default function ForumReplyAndPosts({
                           pending={pending}
                           onQuote={onQuote}
                           onStartEdit={(pid) => {
+                            if (!viewerHasForumDisplayName) {
+                              setDisplayNameDialogOpen(true)
+                              return
+                            }
                             const row = posts.find((x) => x.id === pid)
                             if (row && !row.deleted_at) {
                               setEditPostId(pid)
@@ -639,6 +657,8 @@ export default function ForumReplyAndPosts({
                           threadId={threadId}
                           initialCount={upvoteCountByPostId[p.id] ?? 0}
                           initialUpvoted={viewerVoteSet.has(p.id)}
+                          viewerHasForumDisplayName={viewerHasForumDisplayName}
+                          onRequireForumDisplayName={() => setDisplayNameDialogOpen(true)}
                         />
                       </div>
                     ) : null}
@@ -670,6 +690,31 @@ export default function ForumReplyAndPosts({
                   ? 'Tråden er låst — du kan ikke legge til flere svar.'
                   : 'Du kan ikke legge til svar i skrivebeskyttet modus.'}
               </p>
+            ) : !viewerHasForumDisplayName ? (
+              <div className="min-w-0 space-y-3">
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  Nytt svar
+                </h3>
+                <div
+                  className="rounded-xl border px-4 py-3 text-sm"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                  }}
+                >
+                  <p style={{ color: 'var(--text-muted)' }}>
+                    Registrer forumnavnet ditt på forumprofilen for å skrive svar i tråden.
+                  </p>
+                  <Link
+                    href={`${FORUM_BASE_PATH}/profil`}
+                    className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-white touch-manipulation"
+                    style={{ background: 'var(--cta-gradient)' }}
+                  >
+                    Gå til forumprofil
+                  </Link>
+                </div>
+              </div>
             ) : (
               <form onSubmit={onReply} className="min-w-0 space-y-3">
                 <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>

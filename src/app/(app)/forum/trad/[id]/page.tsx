@@ -8,6 +8,7 @@ import ForumReplyAndPosts from '@/components/forum/ForumReplyAndPosts'
 import type { ForumPostAttachmentRow, ForumThreadPostRow } from '@/lib/forum/types'
 import { forumAttachmentPublicUrl } from '@/lib/forum/uploadAttachments'
 import { FORUM_BASE_PATH, FORUM_THREAD_POSTS_PAGE_SIZE } from '@/lib/forum/constants'
+import { hasEligibleForumDisplayName } from '@/lib/forum/forumDisplayName'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -54,6 +55,17 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
   if (!user) {
     redirect(`/logg-inn?next=${encodeURIComponent(`${FORUM_BASE_PATH}/trad/${id}`)}`)
   }
+
+  const { data: viewerProf } = await supabase
+    .from('forum_profile')
+    .select('display_name')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  const viewerDn =
+    viewerProf && typeof (viewerProf as { display_name?: unknown }).display_name === 'string'
+      ? (viewerProf as { display_name: string }).display_name
+      : null
+  const viewerHasForumDisplayName = hasEligibleForumDisplayName(viewerDn)
 
   const tr = await supabase
     .from('forum_thread')
@@ -387,6 +399,7 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
             upvoteCountByPostId={upvoteCountByPostId}
             viewerUpvotedPostIds={viewerUpvotedPostIds}
             threadAbout={threadAbout}
+            viewerHasForumDisplayName={viewerHasForumDisplayName}
             pagination={{
               page: pageRequested,
               totalPages,

@@ -25,11 +25,11 @@ export default function ForumProfileForm({ initialDisplayName }: { initialDispla
     <form onSubmit={onSubmit} className="space-y-4 touch-manipulation min-w-0">
       <div>
         <label htmlFor="forum-display-name" className="text-xs font-medium mb-1 block" style={{ color: 'var(--text-muted)' }}>
-          Visningsnavn (valgfritt)
+          Visningsnavn i forumet
         </label>
         <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-          Vises ved innlegg. La stå tom for å bare bruke kort kode. Maks {MAX_DISPLAY} tegn — ingen sensitiv eller offentlig
-          identitet.
+          Minst to tegn for å skrive innlegg, svare og gi tommel opp. Tomt felt eller bare én bokstav gir kort kode i
+          visning, men da kan du ikke delta aktivt. Maks {MAX_DISPLAY} tegn — ingen sensitiv eller offentlig identitet.
         </p>
         <input
           id="forum-display-name"

@@ -18,8 +18,14 @@ import {
   type ForumReplyInput,
   type ForumReportInput,
 } from '@/lib/forum/schema'
+import {
+  assertForumDisplayNameForParticipation,
+  type ForumDisplayNameRequiredCode,
+} from '@/lib/forum/forumDisplayName'
 
-export type ForumActionResult = { ok: true } | { ok: false; error: string }
+export type ForumActionResult =
+  | { ok: true }
+  | { ok: false; error: string; code?: ForumDisplayNameRequiredCode }
 
 function mapForumError(message: string | undefined): string {
   const m = message ?? ''
@@ -107,6 +113,13 @@ export async function forumCreateThreadAction(
     return { ok: false, error: 'Ikke innlogget.' }
   }
 
+  const nameGate = await assertForumDisplayNameForParticipation(supabase, user.id)
+  if (!nameGate.ok) {
+    return nameGate.code
+      ? { ok: false, error: nameGate.error, code: nameGate.code }
+      : { ok: false, error: nameGate.error }
+  }
+
   const { data: threadId, error } = await supabase.rpc('forum_create_thread', {
     p_category_id: parsed.data.categoryId,
     p_title: parsed.data.title,
@@ -168,6 +181,13 @@ export async function forumCreateReplyAction(
   } = await supabase.auth.getUser()
   if (!user) {
     return { ok: false, error: 'Ikke innlogget.' }
+  }
+
+  const nameGate = await assertForumDisplayNameForParticipation(supabase, user.id)
+  if (!nameGate.ok) {
+    return nameGate.code
+      ? { ok: false, error: nameGate.error, code: nameGate.code }
+      : { ok: false, error: nameGate.error }
   }
 
   const threadIdStr = parsed.data.threadId
@@ -343,6 +363,13 @@ export async function forumEditPostAction(
     return { ok: false, error: 'Ikke innlogget.' }
   }
 
+  const nameGate = await assertForumDisplayNameForParticipation(supabase, user.id)
+  if (!nameGate.ok) {
+    return nameGate.code
+      ? { ok: false, error: nameGate.error, code: nameGate.code }
+      : { ok: false, error: nameGate.error }
+  }
+
   const { data: row, error: fetchErr } = await supabase
     .from('forum_post')
     .select('thread_id, author_id, deleted_at, is_first_post')
@@ -392,6 +419,13 @@ export async function forumEditThreadTitleAction(input: unknown): Promise<ForumA
   } = await supabase.auth.getUser()
   if (!user) {
     return { ok: false, error: 'Ikke innlogget.' }
+  }
+
+  const nameGate = await assertForumDisplayNameForParticipation(supabase, user.id)
+  if (!nameGate.ok) {
+    return nameGate.code
+      ? { ok: false, error: nameGate.error, code: nameGate.code }
+      : { ok: false, error: nameGate.error }
   }
 
   const { data: row, error: fetchErr } = await supabase
@@ -633,6 +667,13 @@ export async function forumTogglePostUpvoteAction(
     if (delErr) return { ok: false, error: mapForumError(delErr.message) }
     revalidatePath(`${FORUM_BASE}/trad/${tid}`)
     return { ok: true, upvoted: false }
+  }
+
+  const nameGate = await assertForumDisplayNameForParticipation(supabase, user.id)
+  if (!nameGate.ok) {
+    return nameGate.code
+      ? { ok: false, error: nameGate.error, code: nameGate.code }
+      : { ok: false, error: nameGate.error }
   }
 
   const { error: insErr } = await supabase.from('forum_post_upvote').insert({ post_id: pid, user_id: user.id })

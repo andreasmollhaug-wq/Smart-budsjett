@@ -4,8 +4,14 @@ import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import ForumNewThreadForm from '@/components/forum/ForumNewThreadForm'
 import type { ForumCategoryOption } from '@/components/forum/ForumNewThreadForm'
+import {
+  ForumDisplayNameRequiredNativeDialog,
+  forumDisplayNameGateDialogId,
+} from '@/components/forum/ForumDisplayNameRequiredDialog'
 
 export type ForumCategoryOptionSerializable = ForumCategoryOption
+
+const HOME_DISPLAY_NAME_GATE_ID = 'forum-new-thread-home-display-name-gate'
 
 /** Dialog + skjema for kategorisiden (én instans — åpnes med `ForumNewThreadModalOpenButton`). */
 export function ForumNewThreadDialogHost({
@@ -14,6 +20,7 @@ export function ForumNewThreadDialogHost({
   defaultCategoryId,
   autoOpenNy,
   cleanupNavigateHref,
+  viewerHasForumDisplayName,
 }: {
   dialogId: string
   categories: ForumCategoryOption[]
@@ -22,19 +29,29 @@ export function ForumNewThreadDialogHost({
   autoOpenNy?: boolean
   /** Ved lukking: navigér hit for å fjerne `ny=` fra URL (fra serverfeltet). */
   cleanupNavigateHref: string
+  viewerHasForumDisplayName: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const router = useRouter()
+  const gateId = forumDisplayNameGateDialogId(dialogId)
 
   const closeDialog = () => {
     ref.current?.close()
   }
 
   useEffect(() => {
-    if (autoOpenNy) ref.current?.showModal()
-  }, [autoOpenNy])
+    if (!autoOpenNy) return
+    if (!viewerHasForumDisplayName) {
+      const gate = typeof document !== 'undefined' ? (document.getElementById(gateId) as HTMLDialogElement | null) : null
+      gate?.showModal()
+      return
+    }
+    ref.current?.showModal()
+  }, [autoOpenNy, viewerHasForumDisplayName, gateId])
 
   return (
+    <>
+      <ForumDisplayNameRequiredNativeDialog nativeId={gateId} />
     <dialog
       id={dialogId}
       ref={ref}
@@ -84,6 +101,7 @@ export function ForumNewThreadDialogHost({
         </div>
       </div>
     </dialog>
+    </>
   )
 }
 
@@ -93,15 +111,24 @@ export function ForumNewThreadModalOpenButton({
   label,
   variant,
   className,
+  viewerHasForumDisplayName,
 }: {
   dialogId: string
   label: string
   variant: 'button' | 'link'
   className?: string
+  viewerHasForumDisplayName: boolean
 }) {
-  const open = () => {
+  const gateId = forumDisplayNameGateDialogId(dialogId)
+  const openMain = () => {
     ;(typeof document !== 'undefined'
       ? (document.getElementById(dialogId) as HTMLDialogElement | null)
+      : null
+    )?.showModal()
+  }
+  const openGate = () => {
+    ;(typeof document !== 'undefined'
+      ? (document.getElementById(gateId) as HTMLDialogElement | null)
       : null
     )?.showModal()
   }
@@ -121,7 +148,8 @@ export function ForumNewThreadModalOpenButton({
       style={variant === 'link' ? { color: 'var(--primary)' } : undefined}
       onPointerDown={(e) => {
         e.preventDefault()
-        open()
+        if (!viewerHasForumDisplayName) openGate()
+        else openMain()
       }}
     >
       {label}
@@ -136,18 +164,28 @@ export function ForumNewThreadHomeButton({
   categories,
   defaultCategoryId,
   label,
+  viewerHasForumDisplayName,
 }: {
   categories: ForumCategoryOption[]
   defaultCategoryId: string
   label?: string
+  viewerHasForumDisplayName: boolean
 }) {
   const ref = useRef<HTMLDialogElement>(null)
 
-  const open = () => ref.current?.showModal()
+  const openMain = () => ref.current?.showModal()
   const close = () => ref.current?.close()
+
+  const openGate = () => {
+    ;(typeof document !== 'undefined'
+      ? (document.getElementById(HOME_DISPLAY_NAME_GATE_ID) as HTMLDialogElement | null)
+      : null
+    )?.showModal()
+  }
 
   return (
     <>
+      <ForumDisplayNameRequiredNativeDialog nativeId={HOME_DISPLAY_NAME_GATE_ID} />
       <button
         type="button"
         className={
@@ -161,7 +199,10 @@ export function ForumNewThreadHomeButton({
           background: 'var(--surface)',
           color: 'var(--text)',
         }}
-        onPointerDown={() => open()}
+        onPointerDown={() => {
+          if (!viewerHasForumDisplayName) openGate()
+          else openMain()
+        }}
       >
         {label ?? 'Opprett innlegg'}
       </button>

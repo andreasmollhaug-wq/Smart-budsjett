@@ -4,17 +4,22 @@ import { ThumbsUp } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 import { forumTogglePostUpvoteAction } from '@/lib/forum/actions'
+import { FORUM_DISPLAY_NAME_REQUIRED_CODE } from '@/lib/forum/forumDisplayName'
 
 export default function ForumPostUpvoteButton({
   postId,
   threadId,
   initialCount,
   initialUpvoted,
+  viewerHasForumDisplayName,
+  onRequireForumDisplayName,
 }: {
   postId: string
   threadId: string
   initialCount: number
   initialUpvoted: boolean
+  viewerHasForumDisplayName: boolean
+  onRequireForumDisplayName: () => void
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -35,9 +40,19 @@ export default function ForumPostUpvoteButton({
         aria-label={upvoted ? 'Fjern tommel opp' : 'Tommel opp'}
         onPointerDown={() => {
           if (pending) return
+          if (!upvoted && !viewerHasForumDisplayName) {
+            onRequireForumDisplayName()
+            return
+          }
           startTransition(async () => {
             const r = await forumTogglePostUpvoteAction(postId, threadId)
-            if (r.ok) router.refresh()
+            if (!r.ok) {
+              if ('code' in r && r.code === FORUM_DISPLAY_NAME_REQUIRED_CODE) {
+                onRequireForumDisplayName()
+              }
+              return
+            }
+            router.refresh()
           })
         }}
         className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold touch-manipulation transition-colors disabled:opacity-60"
