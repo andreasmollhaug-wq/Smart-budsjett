@@ -11,6 +11,7 @@ import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
 import { computeInsightDeltas } from './insightNotifications'
 import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
 import { normalizeUiColorPaletteId, type UiColorPaletteId } from '@/lib/uiColorPalette'
+import { normalizeSidebarNavMode, type SidebarNavMode } from '@/lib/sidebarNavMode'
 import {
   PLANNED_OVERDUE_NOTIFICATION_ID,
   buildPlannedOverdueNotification,
@@ -776,6 +777,10 @@ interface AppState {
   uiColorPalette: UiColorPaletteId
   setUiColorPalette: (id: UiColorPaletteId) => void
 
+  /** Sidemeny: gruppert enkel vs flat detaljert liste. */
+  sidebarNavMode: SidebarNavMode
+  setSidebarNavMode: (mode: SidebarNavMode) => void
+
   /** Regnskap CSV: lagrede konto → budsjettkategori per kilde (conta, tripletex, …). */
   ledgerAccountMappings: LedgerAccountMappingsState
   /** Siste import-kjøringer (metadata). */
@@ -849,6 +854,7 @@ export type PersistedAppSlice = Pick<
   | 'matHandlelisteBeforeDemo'
   | 'showAmountDecimals'
   | 'uiColorPalette'
+  | 'sidebarNavMode'
   | 'ledgerAccountMappings'
   | 'ledgerImportHistory'
   | 'bankImportMappings'
@@ -881,6 +887,7 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     matHandlelisteBeforeDemo: null,
     showAmountDecimals: false,
     uiColorPalette: 'default',
+    sidebarNavMode: 'simple',
     deliveredInsightIds: [],
     dismissedDuplicateSubscriptionPresetKeys: [],
     ledgerAccountMappings: {},
@@ -911,6 +918,7 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     matHandlelisteBeforeDemo: state.matHandlelisteBeforeDemo,
     showAmountDecimals: state.showAmountDecimals,
     uiColorPalette: state.uiColorPalette,
+    sidebarNavMode: state.sidebarNavMode,
     deliveredInsightIds: state.deliveredInsightIds,
     dismissedDuplicateSubscriptionPresetKeys: state.dismissedDuplicateSubscriptionPresetKeys,
     ledgerAccountMappings: state.ledgerAccountMappings,
@@ -1001,6 +1009,7 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
       onboarding: { status: 'completed' },
       demoDataEnabled: false,
       peopleBeforeDemo: null,
+      sidebarNavMode: 'detailed',
     }
   }
 
@@ -1084,6 +1093,12 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
   if (typeof base.demoDataEnabled !== 'boolean') base.demoDataEnabled = false
   if (typeof base.showAmountDecimals !== 'boolean') base.showAmountDecimals = false
   base.uiColorPalette = normalizeUiColorPaletteId(base.uiColorPalette)
+  const incomingPersist = p as Partial<AppState>
+  if (!('sidebarNavMode' in incomingPersist)) {
+    base.sidebarNavMode = 'detailed'
+  } else {
+    base.sidebarNavMode = normalizeSidebarNavMode(incomingPersist.sidebarNavMode)
+  }
   if (!base.ledgerAccountMappings || typeof base.ledgerAccountMappings !== 'object') {
     base.ledgerAccountMappings = {}
   }
@@ -1854,6 +1869,7 @@ export const useStore = create<AppState>()((set, get) => {
         matHandlelisteBeforeDemo: null as MatHandlelisteState | null,
         showAmountDecimals: false,
         uiColorPalette: 'default' as UiColorPaletteId,
+        sidebarNavMode: 'simple' as SidebarNavMode,
         ledgerAccountMappings: {} as LedgerAccountMappingsState,
         ledgerImportHistory: [] as LedgerImportRun[],
         bankImportMappings: {} as BankImportMappingsState,
@@ -2312,6 +2328,10 @@ export const useStore = create<AppState>()((set, get) => {
         setUiColorPalette: (id) => {
           const next = normalizeUiColorPaletteId(id)
           set((s) => (next === s.uiColorPalette ? s : { uiColorPalette: next }))
+        },
+
+        setSidebarNavMode: (mode) => {
+          set((s) => (mode === s.sidebarNavMode ? s : { sidebarNavMode: mode }))
         },
 
         setDemoDataEnabled: (enabled) => {
@@ -5168,6 +5188,7 @@ export function resetStoreForLogout() {
     matHandlelisteBeforeDemo: null,
     showAmountDecimals: false,
     uiColorPalette: 'default',
+    sidebarNavMode: 'simple',
     ledgerAccountMappings: {},
     ledgerImportHistory: [],
     bankImportMappings: {},

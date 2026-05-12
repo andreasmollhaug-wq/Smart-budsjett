@@ -116,7 +116,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             onClick={close}
           />
           <aside
-            className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto shadow-xl"
+            className="absolute inset-y-0 left-0 flex min-h-0 w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto shadow-xl pt-[max(0.25rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pl-[max(0px,env(safe-area-inset-left,0px))]"
             style={{ background: 'var(--surface)' }}
           >
             <SidebarContent

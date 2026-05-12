@@ -57,6 +57,22 @@ describe('mergePersistedIntoFullState', () => {
     expect(merged.showAmountDecimals).toBe(false)
   })
 
+  it('setter sidebarNavMode til detailed når nøkkel mangler i lagret state', () => {
+    const slice = createDefaultPersistedSlice()
+    const { sidebarNavMode: _dropNav, ...withoutNavMode } = slice
+    const merged = mergePersistedIntoFullState(withoutNavMode, useStore.getState())
+    expect(merged.sidebarNavMode).toBe('detailed')
+  })
+
+  it('bevarer eksplisitt sidebarNavMode ved merge', () => {
+    const slice = createDefaultPersistedSlice()
+    const merged = mergePersistedIntoFullState(
+      { ...slice, sidebarNavMode: 'detailed' },
+      useStore.getState(),
+    )
+    expect(merged.sidebarNavMode).toBe('detailed')
+  })
+
   it('bevarer aktiv profil når persisted matcher', () => {
     const slice = createDefaultPersistedSlice()
     expect(slice.activeProfileId).toBe(DEFAULT_PROFILE_ID)

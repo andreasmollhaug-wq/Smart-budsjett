@@ -13,10 +13,21 @@ import {
   ClipboardList,
   ShoppingCart,
   Hammer,
+  Building2,
 } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
 
-export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = [
+export type SidebarNavItem = { href: string; label: string; icon: LucideIcon }
+
+export type SidebarNavGroup = {
+  id: string
+  label: string
+  icon: LucideIcon
+  items: SidebarNavItem[]
+}
+
+/** Flat meny (detaljert modus) — samme rekkefølge som før. */
+export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/dashboard', label: 'Oversikt', icon: LayoutDashboard },
   { href: '/budsjett', label: 'Budsjett', icon: Wallet },
   { href: '/transaksjoner', label: 'Transaksjoner', icon: Receipt },
@@ -32,6 +43,60 @@ export const SIDEBAR_NAV: { href: string; label: string; icon: LucideIcon }[] = 
   { href: RENOVATION_PROJECT_BASE_PATH, label: 'Oppussing', icon: Hammer },
 ]
 
+/** Alias — markedsføring og eldre importer forventer `SIDEBAR_NAV`. */
+export const SIDEBAR_NAV = SIDEBAR_NAV_DETAILED
+
+function item(href: string): SidebarNavItem {
+  const found = SIDEBAR_NAV_DETAILED.find((i) => i.href === href)
+  if (!found) throw new Error(`sidebarNav: mangler href ${href}`)
+  return found
+}
+
+/** Gruppert meny (enkel modus), «Forslag A». */
+export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
+  {
+    id: 'hverdag',
+    label: 'Hverdag',
+    icon: LayoutDashboard,
+    items: [item('/dashboard'), item('/budsjett'), item('/transaksjoner')],
+  },
+  {
+    id: 'gjeld',
+    label: 'Gjeld',
+    icon: CreditCard,
+    items: [item('/gjeld'), item('/snoball')],
+  },
+  {
+    id: 'faste',
+    label: 'Faste utgifter',
+    icon: Building2,
+    items: [item('/abonnementer')],
+  },
+  {
+    id: 'formue',
+    label: 'Formue',
+    icon: PiggyBank,
+    items: [item('/sparing'), item('/investering')],
+  },
+  {
+    id: 'innsikt',
+    label: 'Innsikt',
+    icon: FileText,
+    items: [item('/rapporter')],
+  },
+  {
+    id: 'verktoy',
+    label: 'Verktøy',
+    icon: ClipboardList,
+    items: [
+      item('/enkelexcel-ai'),
+      item('/hjemflyt/start'),
+      item('/intern/mat-handleliste/handleliste'),
+      item(RENOVATION_PROJECT_BASE_PATH),
+    ],
+  },
+]
+
 export function isSidebarNavActive(pathname: string, href: string): boolean {
   if (href === '/rapporter') return pathname.startsWith('/rapporter')
   if (href === '/budsjett') return pathname.startsWith('/budsjett')
@@ -41,4 +106,8 @@ export function isSidebarNavActive(pathname: string, href: string): boolean {
   if (href === '/intern/mat-handleliste/handleliste') return pathname.startsWith('/intern/mat-handleliste')
   if (href === RENOVATION_PROJECT_BASE_PATH) return pathname.startsWith(RENOVATION_PROJECT_BASE_PATH)
   return pathname === href
+}
+
+export function isSidebarGroupActive(pathname: string, group: SidebarNavGroup): boolean {
+  return group.items.some((i) => isSidebarNavActive(pathname, i.href))
 }

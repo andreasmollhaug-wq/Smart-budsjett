@@ -9,7 +9,9 @@ import {
   CircleDollarSign,
   Palette,
   ChevronRight,
+  PanelLeft,
 } from 'lucide-react'
+import type { SidebarNavMode } from '@/lib/sidebarNavMode'
 import { useStore, type BudgetCategory } from '@/lib/store'
 import { UI_COLOR_PALETTE_OPTIONS } from '@/lib/uiColorPalette'
 import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
@@ -405,6 +407,109 @@ function IncomeWithholdingDefaultsCard() {
   )
 }
 
+function SidebarNavigationModeCard() {
+  const sidebarNavMode = useStore((s) => s.sidebarNavMode)
+  const setSidebarNavMode = useStore((s) => s.setSidebarNavMode)
+  const [justSaved, setJustSaved] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const headingId = 'innstillinger-sidebar-nav-heading'
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    }
+  }, [])
+
+  const flashSaved = () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    setJustSaved(true)
+    saveTimerRef.current = setTimeout(() => {
+      setJustSaved(false)
+      saveTimerRef.current = null
+    }, 2800)
+  }
+
+  const options: { id: SidebarNavMode; title: string; hint: string }[] = [
+    {
+      id: 'simple',
+      title: 'Enkel navigasjon',
+      hint: 'Færre punkter i menyen. Trykk på en seksjon for å vise sidene under — f.eks. Gjeld og Snøball samlet.',
+    },
+    {
+      id: 'detailed',
+      title: 'Detaljert',
+      hint: 'Alle menypunkter synlige i én liste, som før.',
+    },
+  ]
+
+  return (
+    <div
+      className="rounded-2xl p-6 scroll-mt-24"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <h2
+        className="font-semibold mb-2 flex items-center gap-2"
+        id={headingId}
+        style={{ color: 'var(--text)' }}
+      >
+        <PanelLeft size={16} style={{ color: 'var(--primary)' }} aria-hidden />
+        Navigasjon i menyen
+      </h2>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+        Velg hvordan sidemenyen er organisert på mobil og desktop.
+      </p>
+      <div className="flex flex-col gap-2" role="radiogroup" aria-labelledby={headingId}>
+        {options.map((opt) => {
+          const selected = sidebarNavMode === opt.id
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => {
+                if (opt.id === sidebarNavMode) return
+                setSidebarNavMode(opt.id)
+                flashSaved()
+              }}
+              className="flex w-full min-h-[44px] touch-manipulation items-start gap-3 rounded-xl border px-3 py-3 text-left transition-opacity hover:opacity-95 sm:items-center"
+              style={{
+                borderColor: selected ? 'var(--primary)' : 'var(--border)',
+                background: selected ? 'var(--primary-pale)' : 'var(--bg)',
+                boxShadow: selected ? '0 0 0 1px var(--primary)' : undefined,
+              }}
+            >
+              <span
+                className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 sm:mt-0"
+                style={{
+                  borderColor: selected ? 'var(--primary)' : 'var(--border)',
+                  background: selected ? 'var(--primary)' : 'transparent',
+                }}
+                aria-hidden
+              >
+                {selected ? <span className="h-2 w-2 rounded-full bg-white" /> : null}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium" style={{ color: 'var(--text)' }}>
+                  {opt.title}
+                </span>
+                <span className="mt-0.5 block text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {opt.hint}
+                </span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      {justSaved && (
+        <p role="status" aria-live="polite" className="text-sm font-medium mt-3" style={{ color: 'var(--success)' }}>
+          Innstilling lagret
+        </p>
+      )}
+    </div>
+  )
+}
+
 function AppearancePaletteCard() {
   const uiColorPalette = useStore((s) => s.uiColorPalette)
   const setUiColorPalette = useStore((s) => s.setUiColorPalette)
@@ -609,6 +714,8 @@ export default function KontoInnstillingerPage() {
       <DemoDataCard />
 
       <IncomeWithholdingDefaultsCard />
+
+      <SidebarNavigationModeCard />
 
       <AppearancePaletteCard />
 
