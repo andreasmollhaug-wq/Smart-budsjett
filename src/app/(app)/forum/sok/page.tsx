@@ -30,7 +30,7 @@ export default async function ForumSearchPage({ searchParams }: Props) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect(`/logg-inn?redirectTo=${encodeURIComponent(`${FORUM_BASE_PATH}/sok`)}`)
+    redirect(`/logg-inn?next=${encodeURIComponent(`${FORUM_BASE_PATH}/sok`)}`)
   }
 
   const rawQ = (sp.q ?? '').trim()

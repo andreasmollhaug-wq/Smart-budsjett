@@ -17,7 +17,9 @@ export default async function ForumProfilPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/logg-inn')
+  if (!user) {
+    redirect(`/logg-inn?next=${encodeURIComponent(`${FORUM_BASE_PATH}/profil`)}`)
+  }
 
   const { data: profile } = await supabase
     .from('forum_profile')

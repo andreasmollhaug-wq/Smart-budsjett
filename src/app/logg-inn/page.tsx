@@ -32,7 +32,9 @@ function authCallbackErrorMessage(code: string | null): string | null {
 function LoggInnForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const next = safeRedirectPath(searchParams.get('next'))
+  const next = safeRedirectPath(
+    searchParams.get('next') ?? searchParams.get('redirectTo'),
+  )
   const configError = searchParams.get('error') === 'config'
   const callbackError = authCallbackErrorMessage(searchParams.get('error'))
 

@@ -7,7 +7,6 @@ import {
 } from '@/lib/forum/home'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 import ForumThreadTopicRows from '@/components/forum/ForumThreadTopicRows'
-import ForumThreadViewCountDetails from '@/components/forum/ForumThreadViewCountDetails'
 
 interface ForumHomeTopicsProps {
   rows: ForumHomeThreadRow[]
@@ -64,7 +63,7 @@ export default function ForumHomeTopics({ rows, activeSort }: ForumHomeTopicsPro
 
   return (
     <article
-      className="min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6"
+      className="min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6 lg:flex lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col"
       style={{
         background: 'var(--surface)',
         borderColor: 'var(--border)',
@@ -99,11 +98,9 @@ export default function ForumHomeTopics({ rows, activeSort }: ForumHomeTopicsPro
         </SegmentLink>
       </nav>
 
-      <div className="mt-5 min-w-0">
+      <div className="mt-5 min-w-0 lg:min-h-0 lg:flex-1">
         <ForumThreadTopicRows rows={rows} showCategoryColumn />
       </div>
-
-      <ForumThreadViewCountDetails />
     </article>
   )
 }

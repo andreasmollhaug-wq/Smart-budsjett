@@ -8,7 +8,7 @@ async function assertNoWideBodyScroll(page: import('@playwright/test').Page) {
   expect(overflow).toBeLessThanOrEqual(2)
 }
 
-test.describe('Forum mobil (lenke-only, ikke i meny)', () => {
+test.describe('Forum mobil (meny + beskyttede ruter)', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
   test('beskyttet rute sender anonym bruker til innlogging med next-param', async ({ page }) => {
@@ -30,6 +30,14 @@ test.describe('Forum mobil (lenke-only, ikke i meny)', () => {
     expect(nextDecoded).toContain('q=test')
   })
 
+  test('forum-tråd sender anonym bruker til innlogging med next til tråd-sti', async ({ page }) => {
+    await page.goto('/forum/trad/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    await expect(page).toHaveURL(/\/logg-inn/)
+    const url = new URL(page.url())
+    const nextDecoded = decodeURIComponent(url.searchParams.get('next') ?? '')
+    expect(nextDecoded).toContain('/forum/trad/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+  })
+
   test('innlogget: forum har tittel, søk og uten bred overflow (skip uten økt)', async ({ page }) => {
     await page.goto('/forum')
     if (page.url().includes('/logg-inn')) {
@@ -38,6 +46,19 @@ test.describe('Forum mobil (lenke-only, ikke i meny)', () => {
     await assertNoWideBodyScroll(page)
     await expect(page.getByRole('heading', { name: /^Forum$/ })).toBeVisible()
     await expect(page.getByRole('search', { name: 'Søk i forum' })).toBeVisible()
+  })
+
+  test('innlogget: forum forsidesidebar har statistikk, populære emner og nyeste medlemmer (skip uten økt)', async ({
+    page,
+  }) => {
+    await page.goto('/forum')
+    if (page.url().includes('/logg-inn')) {
+      test.skip()
+    }
+    await assertNoWideBodyScroll(page)
+    await expect(page.getByRole('heading', { name: 'Forumstatistikk', level: 2 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Populære emner', level: 2 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Nyeste medlemmer', level: 2 })).toBeVisible()
   })
 
   test('innlogget: tom søkeside viser veiledning (skip uten økt)', async ({ page }) => {

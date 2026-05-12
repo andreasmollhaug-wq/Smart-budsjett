@@ -45,7 +45,7 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect(`/logg-inn?redirectTo=${encodeURIComponent(`${FORUM_BASE_PATH}/trad/${id}`)}`)
+    redirect(`/logg-inn?next=${encodeURIComponent(`${FORUM_BASE_PATH}/trad/${id}`)}`)
   }
 
   const tr = await supabase

@@ -26,9 +26,11 @@ export type SidebarNavGroup = {
   label: string
   icon: LucideIcon
   items: SidebarNavItem[]
+  /** Én hovedrad som lenker direkte — samme nivå som andre grupper, uten under-akkordion. */
+  directNav?: boolean
 }
 
-/** Eget menypunkt (også brukt over gruppert meny i enkel modus). */
+/** Kanonisk forum-lenke (detaljert: etter Oppussing; enkel: egen hovedseksjon etter «Verktøy»). */
 export const SIDEBAR_FORUM_ITEM: SidebarNavItem = {
   href: FORUM_BASE_PATH,
   label: 'Forum',
@@ -47,10 +49,10 @@ export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/investering', label: 'Investering', icon: TrendingUp },
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
   { href: '/enkelexcel-ai', label: 'EnkelExcel AI', icon: MessageSquare },
-  SIDEBAR_FORUM_ITEM,
   { href: '/hjemflyt/start', label: 'Hjemflyt', icon: ClipboardList },
   { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
   { href: RENOVATION_PROJECT_BASE_PATH, label: 'Oppussing', icon: Hammer },
+  SIDEBAR_FORUM_ITEM,
 ]
 
 /** Alias — markedsføring og eldre importer forventer `SIDEBAR_NAV`. */
@@ -104,6 +106,13 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
       item('/intern/mat-handleliste/handleliste'),
       item(RENOVATION_PROJECT_BASE_PATH),
     ],
+  },
+  {
+    id: 'forum',
+    label: 'Forum',
+    icon: MessagesSquare,
+    items: [item(FORUM_BASE_PATH)],
+    directNav: true,
   },
 ]
 

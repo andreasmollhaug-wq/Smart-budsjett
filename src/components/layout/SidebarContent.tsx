@@ -12,7 +12,6 @@ import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 import {
   SIDEBAR_NAV_DETAILED,
   SIDEBAR_GROUPS_SIMPLE,
-  SIDEBAR_FORUM_ITEM,
   isSidebarNavActive,
   isSidebarGroupActive,
   type SidebarNavGroup,
@@ -56,32 +55,6 @@ function navLinkBase(active: boolean) {
     'flex min-h-[44px] min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all touch-manipulation',
     active ? '' : 'hover:opacity-95',
   ].join(' ')
-}
-
-function SidebarForumStandaloneLink({
-  pathname,
-  onNavigate,
-}: {
-  pathname: string
-  onNavigate?: () => void
-}) {
-  const { href, label, icon: Icon } = SIDEBAR_FORUM_ITEM
-  const active = isSidebarNavActive(pathname, href)
-  return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      className={navLinkBase(active)}
-      style={{
-        background: active ? 'var(--primary-pale)' : 'transparent',
-        color: active ? 'var(--primary)' : 'var(--text-muted)',
-      }}
-    >
-      <Icon size={18} className="shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1">{label}</span>
-      {active && <ChevronRight size={14} className="shrink-0" style={{ color: 'var(--primary)' }} aria-hidden />}
-    </Link>
-  )
 }
 
 function SidebarDetailedLinks({
@@ -145,6 +118,30 @@ function SidebarSimpleGroups({
         const expanded = openById[group.id] ?? groupActive
         const panelId = `sidebar-nav-group-${group.id}`
         const GroupIcon = group.icon
+
+        if (group.directNav && group.items[0]) {
+          const { href, label, icon: Icon } = group.items[0]
+          const active = isSidebarNavActive(pathname, href)
+          return (
+            <div key={group.id} className="space-y-1">
+              <Link
+                href={href}
+                onClick={onNavigate}
+                className={[navLinkBase(active), 'font-semibold'].join(' ')}
+                style={{
+                  background: active ? 'var(--primary-pale)' : 'transparent',
+                  color: active ? 'var(--primary)' : 'var(--text-muted)',
+                }}
+              >
+                <Icon size={18} className="shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">{label}</span>
+                {active && (
+                  <ChevronRight size={14} className="shrink-0" style={{ color: 'var(--primary)' }} aria-hidden />
+                )}
+              </Link>
+            </div>
+          )
+        }
 
         return (
           <div key={group.id} className="space-y-1">
@@ -246,15 +243,7 @@ export default function SidebarContent({ onNavigate, endSlot }: Props) {
         {sidebarNavMode === 'detailed' ? (
           <SidebarDetailedLinks pathname={pathname} onNavigate={onNavigate} />
         ) : (
-          <>
-            <div
-              className="space-y-1 pb-2 mb-1 border-b"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              <SidebarForumStandaloneLink pathname={pathname} onNavigate={onNavigate} />
-            </div>
-            <SidebarSimpleGroups pathname={pathname} onNavigate={onNavigate} />
-          </>
+          <SidebarSimpleGroups pathname={pathname} onNavigate={onNavigate} />
         )}
       </nav>
 

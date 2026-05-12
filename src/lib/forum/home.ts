@@ -84,6 +84,17 @@ export function formatForumActivityTs(iso: string): string {
   }
 }
 
+/** Dato for medlem-siden (kun dato, norsk). */
+export function formatForumMemberSinceDate(iso: string): string {
+  try {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return ''
+    return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
 export type ForumHomeSort = 'latest' | 'hot' | 'views'
 
 export function forumHomeSortFromSearchParam(visning: string | undefined): ForumHomeSort {

@@ -1,7 +1,6 @@
 import type { ForumHomeSort, ForumHomeThreadRow } from '@/lib/forum/home'
 import { forumHomeSortHeadingNb, forumHomeSortSubtitleNb } from '@/lib/forum/home'
 import ForumThreadTopicRows from '@/components/forum/ForumThreadTopicRows'
-import ForumThreadViewCountDetails from '@/components/forum/ForumThreadViewCountDetails'
 import ForumCategorySortSelect from '@/components/forum/ForumCategorySortSelect'
 
 export default function ForumCategoryTopicsPanel({
@@ -40,8 +39,6 @@ export default function ForumCategoryTopicsPanel({
       <div className="mt-5 min-w-0">
         <ForumThreadTopicRows rows={rows} showCategoryColumn={false} emptyLabel={emptyLabel} />
       </div>
-
-      <ForumThreadViewCountDetails />
     </article>
   )
 }

@@ -13,7 +13,9 @@ export default async function ForumVarslerPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) redirect('/logg-inn')
+  if (!user) {
+    redirect(`/logg-inn?next=${encodeURIComponent(`${FORUM_BASE_PATH}/varsler`)}`)
+  }
 
   const { data: rows, error } = await supabase
     .from('forum_notice')

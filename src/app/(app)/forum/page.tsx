@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { createClient } from '@/lib/supabase/server'
 import ForumHomeTopics from '@/components/forum/ForumHomeTopics'
+import ForumHomeSidebar from '@/components/forum/ForumHomeSidebar'
 import ForumInfoBanner from '@/components/forum/ForumInfoBanner'
 import ForumSearchStripe from '@/components/forum/ForumSearchStripe'
 import { ForumNewThreadHomeButton } from '@/components/forum/ForumNewThreadModal'
@@ -14,6 +15,7 @@ import {
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 const HOME_LIMIT = 10
+const SIDEBAR_POPULAR_LIMIT = 8
 
 type Props = {
   searchParams: Promise<{ visning?: string }>
@@ -28,14 +30,37 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { data: rpcData, error: rpcErr } = await supabase.rpc('forum_home_threads', {
-    p_mode: activeSort,
-    p_limit: HOME_LIMIT,
-  })
+  const [
+    mainRpcResult,
+    sidebarThreadCountRes,
+    sidebarPostCountRes,
+    sidebarProfileCountRes,
+    hotRpcResult,
+    newestProfilesRes,
+    categoriesResult,
+    threadRowsResult,
+  ] = await Promise.all([
+    supabase.rpc('forum_home_threads', { p_mode: activeSort, p_limit: HOME_LIMIT }),
+    supabase.from('forum_thread').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('forum_post').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+    supabase.from('forum_profile').select('*', { count: 'exact', head: true }),
+    supabase.rpc('forum_home_threads', { p_mode: 'hot', p_limit: SIDEBAR_POPULAR_LIMIT }),
+    supabase
+      .from('forum_profile')
+      .select('user_id, display_name, created_at')
+      .order('created_at', { ascending: false })
+      .limit(10),
+    supabase.from('forum_category').select('id, slug, title, description, sort_order').order('sort_order', {
+      ascending: true,
+    }),
+    supabase.from('forum_thread').select('category_id').is('deleted_at', null),
+  ])
+
+  const { data: rpcData, error: rpcErr } = mainRpcResult
 
   let topicRows = parseForumHomeRows(rpcData)
 
-  /** Fallback om 017 ikke er kjørt: enkel liste med utdrag fra åpningsinnlegg; ingen reply-/visningstall fra RPC */
+  /** Fallback om forum_home_threads-RPC ikke finnes: enkel liste med utdrag fra åpningsinnlegg; ingen reply-/visningstall fra RPC */
   if (rpcErr) {
     const { data: fb } = await supabase
       .from('forum_thread')
@@ -83,15 +108,40 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
     }
   }
 
-  const { data: categories, error: catErr } = await supabase
-    .from('forum_category')
-    .select('id, slug, title, description, sort_order')
-    .order('sort_order', { ascending: true })
+  const { data: categories, error: catErr } = categoriesResult
+  const { data: threadRows } = threadRowsResult
 
-  const { data: threadRows } = await supabase
-    .from('forum_thread')
-    .select('category_id')
-    .is('deleted_at', null)
+  const statsOk = !(
+    sidebarThreadCountRes.error ||
+    sidebarPostCountRes.error ||
+    sidebarProfileCountRes.error
+  )
+  const sidebarStats = statsOk
+    ? {
+        topicCount: sidebarThreadCountRes.count ?? 0,
+        postCount: sidebarPostCountRes.count ?? 0,
+        memberCount: sidebarProfileCountRes.count ?? 0,
+      }
+    : null
+
+  const popularRows = parseForumHomeRows(hotRpcResult.data)
+  const popularOk = !hotRpcResult.error
+
+  const newMembers = (newestProfilesRes.data ?? [])
+    .map((row) => {
+      const r = row as { user_id?: unknown; display_name?: unknown; created_at?: unknown }
+      const uid = typeof r.user_id === 'string' ? r.user_id : ''
+      const createdAt = typeof r.created_at === 'string' ? r.created_at : ''
+      const dn = r.display_name
+      const displayName = dn === null || typeof dn === 'string' ? dn : null
+      return {
+        userId: uid,
+        displayName,
+        createdAt,
+      }
+    })
+    .filter((m) => m.userId.length > 0)
+  const newMembersOk = !newestProfilesRes.error
 
   const contrib = user ? await fetchForumContributionCounts(supabase, user.id) : null
 
@@ -132,9 +182,9 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-1 flex-col overflow-y-auto pb-24 sm:pb-28">
-      <Header title="Forum" subtitle="Deler du med lenke — ikke i hovedmenyen." />
+      <Header title="Forum" subtitle="For innloggede brukere." />
 
-      <div className="min-w-0 flex-1 space-y-6 px-[max(1rem,env(safe-area-inset-left))] py-5 pb-8 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:py-8">
+      <div className="min-w-0 flex-1 space-y-6 py-5 pb-8 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:py-8 sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]">
         <ForumInfoBanner />
 
         {rpcErr ? (
@@ -145,11 +195,10 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
           >
             <p className="font-medium">Utvidet forsideliste er ikke tilgjengelig.</p>
             <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Kjør migrasjon{' '}
-              <code className="text-[11px] px-1 py-0.5 rounded bg-white/80">017_forum_home_views_demo.sql</code> i
-              Supabase for sortering, visninger og demodata. Viser foreløpig kun «siste aktivitet»-fallback ved feil (
-              <code className="text-[11px]">{rpcErr.message}</code>
-              ).
+              Kjør forum-migrasjonene (bl.a.{' '}
+              <code className="text-[11px] px-1 py-0.5 rounded bg-white/80">017_forum_home_views_demo.sql</code>) i
+              Supabase for forside-sortering (siste / mest diskutert / mest lest). Viser foreløpig kun enkel
+              «siste aktivitet»-liste ved feil (<code className="text-[11px]">{rpcErr.message}</code>).
             </p>
           </div>
         ) : null}
@@ -188,78 +237,97 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
 
         <ForumSearchStripe variant="embedded" />
 
-        <section aria-labelledby="forum-topics-heading">
-          <h2 id="forum-topics-heading" className="sr-only">
-            Aktuelle tråder
-          </h2>
-          <ForumHomeTopics rows={topicRows} activeSort={activeSort} />
-        </section>
-
-        <section
-          aria-labelledby="forum-categories-heading"
-          className="mt-2 space-y-3 border-t pt-8"
-          style={{ borderColor: 'var(--border)' }}
-        >
-          <h2 id="forum-categories-heading" className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            Kategorier
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(categories ?? []).map((cat) => {
-              const slug = typeof cat.slug === 'string' ? cat.slug : ''
-              const tid = typeof (cat as { id?: unknown }).id === 'string' ? String((cat as { id: string }).id) : ''
-              const n = counts.get(tid) ?? 0
-              const titleOk =
-                typeof (cat as { title?: unknown }).title === 'string'
-                  ? String((cat as { title: string }).title)
-                  : 'Kategori'
-              const description =
-                typeof (cat as { description?: unknown }).description === 'string'
-                  ? (cat as { description: string }).description
-                  : null
-
-              return (
-                <Link
-                  key={tid || slug || titleOk}
-                  href={`${FORUM_BASE_PATH}/kategori/${slug}`}
-                  prefetch={false}
-                  className="group block min-w-0 rounded-xl border p-4 transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
-                  style={{
-                    borderColor: 'var(--border)',
-                    background: 'var(--surface)',
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-3 min-w-0">
-                    <div className="min-w-0">
-                      <h3 className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>
-                        {titleOk}
-                      </h3>
-                      {description?.trim() ? (
-                        <p className="mt-1 text-sm break-words" style={{ color: 'var(--text-muted)' }}>
-                          {description}
-                        </p>
-                      ) : null}
-                    </div>
-                    <span
-                      className="shrink-0 tabular-nums text-xs px-2 py-1 rounded-lg"
-                      style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}
-                    >
-                      {n} tråd{n === 1 ? '' : 'er'}
-                    </span>
-                  </div>
-                  <p className="mt-3 text-xs font-medium truncate" style={{ color: 'var(--primary)' }}>
-                    Åpne kategori <span aria-hidden>→</span>
-                  </p>
-                </Link>
-              )
-            })}
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:gap-x-8 lg:items-stretch">
+          <div className="order-1 flex min-w-0 flex-col lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-0">
+            <section
+              className="flex min-h-0 flex-col lg:flex-1"
+              aria-labelledby="forum-topics-heading"
+            >
+              <h2 id="forum-topics-heading" className="sr-only">
+                Aktuelle tråder
+              </h2>
+              <ForumHomeTopics rows={topicRows} activeSort={activeSort} />
+            </section>
           </div>
-        </section>
 
-        {(categories ?? []).length === 0 && !catErr ? (
-          <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>
-            Ingen kategorier i databasen.
-          </p>
-        ) : null}
+          <aside
+            className="order-2 flex min-w-0 flex-col lg:col-start-2 lg:row-start-1 lg:h-full lg:min-h-0"
+            aria-label="Forum — oversikt"
+          >
+            <ForumHomeSidebar
+              stats={sidebarStats}
+              popularRows={popularRows}
+              popularOk={popularOk}
+              newMembers={newMembers}
+              newMembersOk={newMembersOk}
+            />
+          </aside>
+
+          <section
+            aria-labelledby="forum-categories-heading"
+            className="order-3 min-w-0 lg:col-span-2 lg:row-start-2 mt-2 space-y-3 border-t pt-8"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            <h2 id="forum-categories-heading" className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              Kategorier
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(categories ?? []).map((cat) => {
+                const slug = typeof cat.slug === 'string' ? cat.slug : ''
+                const tid = typeof (cat as { id?: unknown }).id === 'string' ? String((cat as { id: string }).id) : ''
+                const n = counts.get(tid) ?? 0
+                const titleOk =
+                  typeof (cat as { title?: unknown }).title === 'string'
+                    ? String((cat as { title: string }).title)
+                    : 'Kategori'
+                const description =
+                  typeof (cat as { description?: unknown }).description === 'string'
+                    ? (cat as { description: string }).description
+                    : null
+
+                return (
+                  <Link
+                    key={tid || slug || titleOk}
+                    href={`${FORUM_BASE_PATH}/kategori/${slug}`}
+                    prefetch={false}
+                    className="group block min-w-0 rounded-xl border p-4 transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
+                    style={{
+                      borderColor: 'var(--border)',
+                      background: 'var(--surface)',
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3 min-w-0">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold truncate" style={{ color: 'var(--text)' }}>
+                          {titleOk}
+                        </h3>
+                        {description?.trim() ? (
+                          <p className="mt-1 text-sm break-words" style={{ color: 'var(--text-muted)' }}>
+                            {description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span
+                        className="shrink-0 tabular-nums text-xs px-2 py-1 rounded-lg"
+                        style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}
+                      >
+                        {n} tråd{n === 1 ? '' : 'er'}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-xs font-medium truncate" style={{ color: 'var(--primary)' }}>
+                      Åpne kategori <span aria-hidden>→</span>
+                    </p>
+                  </Link>
+                )
+              })}
+            </div>
+            {(categories ?? []).length === 0 && !catErr ? (
+              <p className="text-sm text-center" style={{ color: 'var(--text-muted)' }}>
+                Ingen kategorier i databasen.
+              </p>
+            ) : null}
+          </section>
+        </div>
       </div>
     </div>
   )
