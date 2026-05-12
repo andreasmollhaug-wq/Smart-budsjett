@@ -396,6 +396,15 @@ export default function DottirLanding() {
                 Hvem står bak dette?
               </Link>
             </div>
+
+            <div className="mx-auto mt-6 max-w-lg text-center min-w-0">
+              <p className="text-sm font-semibold sm:text-base" style={{ color: 'var(--text)' }}>
+                14 dagers gratis prøveperiode
+              </p>
+              <p className="mt-2 text-xs leading-relaxed sm:text-sm" style={{ color: 'var(--text-muted)' }}>
+                Ved oppstart registrerer du betalingskort — vi trekker ikke før prøveperioden er over.
+              </p>
+            </div>
           </div>
         </section>
 
