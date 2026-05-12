@@ -96,6 +96,20 @@ test.describe('Forum mobil (meny + beskyttede ruter)', () => {
     await expect(page.getByLabel(/Visningsnavn/)).toBeVisible()
   })
 
+  test('innlogget: tråd fra forsiden viser Om denne tråden (skip uten økt eller uten tråder)', async ({ page }) => {
+    await page.goto('/forum')
+    if (page.url().includes('/logg-inn')) {
+      test.skip()
+    }
+    const openThread = page.getByRole('link', { name: /^Åpne tråd:/ }).first()
+    if ((await openThread.count()) === 0) {
+      test.skip()
+    }
+    await openThread.click()
+    await expect(page.getByRole('heading', { name: 'Om denne tråden', level: 2 })).toBeVisible()
+    await assertNoWideBodyScroll(page)
+  })
+
   test('legacy /intern/forum-beta svarer med redirect til /forum', async ({ request }) => {
     const res = await request.get('/intern/forum-beta', { maxRedirects: 0 })
     expect([301, 302, 307, 308]).toContain(res.status())

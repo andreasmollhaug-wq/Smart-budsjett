@@ -26,6 +26,8 @@ import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import ForumReportForm from '@/components/forum/ForumReportForm'
 import ForumPostUpvoteButton from '@/components/forum/ForumPostUpvoteButton'
+import ForumThreadAboutPanel from '@/components/forum/ForumThreadAboutPanel'
+import type { ForumThreadAboutData } from '@/components/forum/ForumThreadAboutPanel'
 
 export type ForumThreadPaginationInfo = {
   page: number
@@ -48,6 +50,7 @@ interface ForumReplyAndPostsProps {
   isModerator: boolean
   profileDisplayByUserId: Record<string, string | null | undefined>
   pagination: ForumThreadPaginationInfo
+  threadAbout: ForumThreadAboutData
   /** Antall tommel opp per innlegg (kun synlige poster på siden). */
   upvoteCountByPostId?: Record<string, number>
   /** Post-ider brukeren har stemt på (gjeldende side). */
@@ -158,27 +161,33 @@ function PostToolbar({
   )
 }
 
-function PostMeta({
-  badge,
+function PostCardHeader({
+  postNumber,
+  displayName,
   isOwn,
   isFirst,
   createdAt,
   editedAt,
 }: {
-  badge: string
+  postNumber: number
+  displayName: string
   isOwn: boolean
   isFirst: boolean
   createdAt: string
   editedAt: string | null
 }) {
   return (
-    <div className="text-xs flex flex-wrap items-center gap-2 min-w-0">
-      <span className="min-w-0" style={{ color: 'var(--text-muted)' }}>
-        Bidrag{' '}
-        <span style={{ fontWeight: 700, color: 'var(--text)' }}>{badge}</span>
+    <header className="mb-3 min-w-0 space-y-1">
+      <p className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+        #{postNumber} · {formatForumDate(createdAt)}
+      </p>
+      <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+        <span className="font-semibold" style={{ color: 'var(--text)' }}>
+          {displayName}
+        </span>
         {isOwn ? (
           <span
-            className={`${chipBase} ml-1`}
+            className={chipBase}
             style={{
               background: 'var(--primary-pale)',
               borderColor: 'color-mix(in srgb, var(--primary) 35%, var(--border))',
@@ -190,7 +199,7 @@ function PostMeta({
         ) : null}
         {isFirst ? (
           <span
-            className={`${chipBase} ml-1`}
+            className={chipBase}
             style={{
               background: 'color-mix(in srgb, var(--text-muted) 12%, var(--surface))',
               borderColor: 'var(--border)',
@@ -200,16 +209,13 @@ function PostMeta({
             Trådstart
           </span>
         ) : null}
-      </span>
-      <span className="tabular-nums shrink-0" style={{ color: 'var(--text-muted)' }}>
-        {formatForumDate(createdAt)}
-      </span>
-      {editedAt ? (
-        <span className="shrink-0 italic" style={{ color: 'var(--text-muted)' }}>
-          · redigert {formatForumDate(editedAt)}
-        </span>
-      ) : null}
-    </div>
+        {editedAt ? (
+          <span className="text-xs italic" style={{ color: 'var(--text-muted)' }}>
+            redigert {formatForumDate(editedAt)}
+          </span>
+        ) : null}
+      </div>
+    </header>
   )
 }
 
@@ -225,6 +231,7 @@ export default function ForumReplyAndPosts({
   isModerator,
   profileDisplayByUserId,
   pagination,
+  threadAbout,
   upvoteCountByPostId = {},
   viewerUpvotedPostIds = [],
 }: ForumReplyAndPostsProps) {
@@ -422,10 +429,7 @@ export default function ForumReplyAndPosts({
   }
 
   const isStarter = starterAuthorId === currentUserId
-
-  const markedOp = posts.find((p) => p.is_first_post)
-  const opPost = markedOp ?? (posts.length ? posts[0] : null)
-  const replies = markedOp ? posts.filter((p) => !p.is_first_post) : posts.length > 1 ? posts.slice(1) : []
+  const baseIndex = (pagination.page - 1) * pagination.pageSize
 
   const msgOk = msg?.startsWith('Takk') || msg?.includes('Lagret')
 
@@ -435,7 +439,7 @@ export default function ForumReplyAndPosts({
 
       {msg ? (
         <div
-          className="text-sm rounded-xl px-3 py-2 break-words border min-w-0"
+          className="min-w-0 break-words rounded-xl border px-3 py-2 text-sm"
           role="status"
           style={{
             background: msgOk
@@ -451,455 +455,344 @@ export default function ForumReplyAndPosts({
         </div>
       ) : null}
 
-      {(pagination.prevHref !== null || pagination.nextHref !== null) && pagination.totalPosts > pagination.pageSize ? (
-        <nav
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
-          style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
-          aria-label="Innlegg sidevisning"
-        >
-          {pagination.prevHref ? (
-            <Link
-              href={pagination.prevHref}
-              prefetch={false}
-              className="inline-flex min-h-[44px] items-center px-4 rounded-xl border text-xs font-semibold touch-manipulation"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[1fr_minmax(16rem,20rem)] lg:items-start lg:gap-8">
+        <div className="order-1 min-w-0 space-y-4">
+          {(pagination.prevHref !== null || pagination.nextHref !== null) &&
+          pagination.totalPosts > pagination.pageSize ? (
+            <nav
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
+              style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+              aria-label="Innlegg sidevisning"
             >
-              Tidligere innlegg
-            </Link>
-          ) : (
-            <span />
-          )}
-          <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
-            Side {pagination.page}/{pagination.totalPages}
-          </span>
-          {pagination.nextHref ? (
-            <Link
-              href={pagination.nextHref}
-              prefetch={false}
-              className="inline-flex min-h-[44px] items-center px-4 rounded-xl border text-xs font-semibold touch-manipulation"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-            >
-              Nyere innlegg
-            </Link>
-          ) : (
-            <span />
-          )}
-        </nav>
-      ) : null}
-
-      <article
-        className="min-w-0 overflow-hidden rounded-2xl border p-5 shadow-sm sm:p-6"
-        style={{
-          borderColor: 'var(--border)',
-          background: 'var(--surface)',
-        }}
-        aria-label="Samtale og svar"
-      >
-        <section aria-label="Innhold" className="min-w-0">
-          <div className="min-w-0 space-y-0">
-            {posts.length === 0 ? (
-              <p className="text-sm py-6 text-center" style={{ color: 'var(--text-muted)' }}>
-                Ingen innlegg på denne siden.
-              </p>
-            ) : opPost ? (
-              <>
-                {/* Åpningsinnlegg */}
-                <div
-                  id={`post-${opPost.id}`}
-                  className="min-w-0 scroll-mt-28 -mx-5 -mt-5 mb-0 border-b px-5 py-5 sm:-mx-6 sm:-mt-6 sm:px-6 sm:py-6"
-                  style={{
-                    borderColor: 'var(--border)',
-                    background: 'color-mix(in srgb, var(--primary-pale) 42%, var(--surface))',
-                  }}
+              {pagination.prevHref ? (
+                <Link
+                  href={pagination.prevHref}
+                  prefetch={false}
+                  className="inline-flex min-h-[44px] items-center rounded-xl border px-4 text-xs font-semibold touch-manipulation"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3 mb-3 min-w-0">
-                    <PostMeta
-                      badge={forumAuthorDisplay(opPost.author_id, profileDisplayByUserId)}
-                      isOwn={opPost.author_id === currentUserId}
-                      isFirst
-                      createdAt={opPost.created_at}
-                      editedAt={opPost.edited_at}
-                    />
-                    <PostToolbar
-                      postId={opPost.id}
-                      deleted={!!opPost.deleted_at}
-                      isOwn={opPost.author_id === currentUserId}
-                      pending={pending}
-                      onQuote={onQuote}
-                      onStartEdit={(pid) => {
-                        const p = posts.find((x) => x.id === pid)
-                        if (p && !p.deleted_at) {
-                          setEditPostId(pid)
-                          setEditDraft(p.body)
-                        }
-                      }}
-                      onToggleReport={toggleReport}
-                      onSoftDeletePost={softDeletePost}
-                    />
-                  </div>
-                  {titleEditOpen && isStarter ? (
-                    <div className="mb-3 space-y-2">
-                      <input
-                        value={titleDraft}
-                        disabled={pending}
-                        onChange={(ev) => setTitleDraft(ev.target.value)}
-                        className="w-full min-h-[44px] rounded-xl border px-3 py-2 text-sm"
-                        style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                        maxLength={240}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onPointerDown={saveTitle}
-                          className="min-h-[44px] px-4 rounded-xl text-xs font-semibold text-white bg-[var(--primary)] touch-manipulation"
-                        >
-                          Lagre tittel
-                        </button>
-                        <button
-                          type="button"
-                          onPointerDown={() => {
-                            setTitleEditOpen(false)
-                            setTitleDraft(threadTitle)
-                          }}
-                          className="min-h-[44px] px-4 rounded-xl text-xs touch-manipulation border"
-                          style={{ borderColor: 'var(--border)' }}
-                        >
-                          Avbryt
-                        </button>
-                      </div>
-                    </div>
-                  ) : isStarter ? (
-                    <button
-                      type="button"
-                      onPointerDown={() => {
-                        setTitleEditOpen(true)
-                        setTitleDraft(threadTitle)
-                      }}
-                      className="mb-3 text-xs font-semibold underline touch-manipulation"
-                      style={{ color: 'var(--primary)' }}
-                    >
-                      Endre trådstittel
-                    </button>
-                  ) : null}
-                  {opPost.deleted_at ? (
-                    <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
-                      [Dette innlegget er fjernet av forfatteren.]
-                    </p>
-                  ) : editPostId === opPost.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editDraft}
-                        disabled={pending}
-                        onChange={(ev) => setEditDraft(ev.target.value)}
-                        rows={6}
-                        className="w-full rounded-xl border p-3 text-sm min-w-0"
-                        style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          disabled={pending || editDraft.trim().length < 1}
-                          onPointerDown={saveEditPost}
-                          className="min-h-[44px] px-4 rounded-xl text-xs font-semibold text-white bg-[var(--primary)] touch-manipulation"
-                        >
-                          Lagre
-                        </button>
-                        <button
-                          type="button"
-                          onPointerDown={() => {
-                            setEditPostId(null)
-                            setEditDraft('')
-                          }}
-                          className="min-h-[44px] px-4 rounded-xl text-xs border touch-manipulation"
-                          style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-                        >
-                          Avbryt
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <ForumMarkdown text={opPost.body} />
-                      <ForumPostAttachmentsDisplay attachments={opPost.attachments} />
-                      <ForumPostUpvoteButton
-                        postId={opPost.id}
-                        threadId={threadId}
-                        initialCount={upvoteCountByPostId[opPost.id] ?? 0}
-                        initialUpvoted={viewerVoteSet.has(opPost.id)}
-                      />
-                    </>
-                  )}
-                  {reportOpenId === opPost.id && !opPost.deleted_at && (
-                    <ForumReportForm
-                      reason={reportReason}
-                      pending={pending}
-                      onReason={setReportReason}
-                      onCancel={() => {
-                        setReportOpenId(null)
-                        setReportReason('')
-                      }}
-                      onSubmit={() => submitReport(opPost.id)}
-                      label="Melding til admin"
-                    />
-                  )}
-                </div>
+                  Tidligere innlegg
+                </Link>
+              ) : (
+                <span />
+              )}
+              <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>
+                Side {pagination.page}/{pagination.totalPages}
+              </span>
+              {pagination.nextHref ? (
+                <Link
+                  href={pagination.nextHref}
+                  prefetch={false}
+                  className="inline-flex min-h-[44px] items-center rounded-xl border px-4 text-xs font-semibold touch-manipulation"
+                  style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                >
+                  Nyere innlegg
+                </Link>
+              ) : (
+                <span />
+              )}
+            </nav>
+          ) : null}
 
-                {/* Svar */}
-                {replies.length > 0 ? (
-                  <div className="mt-0 min-w-0 pt-3 sm:pt-4">
-                    <h3 className="sr-only">Svar</h3>
-                    <ul className="min-w-0 list-none space-y-0">
-                      {replies.map((p, replyIdx) => {
-                        const deleted = !!p.deleted_at
-                        const borderSep =
-                          replyIdx === 0
-                            ? ''
-                            : 'border-t border-[color-mix(in_srgb,var(--text-muted)_22%,transparent)] pt-4'
-                        return (
-                          <li
-                            key={p.id}
-                            className={['min-w-0 py-4 first:pt-3 sm:first:pt-4 list-none', borderSep]
-                              .filter(Boolean)
-                              .join(' ')}
-                          >
-                            <div
-                              id={`post-${p.id}`}
-                              className="min-w-0 border-l-2 pl-3 sm:pl-4 scroll-mt-28"
-                              style={{
-                                borderColor: 'color-mix(in srgb, var(--primary) 28%, var(--border))',
-                              }}
-                            >
-                              <div className="flex flex-wrap items-start justify-between gap-3 mb-2 min-w-0">
-                                <PostMeta
-                                  badge={forumAuthorDisplay(p.author_id, profileDisplayByUserId)}
-                                  isOwn={p.author_id === currentUserId}
-                                  isFirst={false}
-                                  createdAt={p.created_at}
-                                  editedAt={p.edited_at}
-                                />
-                                <PostToolbar
-                                  postId={p.id}
-                                  deleted={deleted}
-                                  isOwn={p.author_id === currentUserId}
-                                  pending={pending}
-                                  onQuote={onQuote}
-                                  onStartEdit={(pid) => {
-                                    const row = posts.find((x) => x.id === pid)
-                                    if (row && !row.deleted_at) {
-                                      setEditPostId(pid)
-                                      setEditDraft(row.body)
-                                    }
-                                  }}
-                                  onToggleReport={toggleReport}
-                                  onSoftDeletePost={softDeletePost}
-                                />
-                              </div>
-                              {deleted ? (
-                                <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
-                                  [Dette innlegget er fjernet av forfatteren.]
-                                </p>
-                              ) : editPostId === p.id ? (
-                                <div className="space-y-2">
-                                  <textarea
-                                    value={editDraft}
-                                    disabled={pending}
-                                    onChange={(ev) => setEditDraft(ev.target.value)}
-                                    rows={5}
-                                    className="w-full rounded-xl border p-3 text-sm min-w-0"
-                                    style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-                                  />
-                                  <div className="flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      disabled={pending || editDraft.trim().length < 1}
-                                      onPointerDown={saveEditPost}
-                                      className="min-h-[44px] px-4 rounded-xl text-xs font-semibold text-white bg-[var(--primary)] touch-manipulation"
-                                    >
-                                      Lagre
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onPointerDown={() => {
-                                        setEditPostId(null)
-                                        setEditDraft('')
-                                      }}
-                                      className="min-h-[44px] px-4 rounded-xl text-xs border touch-manipulation"
-                                      style={{
-                                        borderColor: 'var(--border)',
-                                        background: 'var(--surface)',
-                                      }}
-                                    >
-                                      Avbryt
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <>
-                                  <ForumMarkdown text={p.body} compact />
-                                  <ForumPostAttachmentsDisplay attachments={p.attachments} />
-                                  <ForumPostUpvoteButton
-                                    postId={p.id}
-                                    threadId={threadId}
-                                    initialCount={upvoteCountByPostId[p.id] ?? 0}
-                                    initialUpvoted={viewerVoteSet.has(p.id)}
-                                  />
-                                </>
-                              )}
-                              {reportOpenId === p.id && !deleted && (
-                                <ForumReportForm
-                                  reason={reportReason}
-                                  pending={pending}
-                                  onReason={setReportReason}
-                                  onCancel={() => {
-                                    setReportOpenId(null)
-                                    setReportReason('')
-                                  }}
-                                  onSubmit={() => submitReport(p.id)}
-                                  label="Send melding til admin"
-                                />
-                              )}
-                            </div>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-sm py-6 text-center" style={{ color: 'var(--text-muted)' }}>
-                Ingen innlegg å vise.
-              </p>
-            )}
-          </div>
-        </section>
-
-        <footer className="mt-5 min-w-0 border-t pt-5" style={{ borderColor: 'var(--border)' }}>
-          {!canReply ? (
-            <p className="text-sm min-w-0" style={{ color: 'var(--text-muted)' }}>
-              {isThreadLocked
-                ? 'Tråden er låst — du kan ikke legge til flere svar.'
-                : 'Du kan ikke legge til svar i skrivebeskyttet modus.'}
+          {posts.length === 0 ? (
+            <p className="py-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+              Ingen innlegg på denne siden.
             </p>
           ) : (
-            <form onSubmit={onReply} className="space-y-3 min-w-0">
-              <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                Nytt svar
-              </h3>
-              <ForumAttachmentPicker id={replyAttachId} disabled={pending} files={replyFiles} onChangeFiles={setReplyFiles} />
-              <textarea
-                id="forum-reply-body"
-                rows={5}
-                disabled={pending}
-                value={replyBody}
-                onChange={(ev) => setReplyBody(ev.target.value)}
-                className="w-full min-h-[120px] px-3 py-2.5 rounded-xl text-sm resize-y min-w-0 max-w-full touch-manipulation border"
-                style={{
-                  borderColor: 'var(--border)',
-                  background: 'var(--bg)',
-                  color: 'var(--text)',
-                }}
-                placeholder="Markdown støttes (liste, fet, lenker …)"
-              />
-              <button
-                type="submit"
-                disabled={pending || replyBody.trim().length < 1}
-                className="inline-flex items-center justify-center min-h-[44px] px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 touch-manipulation"
-                style={{ background: 'var(--cta-gradient)' }}
-              >
-                {pending ? 'Sender…' : 'Send svar'}
-              </button>
-            </form>
-          )}
-        </footer>
+            <div className="flex min-w-0 flex-col gap-4" aria-label="Innlegg i tråden">
+              {posts.map((p, i) => {
+                const postNum = baseIndex + i + 1
+                const deleted = !!p.deleted_at
+                const isFirst = p.is_first_post
+                return (
+                  <article
+                    key={p.id}
+                    id={`post-${p.id}`}
+                    className="min-w-0 scroll-mt-28 rounded-2xl border p-5 shadow-sm sm:p-6"
+                    style={{
+                      borderColor: 'var(--border)',
+                      background: 'var(--surface)',
+                      ...(isFirst ? { borderTop: '3px solid var(--primary)' } : {}),
+                    }}
+                  >
+                    <PostCardHeader
+                      postNumber={postNum}
+                      displayName={forumAuthorDisplay(p.author_id, profileDisplayByUserId)}
+                      isOwn={p.author_id === currentUserId}
+                      isFirst={isFirst}
+                      createdAt={p.created_at}
+                      editedAt={p.edited_at}
+                    />
 
-        <section
-          className="mt-5 rounded-xl border p-4 min-w-0"
-          style={{
-            borderColor: 'color-mix(in srgb, #f59e0b 35%, var(--border))',
-            background: 'color-mix(in srgb, #f59e0b 9%, var(--surface))',
-          }}
-          aria-label="Trådbehandling"
-        >
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-            Trådbehandling
-          </h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={pending}
-              onPointerDown={toggleSubscribe}
-              className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl text-xs font-semibold border touch-manipulation"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-            >
-              {subscribed ? 'Slutt å følge tråd' : 'Varsle ved nye svar (følg tråd)'}
-            </button>
-            {!canWriteBase ? (
-              <p className="text-sm mt-2 w-full" style={{ color: 'var(--text-muted)' }}>
-                Ikke aktivt å skrive:{' '}
-                <Link href="/konto/betalinger" className="underline font-medium" style={{ color: 'var(--primary)' }}>
-                  Betalinger
-                </Link>
-                .
+                    {p.is_first_post && titleEditOpen && isStarter ? (
+                      <div className="mb-3 space-y-2">
+                        <input
+                          value={titleDraft}
+                          disabled={pending}
+                          onChange={(ev) => setTitleDraft(ev.target.value)}
+                          className="min-h-[44px] w-full rounded-xl border px-3 py-2 text-sm"
+                          style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                          maxLength={240}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onPointerDown={saveTitle}
+                            className="min-h-[44px] rounded-xl bg-[var(--primary)] px-4 text-xs font-semibold text-white touch-manipulation"
+                          >
+                            Lagre tittel
+                          </button>
+                          <button
+                            type="button"
+                            onPointerDown={() => {
+                              setTitleEditOpen(false)
+                              setTitleDraft(threadTitle)
+                            }}
+                            className="min-h-[44px] rounded-xl border px-4 text-xs touch-manipulation"
+                            style={{ borderColor: 'var(--border)' }}
+                          >
+                            Avbryt
+                          </button>
+                        </div>
+                      </div>
+                    ) : p.is_first_post && isStarter ? (
+                      <button
+                        type="button"
+                        onPointerDown={() => {
+                          setTitleEditOpen(true)
+                          setTitleDraft(threadTitle)
+                        }}
+                        className="mb-3 text-xs font-semibold underline touch-manipulation"
+                        style={{ color: 'var(--primary)' }}
+                      >
+                        Endre trådstittel
+                      </button>
+                    ) : null}
+
+                    {deleted ? (
+                      <p className="text-sm italic" style={{ color: 'var(--text-muted)' }}>
+                        [Dette innlegget er fjernet av forfatteren.]
+                      </p>
+                    ) : editPostId === p.id ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editDraft}
+                          disabled={pending}
+                          onChange={(ev) => setEditDraft(ev.target.value)}
+                          rows={isFirst ? 6 : 5}
+                          className="min-w-0 w-full rounded-xl border p-3 text-sm"
+                          style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={pending || editDraft.trim().length < 1}
+                            onPointerDown={saveEditPost}
+                            className="min-h-[44px] rounded-xl bg-[var(--primary)] px-4 text-xs font-semibold text-white touch-manipulation"
+                          >
+                            Lagre
+                          </button>
+                          <button
+                            type="button"
+                            onPointerDown={() => {
+                              setEditPostId(null)
+                              setEditDraft('')
+                            }}
+                            className="min-h-[44px] rounded-xl border px-4 text-xs touch-manipulation"
+                            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+                          >
+                            Avbryt
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <ForumMarkdown text={p.body} compact={!isFirst} />
+                        <ForumPostAttachmentsDisplay attachments={p.attachments} />
+                      </>
+                    )}
+
+                    {!deleted && editPostId !== p.id ? (
+                      <div
+                        className="mt-4 flex flex-col gap-3 border-t pt-3 sm:flex-row sm:flex-wrap sm:items-center"
+                        style={{ borderColor: 'var(--border)' }}
+                      >
+                        <PostToolbar
+                          postId={p.id}
+                          deleted={deleted}
+                          isOwn={p.author_id === currentUserId}
+                          pending={pending}
+                          onQuote={onQuote}
+                          onStartEdit={(pid) => {
+                            const row = posts.find((x) => x.id === pid)
+                            if (row && !row.deleted_at) {
+                              setEditPostId(pid)
+                              setEditDraft(row.body)
+                            }
+                          }}
+                          onToggleReport={toggleReport}
+                          onSoftDeletePost={softDeletePost}
+                        />
+                        <ForumPostUpvoteButton
+                          postId={p.id}
+                          threadId={threadId}
+                          initialCount={upvoteCountByPostId[p.id] ?? 0}
+                          initialUpvoted={viewerVoteSet.has(p.id)}
+                        />
+                      </div>
+                    ) : null}
+
+                    {reportOpenId === p.id && !p.deleted_at ? (
+                      <ForumReportForm
+                        reason={reportReason}
+                        pending={pending}
+                        onReason={setReportReason}
+                        onCancel={() => {
+                          setReportOpenId(null)
+                          setReportReason('')
+                        }}
+                        onSubmit={() => submitReport(p.id)}
+                        label={isFirst ? 'Melding til admin' : 'Send melding til admin'}
+                        className="mt-4"
+                      />
+                    ) : null}
+                  </article>
+                )
+              })}
+            </div>
+          )}
+
+          <footer className="min-w-0 rounded-2xl border p-5 shadow-sm sm:p-6" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            {!canReply ? (
+              <p className="min-w-0 text-sm" style={{ color: 'var(--text-muted)' }}>
+                {isThreadLocked
+                  ? 'Tråden er låst — du kan ikke legge til flere svar.'
+                  : 'Du kan ikke legge til svar i skrivebeskyttet modus.'}
               </p>
-            ) : null}
-            <button
-              type="button"
-              onPointerDown={() => {
-                setMsg(null)
-                setReportOpenId(null)
-                setThreadReportOpen((o) => !o)
-                setReportReason('')
-              }}
-              className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl text-xs font-medium touch-manipulation border"
-              style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-            >
-              Rapporter hele tråden
-            </button>
-            {isModerator ? (
+            ) : (
+              <form onSubmit={onReply} className="min-w-0 space-y-3">
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                  Nytt svar
+                </h3>
+                <ForumAttachmentPicker id={replyAttachId} disabled={pending} files={replyFiles} onChangeFiles={setReplyFiles} />
+                <textarea
+                  id="forum-reply-body"
+                  rows={5}
+                  disabled={pending}
+                  value={replyBody}
+                  onChange={(ev) => setReplyBody(ev.target.value)}
+                  className="min-h-[120px] w-full min-w-0 max-w-full resize-y rounded-xl border px-3 py-2.5 text-sm touch-manipulation"
+                  style={{
+                    borderColor: 'var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                  }}
+                  placeholder="Markdown støttes (liste, fet, lenker …)"
+                />
+                <button
+                  type="submit"
+                  disabled={pending || replyBody.trim().length < 1}
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-5 text-sm font-semibold text-white disabled:opacity-50 touch-manipulation"
+                  style={{ background: 'var(--cta-gradient)' }}
+                >
+                  {pending ? 'Sender…' : 'Send svar'}
+                </button>
+              </form>
+            )}
+          </footer>
+
+          <section
+            className="min-w-0 rounded-xl border p-4"
+            style={{
+              borderColor: 'color-mix(in srgb, #f59e0b 35%, var(--border))',
+              background: 'color-mix(in srgb, #f59e0b 9%, var(--surface))',
+            }}
+            aria-label="Trådbehandling"
+          >
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+              Trådbehandling
+            </h3>
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 disabled={pending}
-                onPointerDown={toggleModeratorLock}
-                className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl text-xs font-semibold touch-manipulation border border-amber-700 text-amber-900"
-                style={{ background: 'color-mix(in srgb,#fef3c7 85%,transparent)' }}
+                onPointerDown={toggleSubscribe}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border px-4 text-xs font-semibold touch-manipulation"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
               >
-                {isThreadLocked ? 'Moderator: åpne tråden' : 'Moderator: lås tråden'}
+                {subscribed ? 'Slutt å følge tråd' : 'Varsle ved nye svar (følg tråd)'}
               </button>
-            ) : null}
-            {isStarter ? (
+              {!canWriteBase ? (
+                <p className="mt-2 w-full text-sm" style={{ color: 'var(--text-muted)' }}>
+                  Ikke aktivt å skrive:{' '}
+                  <Link href="/konto/betalinger" className="font-medium underline" style={{ color: 'var(--primary)' }}>
+                    Betalinger
+                  </Link>
+                  .
+                </p>
+              ) : null}
               <button
                 type="button"
-                disabled={pending}
-                onPointerDown={softDeleteThread}
-                className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 touch-manipulation border"
-                style={{
-                  borderColor: 'color-mix(in srgb, #b91c1c 45%, var(--border))',
-                  background: 'color-mix(in srgb, #fef2f2 88%, var(--surface))',
-                  color: '#b91c1c',
+                onPointerDown={() => {
+                  setMsg(null)
+                  setReportOpenId(null)
+                  setThreadReportOpen((o) => !o)
+                  setReportReason('')
                 }}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-xl border px-4 text-xs font-medium touch-manipulation"
+                style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               >
-                Skjul hele tråden for alle (myk sletting)
+                Rapporter hele tråden
               </button>
+              {isModerator ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onPointerDown={toggleModeratorLock}
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-amber-700 px-4 text-xs font-semibold text-amber-900 touch-manipulation"
+                  style={{ background: 'color-mix(in srgb,#fef3c7 85%,transparent)' }}
+                >
+                  {isThreadLocked ? 'Moderator: åpne tråden' : 'Moderator: lås tråden'}
+                </button>
+              ) : null}
+              {isStarter ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onPointerDown={softDeleteThread}
+                  className="inline-flex min-h-[44px] items-center justify-center rounded-xl border px-4 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50 touch-manipulation"
+                  style={{
+                    borderColor: 'color-mix(in srgb, #b91c1c 45%, var(--border))',
+                    background: 'color-mix(in srgb, #fef2f2 88%, var(--surface))',
+                    color: '#b91c1c',
+                  }}
+                >
+                  Skjul hele tråden for alle (myk sletting)
+                </button>
+              ) : null}
+            </div>
+            {threadReportOpen ? (
+              <ForumReportForm
+                reason={reportReason}
+                pending={pending}
+                onReason={setReportReason}
+                onCancel={() => {
+                  setThreadReportOpen(false)
+                  setReportReason('')
+                }}
+                onSubmit={submitThreadReport}
+                label="Send trådmelding til moderator"
+                className="mt-4"
+              />
             ) : null}
-          </div>
-          {threadReportOpen ? (
-            <ForumReportForm
-              reason={reportReason}
-              pending={pending}
-              onReason={setReportReason}
-              onCancel={() => {
-                setThreadReportOpen(false)
-                setReportReason('')
-              }}
-              onSubmit={submitThreadReport}
-              label="Send trådmelding til moderator"
-              className="mt-4"
-            />
-          ) : null}
-        </section>
-      </article>
+          </section>
+        </div>
+
+        <aside className="order-2 min-w-0 lg:sticky lg:top-5 lg:self-start">
+          <ForumThreadAboutPanel data={threadAbout} />
+        </aside>
+      </div>
     </div>
   )
 }

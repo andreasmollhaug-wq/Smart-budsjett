@@ -19,8 +19,15 @@ interface ThreadRowEmbed {
   title: string
   author_id: string
   category_id?: string | null
+  created_at?: string | null
+  last_activity_at?: string | null
+  view_count?: number | null
   /** Supabase join may serialize as single row or array depending on client typings */
-  forum_category: { slug: string | null } | { slug: string | null }[] | null | undefined
+  forum_category:
+    | { slug: string | null; title?: string | null }
+    | { slug: string | null; title?: string | null }[]
+    | null
+    | undefined
   is_locked?: boolean | null
   is_pinned?: boolean | null
 }
@@ -56,9 +63,12 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
       title,
       author_id,
       category_id,
+      created_at,
+      last_activity_at,
+      view_count,
       is_locked,
       is_pinned,
-      forum_category(slug)
+      forum_category(slug, title)
     `,
     )
     .eq('id', id)
@@ -78,12 +88,17 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
   if (missingForumCols) {
     const fb = await supabase
       .from('forum_thread')
-      .select('id, title, author_id, category_id, forum_category(slug)')
+      .select('id, title, author_id, category_id, forum_category(slug, title)')
       .eq('id', id)
       .is('deleted_at', null)
       .maybeSingle()
     if (fb.error || !fb.data) notFound()
-    threadRow = { ...(fb.data as ThreadRowEmbed), is_locked: false, is_pinned: false }
+    threadRow = {
+      ...(fb.data as ThreadRowEmbed),
+      is_locked: false,
+      is_pinned: false,
+      view_count: 0,
+    }
   } else if (tr.error || !threadRow?.id) {
     notFound()
   }
@@ -102,6 +117,13 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
     'slug' in embedCat &&
     typeof (embedCat as { slug?: unknown }).slug === 'string'
       ? ((embedCat as { slug: string }).slug ?? 'generelt')
+      : null
+  const categoryTitle =
+    embedCat &&
+    typeof embedCat === 'object' &&
+    'title' in embedCat &&
+    typeof (embedCat as { title?: unknown }).title === 'string'
+      ? ((embedCat as { title: string }).title ?? null)
       : null
 
   const postsCountPromise = supabase
@@ -277,82 +299,104 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
   const prevHref = pageRequested > 1 ? `${FORUM_BASE_PATH}/trad/${id}?side=${pageRequested - 1}` : null
   const nextHref = pageRequested < totalPages ? `${FORUM_BASE_PATH}/trad/${id}?side=${pageRequested + 1}` : null
 
+  const threadCreatedAt = typeof threadData.created_at === 'string' ? threadData.created_at : ''
+  const threadLastActivityAt =
+    typeof threadData.last_activity_at === 'string' ? threadData.last_activity_at : threadCreatedAt
+  const threadViewCount =
+    typeof threadData.view_count === 'number' && Number.isFinite(threadData.view_count)
+      ? threadData.view_count
+      : 0
+  const replyCount = Math.max(0, totalPosts - 1)
+
+  const threadAbout = {
+    createdAt: threadCreatedAt,
+    lastActivityAt: threadLastActivityAt,
+    viewCount: threadViewCount,
+    totalPosts,
+    replyCount,
+    categoryHref: slug ? `${FORUM_BASE_PATH}/kategori/${slug}` : null,
+    categoryTitle: categoryTitle ?? (slug ? slug : null),
+  }
+
   return (
-    <div className="flex flex-1 flex-col overflow-y-auto pb-24 sm:pb-28">
-      <Header
-        title={threadData.title ?? 'Tråd'}
-        subtitle={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Link href={FORUM_BASE_PATH} style={{ color: 'var(--primary)' }} className="underline font-medium">
-              Alle kategorier
-            </Link>
-            {slug ? (
-              <Link
-                href={`${FORUM_BASE_PATH}/kategori/${slug}`}
-                style={{ color: 'var(--primary)' }}
-                className="underline font-medium"
-              >
-                Kategori
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-24 sm:pb-28">
+        <Header
+          title={threadData.title ?? 'Tråd'}
+          subtitle={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Link href={FORUM_BASE_PATH} style={{ color: 'var(--primary)' }} className="underline font-medium">
+                Alle kategorier
               </Link>
-            ) : null}
-          </span>
-        }
-      />
-
-      <ForumSearchStripe categorySlug={slug ?? undefined} />
-
-      <div className="min-w-0 flex-1 space-y-6 px-[max(1rem,env(safe-area-inset-left))] py-5 sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:py-8">
-        <ForumInfoBanner />
-
-        {isPinned ? (
-          <p
-            className="rounded-xl px-3 py-2 text-xs font-semibold border"
-            style={{ borderColor: 'var(--primary)', background: 'var(--primary-pale)', color: 'var(--text)' }}
-            role="status"
-          >
-            Festet tråd
-          </p>
-        ) : null}
-
-        {isLocked ? (
-          <p
-            className="rounded-xl px-3 py-2 text-xs font-semibold border"
-            style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
-            role="status"
-          >
-            Denne tråden er låst for nye svar.
-          </p>
-        ) : null}
-
-        {totalPosts > pageSize ? (
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Viser side {pageRequested} av {totalPages} (maks {pageSize} innlegg per side). Alle innlegg vises i
-            kronologisk rekkefølge på hver side.
-          </p>
-        ) : null}
-
-        <ForumReplyAndPosts
-          threadId={threadData.id}
-          threadTitle={threadData.title ?? 'Tråd'}
-          starterAuthorId={threadData.author_id}
-          currentUserId={user.id}
-          posts={posts}
-          isThreadLocked={isLocked}
-          isPinned={isPinned}
-          isSubscribedToThread={isSubscribedToThread}
-          isModerator={isModerator}
-          profileDisplayByUserId={profileDisplayByUserId}
-          upvoteCountByPostId={upvoteCountByPostId}
-          viewerUpvotedPostIds={viewerUpvotedPostIds}
-          pagination={{
-            page: pageRequested,
-            totalPages,
-            prevHref,
-            nextHref,
-            totalPosts,
-            pageSize,
-          }}
+              {slug ? (
+                <Link
+                  href={`${FORUM_BASE_PATH}/kategori/${slug}`}
+                  style={{ color: 'var(--primary)' }}
+                  className="underline font-medium"
+                >
+                  Kategori
+                </Link>
+              ) : null}
+            </span>
+          }
         />
+
+        <ForumSearchStripe categorySlug={slug ?? undefined} />
+
+        <div className="min-w-0 space-y-6 py-5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:py-8 sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]">
+          <ForumInfoBanner />
+
+          {isPinned ? (
+            <p
+              className="rounded-xl px-3 py-2 text-xs font-semibold border"
+              style={{ borderColor: 'var(--primary)', background: 'var(--primary-pale)', color: 'var(--text)' }}
+              role="status"
+            >
+              Festet tråd
+            </p>
+          ) : null}
+
+          {isLocked ? (
+            <p
+              className="rounded-xl px-3 py-2 text-xs font-semibold border"
+              style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
+              role="status"
+            >
+              Denne tråden er låst for nye svar.
+            </p>
+          ) : null}
+
+          {totalPosts > pageSize ? (
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Viser side {pageRequested} av {totalPages} (maks {pageSize} innlegg per side). Alle innlegg vises i
+              kronologisk rekkefølge på hver side.
+            </p>
+          ) : null}
+
+          <ForumReplyAndPosts
+            threadId={threadData.id}
+            threadTitle={threadData.title ?? 'Tråd'}
+            starterAuthorId={threadData.author_id}
+            currentUserId={user.id}
+            posts={posts}
+            isThreadLocked={isLocked}
+            isPinned={isPinned}
+            isSubscribedToThread={isSubscribedToThread}
+            isModerator={isModerator}
+            profileDisplayByUserId={profileDisplayByUserId}
+            upvoteCountByPostId={upvoteCountByPostId}
+            viewerUpvotedPostIds={viewerUpvotedPostIds}
+            threadAbout={threadAbout}
+            pagination={{
+              page: pageRequested,
+              totalPages,
+              prevHref,
+              nextHref,
+              totalPosts,
+              pageSize,
+            }}
+          />
+        </div>
       </div>
     </div>
   )

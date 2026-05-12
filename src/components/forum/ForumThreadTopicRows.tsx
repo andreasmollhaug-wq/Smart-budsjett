@@ -82,7 +82,7 @@ export default function ForumThreadTopicRows({
                 className="absolute inset-0 z-0 rounded-lg outline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
                 aria-label={`Åpne tråd: ${r.thread_title}`}
               />
-              <div className={['relative z-10 min-w-0', desktopGrid].join(' ')}>
+              <div className={['relative z-10 min-w-0 pointer-events-none', desktopGrid].join(' ')}>
                 <div className="min-w-0 pointer-events-none">
                   <span
                     className="block min-w-0 font-semibold leading-snug break-words underline-offset-4 transition-[color] duration-200 ease-out group-hover:text-[var(--primary)] motion-reduce:transition-none"
@@ -178,7 +178,7 @@ export default function ForumThreadTopicRows({
                 ) : null}
               </div>
               <div
-                className="relative z-10 mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3 text-xs"
+                className="relative z-10 mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3 text-xs pointer-events-none"
                 style={{ borderColor: 'var(--border)' }}
               >
                 {showCategoryColumn ? (
