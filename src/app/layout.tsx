@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { COMPANY_NAME } from '@/lib/legal'
 import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
+import { getSiteUrl } from '@/lib/site-url'
 import './globals.css'
 
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
@@ -18,6 +19,7 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: `${PRODUCT_DISPLAY_NAME} | ${COMPANY_NAME}`,
     template: `%s · ${PRODUCT_DISPLAY_NAME}`,

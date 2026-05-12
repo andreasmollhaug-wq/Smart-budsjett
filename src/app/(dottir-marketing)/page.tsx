@@ -4,17 +4,18 @@ import DottirLanding from '@/components/marketing/DottirLanding'
 import { DottirSmoothScroll } from '@/components/marketing/DottirSmoothScroll'
 import { getSiteUrl } from '@/lib/site-url'
 
-const title = 'Enkel oversikt på økonomien'
+/** Fanetittel — mal i root layout brukes ikke når `absolute` settes. */
+const documentTitle = 'Ta kontroll'
 const description =
   'Dottir hjelper privatpersoner med oversikt over inntekter og utgifter — enkelt budsjettverktøy med ferdig struktur og 14 dagers gratis prøveperiode.'
 
 const canonical = `${getSiteUrl()}/`
 
 export const metadata: Metadata = {
-  title,
+  title: { absolute: documentTitle },
   description,
   openGraph: {
-    title: `${title} · Dottir`,
+    title: documentTitle,
     description,
     url: canonical,
     siteName: 'Dottir',
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${title} · Dottir`,
+    title: documentTitle,
     description,
   },
   alternates: {
