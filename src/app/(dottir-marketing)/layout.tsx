@@ -8,6 +8,12 @@ export const viewport: Viewport = {
 export default function DottirMarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      {/** Sand-variabler må settes før første paint; ellers vises :root (indigo) til useEffect kjører. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `document.documentElement.setAttribute('data-ui-palette','sand')`,
+        }}
+      />
       <ApplyMarketingSandPalette />
       {children}
     </>

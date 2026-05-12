@@ -133,9 +133,18 @@ export default function DottirLanding() {
         aria-modal="true"
         aria-label="Navigasjon"
       >
-        <button type="button" className="absolute inset-0 bg-black/40" aria-label="Lukk meny" onClick={close} />
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/40 touch-manipulation"
+          aria-label="Lukk meny"
+          onPointerDown={(e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return
+            e.preventDefault()
+            close()
+          }}
+        />
         <aside
-          className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto shadow-xl"
+          className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto pl-[max(0.5rem,env(safe-area-inset-left))] shadow-xl"
           style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
         >
           <div
@@ -187,6 +196,24 @@ export default function DottirLanding() {
             >
               Hovedforside
             </Link>
+            <div className="mt-3 border-t pt-3 lg:hidden" style={{ borderColor: 'var(--border)' }}>
+              <Link
+                href={LOGIN_HREF}
+                onClick={close}
+                className="flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium touch-manipulation"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Logg inn
+              </Link>
+              <Link
+                href={CTA_HREF}
+                onClick={close}
+                className="mt-2 flex min-h-[44px] items-center justify-center rounded-xl px-3 text-sm font-semibold text-white touch-manipulation"
+                style={{ background: 'var(--primary)' }}
+              >
+                Prøv gratis
+              </Link>
+            </div>
           </div>
         </aside>
       </div>
@@ -207,12 +234,12 @@ export default function DottirLanding() {
           <Link
             href={DOTTIR_HOME_HREF}
             aria-label={PRODUCT_DISPLAY_NAME}
-            className="inline-flex min-h-[44px] shrink-0 items-center rounded-xl px-1 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation"
+            className="inline-flex min-h-[44px] shrink-0 items-center rounded-xl px-0.5 py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 touch-manipulation sm:px-1"
           >
-            <BrandLogoMark size="xl" fetchPriority="high" alt="" />
+            <BrandLogoMark size="xl" heightClass="h-11 sm:h-14" fetchPriority="high" alt="" />
           </Link>
 
-          <nav className="flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
+          <nav className="flex min-w-0 flex-1 items-center justify-end gap-0.5 sm:gap-2">
             <button
               type="button"
               onClick={() => setMobileOpen((o) => !o)}
@@ -247,14 +274,14 @@ export default function DottirLanding() {
             )}
             <Link
               href={LOGIN_HREF}
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-sm font-medium touch-manipulation sm:px-3"
+              className="hidden min-h-[44px] min-w-[44px] items-center justify-center rounded-lg px-2 py-2 text-sm font-medium touch-manipulation sm:px-3 lg:inline-flex"
               style={{ color: 'var(--text-muted)' }}
             >
               Logg inn
             </Link>
             <Link
               href={CTA_HREF}
-              className="inline-flex min-h-[44px] max-w-[11rem] flex-col items-center justify-center rounded-xl px-2 py-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-opacity hover:opacity-95 touch-manipulation sm:max-w-none sm:px-4 sm:text-sm"
+              className="inline-flex min-h-[44px] max-w-[10.5rem] shrink-0 touch-manipulation flex-col items-center justify-center rounded-xl px-2.5 py-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-opacity hover:opacity-95 sm:max-w-none sm:px-4 sm:text-sm"
               style={{ background: 'var(--primary)' }}
             >
               <span className="sm:hidden">Prøv gratis</span>
