@@ -8,6 +8,7 @@ import { ForumNewThreadHomeButton } from '@/components/forum/ForumNewThreadModal
 import { fetchForumContributionCounts } from '@/lib/forum/counts'
 import {
   forumHomeSortFromSearchParam,
+  mapForumFirstPostExcerpts,
   parseForumHomeRows,
 } from '@/lib/forum/home'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
@@ -34,7 +35,7 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
 
   let topicRows = parseForumHomeRows(rpcData)
 
-  /** Fallback om 017 ikke er kjørt: enkel liste uten excerpt/reply-count */
+  /** Fallback om 017 ikke er kjørt: enkel liste med utdrag fra åpningsinnlegg; ingen reply-/visningstall fra RPC */
   if (rpcErr) {
     const { data: fb } = await supabase
       .from('forum_thread')
@@ -50,7 +51,13 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
       .order('last_activity_at', { ascending: false })
       .limit(HOME_LIMIT)
 
-    topicRows = (fb ?? []).map((row) => {
+    const fbList = fb ?? []
+    const threadIds = fbList
+      .map((row) => (typeof (row as { id?: unknown }).id === 'string' ? (row as { id: string }).id : ''))
+      .filter(Boolean)
+    const excerptByThread = await mapForumFirstPostExcerpts(supabase, threadIds)
+
+    topicRows = fbList.map((row) => {
       const rid = typeof (row as { id?: unknown }).id === 'string' ? (row as { id: string }).id : ''
       const title = typeof (row as { title?: unknown }).title === 'string' ? (row as { title: string }).title : ''
       const lat =
@@ -68,7 +75,7 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
         last_activity_at: lat,
         view_count: 0,
         reply_count: 0,
-        excerpt: '',
+        excerpt: excerptByThread.get(rid) ?? '',
       }
     })
     if (activeSort !== 'latest') {

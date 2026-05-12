@@ -13,6 +13,7 @@ import {
   forumNewThreadSchema,
   forumReplySchema,
   forumReportSchema,
+  forumToggleUpvoteSchema,
   type ForumNewThreadInput,
   type ForumReplyInput,
   type ForumReportInput,
@@ -576,4 +577,66 @@ export async function forumModeratorSetReportStatusAction(input: unknown): Promi
 
   revalidatePath(`${FORUM_BASE}/moderering`)
   return { ok: true }
+}
+
+export async function forumTogglePostUpvoteAction(
+  postId: string,
+  threadId: string,
+): Promise<ForumActionResult & { upvoted?: boolean }> {
+  const parsed = forumToggleUpvoteSchema.safeParse({ postId, threadId })
+  if (!parsed.success) {
+    return { ok: false, error: 'Ugyldig innlegg.' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'Ikke innlogget.' }
+
+  const pid = parsed.data.postId
+  const tid = parsed.data.threadId
+
+  const { data: postRow, error: postErr } = await supabase
+    .from('forum_post')
+    .select('id, thread_id, deleted_at')
+    .eq('id', pid)
+    .maybeSingle()
+
+  if (postErr || !postRow || typeof (postRow as { thread_id?: unknown }).thread_id !== 'string') {
+    return { ok: false, error: 'Fant ikke innlegget.' }
+  }
+  if ((postRow as { thread_id: string }).thread_id !== tid) {
+    return { ok: false, error: 'Innlegget hører ikke til denne tråden.' }
+  }
+  if ((postRow as { deleted_at?: string | null }).deleted_at) {
+    return { ok: false, error: 'Kan ikke stemme på et fjernet innlegg.' }
+  }
+
+  const { data: existing, error: exErr } = await supabase
+    .from('forum_post_upvote')
+    .select('post_id')
+    .eq('post_id', pid)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (exErr) {
+    return { ok: false, error: mapForumError(exErr.message) }
+  }
+
+  if (existing) {
+    const { error: delErr } = await supabase
+      .from('forum_post_upvote')
+      .delete()
+      .eq('post_id', pid)
+      .eq('user_id', user.id)
+    if (delErr) return { ok: false, error: mapForumError(delErr.message) }
+    revalidatePath(`${FORUM_BASE}/trad/${tid}`)
+    return { ok: true, upvoted: false }
+  }
+
+  const { error: insErr } = await supabase.from('forum_post_upvote').insert({ post_id: pid, user_id: user.id })
+  if (insErr) return { ok: false, error: mapForumError(insErr.message) }
+  revalidatePath(`${FORUM_BASE}/trad/${tid}`)
+  return { ok: true, upvoted: true }
 }

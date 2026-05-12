@@ -25,6 +25,7 @@ import ForumHashScroll from '@/components/forum/ForumHashScroll'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import ForumReportForm from '@/components/forum/ForumReportForm'
+import ForumPostUpvoteButton from '@/components/forum/ForumPostUpvoteButton'
 
 export type ForumThreadPaginationInfo = {
   page: number
@@ -47,6 +48,10 @@ interface ForumReplyAndPostsProps {
   isModerator: boolean
   profileDisplayByUserId: Record<string, string | null | undefined>
   pagination: ForumThreadPaginationInfo
+  /** Antall tommel opp per innlegg (kun synlige poster på siden). */
+  upvoteCountByPostId?: Record<string, number>
+  /** Post-ider brukeren har stemt på (gjeldende side). */
+  viewerUpvotedPostIds?: string[]
 }
 
 function formatForumDate(iso: string): string {
@@ -220,7 +225,10 @@ export default function ForumReplyAndPosts({
   isModerator,
   profileDisplayByUserId,
   pagination,
+  upvoteCountByPostId = {},
+  viewerUpvotedPostIds = [],
 }: ForumReplyAndPostsProps) {
+  const viewerVoteSet = new Set(viewerUpvotedPostIds)
   void _isPinned
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -614,6 +622,12 @@ export default function ForumReplyAndPosts({
                     <>
                       <ForumMarkdown text={opPost.body} />
                       <ForumPostAttachmentsDisplay attachments={opPost.attachments} />
+                      <ForumPostUpvoteButton
+                        postId={opPost.id}
+                        threadId={threadId}
+                        initialCount={upvoteCountByPostId[opPost.id] ?? 0}
+                        initialUpvoted={viewerVoteSet.has(opPost.id)}
+                      />
                     </>
                   )}
                   {reportOpenId === opPost.id && !opPost.deleted_at && (
@@ -724,6 +738,12 @@ export default function ForumReplyAndPosts({
                                 <>
                                   <ForumMarkdown text={p.body} compact />
                                   <ForumPostAttachmentsDisplay attachments={p.attachments} />
+                                  <ForumPostUpvoteButton
+                                    postId={p.id}
+                                    threadId={threadId}
+                                    initialCount={upvoteCountByPostId[p.id] ?? 0}
+                                    initialUpvoted={viewerVoteSet.has(p.id)}
+                                  />
                                 </>
                               )}
                               {reportOpenId === p.id && !deleted && (

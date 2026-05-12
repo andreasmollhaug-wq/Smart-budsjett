@@ -1,3 +1,44 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+/** Samme lengde som `LEFT(TRIM(body), …)` i `forum_home_threads_base` / `forum_category_threads_base`. */
+export const FORUM_THREAD_EXCERPT_MAX_CHARS = 160
+
+/** Utdrag av åpningsinnlegg (trim + maks tegn), matcher SQL-forhåndsvisning i lister. */
+export function forumFirstPostExcerpt(body: string | null | undefined): string {
+  if (body == null || typeof body !== 'string') return ''
+  const t = body.trim()
+  if (t.length <= FORUM_THREAD_EXCERPT_MAX_CHARS) return t
+  return t.slice(0, FORUM_THREAD_EXCERPT_MAX_CHARS)
+}
+
+/** Hent forkortet brødtekst for første synlige innlegg per tråd (fallback når RPC mangler). */
+export async function mapForumFirstPostExcerpts(
+  supabase: SupabaseClient,
+  threadIds: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const ids = [...new Set(threadIds.filter((id) => id.length > 0))]
+  if (ids.length === 0) return out
+
+  const { data, error } = await supabase
+    .from('forum_post')
+    .select('thread_id, body')
+    .eq('is_first_post', true)
+    .is('deleted_at', null)
+    .in('thread_id', ids)
+
+  if (error || !data) return out
+
+  for (const row of data) {
+    const rec = row as { thread_id?: unknown; body?: unknown }
+    const tid = typeof rec.thread_id === 'string' ? rec.thread_id : ''
+    if (!tid) continue
+    const body = typeof rec.body === 'string' ? rec.body : ''
+    out.set(tid, forumFirstPostExcerpt(body))
+  }
+  return out
+}
+
 /** Rader fra RPC `forum_home_threads` (kolonnenavn som i SQL). */
 export type ForumHomeThreadRow = {
   thread_id: string

@@ -231,6 +231,46 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
     attachments: attachmentsByPost.get(p.id) ?? [],
   }))
 
+  const postIdsForVotes = posts.map((p) => p.id).filter(Boolean)
+  const upvoteCountByPostId: Record<string, number> = {}
+  const viewerUpvotedPostIds: string[] = []
+
+  if (postIdsForVotes.length > 0) {
+    try {
+      const { data: cntData, error: cntErr } = await supabase.rpc('forum_post_upvote_counts', {
+        p_post_ids: postIdsForVotes,
+      })
+      if (!cntErr && Array.isArray(cntData)) {
+        for (const row of cntData) {
+          const r = row as { post_id?: unknown; cnt?: unknown }
+          const pid = typeof r.post_id === 'string' ? r.post_id : ''
+          const c = typeof r.cnt === 'number' ? r.cnt : Number(r.cnt ?? 0)
+          if (pid) upvoteCountByPostId[pid] = Number.isFinite(c) ? c : 0
+        }
+      }
+    } catch {
+      //
+    }
+    try {
+      const { data: mine, error: mErr } = await supabase
+        .from('forum_post_upvote')
+        .select('post_id')
+        .eq('user_id', user.id)
+        .in('post_id', postIdsForVotes)
+      if (!mErr && mine) {
+        for (const row of mine) {
+          const pid =
+            typeof (row as { post_id?: unknown }).post_id === 'string'
+              ? (row as { post_id: string }).post_id
+              : ''
+          if (pid) viewerUpvotedPostIds.push(pid)
+        }
+      }
+    } catch {
+      //
+    }
+  }
+
   const isLocked = !!(threadData as { is_locked?: boolean }).is_locked
   const isPinned = !!(threadData as { is_pinned?: boolean }).is_pinned
 
@@ -302,6 +342,8 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
           isSubscribedToThread={isSubscribedToThread}
           isModerator={isModerator}
           profileDisplayByUserId={profileDisplayByUserId}
+          upvoteCountByPostId={upvoteCountByPostId}
+          viewerUpvotedPostIds={viewerUpvotedPostIds}
           pagination={{
             page: pageRequested,
             totalPages,

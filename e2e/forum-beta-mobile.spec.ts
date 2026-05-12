@@ -50,6 +50,31 @@ test.describe('Forum mobil (lenke-only, ikke i meny)', () => {
     await expect(page.getByText(/Skriv minst to tegn/)).toBeVisible()
   })
 
+  test('innlogget: kategoriside har sortering og visning=lest i URL (skip uten økt)', async ({ page }) => {
+    await page.goto('/forum/kategori/generelt')
+    if (page.url().includes('/logg-inn')) {
+      test.skip()
+    }
+    await assertNoWideBodyScroll(page)
+    const sortSelect = page.getByLabel('Sorter tråder i kategorien')
+    await expect(sortSelect).toBeVisible()
+    await sortSelect.selectOption('views')
+    await expect(page).toHaveURL(/visning=lest/)
+    await expect(sortSelect).toHaveValue('views')
+  })
+
+  test('innlogget: forumprofil viser offentlig navn og bidragsnivå (skip uten økt)', async ({ page }) => {
+    await page.goto('/forum/profil')
+    if (page.url().includes('/logg-inn')) {
+      test.skip()
+    }
+    await assertNoWideBodyScroll(page)
+    await expect(page.getByRole('heading', { name: /^Forumprofil$/ })).toBeVisible()
+    await expect(page.getByText(/Slik vises du i forumet/)).toBeVisible()
+    await expect(page.getByText(/Bidragsnivå/i)).toBeVisible()
+    await expect(page.getByLabel(/Visningsnavn/)).toBeVisible()
+  })
+
   test('legacy /intern/forum-beta svarer med redirect til /forum', async ({ request }) => {
     const res = await request.get('/intern/forum-beta', { maxRedirects: 0 })
     expect([301, 302, 307, 308]).toContain(res.status())

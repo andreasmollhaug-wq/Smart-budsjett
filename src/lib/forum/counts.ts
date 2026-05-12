@@ -11,8 +11,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export async function fetchForumContributionCounts(
   supabase: SupabaseClient,
   userId: string,
-): Promise<{ threadCount: number; replyCount: number } | null> {
-  const [threadRes, replyRes] = await Promise.all([
+): Promise<{ threadCount: number; replyCount: number; postCount: number } | null> {
+  const [threadRes, replyRes, postRes] = await Promise.all([
     supabase
       .from('forum_thread')
       .select('*', { count: 'exact', head: true })
@@ -24,14 +24,20 @@ export async function fetchForumContributionCounts(
       .eq('author_id', userId)
       .eq('is_first_post', false)
       .is('deleted_at', null),
+    supabase
+      .from('forum_post')
+      .select('*', { count: 'exact', head: true })
+      .eq('author_id', userId)
+      .is('deleted_at', null),
   ])
 
-  if (threadRes.error || replyRes.error) {
+  if (threadRes.error || replyRes.error || postRes.error) {
     return null
   }
 
   return {
     threadCount: threadRes.count ?? 0,
     replyCount: replyRes.count ?? 0,
+    postCount: postRes.count ?? 0,
   }
 }

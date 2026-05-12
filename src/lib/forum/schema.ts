@@ -78,7 +78,7 @@ export const forumProfileDisplaySchema = z.object({
   displayName: z
     .string()
     .trim()
-    .max(80, 'Maks 80 tegn.')
+    .max(20, 'Maks 20 tegn.')
     .optional()
     .transform((s) => {
       if (!s || s.length === 0) return null
@@ -99,4 +99,9 @@ export const forumModReportStatusSchema = z.object({
 
 export const forumNoticeMarkReadSchema = z.object({
   noticeId: z.string().uuid(),
+})
+
+export const forumToggleUpvoteSchema = z.object({
+  postId: z.string().uuid(),
+  threadId: z.string().uuid(),
 })
