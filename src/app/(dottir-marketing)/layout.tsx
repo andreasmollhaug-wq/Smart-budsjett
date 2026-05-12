@@ -1,4 +1,5 @@
 import type { Viewport } from 'next'
+import SupabaseAuthUrlErrorBanner from '@/components/auth/SupabaseAuthUrlErrorBanner'
 import { ApplyMarketingSandPalette } from '@/components/marketing/ApplyMarketingSandPalette'
 
 export const viewport: Viewport = {
@@ -8,13 +9,9 @@ export const viewport: Viewport = {
 export default function DottirMarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      {/** Sand-variabler må settes før første paint; ellers vises :root (indigo) til useEffect kjører. */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `document.documentElement.setAttribute('data-ui-palette','sand')`,
-        }}
-      />
+      {/** Palett på `<html>` kommer fra RootLayout (SSR); klientnavigasjon håndteres i komponenten under. */}
       <ApplyMarketingSandPalette />
+      <SupabaseAuthUrlErrorBanner />
       {children}
     </>
   )

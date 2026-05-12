@@ -31,6 +31,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
 - /prosjekt — Oppussing (egen modul med hovedprosjekt og rom/underprosjekter — ikke samme budsjett som /budsjekt; beskrives i detalj under «Oppussing og prosjekt»). Menypunktet «Oppussing» kan ligge bakerst i menyen.
 - /enkelexcel-ai — EnkelExcel AI
+- /forum — Brukerforum (tråder, kategorier, profil og varsler; eget menypunkt i venstremenyen)
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
 - Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, **Profiler** (kun synlig med Familie-abonnement — se egen seksjon), Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal eller bankfil DNB/Sbanken; beløp med inntil to desimaler, valgfri «Legg også til i budsjett» og valgfri utelatelse av enkelt-rader; oppsummering uten navigasjon bort fra siden), **Import fra regnskap** (/konto/importer-fra-regnskap — CSV hovedbok fra bl.a. Conta/Tripletex; kartlegg regnskapskonto til budsjettkategori, valg huskes; sammendrag før bekreftelse), nederst i menyen

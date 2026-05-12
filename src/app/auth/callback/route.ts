@@ -16,6 +16,16 @@ export async function GET(request: NextRequest) {
   const next = safeRedirectPath(requestUrl.searchParams.get('next'))
 
   if (!code) {
+    const err = requestUrl.searchParams.get('error')
+    const errCode = requestUrl.searchParams.get('error_code')
+    const errDesc = requestUrl.searchParams.get('error_description')
+    if (err || errCode || errDesc) {
+      const home = new URL('/', request.url)
+      if (err) home.searchParams.set('error', err)
+      if (errCode) home.searchParams.set('error_code', errCode)
+      if (errDesc) home.searchParams.set('error_description', errDesc)
+      return NextResponse.redirect(home)
+    }
     return NextResponse.redirect(new URL('/logg-inn?error=missing_code', request.url))
   }
 
@@ -33,6 +43,22 @@ export async function GET(request: NextRequest) {
 
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (error) {
+    const msg = (error.message ?? '').toLowerCase()
+    if (
+      msg.includes('expired') ||
+      msg.includes('code verifier') ||
+      msg.includes('flow state') ||
+      msg.includes('pkce')
+    ) {
+      const home = new URL('/', request.url)
+      home.searchParams.set('error', 'access_denied')
+      home.searchParams.set('error_code', 'otp_expired')
+      home.searchParams.set(
+        'error_description',
+        'Email lenke er ugyldig eller utløpt. Be om ny lenke under Glemt passord.',
+      )
+      return NextResponse.redirect(home)
+    }
     return NextResponse.redirect(new URL('/logg-inn?error=session', request.url))
   }
 

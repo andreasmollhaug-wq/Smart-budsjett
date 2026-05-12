@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import { COMPANY_NAME } from '@/lib/legal'
 import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
@@ -32,9 +33,12 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const headerList = await headers()
+  const marketingSandPalette = headerList.get('x-ui-marketing-sand') === '1'
+
   return (
-    <html lang="nb">
+    <html lang="nb" data-ui-palette={marketingSandPalette ? 'sand' : undefined}>
       <body>
         {children}
         {gaMeasurementId ? <GoogleAnalytics gaId={gaMeasurementId} /> : null}

@@ -6,6 +6,7 @@ import {
   CreditCard,
   TrendingUp,
   MessageSquare,
+  MessagesSquare,
   Receipt,
   FileText,
   Snowflake,
@@ -16,6 +17,7 @@ import {
   Building2,
 } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 export type SidebarNavItem = { href: string; label: string; icon: LucideIcon }
 
@@ -24,6 +26,13 @@ export type SidebarNavGroup = {
   label: string
   icon: LucideIcon
   items: SidebarNavItem[]
+}
+
+/** Eget menypunkt (også brukt over gruppert meny i enkel modus). */
+export const SIDEBAR_FORUM_ITEM: SidebarNavItem = {
+  href: FORUM_BASE_PATH,
+  label: 'Forum',
+  icon: MessagesSquare,
 }
 
 /** Flat meny (detaljert modus) — samme rekkefølge som før. */
@@ -38,6 +47,7 @@ export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/investering', label: 'Investering', icon: TrendingUp },
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
   { href: '/enkelexcel-ai', label: 'EnkelExcel AI', icon: MessageSquare },
+  SIDEBAR_FORUM_ITEM,
   { href: '/hjemflyt/start', label: 'Hjemflyt', icon: ClipboardList },
   { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
   { href: RENOVATION_PROJECT_BASE_PATH, label: 'Oppussing', icon: Hammer },
@@ -105,6 +115,7 @@ export function isSidebarNavActive(pathname: string, href: string): boolean {
   if (href === '/hjemflyt/start') return pathname.startsWith('/hjemflyt')
   if (href === '/intern/mat-handleliste/handleliste') return pathname.startsWith('/intern/mat-handleliste')
   if (href === RENOVATION_PROJECT_BASE_PATH) return pathname.startsWith(RENOVATION_PROJECT_BASE_PATH)
+  if (href === FORUM_BASE_PATH) return pathname.startsWith(FORUM_BASE_PATH)
   return pathname === href
 }
 

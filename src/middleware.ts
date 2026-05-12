@@ -6,6 +6,17 @@ import {
 } from '@/lib/stripe/subscriptionAccess'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
 
+/** Ruter med `(dottir-marketing)/layout` — må matche `RootLayout` sin SSR av `data-ui-palette`. */
+function isDottirMarketingSandPalettePath(pathname: string): boolean {
+  return pathname === '/' || pathname === '/utforsk' || pathname === '/om-oss'
+}
+
+function nextWithUiMarketingSandHeader(request: NextRequest, pathname: string): NextResponse {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-ui-marketing-sand', isDottirMarketingSandPalettePath(pathname) ? '1' : '0')
+  return NextResponse.next({ request: { headers: requestHeaders } })
+}
+
 function isPublicPath(pathname: string): boolean {
   if (pathname === '/') return true
   if (pathname === '/iris') return true
@@ -57,7 +68,7 @@ export async function middleware(request: NextRequest) {
 
   /** Legacy SmartVane service worker — statisk fil i `public/`; må ikke redirectes til innlogging. */
   if (pathname === '/smartvane-sw.js') {
-    return NextResponse.next()
+    return nextWithUiMarketingSandHeader(request, pathname)
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -67,10 +78,10 @@ export async function middleware(request: NextRequest) {
     if (!isPublicPath(pathname)) {
       return NextResponse.redirect(new URL('/logg-inn?error=config', request.url))
     }
-    return NextResponse.next({ request })
+    return nextWithUiMarketingSandHeader(request, pathname)
   }
 
-  let supabaseResponse = NextResponse.next({ request })
+  let supabaseResponse = nextWithUiMarketingSandHeader(request, pathname)
 
   const supabase = createServerClient(url, key, {
     cookies: {
@@ -79,7 +90,7 @@ export async function middleware(request: NextRequest) {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-        supabaseResponse = NextResponse.next({ request })
+        supabaseResponse = nextWithUiMarketingSandHeader(request, pathname)
         cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
       },
     },

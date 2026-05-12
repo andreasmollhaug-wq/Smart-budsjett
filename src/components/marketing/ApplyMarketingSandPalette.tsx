@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { useStore } from '@/lib/store'
 import { applyUiPaletteToDocument } from '@/lib/uiColorPalette'
 
@@ -9,7 +9,7 @@ import { applyUiPaletteToDocument } from '@/lib/uiColorPalette'
  * Cleanup gjenoppretter innlogget brukers valgte uiColorPalette.
  */
 export function ApplyMarketingSandPalette() {
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyUiPaletteToDocument('sand')
     return () => {
       applyUiPaletteToDocument(useStore.getState().uiColorPalette)
