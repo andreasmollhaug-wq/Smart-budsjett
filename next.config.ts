@@ -50,6 +50,11 @@ const shared: NextConfig = {
         permanent: true,
       },
       {
+        source: '/preview/dottir-partner',
+        destination: '/',
+        permanent: true,
+      },
+      {
         source: '/preview/dottir',
         destination: '/',
         permanent: true,
