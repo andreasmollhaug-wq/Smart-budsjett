@@ -30,6 +30,8 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const emptyViewerProf = Promise.resolve({ data: null, error: null })
+
   const [
     mainRpcResult,
     sidebarThreadCountRes,
@@ -38,7 +40,8 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
     hotRpcResult,
     newestProfilesRes,
     categoriesResult,
-    threadRowsResult,
+    categoryCountsResult,
+    viewerProfResult,
   ] = await Promise.all([
     supabase.rpc('forum_home_threads', { p_mode: activeSort, p_limit: HOME_LIMIT }),
     supabase.from('forum_thread').select('*', { count: 'exact', head: true }).is('deleted_at', null),
@@ -59,7 +62,10 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
     supabase.from('forum_category').select('id, slug, title, description, sort_order').order('sort_order', {
       ascending: true,
     }),
-    supabase.from('forum_thread').select('category_id').is('deleted_at', null),
+    supabase.rpc('forum_thread_counts_by_category'),
+    user?.id
+      ? supabase.from('forum_profile').select('display_name').eq('user_id', user.id).maybeSingle()
+      : emptyViewerProf,
   ])
 
   const { data: rpcData, error: rpcErr } = mainRpcResult
@@ -115,7 +121,7 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
   }
 
   const { data: categories, error: catErr } = categoriesResult
-  const { data: threadRows } = threadRowsResult
+  const { data: categoryCountRows, error: categoryCountsErr } = categoryCountsResult
 
   const statsOk = !(
     sidebarThreadCountRes.error ||
@@ -151,11 +157,7 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
 
   let viewerHasForumDisplayName = false
   if (user?.id) {
-    const { data: vProf } = await supabase
-      .from('forum_profile')
-      .select('display_name')
-      .eq('user_id', user.id)
-      .maybeSingle()
+    const vProf = viewerProfResult.data
     const vdn =
       vProf && typeof (vProf as { display_name?: unknown }).display_name === 'string'
         ? (vProf as { display_name: string }).display_name
@@ -163,11 +165,28 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
     viewerHasForumDisplayName = hasEligibleForumDisplayName(vdn)
   }
 
+  const parseRpcThreadCount = (raw: unknown): number | null => {
+    if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.floor(raw))
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      const n = Number(raw)
+      if (Number.isFinite(n)) return Math.max(0, Math.floor(n))
+    }
+    if (typeof raw === 'bigint') {
+      const n = Number(raw)
+      return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null
+    }
+    return null
+  }
+
   const counts = new Map<string, number>()
-  for (const r of threadRows ?? []) {
-    const cid = (r as { category_id?: string }).category_id
-    if (!cid) continue
-    counts.set(cid, (counts.get(cid) ?? 0) + 1)
+  if (!categoryCountsErr && Array.isArray(categoryCountRows)) {
+    for (const row of categoryCountRows) {
+      const r = row as { category_id?: unknown; thread_count?: unknown }
+      const cid = typeof r.category_id === 'string' ? r.category_id : ''
+      if (!cid) continue
+      const n = parseRpcThreadCount(r.thread_count)
+      if (n != null) counts.set(cid, n)
+    }
   }
 
   const categoriesList = categories ?? []
@@ -228,6 +247,20 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
           >
             <p className="font-medium">Klarte ikke laste forumkategorier.</p>
             <pre className="mt-3 text-[11px] overflow-x-auto">{catErr.message}</pre>
+          </div>
+        ) : null}
+
+        {categoryCountsErr ? (
+          <div
+            className="rounded-xl p-4 text-sm"
+            style={{ background: '#fffbeb', border: '1px solid #fcd34d', color: 'var(--text)' }}
+            role="status"
+          >
+            <p className="font-medium">Klarte ikke laste trådtall per kategori.</p>
+            <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+              Tall i kategorilisten vises som 0 inntil dette er fikset. Teknisk detalj:{' '}
+              <code className="text-[11px]">{categoryCountsErr.message}</code>
+            </p>
           </div>
         ) : null}
 

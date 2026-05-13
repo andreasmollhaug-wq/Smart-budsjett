@@ -191,7 +191,27 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
       .in('post_id', postIds)
       .order('sort_order', { ascending: true })
 
-    for (const row of attsRaw ?? []) {
+    const rows = attsRaw ?? []
+
+    const pdfPaths = new Set<string>()
+    for (const row of rows) {
+      const rec = row as Record<string, unknown>
+      const mimeRaw = typeof rec.mime_type === 'string' ? rec.mime_type : ''
+      const pathRaw = typeof rec.storage_path === 'string' ? rec.storage_path : ''
+      if (mimeRaw === 'application/pdf' && pathRaw) pdfPaths.add(pathRaw)
+    }
+
+    const pdfHrefByPath = new Map<string, string>()
+    if (pdfPaths.size > 0) {
+      await Promise.all(
+        [...pdfPaths].map(async (storagePath) => {
+          const signed = await supabase.storage.from('forum_attachments').createSignedUrl(storagePath, 3600)
+          pdfHrefByPath.set(storagePath, signed.data?.signedUrl ?? forumAttachmentPublicUrl(storagePath))
+        }),
+      )
+    }
+
+    for (const row of rows) {
       const rec = row as Record<string, unknown>
       const postId = typeof rec.post_id === 'string' ? rec.post_id : ''
       const aid = typeof rec.id === 'string' ? rec.id : ''
@@ -203,8 +223,7 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
 
       let href: string | undefined
       if (mime === 'application/pdf') {
-        const signed = await supabase.storage.from('forum_attachments').createSignedUrl(path, 3600)
-        href = signed.data?.signedUrl ?? forumAttachmentPublicUrl(path)
+        href = pdfHrefByPath.get(path)
       }
 
       const list = attachmentsByPost.get(postId) ?? []
