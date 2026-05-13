@@ -5,7 +5,7 @@ import { DottirSmoothScroll } from '@/components/marketing/DottirSmoothScroll'
 import { getSiteUrl } from '@/lib/site-url'
 
 /** Fanetittel — mal i root layout brukes ikke når `absolute` settes. */
-const documentTitle = 'Ta kontroll'
+const documentTitle = 'Dottir | Ta kontroll'
 const description =
   'Dottir hjelper privatpersoner med oversikt over inntekter og utgifter — enkelt budsjettverktøy med ferdig struktur og 14 dagers gratis prøveperiode.'
 
