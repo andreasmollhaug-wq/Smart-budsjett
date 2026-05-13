@@ -37,11 +37,12 @@ export const SIDEBAR_FORUM_ITEM: SidebarNavItem = {
   icon: MessagesSquare,
 }
 
-/** Flat meny (detaljert modus) — samme rekkefølge som før. */
+/** Flat meny (detaljert modus). */
 export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/dashboard', label: 'Oversikt', icon: LayoutDashboard },
   { href: '/budsjett', label: 'Budsjett', icon: Wallet },
   { href: '/transaksjoner', label: 'Transaksjoner', icon: Receipt },
+  { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
   { href: '/sparing', label: 'Sparing', icon: PiggyBank },
   { href: '/gjeld', label: 'Gjeld', icon: CreditCard },
   { href: '/abonnementer', label: 'Abonnementer', icon: Repeat },
@@ -50,7 +51,6 @@ export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
   { href: '/enkelexcel-ai', label: 'EnkelExcel AI', icon: MessageSquare },
   { href: '/hjemflyt/start', label: 'Hjemflyt', icon: ClipboardList },
-  { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
   { href: RENOVATION_PROJECT_BASE_PATH, label: 'Oppussing', icon: Hammer },
   SIDEBAR_FORUM_ITEM,
 ]
@@ -70,7 +70,12 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
     id: 'hverdag',
     label: 'Hverdag',
     icon: LayoutDashboard,
-    items: [item('/dashboard'), item('/budsjett'), item('/transaksjoner')],
+    items: [
+      item('/dashboard'),
+      item('/budsjett'),
+      item('/transaksjoner'),
+      item('/intern/mat-handleliste/handleliste'),
+    ],
   },
   {
     id: 'gjeld',
@@ -103,7 +108,6 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
     items: [
       item('/enkelexcel-ai'),
       item('/hjemflyt/start'),
-      item('/intern/mat-handleliste/handleliste'),
       item(RENOVATION_PROJECT_BASE_PATH),
     ],
   },
