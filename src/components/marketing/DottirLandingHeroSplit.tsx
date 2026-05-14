@@ -17,7 +17,7 @@ export default function DottirLandingHeroSplit({ heroImageSrc }: { heroImageSrc:
   return (
     <section
       id="topp"
-      className={`scroll-mt-24 relative overflow-x-hidden bg-[var(--bg)] pb-10 pt-8 sm:pb-16 sm:pt-12 ${landingHorizontalPadding}`}
+      className={`scroll-mt-24 relative overflow-x-hidden bg-[var(--bg)] pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-8 sm:pb-16 sm:pt-12 ${landingHorizontalPadding}`}
     >
       <div className="relative mx-auto max-w-7xl min-w-0">
         <div className="grid min-w-0 gap-8 lg:grid-cols-2 lg:items-center lg:gap-6">

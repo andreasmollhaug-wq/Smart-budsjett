@@ -17,13 +17,9 @@ import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 
 export type DottirLandingHeaderVariant = 'default' | 'centerNav'
 
-function navLinkClass() {
-  return 'hidden rounded-lg px-2 py-2 text-sm font-medium lg:inline-flex lg:min-h-[44px] lg:items-center'
-}
-
-/** Ekstra luft rundt innlogging / Om oss (desktop). */
+/** Lenker som kun vises på store skjermer (gruppen skjules helt på mobil). */
 function navAuthLinkClass() {
-  return 'hidden rounded-lg px-3 py-2 text-sm font-medium sm:px-4 lg:inline-flex lg:min-h-[44px] lg:items-center'
+  return 'inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-sm font-medium touch-manipulation sm:px-4'
 }
 
 export default function DottirLandingHeader({ variant = 'default' }: { variant?: DottirLandingHeaderVariant }) {
@@ -109,7 +105,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
               <X size={22} />
             </button>
           </div>
-          <div className="flex flex-col gap-1 p-3">
+          <div className="flex flex-col gap-1 p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <a
               href={LANDING_NAV_PRODUKT.href}
               onClick={closeDrawer}
@@ -119,20 +115,20 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
               {LANDING_NAV_PRODUKT.label}
             </a>
             <Link
-              href={LOGIN_HREF}
-              onClick={closeDrawer}
-              className={drawerRow}
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Logg inn
-            </Link>
-            <Link
               href={DOTTIR_OM_OSS_HREF}
               onClick={closeDrawer}
               className={drawerRow}
               style={{ color: 'var(--text-muted)' }}
             >
               Om oss
+            </Link>
+            <Link
+              href={LOGIN_HREF}
+              onClick={closeDrawer}
+              className={drawerRow}
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Logg inn
             </Link>
             <div className="my-2 border-t" style={{ borderColor: 'var(--border)' }} />
             {LANDING_NAV_MORE.map((item) =>
@@ -182,21 +178,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
     ) : null
 
   const produktDesktop = (
-    <a
-      href={LANDING_NAV_PRODUKT.href}
-      className={`${navLinkClass()} lg:mr-2`}
-      style={{ color: 'var(--text-muted)' }}
-    >
-      {LANDING_NAV_PRODUKT.label}
-    </a>
-  )
-
-  const produktCentered = (
-    <a
-      href={LANDING_NAV_PRODUKT.href}
-      className="hidden rounded-lg px-3 py-2 text-sm font-medium lg:inline-flex lg:min-h-[44px] lg:items-center"
-      style={{ color: 'var(--text-muted)' }}
-    >
+    <a href={LANDING_NAV_PRODUKT.href} className={navAuthLinkClass()} style={{ color: 'var(--text-muted)' }}>
       {LANDING_NAV_PRODUKT.label}
     </a>
   )
@@ -284,7 +266,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
   const ctaLink = (
     <Link
       href={CTA_HREF}
-      className="inline-flex min-h-[44px] max-w-[10.5rem] shrink-0 touch-manipulation flex-col items-center justify-center rounded-xl px-2.5 py-2 text-center text-xs font-semibold leading-tight text-white shadow-sm transition-opacity hover:opacity-95 sm:max-w-none sm:px-4 sm:text-sm"
+      className="inline-flex min-h-[44px] min-w-0 max-w-[9rem] shrink touch-manipulation flex-col items-center justify-center rounded-xl px-2 py-2 text-center text-[11px] font-semibold leading-tight text-white shadow-sm transition-opacity hover:opacity-95 sm:max-w-[11rem] sm:px-3 sm:text-xs md:max-w-none md:px-4 md:text-sm"
       style={{ background: 'var(--primary)' }}
     >
       <span className="sm:hidden">Prøv gratis</span>
@@ -302,16 +284,22 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
     </Link>
   )
 
+  const desktopPrimaryLinks = (
+    <div className="hidden min-w-0 items-center gap-3 sm:gap-4 lg:flex lg:gap-5">
+      {produktDesktop}
+      {omOssDesktop}
+      {loginDesktop}
+    </div>
+  )
+
   const trailing = (
     <>
-      <span className="flex min-w-0 items-center gap-4 sm:gap-5 lg:gap-6 lg:pl-1 lg:pr-0.5">
-        {loginDesktop}
-        {omOssDesktop}
-      </span>
       {desktopMoreButton}
       {ctaLink}
     </>
   )
+
+  const maxW = variant === 'centerNav' ? 'max-w-7xl' : 'max-w-5xl'
 
   return (
     <>
@@ -322,37 +310,19 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
           borderColor: 'var(--border)',
         }}
       >
-        {variant === 'default' ? (
-          <div
-            className={`mx-auto flex min-w-0 max-w-5xl items-center justify-between gap-2 py-3 sm:gap-4 sm:py-3 ${landingHorizontalPadding}`}
+        <div
+          className={`mx-auto flex min-w-0 items-center justify-between gap-1.5 overflow-x-hidden py-3 sm:gap-3 sm:py-3 lg:gap-4 ${maxW} ${landingHorizontalPadding}`}
+        >
+          {logo}
+          <nav
+            className="relative flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2 lg:flex-wrap lg:gap-3 xl:gap-4"
+            aria-label="Hovedmeny"
           >
-            {logo}
-            <nav
-              className="relative flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:gap-3 lg:gap-4"
-              aria-label="Hovedmeny"
-            >
-              {mobileMenuButton}
-              {produktDesktop}
-              {trailing}
-            </nav>
-          </div>
-        ) : (
-          <div
-            className={`mx-auto grid min-w-0 max-w-7xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-3 sm:gap-4 sm:py-3 ${landingHorizontalPadding}`}
-          >
-            {logo}
-            <nav className="hidden min-w-0 items-center justify-center lg:flex" aria-label="Produkt">
-              {produktCentered}
-            </nav>
-            <nav
-              className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3 lg:gap-4"
-              aria-label="Hovedmeny"
-            >
-              {mobileMenuButton}
-              {trailing}
-            </nav>
-          </div>
-        )}
+            {mobileMenuButton}
+            {desktopPrimaryLinks}
+            {trailing}
+          </nav>
+        </div>
       </header>
       {mobileDrawer && typeof document !== 'undefined' ? createPortal(mobileDrawer, document.body) : null}
     </>
