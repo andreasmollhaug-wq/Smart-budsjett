@@ -17,44 +17,100 @@ export default function DottirLandingHeroSplit({ heroImageSrc }: { heroImageSrc:
   return (
     <section
       id="topp"
-      className={`scroll-mt-24 relative overflow-x-hidden bg-[var(--bg)] pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-8 sm:pb-16 sm:pt-12 ${landingHorizontalPadding}`}
+      className={`scroll-mt-24 relative overflow-x-hidden bg-[var(--bg)] pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-6 sm:pb-16 sm:pt-12 ${landingHorizontalPadding}`}
     >
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(165deg, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 50%), radial-gradient(ellipse 90% 50% at 18% 8%, rgba(112, 72, 232, 0.08), transparent)',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.2]"
+          style={{
+            backgroundImage: 'radial-gradient(circle at center, var(--border) 1px, transparent 1px)',
+            backgroundSize: '26px 26px',
+          }}
+        />
+      </div>
+
       <div className="relative mx-auto max-w-7xl min-w-0">
         <div className="grid min-w-0 gap-8 lg:grid-cols-2 lg:items-center lg:gap-6">
-          <div className="order-1 min-w-0 text-left lg:order-1 lg:pr-4">
-            <p
-              className="mb-4 inline-flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-full border px-4 py-1.5 text-xs font-semibold shadow-sm sm:text-sm"
-              style={{
-                borderColor: 'color-mix(in srgb, var(--primary) 28%, var(--border))',
-                background: 'color-mix(in srgb, var(--primary-pale) 55%, var(--surface))',
-                color: 'var(--text-muted)',
-              }}
-            >
-              <Sun className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
-              Ikke bare budsjett — et livssystem i én flyt
-            </p>
+          <div className="order-2 min-w-0 text-center lg:order-1 lg:pr-4 lg:text-left">
+            <div className="mb-4 flex justify-center lg:justify-start">
+              <p
+                className="inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border px-4 py-1.5 text-xs font-semibold shadow-sm sm:text-sm lg:justify-start"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--primary) 28%, var(--border))',
+                  background: 'color-mix(in srgb, var(--primary-pale) 55%, var(--surface))',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <Sun className="h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden />
+                Ikke bare budsjett — et livssystem i én flyt
+              </p>
+            </div>
 
-            <h1
-              className="text-[1.65rem] font-bold leading-snug tracking-tight sm:text-4xl md:text-[2.75rem] md:leading-snug"
-              style={{ color: 'var(--text)' }}
-            >
-              <span className="block">Få kontroll på økonomien</span>
-              <span className="mt-2 block sm:mt-3">ett steg av gangen</span>
+            <h1 className="text-balance text-[1.65rem] font-bold leading-snug tracking-tight sm:text-4xl md:text-[2.75rem] md:leading-snug" style={{ color: 'var(--text)' }}>
+              <span className="block">Få kontroll på økonomien </span>
+              <span
+                className="mt-2 block bg-clip-text pb-0.5 text-transparent sm:mt-3 md:pb-1"
+                style={{
+                  backgroundImage: 'var(--marketing-hero-heading-gradient)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                }}
+              >
+                ett steg av gangen
+              </span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-base font-semibold sm:text-lg" style={{ color: 'var(--primary)' }}>
+            <p className="mx-auto mt-5 max-w-xl text-base font-semibold sm:text-lg lg:mx-0" style={{ color: 'var(--primary)' }}>
               Små handlinger. Stor kontroll.
             </p>
-            <p className="mt-5 max-w-xl text-base leading-relaxed sm:text-lg" style={{ color: 'var(--text-muted)' }}>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
+              <Link
+                href={CTA_HREF}
+                className="inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-95 sm:w-auto"
+                style={{ background: 'var(--primary)' }}
+              >
+                Start gratis prøveperiode
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </Link>
+              <Link
+                href={DOTTIR_OM_OSS_HREF}
+                className="inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl border px-7 py-3.5 text-sm font-medium transition-colors hover:opacity-90 sm:w-auto"
+                style={{
+                  background: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)',
+                }}
+              >
+                Hvem står bak dette?
+              </Link>
+            </div>
+
+            <p
+              className="mx-auto mt-6 max-w-xl text-left text-base leading-relaxed sm:mt-8 sm:text-lg lg:mx-0"
+              style={{ color: 'var(--text-muted)' }}
+            >
               Dottir er et personlig system som samler økonomi, oppgaver og planlegging — slik at du kan bruke det i
               hverdagen, ikke bare «se på tall».
             </p>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <div
+              role="list"
+              aria-label="Høydepunkter"
+              className="mt-8 flex snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 sm:snap-none"
+            >
               {HERO_CARDS.map(({ Icon, label, sub }) => (
                 <div
+                  role="listitem"
                   key={label}
-                  className="min-w-0 rounded-2xl border px-3 py-3 text-left shadow-sm transition-shadow hover:shadow-md sm:px-4"
+                  className="min-w-[16rem] shrink-0 snap-start rounded-2xl border px-3 py-3 text-left shadow-sm transition-shadow hover:shadow-md sm:min-w-0 sm:px-4"
                   style={{
                     borderColor: 'var(--border)',
                     background: 'var(--surface)',
@@ -76,29 +132,7 @@ export default function DottirLandingHeroSplit({ heroImageSrc }: { heroImageSrc:
               ))}
             </div>
 
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Link
-                href={CTA_HREF}
-                className="inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-opacity hover:opacity-95 sm:w-auto"
-                style={{ background: 'var(--primary)' }}
-              >
-                Start gratis prøveperiode
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-              <Link
-                href={DOTTIR_OM_OSS_HREF}
-                className="inline-flex w-full touch-manipulation items-center justify-center rounded-xl border px-7 py-3.5 text-sm font-medium transition-colors hover:opacity-90 sm:w-auto"
-                style={{
-                  background: 'var(--surface)',
-                  borderColor: 'var(--border)',
-                  color: 'var(--text)',
-                }}
-              >
-                Hvem står bak dette?
-              </Link>
-            </div>
-
-            <div className="mt-6 max-w-lg min-w-0">
+            <div className="mx-auto mt-8 max-w-lg min-w-0 text-center sm:mt-10 lg:mx-0 lg:text-left">
               <p className="text-sm font-semibold sm:text-base" style={{ color: 'var(--text)' }}>
                 14 dagers gratis prøveperiode
               </p>
@@ -108,19 +142,23 @@ export default function DottirLandingHeroSplit({ heroImageSrc }: { heroImageSrc:
             </div>
           </div>
 
-          <div className="relative order-2 min-h-[13rem] w-full min-w-0 sm:min-h-[18rem] lg:order-2 lg:min-h-[min(85vh,36rem)]">
-            <div className="relative h-full min-h-[inherit] overflow-hidden rounded-2xl bg-[var(--bg)] lg:min-h-[min(85vh,36rem)]">
+          <div className="relative order-1 w-full min-w-0 lg:order-2 lg:flex lg:min-h-[min(85vh,36rem)]">
+            <div className="relative aspect-[16/11] max-h-[min(52vh,23rem)] w-full overflow-hidden rounded-2xl bg-[var(--bg)] shadow-lg ring-1 ring-black/[0.05] touch-manipulation sm:max-h-[min(58vh,28rem)] lg:aspect-auto lg:max-h-none lg:min-h-[min(85vh,36rem)] lg:flex-1 lg:rounded-2xl">
               <Image
                 src={heroImageSrc}
                 alt="Kvinne som skriver økonomiske tall og overskrifter på tavle, sett bakfra."
                 fill
                 priority
-                className="object-cover object-[30%_48%] touch-manipulation sm:object-[32%_46%] lg:object-[34%_44%] [transform:scale(0.88)] [transform-origin:center_center] sm:[transform:scale(0.9)] lg:[transform:scale(0.92)]"
+                className="object-cover object-[30%_48%] sm:object-[32%_46%] lg:object-[34%_44%] [transform:scale(0.88)] [transform-origin:center_center] sm:[transform:scale(0.9)] lg:[transform:scale(0.92)]"
                 sizes="(max-width: 1024px) 100vw, 50vw"
               />
             </div>
             <div
-              className="pointer-events-none absolute inset-y-0 left-0 z-[1] w-2/5 max-w-[12rem] bg-gradient-to-r from-[var(--bg)] from-40% to-transparent lg:w-1/3"
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[4.25rem] bg-gradient-to-t from-[var(--bg)] via-[var(--bg)]/40 to-transparent sm:h-24 lg:hidden"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute inset-y-0 left-0 z-[1] hidden w-2/5 max-w-[12rem] bg-gradient-to-r from-[var(--bg)] from-40% to-transparent lg:block lg:w-1/3"
               aria-hidden
             />
           </div>

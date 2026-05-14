@@ -37,31 +37,39 @@ export default function DottirLandingSections() {
       >
         <figure className="mx-auto max-w-3xl">
           <blockquote
-            className="relative rounded-2xl border px-6 py-8 text-left shadow-sm sm:px-10 sm:py-10"
+            className="relative rounded-2xl border px-6 pb-8 pt-14 text-center shadow-sm sm:px-10 sm:pb-10 sm:pt-10 lg:text-left"
             style={{
               borderColor: 'color-mix(in srgb, var(--primary) 22%, var(--border))',
               background: 'var(--surface)',
             }}
           >
             <span
-              className="absolute left-4 top-4 font-serif text-5xl leading-none opacity-[0.15] sm:left-6 sm:text-6xl"
+              className="absolute left-1/2 top-4 -translate-x-1/2 font-serif text-5xl leading-none opacity-[0.15] sm:left-6 sm:top-4 sm:translate-x-0 sm:text-6xl"
               style={{ color: 'var(--primary)' }}
               aria-hidden
             >
               «
             </span>
-            <p className="relative text-lg font-semibold leading-snug sm:text-xl sm:leading-snug" style={{ color: 'var(--text)' }}>
+            <p className="relative text-balance text-lg font-semibold leading-snug sm:text-xl sm:leading-snug" style={{ color: 'var(--text)' }}>
               Kontroll skapes ikke gjennom store grep, men gjennom små, enkle handlinger — én ting av gangen.
             </p>
-            <figcaption className="relative mt-5 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+            <figcaption className="relative mt-5 text-center text-sm font-medium lg:text-left" style={{ color: 'var(--text-muted)' }}>
               Tanken som gjør Dottir til mer enn et budsjettnavn.
             </figcaption>
           </blockquote>
         </figure>
       </section>
 
-      <section id="grep-beats" className={`scroll-mt-24 py-14 sm:py-16 ${landingHorizontalPadding}`}>
-        <div className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-3">
+      <section id="grep-beats" className={`relative scroll-mt-24 overflow-x-hidden py-14 sm:py-16 ${landingHorizontalPadding}`}>
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.14]"
+          style={{
+            backgroundImage: 'radial-gradient(circle at center, var(--border) 1px, transparent 1px)',
+            backgroundSize: '26px 26px',
+          }}
+          aria-hidden
+        />
+        <div className="relative mx-auto grid max-w-5xl gap-4 sm:grid-cols-3">
           {STORY_BEATS.map(({ title, text }) => (
             <article
               key={title}

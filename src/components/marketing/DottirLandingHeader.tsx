@@ -85,7 +85,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
           }}
         />
         <aside
-          className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto pl-[max(0.5rem,env(safe-area-inset-left))] shadow-xl"
+          className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] shadow-xl"
           style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
         >
           <div
@@ -266,11 +266,10 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
   const ctaLink = (
     <Link
       href={CTA_HREF}
-      className="inline-flex min-h-[44px] min-w-0 max-w-[9rem] shrink touch-manipulation flex-col items-center justify-center rounded-xl px-2 py-2 text-center text-[11px] font-semibold leading-tight text-white shadow-sm transition-opacity hover:opacity-95 sm:max-w-[11rem] sm:px-3 sm:text-xs md:max-w-none md:px-4 md:text-sm"
+      className="hidden min-h-[44px] shrink-0 touch-manipulation items-center justify-center rounded-xl px-4 py-2 text-center text-sm font-semibold text-white whitespace-nowrap shadow-sm transition-opacity hover:opacity-95 lg:inline-flex"
       style={{ background: 'var(--primary)' }}
     >
-      <span className="sm:hidden">Prøv gratis</span>
-      <span className="hidden sm:inline">Start gratis prøveperiode</span>
+      Start gratis prøveperiode
     </Link>
   )
 

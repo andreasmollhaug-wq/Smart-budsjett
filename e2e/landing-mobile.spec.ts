@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Landing (mobil viewport)', () => {
   test('viser hovedoverskrift uten horisontell body-overflow', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('main h1')).toContainText(/oversikt på økonomien/i, { timeout: 15_000 })
+    await expect(page.locator('main h1')).toContainText(/Få kontroll på økonomien/i, { timeout: 15_000 })
 
     const overflow = await page.evaluate(() => {
       const el = document.documentElement
@@ -12,9 +12,9 @@ test.describe('Landing (mobil viewport)', () => {
     expect(overflow).toBeLessThanOrEqual(2)
   })
 
-  test('primær CTA i header er synlig', async ({ page }) => {
+  test('primær CTA er synlig (hero)', async ({ page }) => {
     await page.goto('/')
-    const cta = page.getByRole('link', { name: /Start gratis/ })
+    const cta = page.getByRole('link', { name: /Start gratis prøveperiode/i })
     await expect(cta.first()).toBeVisible()
   })
 
@@ -22,7 +22,7 @@ test.describe('Landing (mobil viewport)', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
     await page.getByRole('button', { name: 'Åpne meny' }).click()
-    const nav = page.locator('#landing-mobile-nav')
+    const nav = page.locator('#dottir-landing-nav')
     await expect(nav).toBeVisible()
     const box = await nav.boundingBox()
     const vp = page.viewportSize()
