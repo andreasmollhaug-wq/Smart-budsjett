@@ -21,6 +21,7 @@ export function ForumNewThreadDialogHost({
   autoOpenNy,
   cleanupNavigateHref,
   viewerHasForumDisplayName,
+  viewerForumDisplayNameDraft = '',
 }: {
   dialogId: string
   categories: ForumCategoryOption[]
@@ -30,6 +31,8 @@ export function ForumNewThreadDialogHost({
   /** Ved lukking: navigér hit for å fjerne `ny=` fra URL (fra serverfeltet). */
   cleanupNavigateHref: string
   viewerHasForumDisplayName: boolean
+  /** Rå `display_name` fra DB (tom eller kort streng hvis bruker mangler aktivt forumnavn). */
+  viewerForumDisplayNameDraft?: string
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const router = useRouter()
@@ -49,9 +52,20 @@ export function ForumNewThreadDialogHost({
     ref.current?.showModal()
   }, [autoOpenNy, viewerHasForumDisplayName, gateId])
 
+  const openMainDialog = () => {
+    ;(typeof document !== 'undefined'
+      ? (document.getElementById(dialogId) as HTMLDialogElement | null)
+      : null
+    )?.showModal()
+  }
+
   return (
     <>
-      <ForumDisplayNameRequiredNativeDialog nativeId={gateId} />
+      <ForumDisplayNameRequiredNativeDialog
+        nativeId={gateId}
+        initialDisplayName={viewerForumDisplayNameDraft}
+        onAfterProfileSaved={openMainDialog}
+      />
     <dialog
       id={dialogId}
       ref={ref}
@@ -165,11 +179,13 @@ export function ForumNewThreadHomeButton({
   defaultCategoryId,
   label,
   viewerHasForumDisplayName,
+  viewerForumDisplayNameDraft = '',
 }: {
   categories: ForumCategoryOption[]
   defaultCategoryId: string
   label?: string
   viewerHasForumDisplayName: boolean
+  viewerForumDisplayNameDraft?: string
 }) {
   const ref = useRef<HTMLDialogElement>(null)
 
@@ -185,7 +201,11 @@ export function ForumNewThreadHomeButton({
 
   return (
     <>
-      <ForumDisplayNameRequiredNativeDialog nativeId={HOME_DISPLAY_NAME_GATE_ID} />
+      <ForumDisplayNameRequiredNativeDialog
+        nativeId={HOME_DISPLAY_NAME_GATE_ID}
+        initialDisplayName={viewerForumDisplayNameDraft}
+        onAfterProfileSaved={openMain}
+      />
       <button
         type="button"
         className={

@@ -28,6 +28,7 @@ import ForumReportForm from '@/components/forum/ForumReportForm'
 import ForumPostUpvoteButton from '@/components/forum/ForumPostUpvoteButton'
 import ForumThreadAboutPanel from '@/components/forum/ForumThreadAboutPanel'
 import type { ForumThreadAboutData } from '@/components/forum/ForumThreadAboutPanel'
+import ForumDisplayNameQuickForm from '@/components/forum/ForumDisplayNameQuickForm'
 import ForumDisplayNameRequiredDialog from '@/components/forum/ForumDisplayNameRequiredDialog'
 
 export type ForumThreadPaginationInfo = {
@@ -57,6 +58,8 @@ interface ForumReplyAndPostsProps {
   /** Post-ider brukeren har stemt på (gjeldende side). */
   viewerUpvotedPostIds?: string[]
   /** Minst to tegn i forum_profile.display_name — kreves for svar og nye stemmer. */
+  /** Rå forum_profile.display_name (kan være tom eller for kort for deltakelse). */
+  viewerForumDisplayNameDraft?: string
   viewerHasForumDisplayName: boolean
 }
 
@@ -238,6 +241,7 @@ export default function ForumReplyAndPosts({
   upvoteCountByPostId = {},
   viewerUpvotedPostIds = [],
   viewerHasForumDisplayName,
+  viewerForumDisplayNameDraft = '',
 }: ForumReplyAndPostsProps) {
   const viewerVoteSet = new Set(viewerUpvotedPostIds)
   void _isPinned
@@ -444,6 +448,7 @@ export default function ForumReplyAndPosts({
       <ForumDisplayNameRequiredDialog
         open={displayNameDialogOpen}
         onClose={() => setDisplayNameDialogOpen(false)}
+        initialDisplayName={viewerForumDisplayNameDraft}
       />
       <ForumHashScroll />
 
@@ -696,24 +701,22 @@ export default function ForumReplyAndPosts({
                   Nytt svar
                 </h3>
                 <div
-                  className="rounded-xl border px-4 py-3 text-sm"
+                  className="rounded-xl border px-4 py-4 text-sm"
                   style={{
                     borderColor: 'var(--border)',
                     background: 'var(--bg)',
                     color: 'var(--text)',
                   }}
                 >
-                  <p style={{ color: 'var(--text-muted)' }}>
-                    Registrer forumnavnet ditt på forumprofilen for å skrive svar i tråden.
+                  <p className="mb-3" style={{ color: 'var(--text-muted)' }}>
+                    Velg forumnavnet ditt her (minst to tegn) — da kan du skrive svar uten å forlate tråden.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`${FORUM_BASE_PATH}/profil`)}
-                    className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-white touch-manipulation"
-                    style={{ background: 'var(--cta-gradient)' }}
-                  >
-                    Gå til forumprofil
-                  </button>
+                  <ForumDisplayNameQuickForm
+                    initialDisplayName={viewerForumDisplayNameDraft}
+                    onSaved={() => router.refresh()}
+                    density="compact"
+                    submitLabel="Lagre og fortsett"
+                  />
                 </div>
               </div>
             ) : (

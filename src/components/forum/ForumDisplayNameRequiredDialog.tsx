@@ -1,15 +1,7 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef } from 'react'
-import { FORUM_BASE_PATH } from '@/lib/forum/constants'
-
-const profilHref = `${FORUM_BASE_PATH}/profil`
-
-function goToForumProfile(router: ReturnType<typeof useRouter>, close: () => void) {
-  close()
-  queueMicrotask(() => router.push(profilHref))
-}
+import ForumDisplayNameQuickForm from '@/components/forum/ForumDisplayNameQuickForm'
 
 const displayNameDialogClassName =
   'fixed inset-0 left-1/2 top-[min(50dvh,max(47dvh,calc(env(safe-area-inset-top,0)+45dvh)))] z-[60] ' +
@@ -24,11 +16,27 @@ export function forumDisplayNameGateDialogId(mainDialogId: string): string {
 }
 
 /** Åpnes med `document.getElementById(nativeId)?.showModal()` fra søsken-knapper. */
-export function ForumDisplayNameRequiredNativeDialog({ nativeId }: { nativeId: string }) {
+export function ForumDisplayNameRequiredNativeDialog({
+  nativeId,
+  initialDisplayName = '',
+  onAfterProfileSaved,
+}: {
+  nativeId: string
+  /** Eksisterende råverdi fra forum_profile (kan være tomt eller for kort). */
+  initialDisplayName?: string
+  /** Etter vellykket lagring: f.eks. åpne «Ny tråd»-dialog. */
+  onAfterProfileSaved?: () => void
+}) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
-  const router = useRouter()
   const close = () => ref.current?.close()
+
+  const handleSaved = () => {
+    close()
+    queueMicrotask(() => {
+      onAfterProfileSaved?.()
+    })
+  }
 
   return (
     <dialog
@@ -38,30 +46,23 @@ export function ForumDisplayNameRequiredNativeDialog({ nativeId }: { nativeId: s
       style={{ borderColor: 'var(--border)' }}
       aria-labelledby={titleId}
     >
-      <div className="flex flex-col gap-4 px-5 py-5 sm:px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <h2 id={titleId} className="text-base font-bold leading-snug">
-          Forumnavn kreves
-        </h2>
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          Velg et visningsnavn på forumprofilen din før du kan gi tommel opp eller skrive i forumet.
-        </p>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onPointerDown={close}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border px-4 text-sm font-medium touch-manipulation"
-            style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-          >
-            Lukk
-          </button>
-          <button
-            type="button"
-            onClick={() => goToForumProfile(router, close)}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-white touch-manipulation"
-            style={{ background: 'var(--cta-gradient)' }}
-          >
-            Gå til forumprofil
-          </button>
+      <div className="flex max-h-[inherit] flex-col overflow-hidden">
+        <div className="flex flex-col gap-4 overflow-y-auto px-5 py-5 sm:px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] overscroll-contain touch-pan-y">
+          <div>
+            <h2 id={titleId} className="text-base font-bold leading-snug">
+              Velg forumnavn før du deltar
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Skriv inn navnet du vil bruke her — så slipper du å gå via forumprofilen og tilbake igjen.
+            </p>
+          </div>
+          <ForumDisplayNameQuickForm
+            key={nativeId}
+            initialDisplayName={initialDisplayName}
+            onSaved={handleSaved}
+            onCancel={close}
+            submitLabel="Lagre og fortsett"
+          />
         </div>
       </div>
     </dialog>
@@ -71,13 +72,14 @@ export function ForumDisplayNameRequiredNativeDialog({ nativeId }: { nativeId: s
 export default function ForumDisplayNameRequiredDialog({
   open,
   onClose,
+  initialDisplayName = '',
 }: {
   open: boolean
   onClose: () => void
+  initialDisplayName?: string
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
-  const router = useRouter()
 
   useEffect(() => {
     const d = ref.current
@@ -94,30 +96,23 @@ export default function ForumDisplayNameRequiredDialog({
       aria-labelledby={titleId}
       onClose={onClose}
     >
-      <div className="flex flex-col gap-4 px-5 py-5 sm:px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <h2 id={titleId} className="text-base font-bold leading-snug">
-          Forumnavn kreves
-        </h2>
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          Velg et visningsnavn på forumprofilen din før du kan gi tommel opp eller skrive i forumet.
-        </p>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onPointerDown={() => onClose()}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl border px-4 text-sm font-medium touch-manipulation"
-            style={{ borderColor: 'var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
-          >
-            Lukk
-          </button>
-          <button
-            type="button"
-            onClick={() => goToForumProfile(router, onClose)}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-white touch-manipulation"
-            style={{ background: 'var(--cta-gradient)' }}
-          >
-            Gå til forumprofil
-          </button>
+      <div className="flex max-h-[inherit] flex-col overflow-hidden">
+        <div className="flex flex-col gap-4 overflow-y-auto px-5 py-5 sm:px-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] overscroll-contain touch-pan-y">
+          <div>
+            <h2 id={titleId} className="text-base font-bold leading-snug">
+              Velg forumnavn før du deltar
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Skriv inn navnet du vil bruke her — så kan du fortsette i forumet med en gang.
+            </p>
+          </div>
+          <ForumDisplayNameQuickForm
+            key={open ? 'open' : 'closed'}
+            initialDisplayName={initialDisplayName}
+            onSaved={onClose}
+            onCancel={onClose}
+            submitLabel="Lagre og fortsett"
+          />
         </div>
       </div>
     </dialog>

@@ -56,6 +56,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
   } = await supabase.auth.getUser()
 
   let viewerHasForumDisplayName = false
+  let viewerForumDisplayNameDraft = ''
   if (user?.id) {
     const { data: vProf } = await supabase
       .from('forum_profile')
@@ -66,6 +67,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
       vProf && typeof (vProf as { display_name?: unknown }).display_name === 'string'
         ? (vProf as { display_name: string }).display_name
         : null
+    viewerForumDisplayNameDraft = vdn ?? ''
     viewerHasForumDisplayName = hasEligibleForumDisplayName(vdn)
   }
 
@@ -210,6 +212,7 @@ export default async function ForumCategoryPage({ params, searchParams }: Props)
           autoOpenNy={openNewNy}
           cleanupNavigateHref={cleanupNavigateHref}
           viewerHasForumDisplayName={viewerHasForumDisplayName}
+          viewerForumDisplayNameDraft={viewerForumDisplayNameDraft}
         />
 
         {cat.description ? (

@@ -418,6 +418,7 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
             upvoteCountByPostId={upvoteCountByPostId}
             viewerUpvotedPostIds={viewerUpvotedPostIds}
             threadAbout={threadAbout}
+            viewerForumDisplayNameDraft={viewerDn ?? ''}
             viewerHasForumDisplayName={viewerHasForumDisplayName}
             pagination={{
               page: pageRequested,

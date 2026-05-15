@@ -156,12 +156,14 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
   const newMembersOk = !newestProfilesRes.error
 
   let viewerHasForumDisplayName = false
+  let viewerForumDisplayNameDraft = ''
   if (user?.id) {
     const vProf = viewerProfResult.data
     const vdn =
       vProf && typeof (vProf as { display_name?: unknown }).display_name === 'string'
         ? (vProf as { display_name: string }).display_name
         : null
+    viewerForumDisplayNameDraft = vdn ?? ''
     viewerHasForumDisplayName = hasEligibleForumDisplayName(vdn)
   }
 
@@ -271,6 +273,7 @@ export default async function ForumBetaHomePage({ searchParams }: Props) {
               defaultCategoryId={defaultNewCategoryId}
               label="Opprett innlegg"
               viewerHasForumDisplayName={viewerHasForumDisplayName}
+              viewerForumDisplayNameDraft={viewerForumDisplayNameDraft}
             />
           </div>
         ) : null}
