@@ -1,10 +1,15 @@
 'use client'
 
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef } from 'react'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 
 const profilHref = `${FORUM_BASE_PATH}/profil`
+
+function goToForumProfile(router: ReturnType<typeof useRouter>, close: () => void) {
+  close()
+  queueMicrotask(() => router.push(profilHref))
+}
 
 const displayNameDialogClassName =
   'fixed inset-0 left-1/2 top-[min(50dvh,max(47dvh,calc(env(safe-area-inset-top,0)+45dvh)))] z-[60] ' +
@@ -22,6 +27,7 @@ export function forumDisplayNameGateDialogId(mainDialogId: string): string {
 export function ForumDisplayNameRequiredNativeDialog({ nativeId }: { nativeId: string }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
+  const router = useRouter()
   const close = () => ref.current?.close()
 
   return (
@@ -48,14 +54,14 @@ export function ForumDisplayNameRequiredNativeDialog({ nativeId }: { nativeId: s
           >
             Lukk
           </button>
-          <Link
-            href={profilHref}
-            onPointerDown={close}
+          <button
+            type="button"
+            onClick={() => goToForumProfile(router, close)}
             className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-white touch-manipulation"
             style={{ background: 'var(--cta-gradient)' }}
           >
             Gå til forumprofil
-          </Link>
+          </button>
         </div>
       </div>
     </dialog>
@@ -71,6 +77,7 @@ export default function ForumDisplayNameRequiredDialog({
 }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
+  const router = useRouter()
 
   useEffect(() => {
     const d = ref.current
@@ -103,14 +110,14 @@ export default function ForumDisplayNameRequiredDialog({
           >
             Lukk
           </button>
-          <Link
-            href={profilHref}
-            onPointerDown={() => onClose()}
+          <button
+            type="button"
+            onClick={() => goToForumProfile(router, onClose)}
             className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-white touch-manipulation"
             style={{ background: 'var(--cta-gradient)' }}
           >
             Gå til forumprofil
-          </Link>
+          </button>
         </div>
       </div>
     </dialog>

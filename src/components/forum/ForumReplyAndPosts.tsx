@@ -706,13 +706,14 @@ export default function ForumReplyAndPosts({
                   <p style={{ color: 'var(--text-muted)' }}>
                     Registrer forumnavnet ditt på forumprofilen for å skrive svar i tråden.
                   </p>
-                  <Link
-                    href={`${FORUM_BASE_PATH}/profil`}
+                  <button
+                    type="button"
+                    onClick={() => router.push(`${FORUM_BASE_PATH}/profil`)}
                     className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-semibold text-white touch-manipulation"
                     style={{ background: 'var(--cta-gradient)' }}
                   >
                     Gå til forumprofil
-                  </Link>
+                  </button>
                 </div>
               </div>
             ) : (
