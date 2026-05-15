@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Check } from 'lucide-react'
+import { TRIAL_OFFER_EXTENDED_EXPLANATION } from '@/lib/marketing/trialCampaignCopy'
 import { CTA_HREF, landingHorizontalPadding } from './constants'
 
 const soloFeatures = ['Én brukerkonto', 'Full tilgang til alle funksjoner', 'Passer deg som styrer økonomien alene']
@@ -17,8 +18,8 @@ export default function LandingPricing() {
           Velg plan
         </h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
-          Alle planer inkluderer 14 dagers gratis prøveperiode. Betalingskort registreres ved oppstart. Etter prøveperioden
-          faktureres valgt plan til månedlig pris med mindre du sier opp.
+          {TRIAL_OFFER_EXTENDED_EXPLANATION} Betalingskort registreres ved oppstart. Etter prøveperioden faktureres valgt plan
+          til månedlig pris med mindre du sier opp.
         </p>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { TRIAL_OFFER_EXTENDED_EXPLANATION, TRIAL_OFFER_HEADLINE } from '@/lib/marketing/trialCampaignCopy'
 import { CTA_HREF, landingHorizontalPadding } from './constants'
 
 export default function LandingFinalCTA() {
@@ -10,8 +11,8 @@ export default function LandingFinalCTA() {
       >
         <h2 className="text-2xl font-bold sm:text-3xl">Klar for oversikt?</h2>
         <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed opacity-95 sm:text-base">
-          Start 14 dagers gratis prøveperiode med kortregistrering. Ingen trekk før prøveperioden er over — deretter får du full
-          tilgang til Dottir til månedlig pris.
+          {TRIAL_OFFER_HEADLINE} med kortregistrering. {TRIAL_OFFER_EXTENDED_EXPLANATION} Ingen trekk før prøveperioden er over —
+          deretter får du full tilgang til Dottir til månedlig pris.
         </p>
         <Link
           href={CTA_HREF}

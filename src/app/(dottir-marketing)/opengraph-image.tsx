@@ -1,4 +1,5 @@
 import { dottirOpenGraphImageResponse } from '@/lib/marketing/dottirOgImage'
+import { TRIAL_OFFER_META_LINE } from '@/lib/marketing/trialCampaignCopy'
 
 export const runtime = 'edge'
 
@@ -9,7 +10,6 @@ export const contentType = 'image/png'
 export default function Image() {
   return dottirOpenGraphImageResponse({
     headline: 'Ta kontroll',
-    subline:
-      'Budsjett med ferdig struktur — plan, forbruk og hverdagsflyt. 14 dagers gratis prøveperiode.',
+    subline: `Budsjett med ferdig struktur — plan, forbruk og hverdagsflyt. ${TRIAL_OFFER_META_LINE}`,
   })
 }

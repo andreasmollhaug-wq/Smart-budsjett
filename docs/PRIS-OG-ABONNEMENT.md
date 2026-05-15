@@ -15,7 +15,8 @@ Funksjonelt innhold i appen kan være likt på begge planer; **forskjellen** er 
 
 ## Prøveperiode
 
-- **14 dagers gratis prøveperiode** på alle planer.
+- **Aktuelt tilbud:** gratis prøve til **30. juni 2026** (utvidet fra ordinær 14 dagers prøve). Miljøvariabel `STRIPE_TRIAL_END_DATE` i drift styrer sluttdato sammen med markedsføringstekst i `trialCampaignCopy.ts` — oppdater begge ved endring.
+- **Etter kampanje:** som regel **14 dagers gratis prøveperiode** på alle planer (eller verdi fra `STRIPE_SUBSCRIPTION_TRIAL_DAYS`).
 - **Betalingskort** registreres **ved oppstart** av prøveperioden.
 - Formulering til kunde: vær **tydelige** på at kort kreves, og at faktisk trekk skjer **etter** prøveperioden (presiser når betalingsflyt og vilkår er endelige).
 
@@ -28,7 +29,7 @@ Funksjonelt innhold i appen kan være likt på begge planer; **forskjellen** er 
 ## Viktige FAQ-temaer (sjekkliste)
 
 - Hvorfor kort ved start?
-- Hva skjer når 14 dager er over?
+- Hva skjer når prøveperioden er over?
 - Hva menes med «familie» / antall brukere?
 - Kan man bytte mellom Solo og Familie?
 - Hvordan sier man opp?

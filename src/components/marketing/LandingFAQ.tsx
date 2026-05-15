@@ -1,12 +1,17 @@
+import { TRIAL_OFFER_EXTENDED_EXPLANATION } from '@/lib/marketing/trialCampaignCopy'
 import { landingHorizontalPadding } from './constants'
 
 const faqs: { q: string; a: string }[] = [
   {
-    q: 'Hvorfor må jeg registrere betalingskort ved oppstart?',
-    a: 'Det gjør det enkelt å fortsette etter prøveperioden uten avbrudd, og du slipper å huske å legge inn kort på nytt. Du kan si opp før prøveperioden er over — vi trekker ikke før etter de 14 dagene er ferdige.',
+    q: 'Hvor lenge varer prøveperioden?',
+    a: `${TRIAL_OFFER_EXTENDED_EXPLANATION} Du registrerer betalingskort ved oppstart — vi trekker ikke før prøveperioden er over.`,
   },
   {
-    q: 'Hva skjer når de 14 dagene er over?',
+    q: 'Hvorfor må jeg registrere betalingskort ved oppstart?',
+    a: 'Det gjør det enkelt å fortsette etter prøveperioden uten avbrudd, og du slipper å huske å legge inn kort på nytt. Du kan si opp før prøveperioden er over — vi trekker ikke mens du fortsatt har aktiv prøve.',
+  },
+  {
+    q: 'Hva skjer når prøveperioden er over?',
     a: 'Da starter det aktive abonnementet du valgte (Solo eller Familie), og månedlig pris faktureres. Du får påminnelse i forkant slik at du vet hva som kommer.',
   },
   {
@@ -45,8 +50,8 @@ export default function LandingFAQ() {
           {faqs.map(({ q, a }, index) => (
             <details
               key={q}
-              id={index === 0 ? 'faq-betalingskort' : undefined}
-              className={`group rounded-2xl p-5 open:shadow-sm${index === 0 ? ' scroll-mt-24' : ''}`}
+              id={index === 1 ? 'faq-betalingskort' : undefined}
+              className={`group rounded-2xl p-5 open:shadow-sm${index === 1 ? ' scroll-mt-24' : ''}`}
               style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
             >
               <summary className="cursor-pointer list-none font-semibold outline-none [&::-webkit-details-marker]:hidden" style={{ color: 'var(--text)' }}>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { TRIAL_OFFER_EXTENDED_EXPLANATION, TRIAL_OFFER_HEADLINE } from '@/lib/marketing/trialCampaignCopy'
 import { CTA_HREF, landingHorizontalPadding } from './constants'
 
 export type LandingHeroVariant = 'default' | 'partnerCampaign'
@@ -30,7 +31,7 @@ export default function LandingHero({ variant = 'default' }: Props) {
             color: 'var(--text-muted)',
           }}
         >
-          14 dagers gratis prøveperiode
+          {TRIAL_OFFER_HEADLINE}
         </p>
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-[2.75rem]" style={{ color: 'var(--text)' }}>
           Ryddig oversikt på økonomien — uten forkunnskaper
@@ -45,7 +46,8 @@ export default function LandingHero({ variant = 'default' }: Props) {
           </p>
         )}
         <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-          Ved oppstart registrerer du betalingskort — vi trekker ikke før prøveperioden er over.{' '}
+          {TRIAL_OFFER_EXTENDED_EXPLANATION} Ved oppstart registrerer du betalingskort — vi trekker ikke før
+          prøveperioden er over.{' '}
           <a
             href="#faq-betalingskort"
             className="font-medium underline underline-offset-2 transition-opacity hover:opacity-90"

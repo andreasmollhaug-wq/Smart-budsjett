@@ -6,6 +6,7 @@ import {
   DOTTIR_OM_OSS_HREF,
   landingHorizontalPadding,
 } from '@/components/marketing/constants'
+import { TRIAL_OFFER_EXTENDED_EXPLANATION, TRIAL_OFFER_HEADLINE } from '@/lib/marketing/trialCampaignCopy'
 
 const HERO_CARDS = [
   { Icon: Users, label: 'Én sammenheng', sub: 'fra plan til handling' },
@@ -134,10 +135,11 @@ export default function DottirLandingHeroSplit({ heroImageSrc }: { heroImageSrc:
 
             <div className="mx-auto mt-8 max-w-lg min-w-0 text-center sm:mt-10 lg:mx-0 lg:text-left">
               <p className="text-sm font-semibold sm:text-base" style={{ color: 'var(--text)' }}>
-                14 dagers gratis prøveperiode
+                {TRIAL_OFFER_HEADLINE}
               </p>
               <p className="mt-2 text-xs leading-relaxed sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-                Ved oppstart registrerer du betalingskort — vi trekker ikke før prøveperioden er over.
+                {TRIAL_OFFER_EXTENDED_EXPLANATION} Ved oppstart registrerer du betalingskort — vi trekker ikke før
+                prøveperioden er over.
               </p>
             </div>
           </div>

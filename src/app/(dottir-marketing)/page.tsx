@@ -2,12 +2,13 @@ import type { Metadata } from 'next'
 import RecoveryHashRedirect from '@/components/auth/RecoveryHashRedirect'
 import DottirLanding from '@/components/marketing/DottirLanding'
 import { DottirSmoothScroll } from '@/components/marketing/DottirSmoothScroll'
+import { TRIAL_OFFER_META_LINE } from '@/lib/marketing/trialCampaignCopy'
 import { getSiteUrl } from '@/lib/site-url'
 
 /** Fanetittel — mal i root layout brukes ikke når `absolute` settes. */
 const documentTitle = 'Dottir | Ta kontroll'
 const description =
-  'Dottir hjelper privatpersoner med oversikt over inntekter og utgifter — enkelt budsjettverktøy med ferdig struktur og 14 dagers gratis prøveperiode.'
+  `Dottir hjelper privatpersoner med oversikt over inntekter og utgifter — enkelt budsjettverktøy med ferdig struktur. ${TRIAL_OFFER_META_LINE}`
 
 const canonical = `${getSiteUrl()}/`
 

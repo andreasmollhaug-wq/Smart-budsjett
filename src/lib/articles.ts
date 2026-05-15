@@ -3,6 +3,8 @@
  * Utvid med nye oppføringer i `articles`; dynamisk rute plukker slug.
  */
 
+import { TRIAL_OFFER_EXTENDED_EXPLANATION } from '@/lib/marketing/trialCampaignCopy'
+
 export type ArticleBlock =
   | { type: 'h2'; text: string }
   | { type: 'p'; text: string }
@@ -66,7 +68,9 @@ export const articles: Article[] = [
         type: 'p',
         text:
           'I Dottir er strukturen lagt inn på forhånd, slik at du kan fokusere på tallene dine og oversikten — ikke på ' +
-          'å bygge mal fra bunnen av. Når du er klar, kan du prøve appen gratis i 14 dager og se om rytmen passer deg.',
+          'å bygge mal fra bunnen av. Når du er klar: ' +
+          TRIAL_OFFER_EXTENDED_EXPLANATION +
+          ' Prøv og se om rytmen passer deg.',
       },
     ],
   },

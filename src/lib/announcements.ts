@@ -1,4 +1,5 @@
 import { APP_VERSION, compareSemver } from '@/lib/version'
+import { TRIAL_OFFER_META_LINE } from '@/lib/marketing/trialCampaignCopy'
 
 export type AnnouncementKind = 'product' | 'budget' | 'insight'
 
@@ -94,8 +95,9 @@ export const PRODUCT_ANNOUNCEMENTS: ProductAnnouncement[] = [
     title: 'Dottir v0.3.7 — ute på live',
     body:
       'Denne versjonen er rullet ut på live.\n\n' +
-      'Abonnement og betaling går nå gjennom Stripe: start eller administrer under Min konto → Betalinger (14 dagers prøve der dette gjelder). ' +
-      'Tilgang til å lagre budsjett og økonomidata er koblet til gyldig abonnement eller prøveperiode; fullfør betalingssteget om du ser melding om at lagring ikke er tilgjengelig.\n\n' +
+      'Abonnement og betaling går nå gjennom Stripe: start eller administrer under Min konto → Betalinger. ' +
+      TRIAL_OFFER_META_LINE +
+      ' Tilgang til å lagre budsjett og økonomidata er koblet til gyldig abonnement eller prøveperiode; fullfør betalingssteget om du ser melding om at lagring ikke er tilgjengelig.\n\n' +
       'Siden Produktflyt viser hele løpet fra budsjett og transaksjoner til oversikt, sparing og rapporter — før du logger inn. ' +
       'Landingssider, kom i gang og små forbedringer i budsjettvisning er oppdatert.\n\n' +
       'Teknisk: nye retningslinjer for tilgang i databasen (abonnementsport) og valgfri serverstyrt omdirigering til betaling når det er slått på i miljøet — i tråd med utrulling i dokumentasjonen.\n\n' +

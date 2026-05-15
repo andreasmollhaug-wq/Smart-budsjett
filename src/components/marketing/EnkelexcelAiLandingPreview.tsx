@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { TRIAL_OFFER_EXTENDED_EXPLANATION } from '@/lib/marketing/trialCampaignCopy'
 import {
   ArrowRight,
   Check,
@@ -236,7 +237,7 @@ export default function EnkelexcelAiLandingPreview() {
               </a>
             </div>
             <p className="mt-6 text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-              Krever innlogging for å bruke assistenten. 14 dagers prøveperiode — tydelige vilkår før du betaler.
+              Krever innlogging for å bruke assistenten. {TRIAL_OFFER_EXTENDED_EXPLANATION} Tydelige vilkår før du betaler.
             </p>
           </div>
         </section>

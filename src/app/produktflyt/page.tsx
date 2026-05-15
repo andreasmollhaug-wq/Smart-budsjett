@@ -4,6 +4,7 @@ import LandingFooter from '@/components/marketing/LandingFooter'
 import LandingHeader from '@/components/marketing/LandingHeader'
 import ProductFlowJourney from '@/components/marketing/ProductFlowJourney'
 import { CTA_HREF } from '@/components/marketing/constants'
+import { TRIAL_OFFER_EXTENDED_EXPLANATION } from '@/lib/marketing/trialCampaignCopy'
 import { getSiteUrl } from '@/lib/site-url'
 
 const title = 'Slik henger Dottir sammen'
@@ -105,8 +106,8 @@ export default function ProduktflytPage() {
             Klar til å prøve?
           </h2>
           <p className="mt-3 text-sm leading-relaxed sm:text-base" style={{ color: 'var(--text-muted)' }}>
-            Registrer deg for 14 dagers gratis prøveperiode — du legger inn betalingskort ved oppstart, men betaler ikke før
-            prøveperioden er over. Samme tydelige struktur som du ser på denne siden venter inne i appen.
+            {TRIAL_OFFER_EXTENDED_EXPLANATION} Du legger inn betalingskort ved oppstart, men betaler ikke før prøveperioden
+            er over. Samme tydelige struktur som du ser på denne siden venter inne i appen.
           </p>
           <Link
             href={CTA_HREF}

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ArrowDown, ArrowRight, ChevronDown } from 'lucide-react'
 import { useRevealOnScroll } from '@/hooks/useRevealOnScroll'
+import { TRIAL_OFFER_EXTENDED_EXPLANATION, TRIAL_OFFER_HEADLINE } from '@/lib/marketing/trialCampaignCopy'
 import { CTA_HREF } from './constants'
 import { PRODUCT_FLOW_PHASES, type ProductFlowPhase } from './productFlowContent'
 
@@ -204,7 +205,7 @@ export default function ProductFlowJourney() {
           <ArrowRight size={18} aria-hidden />
         </Link>
         <p className="text-center text-xs sm:max-w-none sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-          14 dagers prøveperiode — deretter betaling om du fortsetter.
+          {TRIAL_OFFER_HEADLINE}. {TRIAL_OFFER_EXTENDED_EXPLANATION} Deretter betaling om du fortsetter.
         </p>
       </div>
     </div>
