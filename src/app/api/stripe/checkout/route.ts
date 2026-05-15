@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe/server'
 import type { BillingPlan } from '@/lib/stripe/plan'
-import { subscriptionTrialPeriodDaysForAuthUser } from '@/lib/stripe/extendedTrial'
 import { logStripeError, stripeRequestIdFromError } from '@/lib/stripe/stripeErrorDetails'
-import { subscriptionTrialPeriodDays } from '@/lib/stripe/trialPeriodDays'
+import {
+  resolveSubscriptionTrialForCheckout,
+  stripeCheckoutSubscriptionTrialFields,
+} from '@/lib/stripe/subscriptionTrialCheckout'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,8 +56,7 @@ export async function POST(req: Request) {
   }
 
   const base = appBaseUrl()
-  const trialDays =
-    subscriptionTrialPeriodDaysForAuthUser(user) ?? subscriptionTrialPeriodDays()
+  const resolvedTrial = resolveSubscriptionTrialForCheckout(user)
 
   try {
     // Klarna (der Stripe tilbyr det for subscription i Norge): aktiver i Stripe Dashboard → Payment methods.
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
         metadata: {
           supabase_user_id: user.id,
         },
-        ...(trialDays != null ? { trial_period_days: trialDays } : {}),
+        ...stripeCheckoutSubscriptionTrialFields(resolvedTrial),
       },
     })
 

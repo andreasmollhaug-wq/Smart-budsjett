@@ -1,5 +1,6 @@
 /**
  * Utvalgte brukere kan få lengre prøveperiode enn standard (STRIPE_SUBSCRIPTION_TRIAL_DAYS).
+ * Ved aktiv STRIPE_TRIAL_END_DATE klippes utvidet prøve mot kampanjens slutt (se subscriptionTrialCheckout).
  * E-poster: STRIPE_EXTENDED_TRIAL_EMAILS. Valgfritt: STRIPE_EXTENDED_TRIAL_USER_IDS (Supabase user_id UUID).
  * Dager: STRIPE_EXTENDED_TRIAL_DAYS (default 183 ≈ 6 mnd).
  *
