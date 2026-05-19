@@ -5,12 +5,13 @@ import { Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChildEmojiPicker } from '@/features/hjemflyt/ChildEmojiPicker'
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import { DEFAULT_PROFILE_ID, useStore } from '@/lib/store'
 import type { HjemflytProfileMeta } from '@/features/hjemflyt/types'
 
 export default function KontoProfilerPage() {
   const router = useRouter()
-  const subscriptionPlan = useStore((s) => s.subscriptionPlan)
+  const { effectiveSubscriptionPlan } = useSubscriptionReadOnly()
   const profiles = useStore((s) => s.profiles)
   const renameProfile = useStore((s) => s.renameProfile)
   const removeProfile = useStore((s) => s.removeProfile)
@@ -18,12 +19,12 @@ export default function KontoProfilerPage() {
   const setProfileHjemflytMeta = useStore((s) => s.setProfileHjemflytMeta)
 
   useEffect(() => {
-    if (subscriptionPlan !== 'family') {
+    if (effectiveSubscriptionPlan !== 'family') {
       router.replace('/konto/innstillinger')
     }
-  }, [subscriptionPlan, router])
+  }, [effectiveSubscriptionPlan, router])
 
-  if (subscriptionPlan !== 'family') {
+  if (effectiveSubscriptionPlan !== 'family') {
     return null
   }
 

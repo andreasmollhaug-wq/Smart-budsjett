@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import PersonSwitcher from '@/components/account/PersonSwitcher'
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import BrandLogoMark from '@/components/brand/BrandLogoMark'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import { ChevronRight, X } from 'lucide-react'
@@ -19,10 +20,12 @@ import {
 } from '@/lib/sidebarNav'
 
 function SubscriptionFooter() {
-  const { subscriptionPlan } = useActivePersonFinance()
-  const title = subscriptionPlan === 'solo' ? 'Solo' : 'Familie'
+  const { effectiveSubscriptionPlan } = useSubscriptionReadOnly()
+  const title = effectiveSubscriptionPlan === 'solo' ? 'Solo' : 'Familie'
   const subtitle =
-    subscriptionPlan === 'solo' ? 'Én bruker i husholdningen' : 'Opp til fem brukere i husholdningen'
+    effectiveSubscriptionPlan === 'solo'
+      ? 'Én bruker i husholdningen'
+      : 'Opp til fem brukere i husholdningen'
 
   return (
     <div className="px-3 py-4 border-t" style={{ borderColor: 'var(--border)' }}>

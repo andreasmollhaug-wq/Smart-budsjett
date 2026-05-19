@@ -11,7 +11,25 @@ Bruk denne filen som **referanse** når dere oppdaterer priser i kode ([`src/com
 | **Solo** | **89 kr / måned** | Én person — én brukerkonto |
 | **Familie** | **139 kr / måned** | To eller flere i **samme husholdning** («Mest valgt» i UI) |
 
-Funksjonelt innhold i appen kan være likt på begge planer; **forskjellen** er antall brukere / husholdning (i landing-tekst: bl.a. opptil fem brukere for Familie). Juster tekst i app og FAQ hvis policy endres.
+Funksjonelt innhold i appen kan være likt på begge planer; **forskjellen** er antall **profiler** i husholdningen (opptil fem på Familie, under én innlogging). Juster tekst i app og FAQ hvis policy endres.
+
+### App-plan vs Stripe-plan (synk)
+
+- **Autoritativ betalt plan:** `user_subscription.plan` + `status` i Supabase (oppdateres via Stripe webhook).
+- **App-funksjoner** (legge til profil, husholdning, `/konto/profiler`): `subscriptionPlan` i `user_app_state`, synkronisert fra Stripe ved innlogging, fokus på vinduet, etter Checkout og fra `/api/stripe/subscription`.
+- **Implementasjon:** [`src/lib/stripe/syncAppSubscriptionPlan.ts`](../src/lib/stripe/syncAppSubscriptionPlan.ts), [`SubscriptionReadOnlyProvider.tsx`](../src/components/app/SubscriptionReadOnlyProvider.tsx).
+- **Nedgradering til Solo:** krever én profil i app *og* Solo i Stripe; med flere profiler vises banner på Betalinger med lenke til Profiler.
+- **Drift:** `STRIPE_PRICE_SOLO` og `STRIPE_PRICE_FAMILY` må matche price IDs i Stripe Dashboard — ellers blir `plan` null i databasen.
+
+#### Manuell testmatrise (Solo/Familie)
+
+| # | Steg | Forventet |
+|---|------|-----------|
+| 1 | Checkout Familie → success | Stripe + app Familie; «Legg til» åpner navneskjema |
+| 2 | Portal → Solo, 2+ profiler | Banner om å fjerne profiler; data bevares |
+| 3 | Fjern ekstra profil → Solo i Stripe | App synker til Solo |
+| 4 | Avbryt Checkout Familie (aldri betalt) | App forblir ikke Familie uten aktiv Stripe-plan |
+| 5 | Ny enhet / nettleser | Etter innlogging: plan synket fra Stripe |
 
 ## Prøveperiode
 

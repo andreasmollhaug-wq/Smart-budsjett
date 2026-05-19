@@ -14,7 +14,7 @@ import {
   Users,
   Mail,
 } from 'lucide-react'
-import { useStore } from '@/lib/store'
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 
 const baseLinks = [
   { href: '/konto/innstillinger', label: 'Innstillinger', labelShort: 'Innst.', icon: Settings },
@@ -42,10 +42,10 @@ const profilerLink = {
 
 export default function KontoNav() {
   const pathname = usePathname()
-  const subscriptionPlan = useStore((s) => s.subscriptionPlan)
+  const { effectiveSubscriptionPlan } = useSubscriptionReadOnly()
 
   const links =
-    subscriptionPlan === 'family'
+    effectiveSubscriptionPlan === 'family'
       ? [baseLinks[0], profilerLink, ...baseLinks.slice(1)]
       : [...baseLinks]
 

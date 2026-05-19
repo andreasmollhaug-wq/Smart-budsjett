@@ -16,7 +16,7 @@ const faqs: { q: string; a: string }[] = [
   },
   {
     q: 'Hva menes med «familie» og husholdning?',
-    a: 'Familie-planen er for to eller flere personer som deler samme husholdning (typisk partner, barn eller andre du bor sammen med). Du kan invitere opptil fem brukere i samme abonnement.',
+    a: 'Familie-planen er for to eller flere personer som deler samme husholdning (typisk partner, barn eller andre du bor sammen med). Du kan ha opptil fem profiler under samme innlogging — én e-post og ett passord for hele husholdningen.',
   },
   {
     q: 'Kan jeg bytte mellom Solo og Familie?',

@@ -22,6 +22,12 @@ import {
   monthlyEquivalentNok,
   uniqueRegningerName,
 } from './serviceSubscriptionHelpers'
+import { getEffectiveSubscriptionPlan } from '@/lib/stripe/getEffectiveSubscriptionPlan'
+import {
+  computeSyncAppPlan,
+  type BillingPlanSnapshot,
+  type SyncAppPlanResult,
+} from '@/lib/stripe/syncAppSubscriptionPlan'
 import {
   applySubscriptionBudgetRebuildsForCategoryIds,
   clampSubscriptionBudgetMonthWindow,
@@ -479,6 +485,8 @@ export type RemoveLedgerImportRunResult =
 
 interface AppState {
   subscriptionPlan: SubscriptionPlan
+  /** Siste Stripe/Supabase-plan (ikke persistert) — brukes til synk og effektiv plan i gates. */
+  lastBillingSnapshot: BillingPlanSnapshot | null
   profiles: PersonProfile[]
   activeProfileId: string
   /** Når `household`: vist data er aggregert over alle profiler (kun meningsfullt for Familie med 2+ profiler). */
@@ -518,6 +526,7 @@ interface AppState {
   addAppNotification: (payload: { title: string; body: string; kind?: AppNotificationKind }) => void
 
   setSubscriptionPlan: (plan: SubscriptionPlan) => { ok: true } | { ok: false; reason: 'solo_requires_one_profile' }
+  applyBillingPlanSync: (billing: BillingPlanSnapshot) => SyncAppPlanResult
   setActiveProfileId: (id: string) => void
   setFinanceScope: (scope: FinanceScope) => void
   addProfile: (
@@ -1850,6 +1859,7 @@ export const useStore = create<AppState>()((set, get) => {
 
       return {
         subscriptionPlan: 'solo' as SubscriptionPlan,
+        lastBillingSnapshot: null as BillingPlanSnapshot | null,
         profiles: [{ id: DEFAULT_PROFILE_ID, name: 'Meg' }],
         activeProfileId: DEFAULT_PROFILE_ID,
         financeScope: 'profile' as FinanceScope,
@@ -2636,6 +2646,25 @@ export const useStore = create<AppState>()((set, get) => {
           return { ok: true as const }
         },
 
+        applyBillingPlanSync: (billing) => {
+          const s = get()
+          const result = computeSyncAppPlan({
+            billing,
+            localPlan: s.subscriptionPlan,
+            profileCount: s.profiles.length,
+          })
+          if (result.action === 'set') {
+            set({
+              lastBillingSnapshot: billing,
+              subscriptionPlan: result.plan,
+              financeScope: 'profile',
+            })
+          } else {
+            set({ lastBillingSnapshot: billing })
+          }
+          return result
+        },
+
         setActiveProfileId: (id) => {
           const s = get()
           if (!s.profiles.some((p) => p.id === id)) return
@@ -2659,7 +2688,11 @@ export const useStore = create<AppState>()((set, get) => {
           const trimmed = name.trim()
           if (!trimmed) return { ok: false as const, reason: 'invalid_name' }
 
-          if (s.subscriptionPlan === 'solo' && s.profiles.length >= 1) {
+          const effectivePlan = getEffectiveSubscriptionPlan(
+            s.subscriptionPlan,
+            s.lastBillingSnapshot,
+          )
+          if (effectivePlan === 'solo' && s.profiles.length >= 1) {
             return { ok: false as const, reason: 'solo_limit' }
           }
           if (s.profiles.length >= MAX_FAMILY_PROFILES) {
@@ -2668,11 +2701,11 @@ export const useStore = create<AppState>()((set, get) => {
 
           const id = generateId()
           const initialPerson =
-            s.demoDataEnabled && s.subscriptionPlan === 'family'
+            s.demoDataEnabled && effectivePlan === 'family'
               ? createDemoPersonDataForProfile(
                   id,
                   s.budgetYear,
-                  getDemoVariantIndexForProfile(s.subscriptionPlan, s.profiles.length + 1, s.profiles.length),
+                  getDemoVariantIndexForProfile(effectivePlan, s.profiles.length + 1, s.profiles.length),
                 )
               : createEmptyPersonData()
           const nextPeople = { ...s.people, [id]: initialPerson }
@@ -5169,6 +5202,7 @@ export function resetStoreForLogout() {
   const initialPeople = { [DEFAULT_PROFILE_ID]: createEmptyPersonData() }
   useStore.setState({
     subscriptionPlan: 'solo',
+    lastBillingSnapshot: null,
     profiles: [{ id: DEFAULT_PROFILE_ID, name: 'Meg' }],
     activeProfileId: DEFAULT_PROFILE_ID,
     financeScope: 'profile',

@@ -195,7 +195,7 @@ export const PRODUCT_FLOW_PHASES: ProductFlowPhase[] = [
       'I husholdningsvisning er mange skjemaer skrivebeskyttet — bytt til én profil når du skal endre budsjett eller transaksjoner for den personen.',
     expandedParagraphs: [
       'Familie-plan og Solo-plan i appen styres fra Betalinger-sammen med Stripe-abonnementet — se siden for detaljer.',
-      'Invitasjoner og antall profiler følger vilkår for Familie-abonnementet.',
+      'Opptil fem profiler under samme innlogging følger vilkår for Familie-abonnementet.',
     ],
     icon: Users,
     accent: '#7048E8',

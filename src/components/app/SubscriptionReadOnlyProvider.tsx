@@ -1,11 +1,20 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useStore } from '@/lib/store'
+import type { BillingPlan, BillingPlanSnapshot, SyncAppPlanResult } from '@/lib/stripe/syncAppSubscriptionPlan'
+import {
+  billingSnapshotFromStripeRow,
+  computeEffectiveSubscriptionPlan,
+  computePlanMismatch,
+  planSyncBlockedFromResult,
+} from '@/lib/stripe/subscriptionPlanContext'
+import type { SubscriptionPlan } from '@/lib/store'
 
 /** Tilgjengelig felt fra `/api/stripe/subscription` (stripe_subscription_id utelatt — ikke behøvd i UI). */
 export type StripeSubscriptionSummary = {
   status: string
-  plan: 'solo' | 'family' | null
+  plan: BillingPlan | null
   stripe_price_id: string | null
   current_period_end: string | null
   updated_at: string
@@ -22,6 +31,11 @@ type Ctx = {
   trialPeriodDays: number | null
   subscription: StripeSubscriptionSummary
   canOpenBillingPortal: boolean
+  billingPlan: BillingPlan | null
+  effectiveSubscriptionPlan: SubscriptionPlan
+  planSyncBlocked: { stripePlan: 'solo'; profileCount: number } | null
+  planMismatch: boolean
+  lastBillingSnapshot: BillingPlanSnapshot | null
 }
 
 const SubscriptionReadOnlyContext = createContext<Ctx>({
@@ -33,9 +47,28 @@ const SubscriptionReadOnlyContext = createContext<Ctx>({
   trialPeriodDays: null,
   subscription: null,
   canOpenBillingPortal: false,
+  billingPlan: null,
+  effectiveSubscriptionPlan: 'solo',
+  planSyncBlocked: null,
+  planMismatch: false,
+  lastBillingSnapshot: null,
 })
 
-export function SubscriptionReadOnlyProvider({ children }: { children: React.ReactNode }) {
+function applySubscriptionRowToStore(
+  row: { status: string; plan: BillingPlan | null } | null,
+): SyncAppPlanResult | null {
+  const billing = billingSnapshotFromStripeRow(row)
+  if (!billing) return null
+  return useStore.getState().applyBillingPlanSync(billing)
+}
+
+export function SubscriptionReadOnlyProvider({
+  children,
+  initialBilling,
+}: {
+  children: React.ReactNode
+  initialBilling?: BillingPlanSnapshot | null
+}) {
   const [appReadOnly, setAppReadOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [hasSubscriptionAccess, setHasSubscriptionAccess] = useState(false)
@@ -43,6 +76,16 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
   const [trialPeriodDays, setTrialPeriodDays] = useState<number | null>(null)
   const [subscription, setSubscription] = useState<StripeSubscriptionSummary>(null)
   const [canOpenBillingPortal, setCanOpenBillingPortal] = useState(false)
+  const [lastSyncResult, setLastSyncResult] = useState<SyncAppPlanResult | null>(null)
+
+  const localPlan = useStore((s) => s.subscriptionPlan)
+  const lastBillingSnapshot = useStore((s) => s.lastBillingSnapshot)
+
+  useEffect(() => {
+    if (!initialBilling) return
+    const result = useStore.getState().applyBillingPlanSync(initialBilling)
+    setLastSyncResult(result)
+  }, [initialBilling])
 
   const load = useCallback(async () => {
     try {
@@ -54,6 +97,7 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
         setTrialPeriodDays(null)
         setSubscription(null)
         setCanOpenBillingPortal(false)
+        setLastSyncResult(null)
         return
       }
       const data = (await res.json()) as {
@@ -63,7 +107,7 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
         trialPeriodDays?: number | null
         subscription?: {
           status: string
-          plan: 'solo' | 'family' | null
+          plan: BillingPlan | null
           stripe_price_id: string | null
           current_period_end: string | null
           updated_at: string
@@ -76,20 +120,20 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
       setTrialPeriodDays(typeof data.trialPeriodDays === 'number' ? data.trialPeriodDays : null)
       setCanOpenBillingPortal(Boolean(data.canOpenBillingPortal))
       const row = data.subscription
-      if (
-        row &&
-        typeof row.status === 'string' &&
-        typeof row.updated_at === 'string'
-      ) {
-        setSubscription({
+      if (row && typeof row.status === 'string' && typeof row.updated_at === 'string') {
+        const summary: StripeSubscriptionSummary = {
           status: row.status,
           plan: row.plan ?? null,
           stripe_price_id: row.stripe_price_id ?? null,
           current_period_end: row.current_period_end ?? null,
           updated_at: row.updated_at,
-        })
+        }
+        setSubscription(summary)
+        const syncResult = applySubscriptionRowToStore(summary)
+        setLastSyncResult(syncResult)
       } else {
         setSubscription(null)
+        setLastSyncResult(null)
       }
     } catch {
       setAppReadOnly(false)
@@ -98,6 +142,7 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
       setTrialPeriodDays(null)
       setSubscription(null)
       setCanOpenBillingPortal(false)
+      setLastSyncResult(null)
     } finally {
       setLoading(false)
     }
@@ -113,6 +158,26 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
     return () => window.removeEventListener('focus', onFocus)
   }, [load])
 
+  const billingForUi =
+    subscription != null
+      ? { plan: subscription.plan, status: subscription.status }
+      : lastBillingSnapshot
+
+  const effectiveSubscriptionPlan = useMemo(
+    () => computeEffectiveSubscriptionPlan(localPlan, billingForUi),
+    [localPlan, billingForUi],
+  )
+
+  const planMismatch = useMemo(
+    () => computePlanMismatch(localPlan, billingForUi),
+    [localPlan, billingForUi],
+  )
+
+  const planSyncBlocked = useMemo(
+    () => planSyncBlockedFromResult(lastSyncResult),
+    [lastSyncResult],
+  )
+
   const value = useMemo(
     () => ({
       appReadOnly,
@@ -123,6 +188,11 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
       trialPeriodDays,
       subscription,
       canOpenBillingPortal,
+      billingPlan: subscription?.plan ?? null,
+      effectiveSubscriptionPlan,
+      planSyncBlocked,
+      planMismatch,
+      lastBillingSnapshot,
     }),
     [
       appReadOnly,
@@ -133,6 +203,10 @@ export function SubscriptionReadOnlyProvider({ children }: { children: React.Rea
       trialPeriodDays,
       subscription,
       canOpenBillingPortal,
+      effectiveSubscriptionPlan,
+      planSyncBlocked,
+      planMismatch,
+      lastBillingSnapshot,
     ],
   )
 

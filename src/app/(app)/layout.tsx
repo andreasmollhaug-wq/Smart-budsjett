@@ -10,6 +10,7 @@ import { SubscriptionReadOnlyProvider } from '@/components/app/SubscriptionReadO
 import { createClient } from '@/lib/supabase/server'
 import { getDisplayNameFromUser } from '@/lib/authDisplayName'
 import { getOrCreateUserAppState } from '@/lib/userAppStateServer'
+import type { BillingPlanSnapshot } from '@/lib/stripe/syncAppSubscriptionPlan'
 
 /** Auth + Supabase-data krever server-request; unngår statisk prerender uten miljøvariabler. */
 export const dynamic = 'force-dynamic'
@@ -27,10 +28,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { state, wasCreated } = await getOrCreateUserAppState(supabase, user.id, user.email)
   const displayName = getDisplayNameFromUser(user)
 
+  const { data: subRow } = await supabase
+    .from('user_subscription')
+    .select('status, plan')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  const initialBilling: BillingPlanSnapshot | null = subRow
+    ? {
+        status: subRow.status ?? null,
+        plan:
+          subRow.plan === 'solo' || subRow.plan === 'family' ? subRow.plan : null,
+      }
+    : null
+
   return (
-    <AppStateProvider initialState={state} wasCreated={wasCreated} userId={user.id}>
+    <AppStateProvider
+      initialState={state}
+      wasCreated={wasCreated}
+      userId={user.id}
+      initialBilling={initialBilling}
+    >
       <AppUserProvider displayName={displayName} isFirstAppState={wasCreated}>
-        <SubscriptionReadOnlyProvider>
+        <SubscriptionReadOnlyProvider initialBilling={initialBilling}>
           <OnboardingHost />
           <div className="flex min-h-screen-dvh flex-col">
             <SubscriptionPastDueBanner />

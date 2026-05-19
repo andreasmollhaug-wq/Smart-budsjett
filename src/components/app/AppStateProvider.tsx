@@ -12,6 +12,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { RoadmapVisibleTimeInvite } from '@/components/app/RoadmapVisibleTimeInvite'
 import { applyUiPaletteToDocument } from '@/lib/uiColorPalette'
+import type { BillingPlanSnapshot } from '@/lib/stripe/syncAppSubscriptionPlan'
 
 const DEBOUNCE_MS = 1500
 
@@ -25,11 +26,13 @@ export function AppStateProvider({
   initialState,
   wasCreated,
   userId,
+  initialBilling,
 }: {
   children: React.ReactNode
   initialState: unknown
   wasCreated: boolean
   userId: string
+  initialBilling?: BillingPlanSnapshot | null
 }) {
   const syncReady = useRef(false)
   /** Skiller første lasting fra `router.refresh()` — se `hydrateFromServerRefresh`. */
@@ -61,8 +64,12 @@ export function AppStateProvider({
     useStore.getState().syncProductAnnouncements()
     useStore.getState().syncInsightNotifications()
 
+    if (initialBilling) {
+      useStore.getState().applyBillingPlanSync(initialBilling)
+    }
+
     syncReady.current = true
-  }, [initialState, wasCreated])
+  }, [initialState, wasCreated, initialBilling])
 
   useEffect(() => {
     applyUiPaletteToDocument(useStore.getState().uiColorPalette)

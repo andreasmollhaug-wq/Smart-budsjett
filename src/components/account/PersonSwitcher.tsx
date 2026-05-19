@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useActivePersonFinance, MAX_FAMILY_PROFILES } from '@/lib/store'
 import { ChildEmojiPicker } from '@/features/hjemflyt/ChildEmojiPicker'
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import UpgradeSubscriptionModal from './UpgradeSubscriptionModal'
 
 export default function PersonSwitcher() {
@@ -11,13 +12,20 @@ export default function PersonSwitcher() {
     profiles,
     activeProfileId,
     setActiveProfileId,
-    subscriptionPlan,
     addProfile,
     financeScope,
     setFinanceScope,
   } = useActivePersonFinance()
+  const { effectiveSubscriptionPlan, planMismatch, refresh } = useSubscriptionReadOnly()
+  const mismatchRefreshDone = useRef(false)
 
-  const showHouseholdOption = subscriptionPlan === 'family' && profiles.length >= 2
+  useEffect(() => {
+    if (!planMismatch || mismatchRefreshDone.current) return
+    mismatchRefreshDone.current = true
+    void refresh()
+  }, [planMismatch, refresh])
+
+  const showHouseholdOption = effectiveSubscriptionPlan === 'family' && profiles.length >= 2
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const [nameOpen, setNameOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -27,7 +35,7 @@ export default function PersonSwitcher() {
   const showAddButton = profiles.length < MAX_FAMILY_PROFILES
 
   const handleAddClick = () => {
-    if (subscriptionPlan === 'solo' && profiles.length >= 1) {
+    if (effectiveSubscriptionPlan === 'solo' && profiles.length >= 1) {
       setUpgradeOpen(true)
       return
     }
@@ -120,7 +128,7 @@ export default function PersonSwitcher() {
                 color: 'var(--primary)',
                 background: 'transparent',
               }}
-              title={subscriptionPlan === 'solo' ? 'Legg til person (krever Familie)' : 'Legg til person'}
+              title={effectiveSubscriptionPlan === 'solo' ? 'Legg til person (krever Familie)' : 'Legg til person'}
             >
               <Plus size={14} />
               Legg til
@@ -160,7 +168,7 @@ export default function PersonSwitcher() {
               style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)' }}
               placeholder="F.eks. partner"
             />
-            {subscriptionPlan === 'family' && (
+            {effectiveSubscriptionPlan === 'family' && (
               <label className="mt-3 flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
                 <input
                   type="checkbox"
@@ -173,7 +181,7 @@ export default function PersonSwitcher() {
                 <span style={{ color: 'var(--text)' }}>Barn (HjemFlyt barnevisning + valgfri emoji)</span>
               </label>
             )}
-            {subscriptionPlan === 'family' && newProfileAsChild && (
+            {effectiveSubscriptionPlan === 'family' && newProfileAsChild && (
               <div className="mt-3 max-h-48 overflow-y-auto">
                 <ChildEmojiPicker value={childEmoji} onChange={setChildEmoji} />
               </div>

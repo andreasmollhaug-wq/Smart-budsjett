@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { CreditCard, Check, ExternalLink, Loader2 } from 'lucide-react'
 import { useActivePersonFinance, useStore } from '@/lib/store'
@@ -84,7 +85,15 @@ function BetalingerContent() {
   const reason = searchParams.get('reason')
   const trialWelcome = searchParams.get('trial')
 
-  const { trialPeriodDays, subscription: stripeSub, canOpenBillingPortal, refresh } = useSubscriptionReadOnly()
+  const {
+    trialPeriodDays,
+    subscription: stripeSub,
+    canOpenBillingPortal,
+    refresh,
+    planSyncBlocked,
+    planMismatch,
+    effectiveSubscriptionPlan,
+  } = useSubscriptionReadOnly()
   const [trialModalOpen, setTrialModalOpen] = useState(false)
 
   const { subscriptionPlan, setSubscriptionPlan } = useActivePersonFinance()
@@ -160,7 +169,7 @@ function BetalingerContent() {
     router.replace(q ? `/konto/betalinger?${q}` : '/konto/betalinger')
   }, [router, searchParams])
 
-  /** Setter app-plan (profiler) og sender til Stripe Checkout – én handling per kort. */
+  /** Solo krever én profil lokalt; Familie-plan i app synkes etter vellykket Stripe Checkout. */
   const subscribeWithPlan = async (plan: 'solo' | 'family') => {
     setDowngradeError(false)
     setCheckoutError(null)
@@ -171,11 +180,12 @@ function BetalingerContent() {
         setDowngradeError(true)
         return
       }
-    } else {
-      setSubscriptionPlan('family')
     }
     await startStripeCheckout(plan)
   }
+
+  const stripePlanUnknown =
+    paidActive && stripeSub && stripeSub.plan == null
 
   const startStripeCheckout = async (plan: 'solo' | 'family') => {
     setCheckoutError(null)
@@ -286,7 +296,68 @@ function BetalingerContent() {
           style={{ background: 'color-mix(in srgb, #E03131 12%, transparent)', border: '1px solid #E03131', color: 'var(--text)' }}
         >
           Du kan ikke bytte til Solo mens du har mer enn én profil. Familie-planen passer flere brukere i samme
-          husholdning; for Solo må du kun ha én profil.
+          husholdning; for Solo må du kun ha én profil.{' '}
+          <Link href="/konto/profiler" className="underline font-medium" style={{ color: 'var(--primary)' }}>
+            Administrer profiler
+          </Link>
+        </div>
+      )}
+
+      {planSyncBlocked && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          role="alert"
+          style={{
+            background: 'color-mix(in srgb, #E03131 10%, transparent)',
+            border: '1px solid #E03131',
+            color: 'var(--text)',
+          }}
+        >
+          Stripe-abonnementet ditt er Solo, men du har {planSyncBlocked.profileCount} profiler i appen. Fjern ekstra
+          profiler under{' '}
+          <Link href="/konto/profiler" className="underline font-medium" style={{ color: 'var(--primary)' }}>
+            Profiler
+          </Link>{' '}
+          før du nedgraderer, så app og betaling samsvarer.
+        </div>
+      )}
+
+      {planMismatch && !planSyncBlocked && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          style={{
+            background: 'color-mix(in srgb, #F59F00 12%, transparent)',
+            border: '1px solid #F59F00',
+            color: 'var(--text)',
+          }}
+        >
+          <p className="m-0">
+            Stripe og appen viste ulik plan ({stripeSub?.plan === 'solo' ? 'Solo' : 'Familie'} i Stripe,{' '}
+            {subscriptionPlan === 'solo' ? 'Solo' : 'Familie'} lagret i appen). Vi oppdaterer vanligvis automatisk.
+          </p>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            className="mt-3 min-h-[44px] rounded-xl px-4 py-2 text-sm font-semibold touch-manipulation"
+            style={{ background: 'var(--primary)', color: '#fff' }}
+          >
+            Synk nå
+          </button>
+        </div>
+      )}
+
+      {stripePlanUnknown && (
+        <div
+          className="rounded-xl p-4 mb-6 text-sm"
+          role="alert"
+          style={{
+            background: 'color-mix(in srgb, #F59F00 12%, transparent)',
+            border: '1px solid #F59F00',
+            color: 'var(--text)',
+          }}
+        >
+          Abonnementet er aktivt i Stripe, men planen (Solo/Familie) kunne ikke leses. Dette skyldes som regel feil
+          price-ID i drift — kontakt support hvis «Legg til» profil ikke fungerer etter betaling.
         </div>
       )}
 
@@ -373,8 +444,8 @@ function BetalingerContent() {
           Abonnement
         </h2>
         <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-          Velg Solo eller Familie og betal med kort via Stripe. Valget styrer både abonnement og hvordan husholdningen
-          settes opp i appen (lagret på enheten).
+          Velg Solo eller Familie og betal med kort via Stripe. Etter vellykket betaling synkroniseres planen til appen
+          automatisk (profiler og husholdning).
         </p>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -383,7 +454,7 @@ function BetalingerContent() {
             style={{
               background: 'var(--bg)',
               border:
-                subscriptionPlan === 'solo' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                effectiveSubscriptionPlan === 'solo' ? '2px solid var(--primary)' : '1px solid var(--border)',
             }}
           >
             <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
@@ -432,7 +503,7 @@ function BetalingerContent() {
             style={{
               background: 'var(--bg)',
               border:
-                subscriptionPlan === 'family' ? '2px solid var(--primary)' : '1px solid var(--border)',
+                effectiveSubscriptionPlan === 'family' ? '2px solid var(--primary)' : '1px solid var(--border)',
             }}
           >
             <h3 className="text-lg font-semibold" style={{ color: 'var(--text)' }}>
