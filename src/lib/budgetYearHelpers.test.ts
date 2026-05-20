@@ -5,6 +5,7 @@ import {
   budgetedArrayForIncomeCategoryName,
   incomeMonthlyTotalsForCategories,
   reorderBudgetCategoriesForParent,
+  seedArchivedBudgetCategoriesZeroed,
   sumBudgetedIncomeForCategories,
   sumBudgetedIncomeForMonth,
 } from './budgetYearHelpers'
@@ -133,5 +134,22 @@ describe('reorderBudgetCategoriesForParent', () => {
     const list: BudgetCategory[] = [a, b]
     expect(reorderBudgetCategoriesForParent(list, 'inntekter', 'a', 'up')).toBe(list)
     expect(reorderBudgetCategoriesForParent(list, 'inntekter', 'b', 'down')).toBe(list)
+  })
+})
+
+describe('seedArchivedBudgetCategoriesZeroed', () => {
+  it('beholder linjer men nullstiller beløp', () => {
+    const list = [
+      cat({
+        name: 'Lønn',
+        budgeted: Array(12).fill(40_000),
+        spent: 12_000,
+      }),
+    ]
+    const out = seedArchivedBudgetCategoriesZeroed(list)
+    expect(out).toHaveLength(1)
+    expect(out[0]!.name).toBe('Lønn')
+    expect(out[0]!.budgeted).toEqual(Array(12).fill(0))
+    expect(out[0]!.spent).toBe(0)
   })
 })

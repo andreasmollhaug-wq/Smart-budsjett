@@ -53,9 +53,11 @@ import {
 } from './debtBudgetSync'
 import {
   cloneBudgetCategories,
+  seedArchivedBudgetCategoriesZeroed,
   sumTxForCategoryInYear,
   sumTxForCategoryInYearAllProfiles,
 } from './budgetYearHelpers'
+import { isSelectableActiveBudgetYear } from './financeYearOptions'
 import { actualsPerMonthForCategory, type BudgetYearCopySource } from './budgetActualsToBudgeted'
 import {
   createDefaultFormuebyggerPersistedState,
@@ -197,6 +199,10 @@ export type AddSharedHouseholdBudgetLineInput = {
 export type SwitchActiveBudgetYearResult =
   | { ok: true }
   | { ok: false; reason: 'not_in_archive' | 'missing_profile_snapshot' }
+
+export type EnsureArchivedBudgetYearResult =
+  | { ok: true; created: boolean }
+  | { ok: false; reason: 'same_as_active' | 'invalid_year' }
 
 export type { LabelLists }
 export type { ParentCategory } from './budgetCategoryCatalog'
@@ -646,6 +652,8 @@ interface AppState {
     expenses?: BudgetYearCopySource
   }) => void
   switchActiveBudgetYear: (targetYear: number) => SwitchActiveBudgetYearResult
+  /** Oppretter arkiv-snapshot for et visningsår (linjer fra aktiv plan, beløp nullstilt). */
+  ensureArchivedBudgetYear: (targetYear: number) => EnsureArchivedBudgetYearResult
 
   /** Kun når `archivedBudgetsByYear` er tom (ny bruker / ingen arkiv). */
   setBudgetYear: (year: number) => void
@@ -3305,12 +3313,35 @@ export const useStore = create<AppState>()((set, get) => {
           return { ok: true as const }
         },
 
+        ensureArchivedBudgetYear: (targetYear) => {
+          const s = get()
+          const y = Math.floor(targetYear)
+          if (!Number.isFinite(y)) return { ok: false as const, reason: 'invalid_year' as const }
+          if (y === s.budgetYear) return { ok: false as const, reason: 'same_as_active' as const }
+          const key = String(y)
+          if (s.archivedBudgetsByYear[key]) return { ok: true as const, created: false as const }
+
+          const byProfile: Record<string, BudgetCategory[]> = {}
+          for (const pr of s.profiles) {
+            const p = s.people[pr.id]
+            if (!p) continue
+            byProfile[pr.id] = seedArchivedBudgetCategoriesZeroed(p.budgetCategories)
+          }
+
+          set({
+            archivedBudgetsByYear: {
+              ...s.archivedBudgetsByYear,
+              [key]: byProfile,
+            },
+          })
+          return { ok: true as const, created: true as const }
+        },
+
         setBudgetYear: (year) => {
           const s = get()
           if (Object.keys(s.archivedBudgetsByYear).length > 0) return
           const y = Math.floor(year)
-          const cy = new Date().getFullYear()
-          if (y < cy - 2 || y > cy + 2) return
+          if (!isSelectableActiveBudgetYear(y)) return
           set(() => {
             const nextPeople: Record<string, PersonData> = { ...s.people }
             for (const pr of s.profiles) {
@@ -5245,6 +5276,7 @@ export function useActivePersonFinance() {
       archivedBudgetsByYear: s.archivedBudgetsByYear,
       startNewBudgetYear: s.startNewBudgetYear,
       switchActiveBudgetYear: s.switchActiveBudgetYear,
+      ensureArchivedBudgetYear: s.ensureArchivedBudgetYear,
       addTransaction: s.addTransaction,
       addTransactions: s.addTransactions,
       removeTransaction: s.removeTransaction,
@@ -5401,5 +5433,6 @@ export function useActivePersonFinance() {
     archivedBudgetsByYear: state.archivedBudgetsByYear,
     startNewBudgetYear: state.startNewBudgetYear,
     switchActiveBudgetYear: state.switchActiveBudgetYear,
+    ensureArchivedBudgetYear: state.ensureArchivedBudgetYear,
   }
 }

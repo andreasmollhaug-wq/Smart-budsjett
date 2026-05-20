@@ -16,6 +16,7 @@ import {
   sumTransactionsByCategoryForMonth,
 } from '@/lib/bankReportData'
 import { exportBankReportPdf } from '@/lib/exportBankReportPdf'
+import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 import {
   aggregateHouseholdData,
   createEmptyPersonData,
@@ -67,6 +68,7 @@ export default function RapportBankPage() {
     transactions,
     budgetCategories,
     budgetYear,
+    archivedBudgetsByYear,
     debts,
     savingsGoals,
     investments,
@@ -203,12 +205,20 @@ export default function RapportBankPage() {
     [reportFinance.transactions, reportFinance.budgetCategories, year, monthIndex, people, reportLabelLists],
   )
 
-  const yearOptions = useMemo(() => {
-    const y = new Date().getFullYear()
-    const base = Array.from({ length: 11 }, (_, i) => y - 5 + i)
-    const set = new Set([...base, budgetYear])
-    return [...set].sort((a, b) => a - b)
-  }, [budgetYear])
+  const yearOptions = useMemo(
+    () =>
+      buildFinanceViewYearOptions({
+        budgetYear,
+        transactions: reportFinance.transactions ?? [],
+        archivedBudgetsByYear,
+        selectedViewYear: year,
+      }).sort((a, b) => a - b),
+    [budgetYear, reportFinance.transactions, archivedBudgetsByYear, year],
+  )
+
+  useEffect(() => {
+    if (!yearOptions.includes(year)) setYear(budgetYear)
+  }, [yearOptions, year, budgetYear])
 
   const toggleSection = (key: BankReportSectionKey) => {
     setSections((s) => ({ ...s, [key]: !s[key] }))

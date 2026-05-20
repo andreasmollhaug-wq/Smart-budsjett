@@ -14,6 +14,7 @@ import {
   periodSubtitle,
   type PeriodMode,
 } from '@/lib/budgetPeriod'
+import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 import { buildHouseholdPeriodData } from '@/lib/householdDashboardData'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
@@ -63,12 +64,20 @@ export default function BudsjettHusholdningPage() {
     [people, archivedBudgetsByYear, profiles, budgetYear, year, start, end, transactions],
   )
 
-  const yearOptions = useMemo(() => {
-    const y = new Date().getFullYear()
-    const window = Array.from({ length: 11 }, (_, i) => y - 5 + i)
-    const set = new Set<number>([budgetYear, year, ...Object.keys(archivedBudgetsByYear).map(Number), ...window])
-    return [...set].sort((a, b) => b - a)
-  }, [budgetYear, archivedBudgetsByYear, year])
+  const yearOptions = useMemo(
+    () =>
+      buildFinanceViewYearOptions({
+        budgetYear,
+        transactions: transactions ?? [],
+        archivedBudgetsByYear,
+        selectedViewYear: year,
+      }),
+    [budgetYear, transactions, archivedBudgetsByYear, year],
+  )
+
+  useEffect(() => {
+    if (!yearOptions.includes(year)) setYear(budgetYear)
+  }, [yearOptions, year, budgetYear])
 
   const subtitle = periodSubtitle(periodMode, year, monthIndex)
   const helpIngress = periodHelpText(periodMode)

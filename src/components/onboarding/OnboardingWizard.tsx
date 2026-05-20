@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useStore, ONBOARDING_MAIN_INCOME_CATEGORY_ID } from '@/lib/store'
 import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
+import { buildSelectableActiveBudgetYearOptions } from '@/lib/financeYearOptions'
 import { formatThousands, parseThousands } from '@/lib/utils'
 
 const TOTAL_STEPS = 6
@@ -32,8 +33,7 @@ export default function OnboardingWizard() {
   const [incomeWithholdPercent, setIncomeWithholdPercent] = useState('32')
 
   const archiveEmpty = Object.keys(archivedBudgetsByYear).length === 0
-  const cy = new Date().getFullYear()
-  const yearOptions = [cy - 2, cy - 1, cy, cy + 1, cy + 2]
+  const yearOptions = buildSelectableActiveBudgetYearOptions()
 
   useEffect(() => {
     setStep(0)

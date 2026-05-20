@@ -89,6 +89,15 @@ export function cloneBudgetCategories(cats: BudgetCategory[]): BudgetCategory[] 
   }))
 }
 
+/** Nytt arkivår: behold linjestruktur fra aktiv plan, nullstill månedbeløp og spent. */
+export function seedArchivedBudgetCategoriesZeroed(cats: BudgetCategory[]): BudgetCategory[] {
+  return cloneBudgetCategories(cats).map((c) => ({
+    ...c,
+    budgeted: Array(12).fill(0),
+    spent: 0,
+  }))
+}
+
 /**
  * Bytter plass på to påfølgende budsjettlinjer innenfor samme `parentCategory`
  * i den rekkefølgen de opptrer i `cats` (andre hovedgrupper kan ligge imellom).

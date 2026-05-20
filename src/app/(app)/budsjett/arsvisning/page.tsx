@@ -34,6 +34,7 @@ import {
   type ArsvisningRowVisibility,
 } from '@/lib/budgetYearMatrixHelpers'
 import { buildArsvisningDataInsights, summarizeBudgetVsRows } from '@/lib/dashboardOverviewHelpers'
+import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import { AlertTriangle, ChevronDown, Scale, TrendingDown, Wallet } from 'lucide-react'
@@ -194,12 +195,20 @@ export default function BudsjettArsvisningPage() {
     [transactions, year, displayCategories, people, labelLists],
   )
 
-  const yearOptions = useMemo(() => {
-    const y = new Date().getFullYear()
-    const window = Array.from({ length: 11 }, (_, i) => y - 5 + i)
-    const set = new Set<number>([budgetYear, year, ...Object.keys(archivedBudgetsByYear).map(Number), ...window])
-    return [...set].sort((a, b) => b - a)
-  }, [budgetYear, archivedBudgetsByYear, year])
+  const yearOptions = useMemo(
+    () =>
+      buildFinanceViewYearOptions({
+        budgetYear,
+        transactions: transactions ?? [],
+        archivedBudgetsByYear,
+        selectedViewYear: year,
+      }),
+    [budgetYear, transactions, archivedBudgetsByYear, year],
+  )
+
+  useEffect(() => {
+    if (!yearOptions.includes(year)) setYear(budgetYear)
+  }, [yearOptions, year, budgetYear])
 
   const subtitle = periodSubtitle(periodMode, year, monthIndex)
   const kpiSub = `${subtitle} (KPI)`

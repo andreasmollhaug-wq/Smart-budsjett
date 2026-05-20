@@ -56,6 +56,7 @@ import {
 import { amountReferencesSumMatchesLine, impliedNewMonthTotal } from '@/lib/householdBudgetSplit'
 import { applyOnceMonthIndexChange } from '@/lib/budget/applyOnceMonthIndexChange'
 import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
+import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 const MONTHS_FULL = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember']
@@ -141,11 +142,13 @@ function applyBudgetAmountCellChange(
 
 export default function BudsjettPage() {
   const {
+    transactions,
     budgetCategories,
     budgetYear,
     archivedBudgetsByYear,
     startNewBudgetYear,
     switchActiveBudgetYear,
+    ensureArchivedBudgetYear,
     profiles,
     activeProfileId,
     customBudgetLabels,
@@ -214,10 +217,20 @@ export default function BudsjettPage() {
     activeProfileId,
   ])
 
-  const yearOptions = useMemo(() => {
-    const s = new Set<number>([budgetYear, ...Object.keys(archivedBudgetsByYear).map(Number)])
-    return [...s].sort((a, b) => b - a)
-  }, [budgetYear, archivedBudgetsByYear])
+  const yearOptions = useMemo(
+    () =>
+      buildFinanceViewYearOptions({
+        budgetYear,
+        transactions: transactions ?? [],
+        archivedBudgetsByYear,
+        selectedViewYear: viewingYear,
+      }),
+    [budgetYear, transactions, archivedBudgetsByYear, viewingYear],
+  )
+
+  useEffect(() => {
+    if (!yearOptions.includes(viewingYear)) setViewingYear(budgetYear)
+  }, [yearOptions, viewingYear, budgetYear])
 
   const getHouseholdLineBreakdown = useCallback(
     (parentCategory: ParentCategory, categoryName: string) => {
@@ -235,8 +248,14 @@ export default function BudsjettPage() {
   )
 
   const readOnly = isHouseholdAggregate || viewingYear !== budgetYear
+  const hasArchiveForViewingYear = Boolean(archivedBudgetsByYear[String(viewingYear)])
   const canOpenArchiveForEdit =
-    viewingYear !== budgetYear && !isHouseholdAggregate && Boolean(archivedBudgetsByYear[String(viewingYear)])
+    viewingYear !== budgetYear && !isHouseholdAggregate && hasArchiveForViewingYear
+  const canCreateBudgetPlanForViewingYear =
+    viewingYear !== budgetYear &&
+    !isHouseholdAggregate &&
+    !hasArchiveForViewingYear &&
+    yearOptions.includes(viewingYear)
 
   useEffect(() => {
     if (readOnly) setAddModalGroup(null)
@@ -650,7 +669,9 @@ export default function BudsjettPage() {
         title="Budsjett"
         subtitle={
           viewingYear !== budgetYear
-            ? `Arkiv ${viewingYear} (kun visning) · Aktivt budsjettår er ${budgetYear}`
+            ? hasArchiveForViewingYear
+              ? `Arkiv ${viewingYear} (kun visning) · Aktivt budsjettår er ${budgetYear}`
+              : `Visning ${viewingYear} · ingen budsjettplan ennå · Aktivt år er ${budgetYear}`
             : 'Budsjetter per måned for fullstendig kontroll'
         }
       />
@@ -767,6 +788,31 @@ export default function BudsjettPage() {
             merket «Fordelt» er budsjettert per person ut fra husholdningens valg.
           </div>
         )}
+        {canCreateBudgetPlanForViewingYear && (
+          <div
+            className="rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm"
+            style={{
+              background: 'var(--primary-pale)',
+              border: '1px solid var(--accent)',
+              color: 'var(--text)',
+            }}
+          >
+            <span>
+              Du har transaksjoner i {viewingYear}, men ingen budsjettplan for det året ennå. Opprett plan med samme
+              linjer som i {budgetYear} (beløp nullstilles), deretter kan du fylle inn og redigere.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                ensureArchivedBudgetYear(viewingYear)
+              }}
+              className="px-3 py-2 rounded-xl font-medium shrink-0 min-h-[44px] touch-manipulation"
+              style={{ background: 'var(--primary)', color: 'white' }}
+            >
+              Opprett budsjettplan for {viewingYear}
+            </button>
+          </div>
+        )}
         {canOpenArchiveForEdit && (
           <div
             className="rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm"
@@ -777,15 +823,16 @@ export default function BudsjettPage() {
             }}
           >
             <span>
-              Du viser arkiv for {viewingYear}. Aktivt budsjettår er {budgetYear}.
+              Du viser budsjettplan for {viewingYear}. Aktivt budsjettår er fortsatt {budgetYear} til du åpner året
+              for redigering.
             </span>
             <button
               type="button"
               onClick={() => setOpenArchiveModalOpen(true)}
-              className="px-3 py-2 rounded-xl font-medium shrink-0"
+              className="px-3 py-2 rounded-xl font-medium shrink-0 min-h-[44px] touch-manipulation"
               style={{ background: 'var(--primary)', color: 'white' }}
             >
-              Åpne {viewingYear} for redigering
+              Rediger budsjett for {viewingYear}
             </button>
           </div>
         )}

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import type { ParentCategory } from '@/lib/budgetCategoryCatalog'
 import { REPORT_GROUP_ORDER } from '@/lib/bankReportData'
 import { effectiveIncomeTransactionAmount } from '@/lib/incomeWithholding'
+import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 import { useActivePersonFinance, useStore } from '@/lib/store'
 import type { BudgetCategory } from '@/lib/store'
 import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
@@ -121,16 +122,20 @@ export function useTransaksjonerFilters() {
     setFilterCategory('all')
   }, [allCats, filterCategory, transactions])
 
-  const yearOptions = useMemo(() => {
-    const y = new Set<number>([budgetYear, new Date().getFullYear(), filterYear])
-    for (const t of transactions) {
-      const d = t.date
-      if (!d || typeof d !== 'string') continue
-      const yy = parseInt(d.slice(0, 4), 10)
-      if (Number.isFinite(yy)) y.add(yy)
-    }
-    return [...y].sort((a, b) => b - a)
-  }, [transactions, budgetYear, filterYear])
+  const yearOptions = useMemo(
+    () =>
+      buildFinanceViewYearOptions({
+        budgetYear,
+        transactions: transactions ?? [],
+        archivedBudgetsByYear,
+        selectedViewYear: filterYear,
+      }),
+    [transactions, budgetYear, archivedBudgetsByYear, filterYear],
+  )
+
+  useEffect(() => {
+    if (!yearOptions.includes(filterYear)) setFilterYear(budgetYear)
+  }, [yearOptions, filterYear, budgetYear])
 
   const txInPeriod = useMemo(
     () =>

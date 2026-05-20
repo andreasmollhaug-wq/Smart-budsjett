@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import { useAppUser } from '@/components/app/AppUserContext'
+import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
 import {
   buildBudgetVsActualForPeriod,
@@ -128,20 +129,20 @@ export default function DashboardPage() {
     setMonthIndex(referenceMonthIndexForBudgetYear(filterYear))
   }, [filterYear])
 
-  const yearOptions = useMemo(() => {
-    const y = new Set<number>([budgetYear, filterYear])
-    for (const t of transactions ?? []) {
-      const d = t.date
-      if (typeof d !== 'string' || d.length < 4) continue
-      const yy = Number.parseInt(d.slice(0, 4), 10)
-      if (Number.isFinite(yy)) y.add(yy)
-    }
-    for (const k of Object.keys(archivedBudgetsByYear)) {
-      const n = Number(k)
-      if (Number.isFinite(n)) y.add(n)
-    }
-    return [...y].sort((a, b) => b - a)
-  }, [budgetYear, filterYear, transactions, archivedBudgetsByYear])
+  const yearOptions = useMemo(
+    () =>
+      buildFinanceViewYearOptions({
+        budgetYear,
+        transactions: transactions ?? [],
+        archivedBudgetsByYear,
+        selectedViewYear: filterYear,
+      }),
+    [budgetYear, filterYear, transactions, archivedBudgetsByYear],
+  )
+
+  useEffect(() => {
+    if (!yearOptions.includes(filterYear)) setFilterYear(budgetYear)
+  }, [yearOptions, filterYear, budgetYear])
 
   const displayCategories = useMemo(() => {
     if (filterYear === budgetYear) return budgetCategories
