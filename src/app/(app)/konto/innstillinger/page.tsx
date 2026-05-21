@@ -10,15 +10,18 @@ import {
   Palette,
   ChevronRight,
   PanelLeft,
+  Receipt,
 } from 'lucide-react'
 import type { SidebarNavMode } from '@/lib/sidebarNavMode'
-import { useStore, type BudgetCategory } from '@/lib/store'
+import { DEFAULT_PROFILE_ID, useStore, type BudgetCategory } from '@/lib/store'
 import { UI_COLOR_PALETTE_OPTIONS } from '@/lib/uiColorPalette'
 import { normalizeIncomeWithholdingRule } from '@/lib/incomeWithholding'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BudgetSetupChecklistCard from '@/components/konto/BudgetSetupChecklistCard'
+import ProfileClearTransactionsControl from '@/components/konto/ProfileClearTransactionsControl'
+import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 
 /** Stabile tomme referanser — `?? []` / `?? {}` i Zustand-selectorer gir ny referanse hver gang og utløser React 18 getSnapshot-loop. */
 const EMPTY_BUDGET_CATEGORIES: BudgetCategory[] = []
@@ -690,6 +693,39 @@ function StartveiledningCard() {
   )
 }
 
+function SoloTransactionsCard() {
+  const { effectiveSubscriptionPlan } = useSubscriptionReadOnly()
+  const profiles = useStore((s) => s.profiles)
+  const people = useStore((s) => s.people)
+
+  if (effectiveSubscriptionPlan !== 'solo') return null
+
+  const profile = profiles[0]
+  const profileId = profile?.id ?? DEFAULT_PROFILE_ID
+  const profileName = profile?.name.trim() || 'Meg'
+  const transactionCount = people[profileId]?.transactions.length ?? 0
+
+  return (
+    <div
+      className="rounded-2xl p-6"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <h2 className="font-semibold mb-2 flex items-center gap-2" style={{ color: 'var(--text)' }}>
+        <Receipt size={16} style={{ color: 'var(--primary)' }} />
+        Transaksjonsdata
+      </h2>
+      <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+        Tøm all transaksjonshistorikk og start på nytt. Budsjett, sparing og øvrige data beholdes.
+      </p>
+      <ProfileClearTransactionsControl
+        profileId={profileId}
+        profileName={profileName}
+        transactionCount={transactionCount}
+      />
+    </div>
+  )
+}
+
 export default function KontoInnstillingerPage() {
   const budgetYear = useStore((s) => s.budgetYear)
   const budgetCategories = useStore((s) => {
@@ -708,6 +744,8 @@ export default function KontoInnstillingerPage() {
         </h2>
         <ProfileSettingsForm />
       </div>
+
+      <SoloTransactionsCard />
 
       <ShowAmountDecimalsCard />
 

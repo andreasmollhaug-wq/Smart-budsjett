@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChildEmojiPicker } from '@/features/hjemflyt/ChildEmojiPicker'
+import ProfileClearTransactionsControl from '@/components/konto/ProfileClearTransactionsControl'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import { DEFAULT_PROFILE_ID, useStore } from '@/lib/store'
 import type { HjemflytProfileMeta } from '@/features/hjemflyt/types'
@@ -13,6 +14,7 @@ export default function KontoProfilerPage() {
   const router = useRouter()
   const { effectiveSubscriptionPlan } = useSubscriptionReadOnly()
   const profiles = useStore((s) => s.profiles)
+  const people = useStore((s) => s.people)
   const renameProfile = useStore((s) => s.renameProfile)
   const removeProfile = useStore((s) => s.removeProfile)
   const activeProfileId = useStore((s) => s.activeProfileId)
@@ -53,6 +55,7 @@ export default function KontoProfilerPage() {
               isPrimary={p.id === DEFAULT_PROFILE_ID}
               hjemflyt={p.hjemflyt}
               isHjemflytAdmin={activeProfileId === DEFAULT_PROFILE_ID}
+              transactionCount={people[p.id]?.transactions.length ?? 0}
               setProfileHjemflytMeta={setProfileHjemflytMeta}
               renameProfile={renameProfile}
               removeProfile={removeProfile}
@@ -80,6 +83,7 @@ function ProfileRow({
   isPrimary,
   hjemflyt,
   isHjemflytAdmin,
+  transactionCount,
   setProfileHjemflytMeta,
   renameProfile,
   removeProfile,
@@ -89,6 +93,7 @@ function ProfileRow({
   isPrimary: boolean
   hjemflyt?: HjemflytProfileMeta
   isHjemflytAdmin: boolean
+  transactionCount: number
   setProfileHjemflytMeta: (
     profileId: string,
     meta: { kind: 'adult' | 'child'; childEmoji?: string | null } | null,
@@ -125,6 +130,14 @@ function ProfileRow({
         renameProfile={renameProfile}
         showRemove={!isPrimary}
         onRequestRemove={() => setRemoveModalOpen(true)}
+        trailing={
+          <ProfileClearTransactionsControl
+            variant="compact"
+            profileId={id}
+            profileName={name.trim() || 'denne profilen'}
+            transactionCount={transactionCount}
+          />
+        }
       />
       {isPrimary && (
         <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
@@ -259,12 +272,14 @@ function RenameInline({
   renameProfile,
   showRemove,
   onRequestRemove,
+  trailing,
 }: {
   id: string
   initialName: string
   renameProfile: (id: string, name: string) => void
   showRemove?: boolean
   onRequestRemove?: () => void
+  trailing?: ReactNode
 }) {
   const [value, setValue] = useState(initialName)
   useEffect(() => {
@@ -305,6 +320,7 @@ function RenameInline({
           Fjern profil
         </button>
       )}
+      {trailing}
     </div>
   )
 }

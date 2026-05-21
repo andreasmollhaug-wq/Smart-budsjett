@@ -543,6 +543,9 @@ interface AppState {
   removeProfile: (id: string) =>
     | { ok: true }
     | { ok: false; reason: 'last_profile' | 'unknown_profile' | 'primary_locked' }
+  clearAllTransactionsForProfile: (profileId: string) =>
+    | { ok: true; removedCount: number }
+    | { ok: false; reason: 'unknown_profile' | 'empty' }
 
   addTransaction: (t: Transaction) => void
   addTransactions: (transactions: Transaction[]) => void
@@ -2794,6 +2797,27 @@ export const useStore = create<AppState>()((set, get) => {
             hjemflyt: { ...h, pointBalances: hfPointBalances, tasks: hfTasks },
           })
           return { ok: true as const }
+        },
+
+        clearAllTransactionsForProfile: (profileId) => {
+          const s = get()
+          if (!s.profiles.some((p) => p.id === profileId)) {
+            return { ok: false as const, reason: 'unknown_profile' }
+          }
+          const person = s.people[profileId]
+          if (!person) return { ok: false as const, reason: 'unknown_profile' }
+          const removedCount = person.transactions.length
+          if (removedCount === 0) return { ok: false as const, reason: 'empty' }
+
+          const merged = syncLinkedSavingsGoalsCurrent({ ...person, transactions: [] }, profileId)
+          set({
+            people: {
+              ...s.people,
+              [profileId]: recalcPersonBudgetSpentForYear(merged, profileId, s.budgetYear),
+            },
+          })
+          get().syncInsightNotifications()
+          return { ok: true as const, removedCount }
         },
 
         setHjemflytSettings: (patch) => {
