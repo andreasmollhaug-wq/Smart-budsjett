@@ -248,7 +248,7 @@ export default function ManedsinnsiktPage() {
       <div className="print-hidden">
         <Header
           title="Månedsinnsikt"
-          subtitle="Faktisk mot budsjett, trender og kort oppsummering med EnkelExcel AI"
+          subtitle="Faktisk mot budsjett, trender og kort oppsummering med dottir AI"
         />
         <p
           className="px-4 sm:px-8 pt-3 pb-1 text-sm max-w-4xl mx-auto leading-snug min-w-0"
@@ -359,7 +359,7 @@ export default function ManedsinnsiktPage() {
                   AI-kvote (kalendermåned)
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  Gjelder generering av nytt sammendrag med EnkelExcel AI. PDF og utskrift teller ikke.
+                  Gjelder generering av nytt sammendrag med dottir AI. PDF og utskrift teller ikke.
                 </p>
               </div>
               {quotaLoading ? (

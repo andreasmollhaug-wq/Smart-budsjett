@@ -118,11 +118,11 @@ const features: FeatureItem[] = [
   {
     id: 'enkelexcel-ai',
     icon: MessageSquare,
-    title: 'EnkelExcel AI',
+    title: 'dottir AI',
     text: 'Spør om tall og budsjett i Dottir — et hjelpeverktøy, ikke personlig rådgivning.',
     color: '#364FC7',
     paragraphs: [
-      'EnkelExcel AI lar deg stille spørsmål om tallene og strukturen i Dottir, for eksempel hvordan kategorier henger sammen eller hvordan du finner noe i grensesnittet.',
+      'dottir AI lar deg stille spørsmål om tallene og strukturen i Dottir, for eksempel hvordan kategorier henger sammen eller hvordan du finner noe i grensesnittet.',
       'Svarene er automatiserte og kan ta feil — bruk dem som hjelp, ikke som juridisk, skattemessig eller personlig økonomisk rådgivning. Ved viktige valg bør du kontakte fagfolk.',
     ],
   },

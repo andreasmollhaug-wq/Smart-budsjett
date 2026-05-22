@@ -66,7 +66,7 @@ export default function EnkelExcelAiPage() {
   const [buyModalOpen, setBuyModalOpen] = useState(false)
   /** `at_quota`: tom for inkluderte meldinger; `optional`: kjøp ekstra før kvoten er tom. */
   const [buyModalContext, setBuyModalContext] = useState<'at_quota' | 'optional'>('at_quota')
-  const assistantName = 'EnkelExcel AI'
+  const assistantName = 'dottir AI'
 
   const initialMessages = useMemo<ChatMessage[]>(
     () => [
@@ -308,7 +308,7 @@ export default function EnkelExcelAiPage() {
         usage?: Partial<UsageState>
       }
       const reply = data.reply
-      if (!reply) throw new Error('Ingen svar fra EnkelExcel AI.')
+      if (!reply) throw new Error('Ingen svar fra dottir AI.')
 
       if (data.usage) {
         setUsage((prev) =>

@@ -42,7 +42,7 @@ const MODULES = [
 const STEPS = [
   { n: '1', title: 'Opprett konto', text: 'Start prøveperiode og fyll inn dine tall i Dottir — ferdig struktur, enkelt oppsett.' },
   { n: '2', title: 'Bruk appen som vanlig', text: 'Transaksjoner, budsjett og mål. Jo mer som ligger inne, desto nyttigere blir spørsmålene dine.' },
-  { n: '3', title: 'Spør EnkelExcel AI', text: 'Åpne assistenten og få svar med utgangspunkt i dataene dine — som hjelp, ikke personlig rådgivning.' },
+  { n: '3', title: 'Spør dottir AI', text: 'Åpne assistenten og få svar med utgangspunkt i dataene dine — som hjelp, ikke personlig rådgivning.' },
 ] as const
 
 export default function EnkelexcelAiLandingPreview() {
@@ -130,7 +130,7 @@ export default function EnkelexcelAiLandingPreview() {
             <BrandLogoMark size="xl" fetchPriority="high" alt="" />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold" style={{ color: 'var(--text)' }}>
-                EnkelExcel AI
+                dottir AI
               </p>
               <p className="truncate text-xs" style={{ color: 'var(--text-muted)' }}>
                 Forhåndsvisning
@@ -212,7 +212,7 @@ export default function EnkelexcelAiLandingPreview() {
               className="mx-auto mt-5 max-w-2xl text-base leading-relaxed sm:text-lg"
               style={{ color: 'var(--text-muted)' }}
             >
-              EnkelExcel AI er inne i appen: still spørsmål om budsjett, mønster, kategorier og veien videre — bygget på
+              dottir AI er inne i appen: still spørsmål om budsjett, mønster, kategorier og veien videre — bygget på
               strukturert utdrag fra Dottir, ikke gjetting.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -330,7 +330,7 @@ export default function EnkelexcelAiLandingPreview() {
               ))}
             </div>
             <p className="mx-auto mt-8 max-w-2xl text-center text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-              EnkelExcel AI får med et utdrag i hver melding; store datasett kan teknisk avkortes. Dette er et
+              dottir AI får med et utdrag i hver melding; store datasett kan teknisk avkortes. Dette er et
               hjelpeverktøy — svar kan ta feil; ved viktige valg, kontroller selv og ta kontakt med fagfolk der det trengs.
             </p>
           </div>
@@ -400,7 +400,7 @@ export default function EnkelexcelAiLandingPreview() {
               Klar for å prøve?
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm sm:text-base" style={{ color: 'var(--text-muted)' }}>
-              Opprett konto, logg inn, og åpne EnkelExcel AI fra menyen. Allerede bruker? Logg inn og gå rett til
+              Opprett konto, logg inn, og åpne dottir AI fra menyen. Allerede bruker? Logg inn og gå rett til
               assistenten.
             </p>
             <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">

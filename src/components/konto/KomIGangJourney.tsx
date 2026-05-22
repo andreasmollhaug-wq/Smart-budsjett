@@ -99,12 +99,12 @@ const STEPS: JourneyStep[] = [
     bullets: [
       'Rapport til bank og sparemålrapport: velg periode og bruk utskrift eller PDF der det støttes.',
       'Investering samler posisjoner og avkastning i appen — det erstatter ikke rådgivning.',
-      'EnkelExcel AI kan forklare hvordan funksjonene henger sammen og hjelpe deg innenfor det appen faktisk gjør.',
+      'dottir AI kan forklare hvordan funksjonene henger sammen og hjelpe deg innenfor det appen faktisk gjør.',
     ],
     primary: { href: '/rapporter', label: 'Rapporter' },
     extraLinks: [
       { href: '/investering', label: 'Investering' },
-      { href: '/enkelexcel-ai', label: 'EnkelExcel AI' },
+      { href: '/enkelexcel-ai', label: 'dottir AI' },
     ],
     pitfall:
       'AI gir ikke personlig økonomisk eller skatteråd — bruk den som brukshjelp og til å forstå appen.',
@@ -345,7 +345,7 @@ export default function KomIGangJourney() {
             Lurer du på noe underveis?
           </h2>
           <p className="text-sm leading-relaxed mb-3" style={{ color: 'var(--text-muted)' }}>
-            I EnkelExcel AI kan du spørre hvordan funksjoner fungerer i appen og få hjelp til å sette opp budsjett, sparing
+            I dottir AI kan du spørre hvordan funksjoner fungerer i appen og få hjelp til å sette opp budsjett, sparing
             og gjeld — innenfor det som faktisk støttes.
           </p>
           <Link
@@ -353,7 +353,7 @@ export default function KomIGangJourney() {
             className="inline-flex items-center gap-1.5 text-sm font-medium underline"
             style={{ color: 'var(--primary)' }}
           >
-            Åpne EnkelExcel AI
+            Åpne dottir AI
             <ArrowRight size={14} aria-hidden />
           </Link>
         </div>

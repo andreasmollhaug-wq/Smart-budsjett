@@ -106,11 +106,11 @@ const SHOTS: ShotConfig[] = [
   },
   {
     id: 'enkelexcel-ai',
-    label: 'EnkelExcel AI',
+    label: 'dottir AI',
     images: [
       {
         src: '/marketing/Excel%20AI%20alt%201.png',
-        alt: 'Skjermbilde av EnkelExcel AI i Dottir.',
+        alt: 'Skjermbilde av dottir AI i Dottir.',
         intrinsicWidth: 1478,
         intrinsicHeight: 950,
       },

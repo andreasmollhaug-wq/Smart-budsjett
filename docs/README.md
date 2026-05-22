@@ -6,7 +6,7 @@ Denne mappen samler **Markdown-filer** som beskriver produktet, prising, landing
 |-----|--------|
 | [PRODUKT.md](./PRODUKT.md) | Hva produktet er, for hvem, verdiforslag og merke |
 | [LANDING.md](./LANDING.md) | Struktur og budskap på forsiden (`/`, `/iris`) |
-| [PRIS-OG-ABONNEMENT.md](./PRIS-OG-ABONNEMENT.md) | Planer, priser, prøveperiode, Stripe og EnkelExcel AI |
+| [PRIS-OG-ABONNEMENT.md](./PRIS-OG-ABONNEMENT.md) | Planer, priser, prøveperiode, Stripe og dottir AI |
 | [DEMO.md](./DEMO.md) | Idéer til demo (valgfritt neste steg) |
 | [DESIGN.md](./DESIGN.md) | UI: farger, komponenter, samme stil som appen |
 | [INNHOLD.md](./INNHOLD.md) | Tone og språk (bokmål, «du») |

@@ -45,7 +45,7 @@ export default function RapporterPage() {
               Månedsinnsikt
             </h2>
             <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-              Faktisk mot budsjett, trender og kort oppsummering med EnkelExcel AI. Én AI-generering per kalendermåned.
+              Faktisk mot budsjett, trender og kort oppsummering med dottir AI. Én AI-generering per kalendermåned.
               Skriv ut eller lagre som PDF.
             </p>
           </div>

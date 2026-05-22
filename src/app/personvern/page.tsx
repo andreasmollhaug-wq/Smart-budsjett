@@ -55,7 +55,7 @@ export default function PersonvernPage() {
             betalingsleverandør; vi lagrer ikke fullt kortnummer på våre servere.
           </LegalLi>
           <LegalLi>
-            <strong style={{ color: 'var(--text)' }}>Bruk av EnkelExcel AI:</strong> meldinger du sender til AI-funksjonen og
+            <strong style={{ color: 'var(--text)' }}>Bruk av dottir AI:</strong> meldinger du sender til AI-funksjonen og
             nødvendig kontekst fra kontoen din for å besvare forespørselen, i samsvar med funksjonens formål og tekniske
             begrensninger.
           </LegalLi>
@@ -99,7 +99,7 @@ export default function PersonvernPage() {
             nettapplikasjonen.
           </LegalLi>
           <LegalLi>
-            <strong style={{ color: 'var(--text)' }}>OpenAI</strong> (eller tilsvarende) der du bruker EnkelExcel AI, for å
+            <strong style={{ color: 'var(--text)' }}>OpenAI</strong> (eller tilsvarende) der du bruker dottir AI, for å
             generere svar basert på forespørsel og tillatt kontekst.
           </LegalLi>
         </LegalUl>
@@ -140,7 +140,7 @@ export default function PersonvernPage() {
       <LegalSection title="8. Informasjonskapsler og lokal lagring">
         <LegalP>
           Tjenesten kan bruke teknisk nødvendige informasjonskapsler eller tilsvarende lagring for innlogging, sikkerhet og
-          preferanser. EnkelExcel AI kan bruke lokal lagring i nettleseren for å huske samtalehistorikk på enheten din; du kan
+          preferanser. dottir AI kan bruke lokal lagring i nettleseren for å huske samtalehistorikk på enheten din; du kan
           slette dette i nettleserens innstillinger.
         </LegalP>
       </LegalSection>

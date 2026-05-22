@@ -2,9 +2,9 @@ import type { Metadata } from 'next'
 import EnkelexcelAiLandingPreview from '@/components/marketing/EnkelexcelAiLandingPreview'
 import { getSiteUrl } from '@/lib/site-url'
 
-const title = 'EnkelExcel AI (forhåndsvisning)'
+const title = 'dottir AI (forhåndsvisning)'
 const description =
-  'Forhåndsvisning av landing for EnkelExcel AI — spør om tallene dine i Dottir. Ikke indeksert; hovedforsiden er uendret.'
+  'Forhåndsvisning av landing for dottir AI — spør om tallene dine i Dottir. Ikke indeksert; hovedforsiden er uendret.'
 
 export const metadata: Metadata = {
   title: `${title} · Dottir`,

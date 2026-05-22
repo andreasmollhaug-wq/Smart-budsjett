@@ -30,7 +30,7 @@ export default function VilkarPage() {
       <LegalSection title="2. Beskrivelse av Tjenesten">
         <LegalP>
           Dottir er et digitalt verktøy for oversikt over privat økonomi, herunder blant annet budsjett, transaksjoner,
-          sparing, gjeld, rapporter og valgfrie tilleggsfunksjoner som EnkelExcel AI. Funksjonalitet kan endres over tid.
+          sparing, gjeld, rapporter og valgfrie tilleggsfunksjoner som dottir AI. Funksjonalitet kan endres over tid.
           Tjenesten er et hjelpeverktøy; den erstatter ikke profesjonell økonomisk, juridisk eller skattemessig rådgivning.
         </LegalP>
       </LegalSection>
@@ -102,9 +102,9 @@ export default function VilkarPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="8. EnkelExcel AI">
+      <LegalSection title="8. dottir AI">
         <LegalP>
-          EnkelExcel AI er et automatisk verktøy. Svar kan være unøyaktige eller ufullstendige. Du skal ikke basere viktige
+          dottir AI er et automatisk verktøy. Svar kan være unøyaktige eller ufullstendige. Du skal ikke basere viktige
           økonomiske, juridiske eller skattemessige beslutninger utelukkende på AI-svar. Vi er ikke ansvarlige for følger av slik
           bruk.
         </LegalP>

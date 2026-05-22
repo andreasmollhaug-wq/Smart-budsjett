@@ -60,7 +60,8 @@ const SYSTEM_PROMPT_BASE = [
 - Chatgrensesnittet viser ren tekst uten Markdown. Ikke bruk **, _, #, kodeblokker eller annen Markdown — bruk avsnitt, linjeskift og punktlister med bindestrek eller nummer.`,
   `ANSVAR OG HENVISNINGER
 - Skill tydelig mellom generell økonomiforståelse og det Dottir faktisk kan. Følg ansvarsgrensen i bruksveiledningen (ikke personlig finans-, skatte- eller investeringsrådgivning).
-- Spørsmål om innlogging, glemt passord eller endre passord: besvar ut fra bruksveiledningen (offentlige ruter og Min konto → Sikkerhet).`,
+- Spørsmål om innlogging, glemt passord, endre passord, logg ut, si opp/avslutte betalt abonnement eller slette brukerkonto: besvar kun ut fra bruksveiledningen (offentlige ruter, Min konto → Betalinger/Sikkerhet, e-post post@enkelexcel.no).
+- Ikke anta self-service sletting av brukerkonto eller at 2FA kan aktiveres nå.`,
 ].join('\n\n')
 
 export async function POST(req: Request) {
@@ -207,7 +208,7 @@ export async function POST(req: Request) {
 
   if (!reply) {
     return NextResponse.json({
-      reply: 'EnkelExcel AI sendte ingen tekst.',
+      reply: 'dottir AI sendte ingen tekst.',
       usage: usageSnapshot(bonusBefore),
     })
   }

@@ -38,7 +38,7 @@ Funksjonelt innhold i appen kan være likt på begge planer; **forskjellen** er 
 - **Betalingskort** registreres **ved oppstart** av prøveperioden.
 - Formulering til kunde: vær **tydelige** på at kort kreves, og at faktisk trekk skjer **etter** prøveperioden (presiser når betalingsflyt og vilkår er endelige).
 
-## EnkelExcel AI — kvote og tillegg
+## dottir AI — kvote og tillegg
 
 - **Månedlig kvote** for AI-meldinger per bruker (kalendermåned, Europe/Oslo). Standardgrense kan overstyres med miljøvariabel — se [`.env.example`](../.env.example) (`AI_MONTHLY_MESSAGE_LIMIT`).
 - **Bonus-meldinger:** brukere kan kjøpe ekstra meldinger via Stripe (engangsbetaling). Kreditter lagres i databasen og brukes når månedskvoten er brukt opp. Pris vist i UI kan justeres (`NEXT_PUBLIC_AI_BONUS_PRICE_NOK`); produkt/pris-ID i Stripe må matche (`STRIPE_PRICE_AI_CREDITS_*`).

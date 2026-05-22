@@ -85,7 +85,7 @@ const MonthlyInsightDocument = forwardRef<HTMLDivElement, MonthlyInsightDocument
             Månedsinnsikt
           </h1>
           <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
-            Faktisk mot budsjett, trender og kort oppsummering (EnkelExcel AI)
+            Faktisk mot budsjett, trender og kort oppsummering (dottir AI)
           </p>
           <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm" style={{ color: 'var(--text-muted)' }}>
             <span>

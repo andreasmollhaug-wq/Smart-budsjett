@@ -9,7 +9,7 @@ import { getSiteUrl } from '@/lib/site-url'
 
 const title = 'Slik henger Dottir sammen'
 const description =
-  'Se hele flyten fra budsjett og transaksjoner til oversikt, sparing, gjeld, rapporter og EnkelExcel AI — med tydelig utfall per steg, før du logger inn.'
+  'Se hele flyten fra budsjett og transaksjoner til oversikt, sparing, gjeld, rapporter og dottir AI — med tydelig utfall per steg, før du logger inn.'
 
 export const metadata: Metadata = {
   title,

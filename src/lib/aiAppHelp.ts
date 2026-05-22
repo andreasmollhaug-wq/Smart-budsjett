@@ -1,5 +1,5 @@
 /**
- * Offisiell bruksveiledning for EnkelExcel AI (Dottir).
+ * Offisiell bruksveiledning for dottir AI (Dottir).
  * Oppdater når UI, flyter eller produkttekst endres.
  */
 export const AI_APP_HELP_TEXT = `--- Bruksveiledning for Dottir (offisiell referanse for AI) ---
@@ -30,7 +30,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /investering — Investering
 - /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
 - /prosjekt — Oppussing (egen modul med hovedprosjekt og rom/underprosjekter — ikke samme budsjett som /budsjekt; beskrives i detalj under «Oppussing og prosjekt»). Menypunktet «Oppussing» kan ligge bakerst i menyen.
-- /enkelexcel-ai — EnkelExcel AI
+- /enkelexcel-ai — dottir AI
 - /forum — Brukerforum (tråder, kategorier, profil og varsler). I detaljert meny: eget punkt etter Oppussing. I enkel meny: eget hovedpunkt rett under «Verktøy» (ikke inni Verktøy-gruppen).
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
@@ -52,7 +52,7 @@ Startveiledning (første gangs oppsett, 6 steg)
 - Steg: velkomst → navn på profil → budsjettår (eller melding hvis du allerede har arkiverte år) → hovedinntekt per måned på «Lønn» (beløp du taster inn, valgfritt brutto med forenklet trekk) → valgfritt demodata → «Du er klar» med lenker til oversikt, transaksjoner, budsjett.
 - «Hopp over» avslutter veiledningen uten alle steg.
 - Utvidet valgfri guide (anbefalt rekkefølge, moduler, tips): /konto/kom-i-gang — også lenket fra siste steg i startveiledningen og fra Min konto → Innstillinger.
-- Kom i gang-siden (/konto/kom-i-gang) er en utvidet reise i anbefalt rekkefølge: (1) budsjettår og hovedinntekt, (2) budsjett linje for linje, (3) transaksjoner for faktiske tall, (4) oversikten, (5) sparing/gjeld/snøball, (6) rapporter, investering og EnkelExcel AI — pluss valgfri dybde om Formuebyggeren PRO.
+- Kom i gang-siden (/konto/kom-i-gang) er en utvidet reise i anbefalt rekkefølge: (1) budsjettår og hovedinntekt, (2) budsjett linje for linje, (3) transaksjoner for faktiske tall, (4) oversikten, (5) sparing/gjeld/snøball, (6) rapporter, investering og dottir AI — pluss valgfri dybde om Formuebyggeren PRO.
 - Mat og handleliste (/intern/mat-handleliste/start m.fl.) har «Vis meg rundt»: kort spotlight-omvisning (måltider → plan → handleliste og fanemeny). «Utvidet gjennomgang» (fra Start og header i modulen) går dypere på blant annet uke/måned-plan, hurtighandlinger, innstillinger og handleliste. **Sparing → Analyse** (/sparing/analyse) har også «Vis meg rundt» ved sidetittelen (egen omvisning med forklaring av KPI og grafer på analysen).
 
 Demodata
@@ -134,7 +134,7 @@ Tjenesteabonnementer (/abonnementer)
 - Valgfritt: «Legg inn i budsjettet» synkroniserer planbeløp til en linje under Regninger (du slipper å taste samme beløp to ganger).
 - Faktisk «brukt» i budsjettet følger fortsatt transaksjoner når du fører trekk i samme kategori.
 - I Familie vises abonnementer samlet i husholdning med profilnavn; redigering gjøres når én profil er valgt. Når flere profiler har valgt samme tjeneste fra forhåndslisten, kan appen vise et nøytralt forslag om delt eller familieabonnement hos leverandøren.
-- Registrerte abonnementer inngår i tallkonteksten til EnkelExcel AI når du spør om slike kostnader. I husholdningsvisning får AI en tabell med sum per profil (hvem som abonnerer på hva) pluss total for husholdningen, i tillegg til detaljlisten med profilmerking.
+- Registrerte abonnementer inngår i tallkonteksten til dottir AI når du spør om slike kostnader. I husholdningsvisning får AI en tabell med sum per profil (hvem som abonnerer på hva) pluss total for husholdningen, i tillegg til detaljlisten med profilmerking.
 - Under /abonnementer finnes tre faner: «Registrer abonnement» (/abonnementer) — registrer og eventuelt synk til budsjett; «Sammendrag» (/abonnementer/sammendrag) — oversikt per profil, samlet kostnad og enkel visning av overlapp når samme tjeneste er valgt for flere; «Avsluttede» (/abonnementer/avsluttet) — tidligere avsluttede abonnement (historikk).
 
 Rapporter
@@ -143,8 +143,8 @@ Rapporter
 - /rapporter/manedsinnsikt — velg år og måned; generer ett AI-sammendrag per kalendermåned (serverstyrt kvote); nøkkeltall og tabeller mot budsjett; utskrift eller lagre som PDF (PDF teller ikke som ny generering). Tallene følger samme valgte visning som resten av appen (én profil eller samlet husholdning); siden forklarer hvilket grunnlag som brukes. Når du bruker forenklet trekk på inntekt, kan rapporten vise brutto, trekk og netto i tillegg til hoved-KPI på netto.
 - /rapporter/sparemal — sparemål, fremdrift, aktivitet; PDF/utskrift.
 
-EnkelExcel AI (/enkelexcel-ai)
-- Chat med «EnkelExcel AI» om budsjett, sparing, gjeld, **hvordan Oppussing-modulen fungerer** (struktur, menyer og flyt ut fra bruksveiledningen), og øvrige funksjoner beskrevet her — kombinert med bruksveiledningen og brukerens **tallblokk** fra appen der den finnes (se punkt om oppussing og talltekst).
+dottir AI (/enkelexcel-ai)
+- Chat med «dottir AI» om budsjett, sparing, gjeld, **hvordan Oppussing-modulen fungerer** (struktur, menyer og flyt ut fra bruksveiledningen), og øvrige funksjoner beskrevet her — kombinert med bruksveiledningen og brukerens **tallblokk** fra appen der den finnes (se punkt om oppussing og talltekst).
 - Personvern: tallteksten som sendes til AI bygges kun fra den innloggede brukerens egen lagrede app-data — ikke andre brukeres kontoer.
 - Hvilket tallgrunnlag som sendes til AI følger profilvelgeren til venstre: én profil eller samlet husholdning (Familie med minst to profiler). Chattsiden viser tydelig hvilket grunnlag som gjelder.
 - I husholdningsmodus er mange beløp i tallteksten summert på tvers av profiler (aggregat). Enkeltlinjer som transaksjoner, abonnementer og en del andre poster kan være merket med profil (f.eks. [navn]). Når brukeren spør om hvem eller fordeling, bruk slike profilmerker og eventuell tabell per profil — ikke anta mer enn teksten viser.
@@ -178,13 +178,26 @@ Betalinger og abonnement (/konto/betalinger)
 - Stripe-abonnement Solo eller Familie: knappene «Abonner med kort (Solo)» / «Abonner med kort (Familie)» starter Stripe Checkout.
 - «Velg Solo (app)» / «Velg Familie (app)» styrer hvilken plan som gjelder profiler lokalt i appen (opp mot maks profiler for Solo).
 - Ved aktivt Stripe-abonnement vises status og ofte sluttdato for gjeldende periode.
-- Endre betalingskort eller si opp abonnement: knappen «Administrer abonnement» på /konto/betalinger åpner Stripes kundeportal (når brukeren har Stripe-kunde). Ved behov kan bruker også kontakte post@enkelexcel.no.
 - Seksjonen «Betalingsmetode» forklarer at kort knyttes til Stripe ved abonnement og at administrasjon skjer via kundeportalen.
+- Endre betalingskort: via «Administrer abonnement» (Stripe Customer Portal) når knappen vises.
+- **Avslutte betalt abonnement (Solo/Familie via Stripe)** — steg brukeren kan følge:
+  1. Gå til Min konto → Betalinger (/konto/betalinger), eller bruk snarveien «Administrer abonnement» nederst i venstremenyen (samme side).
+  2. Når du har aktivt Stripe-abonnement og knappen «Administrer abonnement» vises: trykk den (åpner Stripes kundeportal, ofte i ny fane).
+  3. I Stripe-portalen: velg å si opp / avslutte abonnement. Stripe viser vanligvis at du beholder tilgang til slutten av betalt periode.
+  4. Kort og fakturaer håndteres også i portalen (hjelpetekst på siden: «Kort, oppsigelse og fakturaer håndteres i Stripes kundeportal»).
+  5. Hvis knappen **ikke** vises: du har ikke et aktivt Stripe-kundeforhold å administrere i portalen — kontakt post@enkelexcel.no ved spørsmål.
+  6. **Viktig skille:** Si opp Stripe-abonnement er **ikke** det samme som å slette Dottir-brukerkontoen, og **ikke** det samme som å fjerne en ekstra budsjettprofil under Profiler.
+- Ved behov utover portalen: kontakt post@enkelexcel.no.
 
 Sikkerhet (/konto/sikkerhet)
-- Passord: skjema for å endre innloggingspassord.
-- Tofaktorautentisering: seksjon med knapp «Aktiver» (ekstra beskyttelse med engangskode — om funksjonen er aktiv, følg appens meldinger).
-- Aktive økter: viser blant annet «Denne enheten» (forenklet liste).
+- Passord: skjema med nåværende passord og nytt passord (minst 8 tegn). Lagre med «Oppdater passord». Glemt passord uten innlogging: /glemt-passord og deretter /tilbakestill-passord med lenke fra e-post.
+- Tofaktorautentisering (2FA): seksjon finnes, men knappen «Aktiver» er **deaktivert** — funksjonen kommer i neste release. Si ikke at brukeren kan aktivere 2FA i appen nå.
+- Aktive økter: full oversikt over andre enheter og utlogging av andre økter **kommer senere**. Siden forklarer at du er innlogget i denne nettleseren nå.
+
+Konto, logg ut og sletting av brukerkonto
+- **Logg ut:** Åpne kontomenyen (bruker-/konto-ikon øverst i appen) og velg «Logg ut».
+- **Slette hele brukerkontoen** (innlogging og alle data på kontoen): Det finnes **ingen** «Slett konto»-knapp i appen i dag. Be om sletting eller utøv GDPR-rettigheter ved å kontakte post@enkelexcel.no (se også /personvern). Ikke finn opp self-service kontosletting.
+- **Fjerne ekstra budsjettprofil** (Familie): se seksjonen Profiler — ikke forveksle med kontosletting.
 
 Roadmap (/konto/roadmap)
 - Funksjonsønsker: opprett forslag (tittel/beskrivelse), valgfritt bilde eller skjermbilde (PNG/JPEG/WebP/GIF, maks 2 MB), stem, se statuskolonner (venter, godkjent, under arbeid, ferdig, avvist). Ved demodata kan eksempelønsker vises.
@@ -232,8 +245,8 @@ Formuebyggeren PRO (/sparing/formuebygger)
 - Langsiktig simulering av formue og kjøpekraft; egne felt og tabeller; kan eksportere PDF der det er knapp for det i grensesnittet.
 
 Viktig for svar i chat
-- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; **sparing analyse** og «Vis meg rundt» på /sparing/analyse → Sparing-seksjonen over; **Oppussing** / hoved vs rom → seksjonen «Oppussing og prosjekt» (/prosjekt); faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement og Stripe → Betalinger /konto/betalinger; gjeld per person / diagram / modal på husholdningssiden → Gjeld-seksjonen over, rute /gjeld/husholdning med forutsetning Familie + minst to profiler). **Ikke bland inn konkrete prosjekt­beløp fra tallblokk** — oppussing er ikke automatisk dér.
+- Match spørsmålet mot riktig seksjon over (f.eks. investering → Investering; **sparing analyse** og «Vis meg rundt» på /sparing/analyse → Sparing-seksjonen over; **Oppussing** / hoved vs rom → seksjonen «Oppussing og prosjekt» (/prosjekt); faste tjenesteabonnementer som Netflix/Spotify registrert i appen → Tjenesteabonnementer /abonnementer; betalt Solo/Familie-abonnement, si opp abonnement, Stripe og kort → Betalinger /konto/betalinger; passord, 2FA, logg ut, sletting av brukerkonto → Sikkerhet og «Konto, logg ut og sletting» over; gjeld per person / diagram / modal på husholdningssiden → Gjeld-seksjonen over, rute /gjeld/husholdning med forutsetning Familie + minst to profiler). **Ikke bland inn konkrete prosjekt­beløp fra tallblokk** — oppussing er ikke automatisk dér.
 - Når brukeren spør «hvordan gjør jeg …», gi steg som finnes i appen her — ikke finn opp nye knapper.
 - Skille mellom generell økonomiteori og det Dottir faktisk gjør.
-- Ved spørsmål om husholdning og fordeling: bruk profilmerket data og aggregater som beskrevet under EnkelExcel AI og Profiler — ikke anta tall som ikke står i tallteksten. Gjeld-husholdningssiden viser **ikke** en egen «rettferdig fordeling» av hvem som bør betale — bare registrerte lån og avdrag per profil.
+- Ved spørsmål om husholdning og fordeling: bruk profilmerket data og aggregater som beskrevet under dottir AI og Profiler — ikke anta tall som ikke står i tallteksten. Gjeld-husholdningssiden viser **ikke** en egen «rettferdig fordeling» av hvem som bør betale — bare registrerte lån og avdrag per profil.
 - Ved tvil om hva som er implementert: si at brukeren kan sjekke siden i appen eller kontakte post@enkelexcel.no.`

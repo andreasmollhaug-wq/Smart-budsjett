@@ -23,7 +23,7 @@ Budsjettering skal være så **enkelt som mulig**, uten at brukeren trenger fork
 - **Visuell forståelse** av hvor pengene går hver måned
 - Innsikt i **hva som er igjen** etter alle kostnader
 - Moduler for **sparing**, **gjeld**, **snøballnedbetaling**, **investeringsoversikt** og **rapporter** — bygget for oversikt og planlegging i samme app
-- **EnkelExcel AI** — spørsmål om tall og struktur i appen (automatisert hjelp, ikke personlig rådgivning)
+- **dottir AI** — spørsmål om tall og struktur i appen (automatisert hjelp, ikke personlig rådgivning)
 - **Konto** med innstillinger, abonnement (Solo/Familie), sikkerhet og valgfri **funksjons-roadmap** (ønsker og avstemning)
 
 ## Posisjonering (hva vi ikke lover)

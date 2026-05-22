@@ -66,7 +66,7 @@ export default function SubscriptionModuleInfoModal({ open, onClose }: Props) {
             følger fortsatt transaksjonene dine når du registrerer trekk i samme kategori.
           </p>
           <p>
-            <strong className="font-medium" style={{ color: 'var(--text)' }}>EnkelExcel AI</strong> kan bruke de
+            <strong className="font-medium" style={{ color: 'var(--text)' }}>dottir AI</strong> kan bruke de
             registrerte abonnementene når du spør om tall — for eksempel «hva koster streaming til sammen?».
           </p>
           <p>

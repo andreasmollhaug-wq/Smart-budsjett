@@ -49,7 +49,7 @@ export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/snoball', label: 'Snøball', icon: Snowflake },
   { href: '/investering', label: 'Investering', icon: TrendingUp },
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
-  { href: '/enkelexcel-ai', label: 'EnkelExcel AI', icon: MessageSquare },
+  { href: '/enkelexcel-ai', label: 'dottir AI', icon: MessageSquare },
   { href: '/hjemflyt/start', label: 'Hjemflyt', icon: ClipboardList },
   { href: RENOVATION_PROJECT_BASE_PATH, label: 'Oppussing', icon: Hammer },
   SIDEBAR_FORUM_ITEM,

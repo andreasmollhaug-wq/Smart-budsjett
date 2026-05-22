@@ -158,11 +158,11 @@ export const PRODUCT_FLOW_PHASES: ProductFlowPhase[] = [
   },
   {
     id: 'enkelexcel-ai',
-    shortTitle: 'EnkelExcel AI',
+    shortTitle: 'dottir AI',
     title: 'Spør om tall og appen',
     outcome: 'Du får hjelp til å forstå appen og tallene dine — innenfor det produktet faktisk støtter.',
     lead:
-      'EnkelExcel AI svarer innenfor det Dottir faktisk gjør — med kontekst fra dine tall når du er innlogget.',
+      'dottir AI svarer innenfor det Dottir faktisk gjør — med kontekst fra dine tall når du er innlogget.',
     bullets: [
       'Typisk: forklaringer av funksjoner, hvor du finner noe, og sammenhenger mellom budsjett, transaksjoner og oversikt.',
       'Hjelpeverktøy i appen — ikke personlig økonomisk, juridisk eller skatterådgivning.',

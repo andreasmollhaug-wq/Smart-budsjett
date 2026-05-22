@@ -90,9 +90,9 @@ export default function SikkerhetPage() {
         </LegalP>
       </LegalSection>
 
-      <LegalSection title="EnkelExcel AI">
+      <LegalSection title="dottir AI">
         <LegalP>
-          Når du bruker EnkelExcel AI, går forespørselen fra appen til vår server. Nøkler til underliggende språkmodell ligger på
+          Når du bruker dottir AI, går forespørselen fra appen til vår server. Nøkler til underliggende språkmodell ligger på
           server og sendes ikke til nettleseren. Tekst du skriver, og den konteksten som er nødvendig for et svar, kan videreformidles
           til vår AI-leverandør (OpenAI eller tilsvarende) for å generere svaret — se personvernerklæringen for detaljer om
           behandling, informasjonskapsler og lokal lagring av samtalehistorikk der det er relevant.
