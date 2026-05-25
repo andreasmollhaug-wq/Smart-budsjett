@@ -1,4 +1,4 @@
-import { BOLIGLAN_KALKULATOR_HREF } from '@/lib/sidebarNav'
+import { BOLIGLAN_KALKULATOR_HREF, STUDIELAN_KALKULATOR_HREF } from '@/lib/sidebarNav'
 import type { OnboardingStatus } from '@/lib/store'
 
 /** Rute-spesifikke forslag — korte, trykk-vennlige setninger for modal og sidebar. */
@@ -9,6 +9,14 @@ const ROUTE_SUGGESTIONS: { prefix: string; questions: string[] }[] = [
       'Hva betyr lånegrad og egenkapital her?',
       'Forklar nominell vs effektiv rente',
       'Hvordan registrerer jeg dette som boliglån i appen?',
+    ],
+  },
+  {
+    prefix: STUDIELAN_KALKULATOR_HREF,
+    questions: [
+      'Hva betyr rentefri periode for studielån?',
+      'Hvordan lagrer jeg dette som studielån i appen?',
+      'Sparer jeg mest på kortere nedbetalingstid?',
     ],
   },
   {

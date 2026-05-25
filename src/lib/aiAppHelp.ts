@@ -26,7 +26,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /budsjett — Budsjett (underfaner: /budsjett/dashboard — Budsjett dashboard; /budsjett/husholdning — Husholdning, kun når «Viser data for» er husholdning med Familie og minst to profiler)
 - /transaksjoner — Transaksjoner (undermeny: /transaksjoner/kommende — Kommende planlagte transaksjoner; /transaksjoner/dashboard — Transaksjonsdashboard)
 - /sparing — Sparing (underfaner: /sparing/smartspare — smartSpare, planlegging av inntekt mot mål over en periode; /sparing/analyse — KPI, grafer, sparetempo og omvisning «Vis meg rundt»; /sparing/formuebygger — Formuebyggeren PRO)
-- /gjeld — Gjeld: under «Oversikt» (/gjeld) registreres og administreres lån. Underfaner: «Oversikt» (/gjeld), «Boliglånskalkulator» (/gjeld/kalkulator), og «Husholdning» (/gjeld/husholdning) når Familie-abonnement og minst to profiler. Boliglånskalkulatoren finnes også som eget menypunkt under Verktøy (detaljert og enkel meny).
+- /gjeld — Gjeld: under «Oversikt» (/gjeld) registreres og administreres lån. Underfaner: «Oversikt» (/gjeld), «Boliglånskalkulator» (/gjeld/kalkulator), «Studielånskalkulator» (/gjeld/studielan-kalkulator), og «Husholdning» (/gjeld/husholdning) når Familie-abonnement og minst to profiler. Kalkulatorene finnes også som egne menypunkter under Verktøy (detaljert og enkel meny).
 - /snoball — Snøball
 - /investering — Investering
 - /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
@@ -34,6 +34,7 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /forum — Brukerforum (tråder, kategorier, profil og varsler). I detaljert meny: eget punkt etter Oppussing. I enkel meny: eget hovedpunkt rett under «Verktøy» (ikke inni Verktøy-gruppen).
 - /enkelexcel-ai — dottir AI. I detaljert meny: eget punkt etter Forum. I enkel meny: eget hovedpunkt rett under Forum (ikke inni Verktøy-gruppen).
 - /gjeld/kalkulator — Boliglånskalkulator (frittstående simulering; også underfane i Gjeld og punkt under Verktøy i menyen)
+- /gjeld/studielan-kalkulator — Studielånskalkulator (Lånekassen-modell; hent/lagre til gjeld, PDF/Excel-eksport; også underfane i Gjeld og punkt under Verktøy)
 - /hjemflyt/start — Hjemflyt (husoppgaver og poeng for barn)
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
@@ -105,9 +106,10 @@ Sparing (/sparing)
 Gjeld (/gjeld)
 - Registrer lån med navn, total/rest, rente, månedlig betaling og type (bl.a. Boliglån, Lån, Studielån, Kredittkort, Annet).
 - **Boliglånskalkulator** (/gjeld/kalkulator): frittstående simulering (annuitet) med rentesensitivitet, nøkkeltall (f.eks. egen kapital, renter totalt, andel rente i starten, total tilbakebetaling), lånegrad 85/90 % som forklaringshjelpe, info-ikoner for begreper og nedbetalingsplan — bruker **ikke** de registrerte lånene automatisk. Ikke lånetilbud. Finnes som underfane i Gjeld og som eget punkt under Verktøy i venstremenyen.
+- **Studielånskalkulator** (/gjeld/studielan-kalkulator): annuitetsmodell for Lånekassen med grace-periode, estimat fra studieår/stipend, sammenligning 5/10/15/20 år, årlig og månedlig plan, budsjettkontekst, **Hent fra gjeld** og **Lagre til gjeld** (studielån), lenker til snøball, PDF- og Excel-eksport. Forenklet modell — ikke offisiell Lånekassen-beregning. Finnes som underfane i Gjeld og under Verktøy i menyen.
 - Standard: boliglån er ofte ikke med i snøball automatisk; andre typer kan være det — overstyr med «Ta med i snøball» (også i detalj).
 - Detaljer: pause, endre felter, snøball-innstilling. Oversikt viser bl.a. total gjeld, månedlige avdrag, høyeste rente, estimat årlig rentekostnad.
-- Underfaner: «Oversikt» (/gjeld), «Boliglånskalkulator» (/gjeld/kalkulator), og «Husholdning» (/gjeld/husholdning) når Familie-abonnement og minst to profiler. Med Solo eller bare én profil vises Oversikt og Boliglånskalkulator — ikke Husholdning.
+- Underfaner: «Oversikt» (/gjeld), «Boliglånskalkulator» (/gjeld/kalkulator), «Studielånskalkulator» (/gjeld/studielan-kalkulator), og «Husholdning» (/gjeld/husholdning) når Familie-abonnement og minst to profiler. Med Solo eller bare én profil vises Oversikt og begge kalkulatorer — ikke Husholdning.
 - Direkte besøk på /gjeld/husholdning uten rett til siden (ikke Familie eller færre enn to profiler) **videresendes** til /gjeld.
 - **Gjeld → Husholdning** (/gjeld/husholdning): Tallene **følger «Viser data for»** øverst i menyen. Når **Husholdning** er valgt: samlet KPI for hele husholdningen, **per-person-kort**, diagrammer som sammenligner alle, stablet diagram per person og type. Når **én profil** er valgt: samme side viser **kun den profilens** gjeld, kort og diagrammer (ett medlem). KPI-tekstene og undertittel på siden tilpasses modus. Søylene har **tall over seg** i forkortet form (**k** = tusen, **M** = millioner). Klikk på **person** eller **søyle** åpner **modal** med alle lån for den profilen (lesing); redigering skjer på Gjeld → Oversikt når riktig profil er valgt, som forklart i modalen.
 - Tallene på husholdningssiden er **samme registrerte gjeld** som under hver profil — appen **beregner ikke** egen «hvem bør betale hvor mye»-fordeling; det er ren oversikt og sammenligning.

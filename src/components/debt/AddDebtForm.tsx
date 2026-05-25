@@ -54,17 +54,52 @@ function defaultFormState(budgetYear: number): FormState {
 type Props = {
   heading: string
   submitLabel?: string
+  initialValues?: Partial<AddDebtFormPayload>
   onSubmit: (payload: AddDebtFormPayload) => void
   onCancel: () => void
 }
 
-export default function AddDebtForm({ heading, submitLabel = 'Legg til', onSubmit, onCancel }: Props) {
+function formStateFromInitial(
+  budgetYear: number,
+  initial?: Partial<AddDebtFormPayload>,
+): FormState {
+  const base = defaultFormState(budgetYear)
+  if (!initial) return base
+  return {
+    ...base,
+    name: initial.name ?? base.name,
+    type: initial.type ?? base.type,
+    totalAmount: initial.totalAmount ?? base.totalAmount,
+    remainingAmount: initial.remainingAmount ?? base.remainingAmount,
+    interestRate: initial.interestRate ?? base.interestRate,
+    monthlyPayment: initial.monthlyPayment ?? base.monthlyPayment,
+    note: initial.note ?? base.note,
+    repaymentPaused: initial.repaymentPaused ?? base.repaymentPaused,
+    pauseEndDate: initial.pauseEndDate ?? base.pauseEndDate,
+    includeInSnowball: initial.includeInSnowball ?? base.includeInSnowball,
+    syncToBudget: initial.syncToBudget ?? base.syncToBudget,
+    syncPlannedTransactions: initial.syncPlannedTransactions ?? base.syncPlannedTransactions,
+    plannedPaymentDayOfMonth: initial.plannedPaymentDayOfMonth ?? base.plannedPaymentDayOfMonth,
+    syncBudgetFromMonth1:
+      initial.syncBudgetFromMonth1 ?? base.syncBudgetFromMonth1,
+  }
+}
+
+export default function AddDebtForm({
+  heading,
+  submitLabel = 'Legg til',
+  initialValues,
+  onSubmit,
+  onCancel,
+}: Props) {
   const budgetYear = useStore((s) => s.budgetYear)
-  const [form, setForm] = useState<FormState>(() => defaultFormState(useStore.getState().budgetYear))
+  const [form, setForm] = useState<FormState>(() =>
+    formStateFromInitial(useStore.getState().budgetYear, initialValues),
+  )
 
   const reset = useCallback(() => {
-    setForm(defaultFormState(useStore.getState().budgetYear))
-  }, [])
+    setForm(formStateFromInitial(useStore.getState().budgetYear, initialValues))
+  }, [initialValues])
 
   const handleSubmit = () => {
     if (!form.name.trim() || form.remainingAmount <= 0) return

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOLIGLAN_KALKULATOR_HREF } from '@/lib/sidebarNav'
+import { BOLIGLAN_KALKULATOR_HREF, STUDIELAN_KALKULATOR_HREF } from '@/lib/sidebarNav'
 import {
   activityGapSuggestions,
   mergeContextualSuggestions,
@@ -26,6 +26,12 @@ describe('routeSuggestionsForPath', () => {
       'Oppsummer måneden kort',
       'Hva skiller seg ut i tallene?',
     ])
+  })
+
+  it('returns studielan kalkulator suggestions', () => {
+    const kalkulator = routeSuggestionsForPath(STUDIELAN_KALKULATOR_HREF)
+    expect(kalkulator[0]).toBe('Hva betyr rentefri periode for studielån?')
+    expect(routeSuggestionsForPath('/gjeld')).not.toEqual(kalkulator)
   })
 
   it('prefers specific routes over parent prefix', () => {

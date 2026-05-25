@@ -8,6 +8,7 @@ import { useStore } from '@/lib/store'
 const baseTabs = [
   { href: '/gjeld', label: 'Oversikt', labelShort: 'Oversikt' },
   { href: '/gjeld/kalkulator', label: 'Boliglånskalkulator', labelShort: 'Boliglån' },
+  { href: '/gjeld/studielan-kalkulator', label: 'Studielånskalkulator', labelShort: 'Studielån' },
 ] as const
 
 const householdTab = {

@@ -42,6 +42,7 @@ const EXTRA_ROUTE_LABELS: Record<string, string> = {
   '/sparing/analyse': 'Sparing → Analyse',
   '/sparing/formuebygger': 'Formuebygger',
   '/gjeld/kalkulator': 'Boliglånskalkulator',
+  '/gjeld/studielan-kalkulator': 'Studielånskalkulator',
   '/gjeld/husholdning': 'Gjeld → Husholdning',
   '/abonnementer/sammendrag': 'Abonnementer → Sammendrag',
   '/abonnementer/avsluttet': 'Abonnementer → Avsluttede',

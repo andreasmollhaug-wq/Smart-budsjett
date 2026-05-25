@@ -16,6 +16,7 @@ import {
   Hammer,
   Building2,
   Calculator,
+  GraduationCap,
 } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
@@ -23,7 +24,16 @@ import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 /** Boliglånskalkulator — egen rute under Gjeld. */
 export const BOLIGLAN_KALKULATOR_HREF = '/gjeld/kalkulator'
 
+/** Studielånskalkulator — egen rute under Gjeld. */
+export const STUDIELAN_KALKULATOR_HREF = '/gjeld/studielan-kalkulator'
+
 export type SidebarNavItem = { href: string; label: string; icon: LucideIcon }
+
+export const STUDIELAN_KALKULATOR_ITEM: SidebarNavItem = {
+  href: STUDIELAN_KALKULATOR_HREF,
+  label: 'Studielånskalkulator',
+  icon: GraduationCap,
+}
 
 export type SidebarNavGroup = {
   id: string
@@ -56,6 +66,7 @@ export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/sparing', label: 'Sparing', icon: PiggyBank },
   { href: '/gjeld', label: 'Gjeld', icon: CreditCard },
   { href: BOLIGLAN_KALKULATOR_HREF, label: 'Boliglånskalkulator', icon: Calculator },
+  STUDIELAN_KALKULATOR_ITEM,
   { href: '/abonnementer', label: 'Abonnementer', icon: Repeat },
   { href: '/snoball', label: 'Snøball', icon: Snowflake },
   { href: '/investering', label: 'Investering', icon: TrendingUp },
@@ -118,6 +129,7 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
     icon: ClipboardList,
     items: [
       item(BOLIGLAN_KALKULATOR_HREF),
+      item(STUDIELAN_KALKULATOR_HREF),
       item('/hjemflyt/start'),
       item(RENOVATION_PROJECT_BASE_PATH),
     ],

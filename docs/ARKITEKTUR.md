@@ -39,6 +39,8 @@
 | `/transaksjoner`, `/transaksjoner/dashboard` | Transaksjoner |
 | `/sparing`, `/sparing/formuebygger` | Sparing |
 | `/gjeld` | Gjeld |
+| `/gjeld/kalkulator` | Boliglånskalkulator |
+| `/gjeld/studielan-kalkulator` | Studielånskalkulator |
 | `/snoball` | Snøballstrategi |
 | `/investering` | Investering (kurs m.m.) |
 | `/rapporter`, `/rapporter/sparemal`, `/rapporter/bank` | Rapporter |
