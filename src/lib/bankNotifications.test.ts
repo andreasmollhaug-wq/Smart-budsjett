@@ -1,11 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   BANK_HOUSEHOLD_SUMMARY_NOTIFICATION_ID,
   bankPendingNotificationId,
   computeBankNotifications,
 } from '@/lib/bankNotifications'
 
+const env = process.env
+
 describe('bankNotifications', () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_NEONOMICS_UI_LIVE = 'true'
+    process.env.NEXT_PUBLIC_NEONOMICS_ENABLED = 'true'
+    process.env.NEONOMICS_ENABLED = 'true'
+  })
+
+  afterEach(() => {
+    process.env = { ...env }
+  })
+
   it('lager pending-varsel per profil og bank', () => {
     const list = computeBankNotifications({
       profiles: [{ id: 'p1', name: 'Meg' }],
@@ -64,5 +76,24 @@ describe('bankNotifications', () => {
     })
     expect(list.some((n) => n.id === BANK_HOUSEHOLD_SUMMARY_NOTIFICATION_ID)).toBe(true)
     expect(list.find((n) => n.id === BANK_HOUSEHOLD_SUMMARY_NOTIFICATION_ID)?.body).toContain('Kari')
+  })
+
+  it('returnerer tom liste når bank-UI er skjult', () => {
+    delete process.env.NEXT_PUBLIC_NEONOMICS_UI_LIVE
+    const list = computeBankNotifications({
+      profiles: [{ id: 'p1', name: 'Meg' }],
+      activeProfileId: 'p1',
+      subscriptionPlan: 'solo',
+      bankPendingNeonomics: {
+        'p1:bank1': {
+          profileId: 'p1',
+          bankId: 'bank1',
+          bankDisplayName: 'DNB',
+          rows: [{}] as never[],
+        },
+      },
+      connectionsByProfile: {},
+    })
+    expect(list).toEqual([])
   })
 })

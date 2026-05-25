@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { isNeonomicsPublicEnabled, isNeonomicsServerEnabled } from '@/lib/neonomics/feature'
+import {
+  isNeonomicsBankUiLive,
+  isNeonomicsPublicEnabled,
+  isNeonomicsServerEnabled,
+} from '@/lib/neonomics/feature'
 
 const env = process.env
 
@@ -21,14 +25,27 @@ describe('isNeonomicsServerEnabled', () => {
   })
 })
 
+describe('isNeonomicsBankUiLive', () => {
+  it('er false uten UI_LIVE', () => {
+    delete process.env.NEXT_PUBLIC_NEONOMICS_UI_LIVE
+    expect(isNeonomicsBankUiLive()).toBe(false)
+    process.env.NEXT_PUBLIC_NEONOMICS_UI_LIVE = 'true'
+    expect(isNeonomicsBankUiLive()).toBe(true)
+  })
+})
+
 describe('isNeonomicsPublicEnabled', () => {
-  it('krever både server og public flagg', () => {
+  it('krever UI_LIVE, server og public flagg', () => {
     delete process.env.NEONOMICS_ENABLED
     delete process.env.NEXT_PUBLIC_NEONOMICS_ENABLED
+    delete process.env.NEXT_PUBLIC_NEONOMICS_UI_LIVE
     expect(isNeonomicsPublicEnabled()).toBe(false)
 
     process.env.NEONOMICS_ENABLED = 'true'
     process.env.NEXT_PUBLIC_NEONOMICS_ENABLED = 'true'
+    expect(isNeonomicsPublicEnabled()).toBe(false)
+
+    process.env.NEXT_PUBLIC_NEONOMICS_UI_LIVE = 'true'
     expect(isNeonomicsPublicEnabled()).toBe(true)
 
     process.env.NEXT_PUBLIC_NEONOMICS_ENABLED = 'false'

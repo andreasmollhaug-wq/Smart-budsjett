@@ -1,4 +1,5 @@
 import type { NeonomicsConnectionStatusDto } from '@/lib/neonomics/connectionStatus'
+import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
 import type { AppNotification, AppNotificationKind } from '@/lib/store'
 
 export const BANK_HOUSEHOLD_SUMMARY_NOTIFICATION_ID = 'bank:household-summary'
@@ -81,6 +82,7 @@ function buildSyncFailNotification(conn: NeonomicsConnectionStatusDto): AppNotif
 }
 
 export function computeBankNotifications(input: SyncInput): AppNotification[] {
+  if (!isNeonomicsPublicEnabled()) return []
   const out: AppNotification[] = []
   const isFamily = input.subscriptionPlan === 'family' && input.profiles.length >= 2
 

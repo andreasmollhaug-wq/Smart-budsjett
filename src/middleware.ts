@@ -5,6 +5,7 @@ import {
   isSubscriptionEnforcementEnabled,
 } from '@/lib/stripe/subscriptionAccess'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
+import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
 
 /** Ruter med `(dottir-marketing)/layout` — må matche `RootLayout` sin SSR av `data-ui-palette`. */
 function isDottirMarketingSandPalettePath(pathname: string): boolean {
@@ -61,6 +62,10 @@ function isKontoSectionPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+
+  if (pathname === '/konto/koble-til-bank' && !isNeonomicsPublicEnabled()) {
+    return NextResponse.redirect(new URL('/konto/innstillinger', request.url))
+  }
 
   if (pathname === '/' && request.nextUrl.searchParams.get('ref') === 'iris') {
     return NextResponse.redirect(new URL('/iris', request.url))

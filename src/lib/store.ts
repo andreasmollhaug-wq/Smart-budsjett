@@ -14,7 +14,12 @@ import { applyCategoryRemap, type CategoryRemapErrorReason } from './categoryRem
 import type { ParentCategory } from './budgetCategoryCatalog'
 import { reorderBudgetCategoriesForParent } from './budgetYearHelpers'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
-import { computeBankNotifications, mergeBankNotifications } from './bankNotifications'
+import {
+  computeBankNotifications,
+  isBankNotificationId,
+  mergeBankNotifications,
+} from './bankNotifications'
+import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
 import { computeInsightDeltas } from './insightNotifications'
 import type { NeonomicsConnectionStatusDto } from '@/lib/neonomics/connectionStatus'
 import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
@@ -2575,6 +2580,11 @@ export const useStore = create<AppState>()((set, get) => {
 
         syncBankNotifications: () => {
           set((s) => {
+            if (!isNeonomicsPublicEnabled()) {
+              return {
+                notifications: s.notifications.filter((n) => !isBankNotificationId(n.id)),
+              }
+            }
             const computed = computeBankNotifications({
               profiles: s.profiles,
               activeProfileId: s.activeProfileId,

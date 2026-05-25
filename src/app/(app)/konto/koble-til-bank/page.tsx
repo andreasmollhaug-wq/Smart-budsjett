@@ -204,16 +204,7 @@ export default function KobleTilBankPage() {
   }, [])
 
   if (!isNeonomicsPublicEnabled()) {
-    return (
-      <div className="space-y-4 max-w-3xl">
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          Bankkobling er ikke aktivert i dette miljøet.
-        </p>
-        <Link href="/konto/innstillinger" className="text-sm font-medium" style={{ color: 'var(--primary)' }}>
-          Tilbake til Min konto
-        </Link>
-      </div>
-    )
+    return null
   }
 
   const isSandbox =
