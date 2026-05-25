@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import BankImportHistoryList from '@/components/konto/BankImportHistoryList'
 import TemplateCsvImportHistoryList from '@/components/konto/TemplateCsvImportHistoryList'
 import BankImportMappingAggregateLists from '@/components/konto/BankImportMappingAggregateLists'
@@ -41,7 +42,15 @@ import type { LedgerBudgetAdjustmentSnapshot } from '@/lib/ledgerImport/types'
 import { mergeBudgetCategoriesForTransactionPicker } from '@/lib/transactionCategoryPicker'
 import { buildTransactionsFromBankRows } from '@/lib/bankImport/buildTransactionsFromBankRows'
 import { resolveBankMappingCategoryName } from '@/lib/bankImport/bankMappingKeys'
-import { BANK_IMPORT_PROFILE_ID, BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST, SPAREBANK1_IMPORT_PROFILE_ID } from '@/lib/bankImport/bankImport.constants'
+import {
+  BANK_IMPORT_PROFILE_ID,
+  BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST,
+  NEONOMICS_IMPORT_PROFILE_ID,
+  SPAREBANK1_IMPORT_PROFILE_ID,
+} from '@/lib/bankImport/bankImport.constants'
+import { bankPendingNeonomicsKey } from '@/lib/neonomics/bankCatalogKeys'
+import { consumeNeonomicsPendingImport } from '@/lib/neonomics/pendingBankImportSession'
+import { isNeonomicsPublicEnabled } from '@/lib/neonomics/featurePublic'
 import {
   buildBankMappingAggregates,
   countPotentialDuplicateBankRows,
@@ -58,15 +67,19 @@ type Step = 'upload' | 'unknowns' | 'preview'
 type ImportMode = TransactionImportGuideMode
 type BankStep = 'upload' | 'mapping' | 'preview'
 
-function isBankImportMode(m: ImportMode): m is 'bank_dnb' | 'bank_sparebank1' {
-  return m === 'bank_dnb' || m === 'bank_sparebank1'
+function isBankImportMode(m: ImportMode): m is 'bank_dnb' | 'bank_sparebank1' | 'bank_neonomics' {
+  return m === 'bank_dnb' || m === 'bank_sparebank1' || m === 'bank_neonomics'
 }
 
-const IMPORT_SOURCE_OPTIONS: { value: ImportMode; label: string }[] = [
+const BASE_IMPORT_SOURCE_OPTIONS: { value: ImportMode; label: string }[] = [
   { value: 'template_csv', label: 'Excel-mal (CSV)' },
   { value: 'bank_dnb', label: 'DNB / Sbanken (.csv / .xlsx)' },
   { value: 'bank_sparebank1', label: 'Sparebank 1 (.csv / .xlsx)' },
 ]
+
+function importSourceOptions(): { value: ImportMode; label: string }[] {
+  return [...BASE_IMPORT_SOURCE_OPTIONS]
+}
 
 const DEFAULT_EXPENSE_PARENT: ParentCategory = 'utgifter'
 
@@ -91,6 +104,7 @@ function labelListsForPerson(person: {
 }
 
 export default function ImporterTransaksjonerPage() {
+  const router = useRouter()
   /** Importflyt: alltid inntil to desimaler uavhengig av «vis desimaler» i innstillinger. */
   const formatNOKImport = useCallback((amount: number) => formatNokCurrencyDisplayTwoDecimals(amount), [])
   const profiles = useStore((s) => s.profiles)
@@ -106,6 +120,8 @@ export default function ImporterTransaksjonerPage() {
   const bankImportMappingsRoot = useStore((s) => s.bankImportMappings)
   const setBankImportMapping = useStore((s) => s.setBankImportMapping)
   const addBankImportRunWithTransactions = useStore((s) => s.addBankImportRunWithTransactions)
+  const bankPendingNeonomics = useStore((s) => s.bankPendingNeonomics ?? {})
+  const clearBankPendingNeonomics = useStore((s) => s.clearBankPendingNeonomics)
   const bankImportHistory = useStore((s) => s.bankImportHistory)
 
   const [importMode, setImportMode] = useState<ImportMode>('template_csv')
@@ -144,20 +160,91 @@ export default function ImporterTransaksjonerPage() {
   const [alsoApplyToBudgetCsv, setAlsoApplyToBudgetCsv] = useState(false)
   const [alsoApplyToBudgetBank, setAlsoApplyToBudgetBank] = useState(false)
 
-  const activeBankSourceId = useMemo<BankSourceId>(
-    () => (importMode === 'bank_sparebank1' ? 'sparebank1' : 'dnb_sbanken'),
-    [importMode],
-  )
+  const activeBankSourceId = useMemo<BankSourceId>(() => {
+    if (importMode === 'bank_sparebank1') return 'sparebank1'
+    if (importMode === 'bank_neonomics') return 'neonomics_dnb'
+    return 'dnb_sbanken'
+  }, [importMode])
 
-  const activeBankCsvProfileId = useMemo(
-    () =>
-      importMode === 'bank_sparebank1' ? SPAREBANK1_IMPORT_PROFILE_ID : BANK_IMPORT_PROFILE_ID,
-    [importMode],
-  )
+  const activeBankCsvProfileId = useMemo(() => {
+    if (importMode === 'bank_sparebank1') return SPAREBANK1_IMPORT_PROFILE_ID
+    if (importMode === 'bank_neonomics') return NEONOMICS_IMPORT_PROFILE_ID
+    return BANK_IMPORT_PROFILE_ID
+  }, [importMode])
+
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     setImportProfileId(activeProfileId)
   }, [activeProfileId])
+
+  useEffect(() => {
+    if (searchParams.get('neonomicsImport') !== '1') return
+    const pending = consumeNeonomicsPendingImport()
+    if (!pending?.rows.length) return
+    setImportProfileId(pending.profileId)
+    setActiveProfileId(pending.profileId)
+    setImportMode('bank_neonomics')
+    setBankParseError(null)
+    setBankParsedRows(pending.rows)
+    setBankRowErrors([])
+    setBankFileLabel(pending.label)
+    setBankAmountOverridesByLine({})
+    setExcludedBankFileLines(new Set())
+    setAlsoApplyToBudgetBank(false)
+    setImportDisplayNameBank('')
+    setBankStep('mapping')
+    addAppNotification({
+      title: 'Transaksjoner klare',
+      body: `${pending.rows.length} rad${pending.rows.length === 1 ? '' : 'er'} fra bank — kartlegg kategori.`,
+      kind: 'budget',
+    })
+    window.history.replaceState(null, '', '/konto/importer-transaksjoner')
+  }, [searchParams, setActiveProfileId, addAppNotification])
+
+  const [bankPendingHydrateAttempt, setBankPendingHydrateAttempt] = useState(0)
+
+  useEffect(() => {
+    if (searchParams.get('bankPending') !== '1') return
+    const pid = searchParams.get('profileId')?.trim() || activeProfileId
+    const bankId = searchParams.get('bankId')?.trim()
+    if (!bankId) return
+    const key = bankPendingNeonomicsKey(pid, bankId)
+    const pending = bankPendingNeonomics[key]
+    if (!pending?.rows.length) {
+      if (bankPendingHydrateAttempt < 3) {
+        setBankPendingHydrateAttempt((n) => n + 1)
+        router.refresh()
+      }
+      return
+    }
+    setImportProfileId(pid)
+    setActiveProfileId(pid)
+    setImportMode('bank_neonomics')
+    setBankParseError(null)
+    setBankParsedRows(pending.rows)
+    setBankRowErrors([])
+    setBankFileLabel(pending.label)
+    setBankAmountOverridesByLine({})
+    setExcludedBankFileLines(new Set())
+    setAlsoApplyToBudgetBank(false)
+    setImportDisplayNameBank('')
+    setBankStep('mapping')
+    addAppNotification({
+      title: 'Transaksjoner klare',
+      body: `${pending.rows.length} rad${pending.rows.length === 1 ? '' : 'er'} fra bank — kartlegg kategori.`,
+      kind: 'budget',
+    })
+    window.history.replaceState(null, '', '/konto/importer-transaksjoner')
+  }, [
+    searchParams,
+    activeProfileId,
+    bankPendingNeonomics,
+    bankPendingHydrateAttempt,
+    router,
+    setActiveProfileId,
+    addAppNotification,
+  ])
 
   const person = people[importProfileId]
   const pickerCategories = useMemo(() => {
@@ -489,6 +576,19 @@ export default function ImporterTransaksjonerPage() {
   const bankUnmappedAggregates = useMemo(() => {
     return bankAggregates.filter((a) => !isBankKeyMapped(a.mappingKey, a.transactionType))
   }, [bankAggregates, isBankKeyMapped])
+
+  const neonomicsAccountSummary = useMemo(() => {
+    if (importMode !== 'bank_neonomics') return []
+    const m = new Map<string, { label: string; count: number }>()
+    for (const r of bankParsedRows) {
+      const id = r.externalBankAccountId ?? '_unknown'
+      const label = r.externalBankAccountLabel?.trim() || 'Ukjent konto'
+      const cur = m.get(id) ?? { label, count: 0 }
+      cur.count += 1
+      m.set(id, cur)
+    }
+    return [...m.values()].sort((a, b) => a.label.localeCompare(b.label, 'nb'))
+  }, [importMode, bankParsedRows])
 
   const bankDuplicatePreviewCount = useMemo(() => {
     if (!person || bankParsedRows.length === 0) return 0
@@ -835,6 +935,20 @@ export default function ImporterTransaksjonerPage() {
       transactions,
     )
 
+    if (importMode === 'bank_neonomics') {
+      const bankIdFromQuery = searchParams.get('bankId')?.trim()
+      if (bankIdFromQuery) {
+        clearBankPendingNeonomics(pid, bankIdFromQuery)
+      } else {
+        for (const key of Object.keys(useStore.getState().bankPendingNeonomics ?? {})) {
+          if (key.startsWith(`${pid}:`)) {
+            const bid = key.slice(pid.length + 1)
+            clearBankPendingNeonomics(pid, bid)
+          }
+        }
+      }
+    }
+
     setSkippedImportRows(rowSkipped)
     setDupWarn(existingDup)
     setSummaryParseErrorCount(bankRowErrors.length)
@@ -1002,7 +1116,9 @@ export default function ImporterTransaksjonerPage() {
             ? 'Importer transaksjoner fra CSV'
             : importMode === 'bank_sparebank1'
               ? 'Importer fra Sparebank 1'
-              : 'Importer fra DNB / Sbanken'}
+              : importMode === 'bank_neonomics'
+                ? 'Kartlegg banktransaksjoner'
+                : 'Importer fra DNB / Sbanken'}
         </h1>
         {importMode === 'template_csv' ? (
           <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
@@ -1012,6 +1128,15 @@ export default function ImporterTransaksjonerPage() {
             riktig profil nedenfor før du laster opp. Har du hovedbok fra regnskapssystem, bruk{' '}
             <Link href="/konto/importer-fra-regnskap" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
               Import fra regnskap
+            </Link>
+            .
+          </p>
+        ) : importMode === 'bank_neonomics' ? (
+          <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+            Transaksjonene er hentet fra koblet bank. Kartlegg forklaring til budsjettkategori og importer som vanlig. Nye
+            transaksjoner hentes automatisk hver dag kl. 10:00 — eller manuelt under{' '}
+            <Link href="/konto/koble-til-bank" className="font-medium underline underline-offset-2" style={{ color: 'var(--primary)' }}>
+              Koble til bank
             </Link>
             .
           </p>
@@ -1122,6 +1247,7 @@ export default function ImporterTransaksjonerPage() {
         </div>
       )}
 
+      {importMode !== 'bank_neonomics' && (
       <div
         className="rounded-2xl p-4"
         style={{
@@ -1164,7 +1290,7 @@ export default function ImporterTransaksjonerPage() {
           className="w-full max-w-md rounded-xl px-3 py-3 sm:py-2 text-sm min-h-[44px] sm:min-h-0 touch-manipulation"
           style={{ border: '1px solid var(--border)', background: '#fff', color: 'var(--text)' }}
         >
-          {IMPORT_SOURCE_OPTIONS.map((o) => (
+          {importSourceOptions().map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -1175,6 +1301,7 @@ export default function ImporterTransaksjonerPage() {
           bank-steg.
         </p>
       </div>
+      )}
 
       {importMode === 'template_csv' && parseError && (
         <div className="rounded-xl p-4 text-sm" style={{ background: '#fef2f2', color: '#991b1b' }}>
@@ -1497,7 +1624,9 @@ export default function ImporterTransaksjonerPage() {
         </div>
       )}
 
-      {isBankImportMode(importMode) && bankStep === 'upload' && (
+      {isBankImportMode(importMode) &&
+        importMode !== 'bank_neonomics' &&
+        bankStep === 'upload' && (
         <BankTransactionImportDropzone
           variant={importMode === 'bank_sparebank1' ? 'sparebank1' : 'dnb_sbanken'}
           onBankParsed={onBankParsed}
@@ -1508,10 +1637,39 @@ export default function ImporterTransaksjonerPage() {
       {isBankImportMode(importMode) && bankStep === 'mapping' && person && (
         <div className="space-y-4 min-w-0">
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Fil: <strong style={{ color: 'var(--text)' }}>{bankFileLabel}</strong> — {bankParsedRows.length} rader.
+            {importMode === 'bank_neonomics' ? 'Kilde' : 'Fil'}:{' '}
+            <strong style={{ color: 'var(--text)' }}>{bankFileLabel}</strong> — {bankParsedRows.length} rader.
             Kartlegg hver forklaring til riktig budsjettkategori. Standardvisning viser bare det som mangler mapping.
-            Giro-referanser normaliseres slik at samme leverandør gjenbruker mapping.
+            {importMode !== 'bank_neonomics' &&
+              ' Giro-referanser normaliseres slik at samme leverandør gjenbruker mapping.'}
           </p>
+          {importMode === 'bank_neonomics' && neonomicsAccountSummary.length > 0 && (
+            <ul
+              className="text-sm m-0 pl-4 list-disc space-y-1"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {neonomicsAccountSummary.map((a) => (
+                <li key={a.label}>
+                  <span style={{ color: 'var(--text)' }}>{a.label}</span>
+                  {' — '}
+                  {a.count} rad{a.count === 1 ? '' : 'er'}
+                </li>
+              ))}
+            </ul>
+          )}
+          {importMode === 'bank_neonomics' && bankParsedRows.length === 0 && (
+            <p className="text-sm m-0 rounded-xl p-4" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>
+              Ingen transaksjoner venter på kartlegging. Gå til{' '}
+              <Link
+                href="/konto/koble-til-bank"
+                className="font-medium underline underline-offset-2"
+                style={{ color: 'var(--primary)' }}
+              >
+                Koble til bank
+              </Link>{' '}
+              og trykk Hent transaksjoner.
+            </p>
+          )}
           {bankAiError && !bankMappingExpanded && (
             <div className="rounded-xl p-3 text-sm" style={{ background: '#fffbeb', color: '#92400e' }}>
               {bankAiError}
@@ -1986,6 +2144,19 @@ export default function ImporterTransaksjonerPage() {
           <h2 className="text-lg font-semibold m-0" style={{ color: 'var(--text)' }}>
             Tidligere bankimporter
           </h2>
+          {isNeonomicsPublicEnabled() && (
+            <p className="text-sm m-0" style={{ color: 'var(--text-muted)' }}>
+              Importer fra koblet bank (API) finner du under{' '}
+              <Link
+                href="/konto/koble-til-bank"
+                className="font-medium underline underline-offset-2"
+                style={{ color: 'var(--primary)' }}
+              >
+                Koble til bank
+              </Link>
+              .
+            </p>
+          )}
           <BankImportHistoryList runs={bankImportHistory} />
         </section>
       )}

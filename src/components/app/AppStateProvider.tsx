@@ -11,6 +11,7 @@ import {
 } from '@/lib/store'
 import { createClient } from '@/lib/supabase/client'
 import { RoadmapVisibleTimeInvite } from '@/components/app/RoadmapVisibleTimeInvite'
+import { DottirAiEngagementInvite } from '@/components/app/DottirAiEngagementInvite'
 import { applyUiPaletteToDocument } from '@/lib/uiColorPalette'
 import type { BillingPlanSnapshot } from '@/lib/stripe/syncAppSubscriptionPlan'
 
@@ -63,6 +64,7 @@ export function AppStateProvider({
     // bli overskrevet og nye kunngjøringer vises aldri.
     useStore.getState().syncProductAnnouncements()
     useStore.getState().syncInsightNotifications()
+    useStore.getState().syncBankNotifications?.()
 
     if (initialBilling) {
       useStore.getState().applyBillingPlanSync(initialBilling)
@@ -145,6 +147,7 @@ export function AppStateProvider({
   return (
     <>
       <RoadmapVisibleTimeInvite />
+      <DottirAiEngagementInvite userId={userId} />
       {persistSaveError ? (
         <div
           role="alert"

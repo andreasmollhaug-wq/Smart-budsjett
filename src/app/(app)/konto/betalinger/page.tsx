@@ -9,6 +9,7 @@ import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
 import { hasSubscriptionAccess } from '@/lib/stripe/subscriptionAccess'
 import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
+import CancelSubscriptionHelpPopover from '@/components/billing/CancelSubscriptionHelpPopover'
 import TrialWelcomeModal from '@/components/billing/TrialWelcomeModal'
 import { householdSingleLoginNote } from '@/lib/kontoCopy'
 
@@ -422,8 +423,9 @@ function BetalingerContent() {
                   </>
                 )}
               </button>
-              <span className="text-xs sm:max-w-md" style={{ color: 'var(--text-muted)' }}>
-                Kort, oppsigelse og fakturaer håndteres i Stripes kundeportal.
+              <span className="inline-flex items-center gap-0.5 text-xs sm:max-w-md" style={{ color: 'var(--text-muted)' }}>
+                <span>Kort, oppsigelse og fakturaer håndteres i Stripes kundeportal.</span>
+                <CancelSubscriptionHelpPopover />
               </span>
             </div>
           ) : null}

@@ -18,6 +18,13 @@ test.describe('Landing (mobil viewport)', () => {
     await expect(cta.first()).toBeVisible()
   })
 
+  test('Logg inn er synlig i header uten å åpne meny', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    const headerNav = page.getByRole('navigation', { name: 'Hovedmeny' })
+    await expect(headerNav.getByRole('link', { name: 'Logg inn' })).toBeVisible()
+  })
+
   test('mobilmeny åpner fullskjerms-overlay', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')

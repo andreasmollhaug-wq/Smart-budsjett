@@ -4,11 +4,19 @@ import { useShallow } from 'zustand/react/shallow'
 import { budgetedMonthsFromFrequency, generateId, type BudgetCategoryFrequency } from './utils'
 import { PRODUCT_ANNOUNCEMENTS, isAnnouncementApplicable, type AnnouncementKind } from '@/lib/announcements'
 import { ROADMAP_INVITE_NOTIFICATION_ID } from '@/lib/roadmapInvite'
+import {
+  DOTTIR_AI_ENGAGEMENT_NOTIFICATION_ID,
+  DOTTIR_AI_OPEN_ACTION_HREF,
+  dottirAiEngagementNotificationBody,
+  dottirAiEngagementNotificationTitle,
+} from '@/lib/dottirAiEngagementInvite'
 import { applyCategoryRemap, type CategoryRemapErrorReason } from './categoryRemap'
 import type { ParentCategory } from './budgetCategoryCatalog'
 import { reorderBudgetCategoriesForParent } from './budgetYearHelpers'
 import { emptyLabelLists, type LabelLists } from './budgetCategoryCatalog'
+import { computeBankNotifications, mergeBankNotifications } from './bankNotifications'
 import { computeInsightDeltas } from './insightNotifications'
+import type { NeonomicsConnectionStatusDto } from '@/lib/neonomics/connectionStatus'
 import { formatNokCurrencyDisplay } from '@/lib/money/nokDisplayFormat'
 import { normalizeUiColorPaletteId, type UiColorPaletteId } from '@/lib/uiColorPalette'
 import { normalizeSidebarNavMode, type SidebarNavMode } from '@/lib/sidebarNavMode'
@@ -267,6 +275,12 @@ export interface Transaction {
   ledgerImportRunId?: string
   /** Knytning til rad i `bankImportHistory` (bankimport). */
   bankImportRunId?: string
+  /** Ekstern transaksjons-id (Neonomics) for deduplisering ved re-sync. */
+  externalBankTxId?: string
+  externalBankProvider?: 'neonomics'
+  /** Neonomics account.id — hvilken bankkonto transaksjonen kom fra. */
+  externalBankAccountId?: string
+  externalBankAccountLabel?: string
   /** Knytning til rad i `templateCsvImportHistory` (Excel-mal CSV). */
   templateCsvImportRunId?: string
 }
@@ -524,8 +538,13 @@ interface AppState {
   hydrateFromServerRefresh: (payload: unknown) => void
   syncProductAnnouncements: () => void
   syncInsightNotifications: () => void
+  syncBankNotifications: () => void
+  /** Siste status fra API (ikke persistert) — brukes til bjellevarsler. */
+  bankConnectionsByProfile: Record<string, NeonomicsConnectionStatusDto[]>
+  setBankConnectionsForProfile: (profileId: string, connections: NeonomicsConnectionStatusDto[]) => void
   /** Én gang etter ~30 min synlig bruk; idempotent via deliveredAnnouncementIds. */
   deliverRoadmapInviteNotification: () => void
+  deliverDottirAiEngagementNotification: () => void
   markNotificationRead: (id: string) => void
   markAllNotificationsRead: () => void
   /** Bruker-/hendelsesvarsler (f.eks. ved import av data); id genereres automatisk. */
@@ -822,6 +841,9 @@ interface AppState {
   /** Bankimport (DNB/Sbanken m.fl.): lagret mapping-nøkkel → budsjettkategori per kilde. */
   bankImportMappings: BankImportMappingsState
   bankImportHistory: BankImportRun[]
+  /** Nøkkel `profileId:bankId` — ukartlagte rader etter Neonomics-hent. */
+  bankPendingNeonomics?: import('@/lib/bankImport/types').BankPendingNeonomicsState
+  clearBankPendingNeonomics: (profileId: string, bankId: string) => void
   setBankImportMapping: (
     sourceId: BankSourceId,
     mappingKey: string,
@@ -879,6 +901,7 @@ export type PersistedAppSlice = Pick<
   | 'ledgerImportHistory'
   | 'bankImportMappings'
   | 'bankImportHistory'
+  | 'bankPendingNeonomics'
   | 'templateCsvImportHistory'
 >
 
@@ -914,6 +937,7 @@ export function createDefaultPersistedSlice(options?: { seedDemoData?: boolean }
     ledgerImportHistory: [],
     bankImportMappings: {},
     bankImportHistory: [],
+    bankPendingNeonomics: {},
     templateCsvImportHistory: [],
   }
 }
@@ -945,6 +969,7 @@ export function pickPersistedSlice(state: AppState): PersistedAppSlice {
     ledgerImportHistory: state.ledgerImportHistory,
     bankImportMappings: state.bankImportMappings,
     bankImportHistory: state.bankImportHistory,
+    bankPendingNeonomics: state.bankPendingNeonomics ?? {},
     templateCsvImportHistory: state.templateCsvImportHistory,
   }
 }
@@ -1127,6 +1152,9 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
     base.bankImportMappings = {}
   }
   if (!Array.isArray(base.bankImportHistory)) base.bankImportHistory = []
+  if (!base.bankPendingNeonomics || typeof base.bankPendingNeonomics !== 'object') {
+    base.bankPendingNeonomics = {}
+  }
   if (!Array.isArray(base.templateCsvImportHistory)) base.templateCsvImportHistory = []
   if (base.peopleBeforeDemo === undefined) base.peopleBeforeDemo = null
   const pbd = base.peopleBeforeDemo
@@ -1895,6 +1923,8 @@ export const useStore = create<AppState>()((set, get) => {
         ledgerImportHistory: [] as LedgerImportRun[],
         bankImportMappings: {} as BankImportMappingsState,
         bankImportHistory: [] as BankImportRun[],
+        bankPendingNeonomics: {},
+        bankConnectionsByProfile: {} as Record<string, NeonomicsConnectionStatusDto[]>,
         templateCsvImportHistory: [] as TemplateCsvImportRun[],
 
         setBankImportMapping: (sourceId, mappingKey, rule) => {
@@ -1972,6 +2002,7 @@ export const useStore = create<AppState>()((set, get) => {
             return { people: nextPeople, bankImportHistory: historySlice }
           })
           get().syncInsightNotifications()
+          get().syncBankNotifications()
         },
 
         removeBankImportRun: (runId, mode) => {
@@ -2521,6 +2552,42 @@ export const useStore = create<AppState>()((set, get) => {
           })
         },
 
+        setBankConnectionsForProfile: (profileId, connections) => {
+          set((s) => ({
+            bankConnectionsByProfile: {
+              ...s.bankConnectionsByProfile,
+              [profileId]: connections,
+            },
+          }))
+          get().syncBankNotifications()
+        },
+
+        clearBankPendingNeonomics: (profileId, bankId) => {
+          set((s) => {
+            const key = `${profileId}:${bankId}`
+            if (!s.bankPendingNeonomics?.[key]) return s
+            const next = { ...s.bankPendingNeonomics }
+            delete next[key]
+            return { bankPendingNeonomics: next }
+          })
+          get().syncBankNotifications()
+        },
+
+        syncBankNotifications: () => {
+          set((s) => {
+            const computed = computeBankNotifications({
+              profiles: s.profiles,
+              activeProfileId: s.activeProfileId,
+              subscriptionPlan: s.subscriptionPlan,
+              bankPendingNeonomics: s.bankPendingNeonomics ?? {},
+              connectionsByProfile: s.bankConnectionsByProfile,
+            })
+            return {
+              notifications: mergeBankNotifications(s.notifications, computed),
+            }
+          })
+        },
+
         syncInsightNotifications: () => {
           set((s) => {
             const base = s.notifications.filter((n) => n.id !== PLANNED_OVERDUE_NOTIFICATION_ID)
@@ -2617,6 +2684,32 @@ export const useStore = create<AppState>()((set, get) => {
                 ...s.notifications,
               ],
               deliveredAnnouncementIds: [...s.deliveredAnnouncementIds, ROADMAP_INVITE_NOTIFICATION_ID],
+            }
+          })
+        },
+
+        deliverDottirAiEngagementNotification: () => {
+          set((s) => {
+            if (s.deliveredAnnouncementIds.includes(DOTTIR_AI_ENGAGEMENT_NOTIFICATION_ID)) return s
+            if (s.notifications.some((n) => n.id === DOTTIR_AI_ENGAGEMENT_NOTIFICATION_ID)) return s
+            return {
+              notifications: [
+                {
+                  id: DOTTIR_AI_ENGAGEMENT_NOTIFICATION_ID,
+                  title: dottirAiEngagementNotificationTitle(),
+                  body: dottirAiEngagementNotificationBody(),
+                  kind: 'product' as const,
+                  createdAt: new Date().toISOString(),
+                  read: false,
+                  actionHref: DOTTIR_AI_OPEN_ACTION_HREF,
+                  actionLabel: 'Åpne dottir AI',
+                },
+                ...s.notifications,
+              ],
+              deliveredAnnouncementIds: [
+                ...s.deliveredAnnouncementIds,
+                DOTTIR_AI_ENGAGEMENT_NOTIFICATION_ID,
+              ],
             }
           })
         },
@@ -5282,6 +5375,8 @@ export function resetStoreForLogout() {
     ledgerImportHistory: [],
     bankImportMappings: {},
     bankImportHistory: [],
+    bankPendingNeonomics: {},
+    bankConnectionsByProfile: {},
     templateCsvImportHistory: [],
   })
   clearLegacyLocalStorage()

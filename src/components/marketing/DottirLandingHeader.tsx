@@ -189,6 +189,16 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
     </Link>
   )
 
+  const mobileLoginLink = (
+    <Link
+      href={LOGIN_HREF}
+      className="inline-flex min-h-[44px] shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-lg px-2 py-2 text-xs font-medium sm:px-3 sm:text-sm lg:hidden"
+      style={{ color: 'var(--text-muted)' }}
+    >
+      Logg inn
+    </Link>
+  )
+
   const omOssDesktop = (
     <Link href={DOTTIR_OM_OSS_HREF} className={navAuthLinkClass()} style={{ color: 'var(--text-muted)' }}>
       Om oss
@@ -317,6 +327,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
             className="relative flex min-w-0 flex-1 flex-nowrap items-center justify-end gap-1.5 sm:gap-2 lg:flex-wrap lg:gap-3 xl:gap-4"
             aria-label="Hovedmeny"
           >
+            {mobileLoginLink}
             {mobileMenuButton}
             {desktopPrimaryLinks}
             {trailing}

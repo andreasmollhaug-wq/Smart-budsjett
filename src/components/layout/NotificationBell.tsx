@@ -7,6 +7,8 @@ import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '@/lib/store'
 import { APP_VERSION_LABEL } from '@/lib/version'
 import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
+import { DOTTIR_AI_OPEN_ACTION_HREF } from '@/lib/dottirAiEngagementInvite'
+import { useDottirAi } from '@/components/enkelexcel-ai/DottirAiProvider'
 
 const MOBILE_MAX = '(max-width: 767px)'
 
@@ -15,6 +17,7 @@ export default function NotificationBell({ panelZClass }: { panelZClass?: string
   const [panelTop, setPanelTop] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const { open: openDottirAi } = useDottirAi()
 
   const { notifications, unreadCount, markNotificationRead, markAllNotificationsRead } = useStore(
     useShallow((s) => {
@@ -143,14 +146,29 @@ export default function NotificationBell({ panelZClass }: { panelZClass?: string
                           {n.body}
                         </p>
                         {n.actionHref ? (
-                          <Link
-                            href={n.actionHref}
-                            className="mt-3 inline-flex min-h-[44px] items-center justify-center px-4 py-2 rounded-xl text-sm font-medium text-white w-full sm:w-auto"
-                            style={{ background: 'var(--primary)' }}
-                            onClick={() => setOpen(false)}
-                          >
-                            {n.actionLabel ?? 'Åpne'}
-                          </Link>
+                          n.actionHref === DOTTIR_AI_OPEN_ACTION_HREF ? (
+                            <button
+                              type="button"
+                              className="mt-3 inline-flex min-h-[44px] w-full items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-white sm:w-auto touch-manipulation"
+                              style={{ background: 'var(--primary)' }}
+                              onClick={() => {
+                                markNotificationRead(n.id)
+                                setOpen(false)
+                                openDottirAi()
+                              }}
+                            >
+                              {n.actionLabel ?? 'Åpne dottir AI'}
+                            </button>
+                          ) : (
+                            <Link
+                              href={n.actionHref}
+                              className="mt-3 inline-flex min-h-[44px] items-center justify-center px-4 py-2 rounded-xl text-sm font-medium text-white w-full sm:w-auto"
+                              style={{ background: 'var(--primary)' }}
+                              onClick={() => setOpen(false)}
+                            >
+                              {n.actionLabel ?? 'Åpne'}
+                            </Link>
+                          )
                         ) : null}
                         <p className="text-[11px] mt-2" style={{ color: 'var(--text-muted)' }}>
                           {new Date(n.createdAt).toLocaleString('nb-NO', {

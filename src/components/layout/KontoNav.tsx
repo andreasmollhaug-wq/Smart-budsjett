@@ -10,11 +10,13 @@ import {
   Map,
   BookOpen,
   Upload,
+  Landmark,
   FileSpreadsheet,
   Users,
   Mail,
 } from 'lucide-react'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
+import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
 
 const baseLinks = [
   { href: '/konto/innstillinger', label: 'Innstillinger', labelShort: 'Innst.', icon: Settings },
@@ -23,6 +25,7 @@ const baseLinks = [
   { href: '/konto/betalinger', label: 'Betalinger', labelShort: 'Betaling', icon: CreditCard },
   { href: '/konto/sikkerhet', label: 'Sikkerhet', labelShort: 'Sikkerhet', icon: Shield },
   { href: '/konto/roadmap', label: 'Roadmap', labelShort: 'Roadmap', icon: Map },
+  { href: '/konto/koble-til-bank', label: 'Koble til bank', labelShort: 'Bank', icon: Landmark },
   { href: '/konto/importer-transaksjoner', label: 'Importer transaksjoner', labelShort: 'Import', icon: Upload },
   {
     href: '/konto/importer-fra-regnskap',
@@ -44,10 +47,14 @@ export default function KontoNav() {
   const pathname = usePathname()
   const { effectiveSubscriptionPlan } = useSubscriptionReadOnly()
 
-  const links =
+  const linksBase =
     effectiveSubscriptionPlan === 'family'
       ? [baseLinks[0], profilerLink, ...baseLinks.slice(1)]
       : [...baseLinks]
+
+  const links = isNeonomicsPublicEnabled()
+    ? linksBase
+    : linksBase.filter((l) => l.href !== '/konto/koble-til-bank')
 
   return (
     <nav

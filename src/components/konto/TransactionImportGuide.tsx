@@ -6,7 +6,11 @@ import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
 import { BANK_IMPORT_AI_MAX_KEYS_PER_REQUEST } from '@/lib/bankImport/bankImport.constants'
 import { ArrowRight, BookOpen, X } from 'lucide-react'
 
-export type TransactionImportGuideMode = 'template_csv' | 'bank_dnb' | 'bank_sparebank1'
+export type TransactionImportGuideMode =
+  | 'template_csv'
+  | 'bank_dnb'
+  | 'bank_sparebank1'
+  | 'bank_neonomics'
 
 type GuideStep = {
   id: string
@@ -145,6 +149,39 @@ const GUIDE_STEPS_BANK: GuideStep[] = [
   },
 ]
 
+const GUIDE_STEPS_BANK_NEONOMICS: GuideStep[] = [
+  {
+    id: 'import-bank-neo-steg-1',
+    title: 'Koble DNB sandbox',
+    lead:
+      'Velg «Bank – Neonomics (sandbox)» som importkilde. Koble banken i appen — du sendes til DNB testmiljø og tilbake når samtykke er gitt.',
+    bullets: [
+      'Bruk test-personnummer fra Neonomics sandbox (konfigurert i miljøvariabler på server).',
+      'Etter vellykket kobling kan du hente transaksjoner (ca. siste 12 måneder).',
+      'Modulen kan skrus av med feature flag uten å påvirke filimport fra bank.',
+    ],
+    primary: { href: '#import-opplasting', label: 'Hopp til kobling' },
+    pitfall:
+      'Mangler server-oppsett (nøkler, krypteringsfil, migrasjon i Supabase), vises ikke importkilden eller API returnerer feil.',
+  },
+  ...GUIDE_STEPS_BANK.slice(1).map((step, i) => ({
+    ...step,
+    id: `import-bank-neo-steg-${i + 2}`,
+    title:
+      i === 0
+        ? 'Velg riktig profil (familie)'
+        : i === 1
+          ? 'Kartlegging og KI (som filimport)'
+          : i === 2
+            ? 'Forhåndsvisning og import'
+            : 'Etter import og re-sync',
+    lead:
+      i === 1
+        ? 'Hentede transaksjoner kartlegges som bankfil: forklaring → budsjettkategori. Du kan bruke KI-forslag som for DNB Excel.'
+        : step.lead,
+  })),
+]
+
 const GUIDE_STEPS_BANK_SPAREBANK1: GuideStep[] = [
   {
     id: 'import-bank-sb1-steg-1',
@@ -280,6 +317,7 @@ export default function TransactionImportGuideModal({ open, onClose, mode }: Tra
   const steps = useMemo(() => {
     if (mode === 'template_csv') return GUIDE_STEPS_CSV
     if (mode === 'bank_sparebank1') return GUIDE_STEPS_BANK_SPAREBANK1
+    if (mode === 'bank_neonomics') return GUIDE_STEPS_BANK_NEONOMICS
     return GUIDE_STEPS_BANK
   }, [mode])
   useEffect(() => {
@@ -331,7 +369,9 @@ export default function TransactionImportGuideModal({ open, onClose, mode }: Tra
                 ? 'Slik importerer du fra Excel-mal'
                 : mode === 'bank_sparebank1'
                   ? 'Slik importerer du fra Sparebank 1'
-                  : 'Slik importerer du fra DNB / Sbanken'}
+                  : mode === 'bank_neonomics'
+                    ? 'Slik importerer du via Neonomics (sandbox)'
+                    : 'Slik importerer du fra DNB / Sbanken'}
             </h2>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               {mode === 'template_csv'

@@ -8,7 +8,7 @@
 - **Zustand** med `persist` — global app-state i [`src/lib/store.ts`](../src/lib/store.ts) (budsjett, transaksjoner, profiler, m.m.)
 - **Supabase** — [`@supabase/ssr`](https://supabase.com/docs/guides/auth/server-side/nextjs) + [`@supabase/supabase-js`](../package.json): autentisering, synkron app-tilstand, abonnement, AI-bruk og roadmap-data (se migrasjoner under)
 - **Stripe** — Checkout for Solo/Familie-abonnement og valgfritt kjøp av ekstra AI-meldinger; status synkes via webhook med service role
-- **OpenAI** — EnkelExcel AI (server-side API, ikke eksponert til klient som nøkkel)
+- **OpenAI** — dottir AI (server-side API, ikke eksponert til klient som nøkkel)
 - **Recharts** — grafer på dashboard og andre sider
 - **Zod**, **React Hook Form** — skjemaer og validering der det trengs
 
@@ -42,7 +42,7 @@
 | `/snoball` | Snøballstrategi |
 | `/investering` | Investering (kurs m.m.) |
 | `/rapporter`, `/rapporter/sparemal`, `/rapporter/bank` | Rapporter |
-| `/enkelexcel-ai` | EnkelExcel AI |
+| `/enkelexcel-ai` | dottir AI |
 | `/konto`, `/konto/betalinger`, `/konto/innstillinger`, `/konto/sikkerhet`, `/konto/budsjett-kategorier`, `/konto/roadmap` | Konto og Stripe |
 | `/innstillinger` | App-innstillinger (egen rute) |
 
@@ -59,8 +59,11 @@
 | [`stripe/ai-credits-checkout`](../src/app/api/stripe/ai-credits-checkout/route.ts) | Engangskjøp av ekstra AI-meldinger |
 | [`fx`](../src/app/api/fx/route.ts), [`quote`](../src/app/api/quote/route.ts), [`quote/search`](../src/app/api/quote/search/route.ts) | Valuta og kurs (investering) |
 | [`cron/investment-quotes`](../src/app/api/cron/investment-quotes/route.ts) | Planlagt kursoppdatering (beskyttes med `CRON_SECRET`) |
+| [`cron/bank-neonomics`](../src/app/api/cron/bank-neonomics/route.ts) | Daglig bankhenting + auto-import for `auto_sync_enabled` (Neonomics) |
+| [`bank-import-suggest`](../src/app/api/bank-import-suggest/route.ts) | KI-forslag for bankimport (kartlegging) |
+| [`bank/neonomics/*`](../src/app/api/bank/neonomics/) | Valgfri Neonomics sandbox (koble bank, sync, PATCH auto-sync) — 404 når `NEONOMICS_ENABLED` er av; se [NEONOMICS-SANDBOX.md](./NEONOMICS-SANDBOX.md) |
 
-**EnkelExcel AI — produkthjelp for modellen:** Kurert bruksveiledning (`AI_APP_HELP_TEXT`) ligger i [`src/lib/aiAppHelp.ts`](../src/lib/aiAppHelp.ts) og skal holdes i tråd med appen når menyer, ruter eller viktige flyter endres; systeminstruks (`SYSTEM_PROMPT_BASE`) i [`src/app/api/enkelexcel-ai/route.ts`](../src/app/api/enkelexcel-ai/route.ts) justeres ved behov i samme sleng.
+**dottir AI — produkthjelp for modellen:** Kurert bruksveiledning (`AI_APP_HELP_TEXT`) ligger i [`src/lib/aiAppHelp.ts`](../src/lib/aiAppHelp.ts) og skal holdes i tråd med appen når menyer, ruter eller viktige flyter endres; systeminstruks (`SYSTEM_PROMPT_BASE`) i [`src/app/api/enkelexcel-ai/route.ts`](../src/app/api/enkelexcel-ai/route.ts) justeres ved behov i samme sleng.
 
 **Svarprinsipper (chat):** Modellen instrueres til å være datagrunnlagt (kun faktapåstander om brukerens økonomi fra tallblokken bygget i [`src/lib/aiUserContext.ts`](../src/lib/aiUserContext.ts)), løsningsorientert med nummererte neste steg hentet fra bruksveiledningen, og pyramideformat der det passer: først `Sammendrag:` (kulepunkter), deretter `Detaljer:` — unntak for rene navigasjonsspørsmål og svært korte svar. Ren tekst uten Markdown i chat-UI.
 
@@ -80,8 +83,14 @@ Migrasjoner ligger i [`supabase/migrations/`](../supabase/migrations/):
 | `006_monthly_insight_usage.sql` | Månedsinnsikt (AI): én generering per kalendermåned per bruker; tabell + `try_insert_monthly_insight_generation` (Europe/Oslo) |
 | `007_subscription_gate.sql` | Skrivetilgang til appdata krever aktiv Stripe-status eller `legacy_grandfathered`; `user_has_app_write_access()` og oppdaterte RLS-policyer |
 | `008_user_renovation_project_state.sql` | Oppussing/prosjektmodul: JSONB-tilstand per bruker (`user_renovation_project_state`), koblet til skrivekrav fra 007 |
+| `031_bank_connections.sql` | Neonomics bankkoblinger per bruker/profil (`bank_connections`, RLS) — valgfri modul |
+| `032_bank_connections_last_sync.sql` | `last_sync_at` / `last_sync_fetched_count` / `last_sync_error` på `bank_connections` |
+| `033_bank_connections_multi_bank.sql` | Flere banker per profil, `auto_sync_enabled`, `pending_unmapped_count` |
+| `034_bank_sync_log.sql` | Logg per bank-sync (cron/manuell) |
 
-**Miljø:** Se [`.env.example`](../.env.example) for `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, Stripe-nøkler og AI-relaterte variabler.
+**Neonomics app-state:** `bankPendingNeonomics` i `user_app_state` (ukartlagte rader etter server-sync); bjellevarsler via `syncBankNotifications()` i [`src/lib/bankNotifications.ts`](../src/lib/bankNotifications.ts).
+
+**Miljø:** Se [`.env.example`](../.env.example) for `NEXT_PUBLIC_SUPABASE_*`, `SUPABASE_SERVICE_ROLE_KEY`, Stripe-nøkler, AI-relaterte variabler og valgfrie `NEONOMICS_*` (sandbox bankimport).
 
 ```mermaid
 flowchart TB

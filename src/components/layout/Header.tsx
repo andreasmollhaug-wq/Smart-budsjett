@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react'
 import AccountMenu from '@/components/layout/AccountMenu'
 import NotificationBell from '@/components/layout/NotificationBell'
+import DottirAiHeaderButton from '@/components/enkelexcel-ai/DottirAiHeaderButton'
 
 interface HeaderProps {
   title: string
@@ -46,6 +47,7 @@ export default function Header({ title, subtitle, titleAddon }: HeaderProps) {
         {titleAddon != null ? (
           <span className="flex min-w-0 flex-wrap items-center justify-end gap-x-2 gap-y-2">{titleAddon}</span>
         ) : null}
+        <DottirAiHeaderButton className="hidden md:block" />
         <NotificationBell />
         <AccountMenu />
       </div>

@@ -13,13 +13,18 @@ import { ChevronRight, Trash2, X } from 'lucide-react'
 const SOURCE_LABEL: Record<string, string> = {
   dnb_sbanken: 'DNB / Sbanken',
   sparebank1: 'Sparebank 1',
+  neonomics_dnb: 'Neonomics (DNB sandbox)',
 }
 
 type Props = {
   runs: BankImportRun[]
+  emptyMessage?: string
 }
 
-export default function BankImportHistoryList({ runs }: Props) {
+export default function BankImportHistoryList({
+  runs,
+  emptyMessage = 'Ingen tidligere bankimporter ennå.',
+}: Props) {
   const people = useStore((s) => s.people)
   const profiles = useStore((s) => s.profiles)
   const removeBankImportRun = useStore((s) => s.removeBankImportRun)
@@ -117,7 +122,7 @@ export default function BankImportHistoryList({ runs }: Props) {
   if (runs.length === 0) {
     return (
       <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-        Ingen tidligere bankimporter ennå.
+        {emptyMessage}
       </p>
     )
   }

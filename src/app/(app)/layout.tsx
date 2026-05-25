@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import AppShell from '@/components/layout/AppShell'
+import DottirAiProvider from '@/components/enkelexcel-ai/DottirAiProvider'
 import { AppStateProvider } from '@/components/app/AppStateProvider'
 import { AppUserProvider } from '@/components/app/AppUserContext'
 import OnboardingHost from '@/components/onboarding/OnboardingHost'
@@ -56,7 +57,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <SubscriptionPastDueBanner />
             <ProductReleaseBanner />
             <DemoModeBanner />
-            <AppShell>{children}</AppShell>
+            <DottirAiProvider>
+              <AppShell>{children}</AppShell>
+            </DottirAiProvider>
           </div>
         </SubscriptionReadOnlyProvider>
       </AppUserProvider>

@@ -67,6 +67,20 @@ export function buildTransactionsFromBankRows(
       profileId,
       ...(bankImportRunId ? { bankImportRunId } : {}),
       ...(pf ? { plannedFollowUp: true } : {}),
+      ...(r.externalBankTxId
+        ? {
+            externalBankTxId: r.externalBankTxId,
+            externalBankProvider: 'neonomics' as const,
+            ...(r.externalBankAccountId
+              ? {
+                  externalBankAccountId: r.externalBankAccountId,
+                  ...(r.externalBankAccountLabel
+                    ? { externalBankAccountLabel: r.externalBankAccountLabel }
+                    : {}),
+                }
+              : {}),
+          }
+        : {}),
     })
   }
 

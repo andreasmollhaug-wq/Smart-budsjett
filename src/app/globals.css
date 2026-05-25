@@ -199,6 +199,37 @@ body {
   }
 }
 
+/* dottir AI — tenke-indikator */
+@keyframes ai-thinking-bounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.ai-thinking-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--primary);
+  animation: ai-thinking-bounce 1.2s ease-in-out infinite;
+}
+
+.ai-thinking-dot--2 {
+  animation-delay: 0.15s;
+}
+
+.ai-thinking-dot--3 {
+  animation-delay: 0.3s;
+}
+
 /* SmartSpare plan: Recharts setter fokus på SVG ved klikk — skjul standard outline (scoped) */
 .smartspare-recharts-no-focus :focus,
 .smartspare-recharts-no-focus :focus-visible {

@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/investment-quotes",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/bank-neonomics",
+      "schedule": "0 9 * * *"
     }
   ]
 }

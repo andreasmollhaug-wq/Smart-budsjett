@@ -15,9 +15,13 @@ import {
   ShoppingCart,
   Hammer,
   Building2,
+  Calculator,
 } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
+
+/** Boliglånskalkulator — egen rute under Gjeld. */
+export const BOLIGLAN_KALKULATOR_HREF = '/gjeld/kalkulator'
 
 export type SidebarNavItem = { href: string; label: string; icon: LucideIcon }
 
@@ -37,6 +41,12 @@ export const SIDEBAR_FORUM_ITEM: SidebarNavItem = {
   icon: MessagesSquare,
 }
 
+export const SIDEBAR_DOTTIR_AI_ITEM: SidebarNavItem = {
+  href: '/enkelexcel-ai',
+  label: 'dottir AI',
+  icon: MessageSquare,
+}
+
 /** Flat meny (detaljert modus). */
 export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/dashboard', label: 'Oversikt', icon: LayoutDashboard },
@@ -45,14 +55,15 @@ export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
   { href: '/sparing', label: 'Sparing', icon: PiggyBank },
   { href: '/gjeld', label: 'Gjeld', icon: CreditCard },
+  { href: BOLIGLAN_KALKULATOR_HREF, label: 'Boliglånskalkulator', icon: Calculator },
   { href: '/abonnementer', label: 'Abonnementer', icon: Repeat },
   { href: '/snoball', label: 'Snøball', icon: Snowflake },
   { href: '/investering', label: 'Investering', icon: TrendingUp },
   { href: '/rapporter', label: 'Rapporter', icon: FileText },
-  { href: '/enkelexcel-ai', label: 'dottir AI', icon: MessageSquare },
   { href: '/hjemflyt/start', label: 'Hjemflyt', icon: ClipboardList },
   { href: RENOVATION_PROJECT_BASE_PATH, label: 'Oppussing', icon: Hammer },
   SIDEBAR_FORUM_ITEM,
+  SIDEBAR_DOTTIR_AI_ITEM,
 ]
 
 /** Alias — markedsføring og eldre importer forventer `SIDEBAR_NAV`. */
@@ -106,7 +117,7 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
     label: 'Verktøy',
     icon: ClipboardList,
     items: [
-      item('/enkelexcel-ai'),
+      item(BOLIGLAN_KALKULATOR_HREF),
       item('/hjemflyt/start'),
       item(RENOVATION_PROJECT_BASE_PATH),
     ],
@@ -116,6 +127,13 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
     label: 'Forum',
     icon: MessagesSquare,
     items: [item(FORUM_BASE_PATH)],
+    directNav: true,
+  },
+  {
+    id: 'dottir-ai',
+    label: 'dottir AI',
+    icon: MessageSquare,
+    items: [SIDEBAR_DOTTIR_AI_ITEM],
     directNav: true,
   },
 ]

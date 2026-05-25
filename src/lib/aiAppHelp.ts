@@ -10,6 +10,7 @@ Om denne teksten og ansvar
 - Konkrete neste steg som krever handling i appen (menyer, ruter, knapper) skal kun bygge på det som står beskrevet her — ikke antatte funksjoner eller skjermbilder.
 - Ikke finn opp skjermbilder, knapper eller menyer som ikke står beskrevet her.
 - Vær på brukerens lag: svar konkret med neste steg i appen der det er naturlig, og praktiske tips som passer innholdet her og brukerens tall — uten nedlatende tone.
+- **Ruter som \`/konto/betalinger\` i denne teksten er interne ID-er for deg.** I svar til brukeren: bruk menynavn («Min konto → Betalinger») — ikke vis rå \`/…\`-stier.
 
 Kontakt og juridiske sider (utenfor innlogget app)
 - Leverandør: EnkelExcel. Generell kontakt e-post for personvern og henvendelser: post@enkelexcel.no (som i personvernerklæringen).
@@ -17,7 +18,7 @@ Kontakt og juridiske sider (utenfor innlogget app)
 - Vilkår: /vilkar
 - Sikkerhet (offentlig oversikt, ikke Min konto): /sikkerhet
 - Innlogging: /logg-inn · Registrering: /registrer
-- Glemt passord: /glemt-passord — bestill e-post med lenke for å sette nytt passord. Etter at du åpner lenken fra e-post, kan du angi nytt passord på /tilbakestill-passord (når gjenopprettingsøkta fra e-postlenken er aktiv). Er du allerede innlogget og vil bytte passord uten «glemt», bruk Min konto → Sikkerhet (/konto/sikkerhet).
+- Glemt passord: Gå til **Glemt passord** på innloggingssiden — bestill e-post med lenke. Etter at du åpner lenken, angir du nytt passord på **Tilbakestill passord**-siden. Er du allerede innlogget og vil bytte passord uten «glemt», gå til **Min konto → Sikkerhet**.
 - Markedsføring og innhold uten app-shell (eksempler): forsiden / · partner-/kampanjeside /iris · artikler /guider · /produktflyt — innlogging skjer via /logg-inn.
 
 Hovednavigasjon (venstremeny etter innlogging)
@@ -25,13 +26,15 @@ Hovednavigasjon (venstremeny etter innlogging)
 - /budsjett — Budsjett (underfaner: /budsjett/dashboard — Budsjett dashboard; /budsjett/husholdning — Husholdning, kun når «Viser data for» er husholdning med Familie og minst to profiler)
 - /transaksjoner — Transaksjoner (undermeny: /transaksjoner/kommende — Kommende planlagte transaksjoner; /transaksjoner/dashboard — Transaksjonsdashboard)
 - /sparing — Sparing (underfaner: /sparing/smartspare — smartSpare, planlegging av inntekt mot mål over en periode; /sparing/analyse — KPI, grafer, sparetempo og omvisning «Vis meg rundt»; /sparing/formuebygger — Formuebyggeren PRO)
-- /gjeld — Gjeld: under «Oversikt» (/gjeld) registreres og administreres lån. Når appen er satt til Familie-abonnement og det finnes minst to profiler, vises også underfanen «Husholdning» (/gjeld/husholdning) med samlet husholdnings-KPI, per-person-kort, diagrammer og modal (se egen seksjon «Gjeld»). Uten to profiler eller med Solo vises ingen gjeld-underfane — bare hovedsiden.
+- /gjeld — Gjeld: under «Oversikt» (/gjeld) registreres og administreres lån. Underfaner: «Oversikt» (/gjeld), «Boliglånskalkulator» (/gjeld/kalkulator), og «Husholdning» (/gjeld/husholdning) når Familie-abonnement og minst to profiler. Boliglånskalkulatoren finnes også som eget menypunkt under Verktøy (detaljert og enkel meny).
 - /snoball — Snøball
 - /investering — Investering
 - /rapporter — Rapporter (under bl.a. /rapporter/bank, /rapporter/manedsinnsikt og /rapporter/sparemal)
 - /prosjekt — Oppussing (egen modul med hovedprosjekt og rom/underprosjekter — ikke samme budsjett som /budsjekt; beskrives i detalj under «Oppussing og prosjekt»). Menypunktet «Oppussing» kan ligge bakerst i menyen.
-- /enkelexcel-ai — dottir AI
 - /forum — Brukerforum (tråder, kategorier, profil og varsler). I detaljert meny: eget punkt etter Oppussing. I enkel meny: eget hovedpunkt rett under «Verktøy» (ikke inni Verktøy-gruppen).
+- /enkelexcel-ai — dottir AI. I detaljert meny: eget punkt etter Forum. I enkel meny: eget hovedpunkt rett under Forum (ikke inni Verktøy-gruppen).
+- /gjeld/kalkulator — Boliglånskalkulator (frittstående simulering; også underfane i Gjeld og punkt under Verktøy i menyen)
+- /hjemflyt/start — Hjemflyt (husoppgaver og poeng for barn)
 - /abonnementer — Tjenesteabonnementer (faste abonnement som Netflix/Spotify; sum mnd/år, antall aktive; valgfri synk til budsjett under Regninger; i husholdning kan appen foreslå delt/familieabonnement når samme tjeneste er valgt fra listen for flere profiler)
 - Nederst i menyen: snarvei «Administrer abonnement» → /konto/betalinger (viser Solo/Familie og Stripe)
 - Min konto: /konto/innstillinger (redirect fra /konto), med undermenyer Innstillinger, **Profiler** (kun synlig med Familie-abonnement — se egen seksjon), Kom i gang (utvidet guide), Budsjettkategorier, Betalinger, Sikkerhet, Roadmap, Importer transaksjoner (CSV fra Excel-mal eller bankfil DNB/Sbanken; beløp med inntil to desimaler, valgfri «Legg også til i budsjett» og valgfri utelatelse av enkelt-rader; oppsummering uten navigasjon bort fra siden), **Import fra regnskap** (/konto/importer-fra-regnskap — CSV hovedbok fra bl.a. Conta/Tripletex; kartlegg regnskapskonto til budsjettkategori, valg huskes; sammendrag før bekreftelse), nederst i menyen
@@ -101,10 +104,10 @@ Sparing (/sparing)
 
 Gjeld (/gjeld)
 - Registrer lån med navn, total/rest, rente, månedlig betaling og type (bl.a. Boliglån, Lån, Studielån, Kredittkort, Annet).
-- **Boliglånskalkulator** (/gjeld/kalkulator, underfane i Gjeld): frittstående simulering (annuitet) med rentesensitivitet, nøkkeltall (f.eks. egen kapital, renter totalt, andel rente i starten, total tilbakebetaling), lånegrad 85/90 % som forklaringshjelpe, info-ikoner for begreper og nedbetalingsplan — bruker **ikke** de registrerte lånene automatisk. Ikke lånetilbud.
+- **Boliglånskalkulator** (/gjeld/kalkulator): frittstående simulering (annuitet) med rentesensitivitet, nøkkeltall (f.eks. egen kapital, renter totalt, andel rente i starten, total tilbakebetaling), lånegrad 85/90 % som forklaringshjelpe, info-ikoner for begreper og nedbetalingsplan — bruker **ikke** de registrerte lånene automatisk. Ikke lånetilbud. Finnes som underfane i Gjeld og som eget punkt under Verktøy i venstremenyen.
 - Standard: boliglån er ofte ikke med i snøball automatisk; andre typer kan være det — overstyr med «Ta med i snøball» (også i detalj).
 - Detaljer: pause, endre felter, snøball-innstilling. Oversikt viser bl.a. total gjeld, månedlige avdrag, høyeste rente, estimat årlig rentekostnad.
-- Underfaner vises bare når **Familie-abonnement** og **minst to profiler** er på plass. Da har du «Oversikt» (/gjeld) og «Husholdning» (/gjeld/husholdning). Med Solo eller bare én profil kommer **ingen** horisontal underfane — kun gjeldssiden som i dag.
+- Underfaner: «Oversikt» (/gjeld), «Boliglånskalkulator» (/gjeld/kalkulator), og «Husholdning» (/gjeld/husholdning) når Familie-abonnement og minst to profiler. Med Solo eller bare én profil vises Oversikt og Boliglånskalkulator — ikke Husholdning.
 - Direkte besøk på /gjeld/husholdning uten rett til siden (ikke Familie eller færre enn to profiler) **videresendes** til /gjeld.
 - **Gjeld → Husholdning** (/gjeld/husholdning): Tallene **følger «Viser data for»** øverst i menyen. Når **Husholdning** er valgt: samlet KPI for hele husholdningen, **per-person-kort**, diagrammer som sammenligner alle, stablet diagram per person og type. Når **én profil** er valgt: samme side viser **kun den profilens** gjeld, kort og diagrammer (ett medlem). KPI-tekstene og undertittel på siden tilpasses modus. Søylene har **tall over seg** i forkortet form (**k** = tusen, **M** = millioner). Klikk på **person** eller **søyle** åpner **modal** med alle lån for den profilen (lesing); redigering skjer på Gjeld → Oversikt når riktig profil er valgt, som forklart i modalen.
 - Tallene på husholdningssiden er **samme registrerte gjeld** som under hver profil — appen **beregner ikke** egen «hvem bør betale hvor mye»-fordeling; det er ren oversikt og sammenligning.
@@ -145,12 +148,15 @@ Rapporter
 
 dottir AI (/enkelexcel-ai)
 - Chat med «dottir AI» om budsjett, sparing, gjeld, **hvordan Oppussing-modulen fungerer** (struktur, menyer og flyt ut fra bruksveiledningen), og øvrige funksjoner beskrevet her — kombinert med bruksveiledningen og brukerens **tallblokk** fra appen der den finnes (se punkt om oppussing og talltekst).
+- **Global tilgang i appen:** I header (desktop, md+) finnes et chat-ikon før varsler — åpner dottir AI i et modalvindu uten å forlate siden. På mobil: flytende knapp nede til høyre (kan skjules til i morgen eller permanent; slås på igjen under Min konto → Innstillinger → «Snarvei til dottir AI»). Hurtigtast på desktop: Ctrl+K (Cmd+K på Mac). Fullskjerm-chat: /enkelexcel-ai (eget menypunkt etter Forum).
 - Personvern: tallteksten som sendes til AI bygges kun fra den innloggede brukerens egen lagrede app-data — ikke andre brukeres kontoer.
 - Hvilket tallgrunnlag som sendes til AI følger profilvelgeren til venstre: én profil eller samlet husholdning (Familie med minst to profiler). Chattsiden viser tydelig hvilket grunnlag som gjelder.
 - I husholdningsmodus er mange beløp i tallteksten summert på tvers av profiler (aggregat). Enkeltlinjer som transaksjoner, abonnementer og en del andre poster kan være merket med profil (f.eks. [navn]). Når brukeren spør om hvem eller fordeling, bruk slike profilmerker og eventuell tabell per profil — ikke anta mer enn teksten viser.
 - Innhold i tallteksten (typisk rekkefølge): innledning med budsjettår og visningsmodus; deretter tjenesteabonnementer (i husholdning: tabell per profil + detaljliste med [profil], plassert før transaksjoner slik at summene ikke forsvinner ved avkorting); transaksjoner (nyeste først, begrenset antall linjer) med profilkolonne i husholdning; kort utdrag av planlagte poster som krever oppfølging (Kommende); budsjettkategorier (brukt/plan for året); sparemål; gjeld; investeringer — med [profil] der det er relevant i husholdning. **Oppussingsprosjekter under /prosjekt inngår per nå ikke i denne tallteksten** — forklar struktur og bruk fra bruksveiledningen og inviter brukeren til å åpne Oppussing for egne oppussingsbeløp (ikke finn opp brukerens prosjekt­tall eller anta at de står i tallblokken). Ved svært mye data kan teksten avkortes (øvre tegnbegrensning); ikke gjett utover det som står.
 - Spørsmål om **hvor i appen** man ser gjeld **fordelt på person**, **diagram** eller **detaljvisning per medlem**: med Familie og minst to profiler finnes **Gjeld → Husholdning** (/gjeld/husholdning) med grafer, tall over søyler (forkortet k/M) og modal ved klikk på person eller søyle — dette er **ikke** en egen datakilde utover registrert gjeld per profil; tallteksten til AI er liste/tabellbasert, siden er visuell.
-- Svar skal være ren tekst uten Markdown (ingen **, kodeblokker, osv.) — som beskrevet i systeminstruksen.
+- Svar bruker Markdown i chat (overskrifter, lister, fet tekst) — som beskrevet i systeminstruksen.
+- Modal og fullskjerm deler samme samtale (lagret lokalt). Forslag til spørsmål tilpasses **sidens du står på** (f.eks. boliglånskalkulator, budsjett, gjeld) og **hva du har registrert** (f.eks. kom-i-gang-forslag når budsjett/transaksjoner mangler) — vises **kun når du åpner dottir AI**.
+- Etter ca. 10 minutter aktiv bruk i appen (første gang) kan det komme **ett varsel i bjellen** som kort forklarer hva dottir AI kan hjelpe med og lenker til chatten — kun hvis du ikke allerede har åpnet den.
 - Meldingskvote: standard inkludert antall meldinger per kalendermåned (serverstyrt; miljøvariabel AI_MONTHLY_MESSAGE_LIMIT, standard 100). Når inkluderte meldinger er brukt opp, kan du ha «ekstra meldinger» (bonus credits) hvis kjøpt.
 - Kjøp av ekstra AI-meldinger: fra chattsiden går betaling via Stripe (egen checkout); etter vellykket betaling returneres du til chatten med ?ai_credits=success.
 - Samtale lagres lokalt i nettleseren per bruker (persistens på enheten), ikke som full sikkerhetskopi i skyen — ta kontakt ved behov for personsikkerhet.
@@ -180,17 +186,17 @@ Betalinger og abonnement (/konto/betalinger)
 - Ved aktivt Stripe-abonnement vises status og ofte sluttdato for gjeldende periode.
 - Seksjonen «Betalingsmetode» forklarer at kort knyttes til Stripe ved abonnement og at administrasjon skjer via kundeportalen.
 - Endre betalingskort: via «Administrer abonnement» (Stripe Customer Portal) når knappen vises.
-- **Avslutte betalt abonnement (Solo/Familie via Stripe)** — steg brukeren kan følge:
-  1. Gå til Min konto → Betalinger (/konto/betalinger), eller bruk snarveien «Administrer abonnement» nederst i venstremenyen (samme side).
-  2. Når du har aktivt Stripe-abonnement og knappen «Administrer abonnement» vises: trykk den (åpner Stripes kundeportal, ofte i ny fane).
-  3. I Stripe-portalen: velg å si opp / avslutte abonnement. Stripe viser vanligvis at du beholder tilgang til slutten av betalt periode.
-  4. Kort og fakturaer håndteres også i portalen (hjelpetekst på siden: «Kort, oppsigelse og fakturaer håndteres i Stripes kundeportal»).
-  5. Hvis knappen **ikke** vises: du har ikke et aktivt Stripe-kundeforhold å administrere i portalen — kontakt post@enkelexcel.no ved spørsmål.
-  6. **Viktig skille:** Si opp Stripe-abonnement er **ikke** det samme som å slette Dottir-brukerkontoen, og **ikke** det samme som å fjerne en ekstra budsjettprofil under Profiler.
+- **Avslutte betalt abonnement (Solo/Familie via Stripe)** — brukervennlig vei (formuler slik til brukeren):
+  1. Gå til **Min konto → Betalinger** — eller trykk **Administrer abonnement** nederst i venstremenyen (samme side).
+  2. Trykk **Administrer abonnement** (åpner Stripes kundeportal).
+  3. I Stripe: velg det **aktive abonnementet** (Solo eller Familie).
+  4. Velg **Avslutt / si opp abonnement** og bekreft i Stripe. Du beholder vanligvis tilgang til slutten av betalt periode.
+  5. Hvis knappen **ikke** vises: ingen Stripe-kunde registrert — kontakt post@enkelexcel.no.
+  6. **Ikke forveksle med:** Abonnementer → Avsluttede (Netflix/Spotify i budsjettet), sletting av brukerkonto, eller fjerning av profil under Profiler.
 - Ved behov utover portalen: kontakt post@enkelexcel.no.
 
 Sikkerhet (/konto/sikkerhet)
-- Passord: skjema med nåværende passord og nytt passord (minst 8 tegn). Lagre med «Oppdater passord». Glemt passord uten innlogging: /glemt-passord og deretter /tilbakestill-passord med lenke fra e-post.
+- Passord: skjema med nåværende passord og nytt passord (minst 8 tegn). Lagre med «Oppdater passord». Glemt passord uten innlogging: **Glemt passord** på innloggingssiden, deretter **Tilbakestill passord** med lenke fra e-post. Innlogget: **Min konto → Sikkerhet**.
 - Tofaktorautentisering (2FA): seksjon finnes, men knappen «Aktiver» er **deaktivert** — funksjonen kommer i neste release. Si ikke at brukeren kan aktivere 2FA i appen nå.
 - Aktive økter: full oversikt over andre enheter og utlogging av andre økter **kommer senere**. Siden forklarer at du er innlogget i denne nettleseren nå.
 

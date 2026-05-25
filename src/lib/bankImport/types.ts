@@ -1,6 +1,6 @@
 import type { LedgerBudgetAdjustmentSnapshot } from '@/lib/ledgerImport/types'
 
-export type BankSourceId = 'dnb_sbanken' | 'sparebank1'
+export type BankSourceId = 'dnb_sbanken' | 'sparebank1' | 'neonomics_dnb' | 'neonomics_nordea'
 
 export interface BankImportMappingRule {
   categoryName: string
@@ -35,6 +35,7 @@ export interface BankImportRun {
   errorSummary: string | null
   importedLines?: BankImportLineSnapshot[]
   budgetAdjustment?: LedgerBudgetAdjustmentSnapshot
+  accountSummaries?: { accountId: string; label: string; imported: number; pending: number }[]
 }
 
 export type BankParseRowErrorReason =
@@ -64,9 +65,28 @@ export interface BankParsedRow {
   mappingKeyLegacy: string
   amount: number
   transactionType: 'income' | 'expense'
+  /** Satt ved Neonomics-sync for deduplisering ved import. */
+  externalBankTxId?: string
+  /** Neonomics account.id — hvilken bankkonto raden kom fra. */
+  externalBankAccountId?: string
+  externalBankAccountLabel?: string
 }
 
 export interface ParseBankFileResult {
   rows: BankParsedRow[]
   rowErrors: BankParseRowError[]
 }
+
+/** Ukartlagte Neonomics-rader lagret i user_app_state (cron/manuell hent). */
+export type BankPendingNeonomicsPayload = {
+  profileId: string
+  bankId: string
+  bankDisplayName: string
+  rows: BankParsedRow[]
+  label: string
+  updatedAt: string
+  fetchedCount: number
+  duplicateCount: number
+}
+
+export type BankPendingNeonomicsState = Record<string, BankPendingNeonomicsPayload>
