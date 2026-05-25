@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ChevronDown, ChevronUp, Minus, Plus, Banknote, PieChart, Receipt, GraduationCap } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import AnnuityScheduleTable from '@/components/debt/calculator/AnnuityScheduleTable'
+import CalculatorCollapsibleSection from '@/components/debt/calculator/CalculatorCollapsibleSection'
 import CalculatorExportBar from '@/components/debt/calculator/CalculatorExportBar'
 import CalculatorRateYearsInputs from '@/components/debt/calculator/CalculatorRateYearsInputs'
 import RateSensitivityPanel from '@/components/debt/calculator/RateSensitivityPanel'
@@ -68,6 +69,9 @@ export default function StudielanKalkulator() {
   const [grantConversionPct, setGrantConversionPct] = useState(30)
   const [useStudyEstimate, setUseStudyEstimate] = useState(false)
 
+  const [studySectionOpen, setStudySectionOpen] = useState(false)
+  const [repaymentSectionOpen, setRepaymentSectionOpen] = useState(true)
+  const [lanekassenInfoOpen, setLanekassenInfoOpen] = useState(false)
   const [monthlyScheduleOpen, setMonthlyScheduleOpen] = useState(false)
   const [yearlyScheduleOpen, setYearlyScheduleOpen] = useState(true)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
@@ -91,7 +95,25 @@ export default function StudielanKalkulator() {
     [studyYears, annualLoanAmount, grantConversionPct],
   )
 
-  const effectivePrincipal = useStudyEstimate ? estimatedFromStudy : principal
+  const displayPrincipal = useStudyEstimate ? estimatedFromStudy : principal
+
+  const studySectionSummary = useMemo(
+    () =>
+      `${studyYears} år · ${formatNOK(annualLoanAmount)}/år · ${grantConversionPct} % stipend · estimat ${formatNOK(estimatedFromStudy)}`,
+    [studyYears, annualLoanAmount, grantConversionPct, estimatedFromStudy, formatNOK],
+  )
+
+  const repaymentSectionSummary = useMemo(() => {
+    const parts = [
+      formatNOK(displayPrincipal),
+      formatRateNb(nominalRate),
+      `${years} år`,
+    ]
+    if (graceMonths > 0) parts.push(`${graceMonths} mnd før termin`)
+    return parts.join(' · ')
+  }, [displayPrincipal, nominalRate, years, graceMonths, formatNOK])
+
+  const effectivePrincipal = displayPrincipal
 
   const result = useMemo(
     () =>
@@ -232,17 +254,18 @@ export default function StudielanKalkulator() {
           </div>
         )}
 
-        <div className="rounded-xl p-4 space-y-4" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-1">
-            <GraduationCap className="h-4 w-4 shrink-0" style={{ color: 'var(--primary)' }} />
-            <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-              Bygg opp fra studier
-            </span>
-            <InfoPopover
-              title="Estimer restgjeld"
-              text="Antall studieår ganger lån per år, minus forventet stipend-omgjøring. Deler av basislånet kan omgjøres til stipend ved normert studieprogresjon og inntektsgrenser hos Lånekassen."
-            />
-          </div>
+        <CalculatorCollapsibleSection
+          title="Bygg opp fra studier"
+          titleIcon={<GraduationCap className="h-4 w-4 shrink-0" style={{ color: 'var(--primary)' }} />}
+          subtitle="Valgfritt — estimer restgjeld fra studieår, lån per år og stipend."
+          summary={studySectionSummary}
+          info={{
+            title: 'Estimer restgjeld',
+            text: 'Antall studieår ganger lån per år, minus forventet stipend-omgjøring. Deler av basislånet kan omgjøres til stipend ved normert studieprogresjon og inntektsgrenser hos Lånekassen.',
+          }}
+          open={studySectionOpen}
+          onToggle={() => setStudySectionOpen((o) => !o)}
+        >
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 min-w-0">
             <div>
               <label className="text-xs font-medium block mb-1" style={{ color: 'var(--text-muted)' }}>
@@ -304,13 +327,16 @@ export default function StudielanKalkulator() {
           >
             Bruk estimat som restgjeld
           </button>
-        </div>
+        </CalculatorCollapsibleSection>
 
-        <div className="space-y-4 pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>
-            Restgjeld ved oppstart av tilbakebetaling
-          </p>
-
+        <CalculatorCollapsibleSection
+          title="Restgjeld ved oppstart av tilbakebetaling"
+          subtitle="Beløp, rente, nedbetalingstid og periode før første termin."
+          summary={repaymentSectionSummary}
+          open={repaymentSectionOpen}
+          onToggle={() => setRepaymentSectionOpen((o) => !o)}
+          variant="plain"
+        >
           <div className="flex flex-col gap-2 min-w-0">
             <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
               Totalt lånebeløp
@@ -335,12 +361,12 @@ export default function StudielanKalkulator() {
                   min={STUDENT_LOAN_PRINCIPAL_MIN}
                   max={STUDENT_LOAN_PRINCIPAL_MAX}
                   step={STUDENT_LOAN_PRINCIPAL_STEP}
-                  value={useStudyEstimate ? estimatedFromStudy : principal}
+                  value={displayPrincipal}
                   onChange={(e) => {
                     setUseStudyEstimate(false)
                     setPrincipal(Number(e.target.value))
                   }}
-                  aria-valuetext={formatNOK(useStudyEstimate ? estimatedFromStudy : principal)}
+                  aria-valuetext={formatNOK(displayPrincipal)}
                 />
                 <IconStepButton
                   label="Legg til beløp"
@@ -355,7 +381,7 @@ export default function StudielanKalkulator() {
                 </IconStepButton>
               </div>
               <FormattedAmountInput
-                value={useStudyEstimate ? estimatedFromStudy : principal}
+                value={displayPrincipal}
                 onChange={(n) => {
                   setUseStudyEstimate(false)
                   setPrincipal(clampCalculator(n, STUDENT_LOAN_PRINCIPAL_MIN, STUDENT_LOAN_PRINCIPAL_MAX))
@@ -401,18 +427,26 @@ export default function StudielanKalkulator() {
               style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
             />
           </div>
-        </div>
+        </CalculatorCollapsibleSection>
 
-        <div className="text-xs leading-relaxed space-y-2 pt-2 border-t" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-          <p>
-            <strong style={{ color: 'var(--text)' }}>Flytende rente</strong> endres annenhver måned hos Lånekassen. Fast rente
-            kan søkes for 3, 5 eller 10 år. Lånet er rentefritt under fulltidsstøtte.
-          </p>
-          <p>
-            Du kan utsette betaling inntil 36 ganger (3 år) i løpet av nedbetalingsperioden — det modelleres ikke her.
-            Nedbetalingstid opptil 20 år (240 terminer).
-          </p>
-        </div>
+        <CalculatorCollapsibleSection
+          title="Om Lånekassen og tilbakebetaling"
+          summary="Flytende rente, rentefri studietid, utsettelse og nedbetalingstid"
+          open={lanekassenInfoOpen}
+          onToggle={() => setLanekassenInfoOpen((o) => !o)}
+          variant="plain"
+        >
+          <div className="text-xs leading-relaxed space-y-2" style={{ color: 'var(--text-muted)' }}>
+            <p>
+              <strong style={{ color: 'var(--text)' }}>Flytende rente</strong> endres annenhver måned hos Lånekassen. Fast rente
+              kan søkes for 3, 5 eller 10 år. Lånet er rentefritt under fulltidsstøtte.
+            </p>
+            <p>
+              Du kan utsette betaling inntil 36 ganger (3 år) i løpet av nedbetalingsperioden — det modelleres ikke her.
+              Nedbetalingstid opptil 20 år (240 terminer).
+            </p>
+          </div>
+        </CalculatorCollapsibleSection>
       </div>
 
       <div className="rounded-2xl p-4 sm:p-6 space-y-5" style={CALCULATOR_CARD_STYLE}>
