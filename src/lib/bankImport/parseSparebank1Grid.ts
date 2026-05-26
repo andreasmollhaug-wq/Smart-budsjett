@@ -1,7 +1,7 @@
-import { parseAmountImportNbNo } from '@/lib/transactionImport/parseAmountImportNbNo'
 import { BANK_IMPORT_MAX_DATA_ROWS } from '@/lib/bankImport/bankImport.constants'
 import { buildBankRowMappingKeys } from '@/lib/bankImport/bankMappingKeys'
 import { normalizeBankHeaderCell } from '@/lib/bankImport/headerNormalize'
+import { resolveBankInnUtAmounts } from '@/lib/bankImport/parseBankColumnAmount'
 import type { BankParseRowError, BankParsedRow, ParseBankFileResult } from '@/lib/bankImport/types'
 import { parseBankDateFlexible } from '@/lib/bankImport/parseDnbGrid'
 
@@ -92,34 +92,17 @@ export function parseSparebank1Grid(grid: string[][], fileLineOffset = 0): Parse
       continue
     }
 
-    const utHasText = utRaw.length > 0
-    const innHasText = innRaw.length > 0
-    const utAmt = utHasText ? parseAmountImportNbNo(utRaw) : NaN
-    const innAmt = innHasText ? parseAmountImportNbNo(innRaw) : NaN
-    const hasUt = utHasText && Number.isFinite(utAmt)
-    const hasInn = innHasText && Number.isFinite(innAmt)
-
-    if (hasUt && hasInn) {
+    const amountResult = resolveBankInnUtAmounts(utRaw, innRaw)
+    if (!amountResult.ok) {
+      if (amountResult.reason === 'empty') continue
       rowErrors.push({
         fileLine,
-        reason: 'ambiguous_amount',
-        detail: 'Både ut og inn har beløp.',
+        reason: amountResult.reason,
+        ...(amountResult.detail ? { detail: amountResult.detail } : {}),
       })
       continue
     }
-    if (!hasUt && !hasInn) {
-      if (utHasText || innHasText) {
-        rowErrors.push({
-          fileLine,
-          reason: 'invalid_amount',
-          detail: utRaw || innRaw,
-        })
-      }
-      continue
-    }
-
-    const amount = hasUt ? utAmt : innAmt
-    const transactionType: 'income' | 'expense' = hasUt ? 'expense' : 'income'
+    const { amount, transactionType } = amountResult
     const { primaryKey: mappingKey, legacyKey: mappingKeyLegacy } = buildBankRowMappingKeys(
       forklaringRaw,
       transactionType,

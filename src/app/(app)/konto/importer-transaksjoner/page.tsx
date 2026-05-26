@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BankImportHistoryList from '@/components/konto/BankImportHistoryList'
 import TemplateCsvImportHistoryList from '@/components/konto/TemplateCsvImportHistoryList'
-import BankImportMappingAggregateLists from '@/components/konto/BankImportMappingAggregateLists'
+import BankImportMappingAggregateLists, {
+  BankImportMappingSearch,
+} from '@/components/konto/BankImportMappingAggregateLists'
 import BankTransactionImportDropzone from '@/components/konto/BankTransactionImportDropzone'
 import TransactionImportDropzone from '@/components/konto/TransactionImportDropzone'
 import TransactionImportGuideModal from '@/components/konto/TransactionImportGuide'
@@ -52,13 +54,20 @@ import { bankPendingNeonomicsKey } from '@/lib/neonomics/bankCatalogKeys'
 import { consumeNeonomicsPendingImport } from '@/lib/neonomics/pendingBankImportSession'
 import { isNeonomicsPublicEnabled } from '@/lib/neonomics/featurePublic'
 import {
+  aggregateMappingComplete,
   buildBankMappingAggregates,
+  buildBankRowsByMappingKey,
   countPotentialDuplicateBankRows,
+  countUnmappedBankRows,
+  filterBankAggregatesBySearch,
+  isBankRowMapped,
+  normalizeBankMappingSearchText,
+  resolveBankRowCategoryName,
 } from '@/lib/bankImport/bankImportUiHelpers'
 import type { BankParsedRow, BankParseRowError, BankSourceId, ParseBankFileResult } from '@/lib/bankImport/types'
 import { useStore } from '@/lib/store'
 import { useModalBackdropDismiss } from '@/hooks/useModalBackdropDismiss'
-import { generateId } from '@/lib/utils'
+import { generateId, formatIsoDateDdMmYyyy } from '@/lib/utils'
 import { formatNokCurrencyDisplayTwoDecimals } from '@/lib/money/nokDisplayFormat'
 import { roundMoney2 } from '@/lib/money/parseNorwegianAmount'
 import { ArrowLeft, BookOpen, ChevronRight, Maximize2, RotateCcw, Sparkles } from 'lucide-react'
@@ -154,6 +163,11 @@ export default function ImporterTransaksjonerPage() {
   const [bankAiError, setBankAiError] = useState<string | null>(null)
   const [bankAiProgress, setBankAiProgress] = useState<string | null>(null)
   const [bankMappingExpanded, setBankMappingExpanded] = useState(false)
+  const [bankMappingSearchQuery, setBankMappingSearchQuery] = useState('')
+  const [bankMappingExpandedKeys, setBankMappingExpandedKeys] = useState<Set<string>>(() => new Set())
+  const [bankCategoryOverridesByFileLine, setBankCategoryOverridesByFileLine] = useState<
+    Record<number, string>
+  >({})
   const [bankAmountOverridesByLine, setBankAmountOverridesByLine] = useState<Record<number, number>>({})
   const [excludedCsvFileLines, setExcludedCsvFileLines] = useState<Set<number>>(() => new Set())
   const [excludedBankFileLines, setExcludedBankFileLines] = useState<Set<number>>(() => new Set())
@@ -291,6 +305,9 @@ export default function ImporterTransaksjonerPage() {
     setBankAiBusy(false)
     setBankAiError(null)
     setBankMappingExpanded(false)
+    setBankMappingSearchQuery('')
+    setBankMappingExpandedKeys(new Set())
+    setBankCategoryOverridesByFileLine({})
     setBankAmountOverridesByLine({})
     setExcludedBankFileLines(new Set())
     setAlsoApplyToBudgetBank(false)
@@ -515,16 +532,85 @@ export default function ImporterTransaksjonerPage() {
     [resolvedBankCategoryName, pickerCategories],
   )
 
+  const resolveBankRowCategoryForImport = useCallback(
+    (row: BankParsedRow) =>
+      resolveBankRowCategoryName(row, bankMaps, bankCategoryOverridesByFileLine),
+    [bankMaps, bankCategoryOverridesByFileLine],
+  )
+
+  const resolveBankRowCategoryDisplay = useCallback(
+    (row: BankParsedRow) => resolveBankRowCategoryForImport(row) ?? '',
+    [resolveBankRowCategoryForImport],
+  )
+
   const applyBankMappingWithLegacyFanout = useCallback(
     (primaryKey: string, rule: { categoryName: string } | null) => {
       setBankImportMapping(activeBankSourceId, primaryKey, rule)
       const legs = legacyKeysByPrimary.get(primaryKey)
-      if (!legs) return
-      for (const leg of legs) {
-        setBankImportMapping(activeBankSourceId, leg, rule)
+      if (legs) {
+        for (const leg of legs) {
+          setBankImportMapping(activeBankSourceId, leg, rule)
+        }
       }
     },
     [setBankImportMapping, legacyKeysByPrimary, activeBankSourceId],
+  )
+
+  const clearBankCategoryOverridesForMappingKey = useCallback(
+    (mappingKey: string) => {
+      setBankCategoryOverridesByFileLine((prev) => {
+        const fileLines = bankParsedRowsEffective
+          .filter((r) => r.mappingKey === mappingKey)
+          .map((r) => r.fileLine)
+        if (!fileLines.some((fl) => prev[fl] !== undefined)) return prev
+        const next = { ...prev }
+        for (const fl of fileLines) delete next[fl]
+        return next
+      })
+    },
+    [bankParsedRowsEffective],
+  )
+
+  const setBankAggregateCategory = useCallback(
+    (aggregate: { mappingKey: string }, categoryName: string | null) => {
+      applyBankMappingWithLegacyFanout(
+        aggregate.mappingKey,
+        categoryName?.trim() ? { categoryName: categoryName.trim() } : null,
+      )
+      clearBankCategoryOverridesForMappingKey(aggregate.mappingKey)
+    },
+    [applyBankMappingWithLegacyFanout, clearBankCategoryOverridesForMappingKey],
+  )
+
+  const setBankRowCategoryOverride = useCallback(
+    (row: BankParsedRow, categoryName: string | null) => {
+      const trimmed = categoryName?.trim() ?? ''
+      const aggregateName = resolvedBankCategoryName(row.mappingKey)
+      setBankCategoryOverridesByFileLine((prev) => {
+        const next = { ...prev }
+        if (!trimmed || trimmed === aggregateName) {
+          delete next[row.fileLine]
+        } else {
+          next[row.fileLine] = trimmed
+        }
+        return next
+      })
+    },
+    [resolvedBankCategoryName],
+  )
+
+  const toggleBankMappingExpanded = useCallback((mappingKey: string) => {
+    setBankMappingExpandedKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(mappingKey)) next.delete(mappingKey)
+      else next.add(mappingKey)
+      return next
+    })
+  }, [])
+
+  const bankRowsByMappingKey = useMemo(
+    () => buildBankRowsByMappingKey(bankParsedRowsEffective),
+    [bankParsedRowsEffective],
   )
 
   const bankAggregates = useMemo(
@@ -532,10 +618,53 @@ export default function ImporterTransaksjonerPage() {
     [bankParsedRowsEffective],
   )
 
-  const bankVisibleAggregates = useMemo(() => {
-    if (!showOnlyUnmapped) return bankAggregates
-    return bankAggregates.filter((a) => !isBankKeyMapped(a.mappingKey, a.transactionType))
-  }, [bankAggregates, showOnlyUnmapped, isBankKeyMapped])
+  const bankFilteredAggregates = useMemo(() => {
+    let list = showOnlyUnmapped
+      ? bankAggregates.filter(
+          (a) =>
+            !aggregateMappingComplete(
+              a,
+              bankParsedRowsEffective,
+              bankMaps,
+              bankCategoryOverridesByFileLine,
+              pickerCategories,
+            ),
+        )
+      : bankAggregates
+    list = filterBankAggregatesBySearch(list, bankParsedRowsEffective, bankMappingSearchQuery)
+    return list
+  }, [
+    bankAggregates,
+    showOnlyUnmapped,
+    bankParsedRowsEffective,
+    bankMaps,
+    bankCategoryOverridesByFileLine,
+    pickerCategories,
+    bankMappingSearchQuery,
+  ])
+
+  const bankMappingEffectiveExpandedKeys = useMemo(() => {
+    const q = bankMappingSearchQuery.trim()
+    if (!q) return bankMappingExpandedKeys
+    const normQ = normalizeBankMappingSearchText(q)
+    const next = new Set(bankMappingExpandedKeys)
+    for (const a of bankFilteredAggregates) {
+      if (a.rowCount <= 1) continue
+      if (normalizeBankMappingSearchText(a.exampleForklaring).includes(normQ)) continue
+      const childRows = bankRowsByMappingKey.get(a.mappingKey) ?? []
+      if (childRows.some((r) => normalizeBankMappingSearchText(r.forklaringRaw).includes(normQ))) {
+        next.add(a.mappingKey)
+      }
+    }
+    return next
+  }, [
+    bankMappingSearchQuery,
+    bankMappingExpandedKeys,
+    bankFilteredAggregates,
+    bankRowsByMappingKey,
+  ])
+
+  const bankVisibleAggregates = bankFilteredAggregates
 
   const { bankVisibleIncome, bankVisibleExpense } = useMemo(() => {
     const income: typeof bankAggregates = []
@@ -558,24 +687,48 @@ export default function ImporterTransaksjonerPage() {
 
   const bankMappingIncomeSectionMode = useMemo(() => {
     if (!fileHasIncomeAggregates) return 'empty-file'
+    if (bankMappingSearchQuery.trim() && bankVisibleIncome.length === 0) return 'list'
     if (bankVisibleIncome.length === 0) return 'hidden'
     return 'list'
-  }, [fileHasIncomeAggregates, bankVisibleIncome.length])
+  }, [fileHasIncomeAggregates, bankVisibleIncome.length, bankMappingSearchQuery])
 
   const bankMappingExpenseSectionMode = useMemo(() => {
     if (!fileHasExpenseAggregates) return 'empty-file'
+    if (bankMappingSearchQuery.trim() && bankVisibleExpense.length === 0) return 'list'
     if (bankVisibleExpense.length === 0) return 'hidden'
     return 'list'
-  }, [fileHasExpenseAggregates, bankVisibleExpense.length])
+  }, [fileHasExpenseAggregates, bankVisibleExpense.length, bankMappingSearchQuery])
 
   const bankCanGoPreview = useMemo(() => {
-    if (!bankAggregates.length) return false
-    return bankAggregates.every((a) => isBankKeyMapped(a.mappingKey, a.transactionType))
-  }, [bankAggregates, isBankKeyMapped])
+    if (!bankParsedRowsEffective.length) return false
+    return bankParsedRowsEffective.every((row) =>
+      isBankRowMapped(row, bankMaps, bankCategoryOverridesByFileLine, pickerCategories),
+    )
+  }, [bankParsedRowsEffective, bankMaps, bankCategoryOverridesByFileLine, pickerCategories])
+
+  const bankUnmappedRowCount = useMemo(
+    () =>
+      countUnmappedBankRows(
+        bankParsedRowsEffective,
+        bankMaps,
+        bankCategoryOverridesByFileLine,
+        pickerCategories,
+      ),
+    [bankParsedRowsEffective, bankMaps, bankCategoryOverridesByFileLine, pickerCategories],
+  )
 
   const bankUnmappedAggregates = useMemo(() => {
-    return bankAggregates.filter((a) => !isBankKeyMapped(a.mappingKey, a.transactionType))
-  }, [bankAggregates, isBankKeyMapped])
+    return bankAggregates.filter(
+      (a) =>
+        !aggregateMappingComplete(
+          a,
+          bankParsedRowsEffective,
+          bankMaps,
+          bankCategoryOverridesByFileLine,
+          pickerCategories,
+        ),
+    )
+  }, [bankAggregates, bankParsedRowsEffective, bankMaps, bankCategoryOverridesByFileLine, pickerCategories])
 
   const neonomicsAccountSummary = useMemo(() => {
     if (importMode !== 'bank_neonomics') return []
@@ -595,10 +748,10 @@ export default function ImporterTransaksjonerPage() {
     const rows = bankParsedRowsEffective.filter((r) => !excludedBankFileLines.has(r.fileLine))
     return countPotentialDuplicateBankRows(
       rows,
-      (row) => resolveBankMappingCategoryName(bankMaps, row) ?? null,
+      (row) => resolveBankRowCategoryForImport(row) ?? null,
       person.transactions,
     )
-  }, [person, bankParsedRows, bankParsedRowsEffective, bankMaps, excludedBankFileLines])
+  }, [person, bankParsedRows, bankParsedRowsEffective, bankCategoryOverridesByFileLine, bankMaps, resolveBankRowCategoryForImport, excludedBankFileLines])
 
   const bankPreviewSections = useMemo(() => {
     const main: BankParsedRow[] = []
@@ -697,14 +850,14 @@ export default function ImporterTransaksjonerPage() {
       person.budgetCategories,
       labelListsForPerson(person),
     )
-    const getCategoryName = (row: BankParsedRow) => resolveBankMappingCategoryName(bankMaps, row)
+    const getCategoryName = (row: BankParsedRow) => resolveBankRowCategoryForImport(row)
     return buildTransactionsFromBankRows(
       bankRowsForImportPreview,
       getCategoryName,
       merged,
       importProfileId,
     ).transactions
-  }, [person, bankRowsForImportPreview, bankMaps, importProfileId])
+  }, [person, bankRowsForImportPreview, bankMaps, bankCategoryOverridesByFileLine, importProfileId, resolveBankRowCategoryForImport])
 
   const budgetAdjustEligibilityBank = useMemo(
     () => canApplyLedgerBudgetAdjust(pendingBankImportTransactions, budgetYear),
@@ -873,7 +1026,8 @@ export default function ImporterTransaksjonerPage() {
     )
     const runId = generateId()
     const liveMaps = useStore.getState().bankImportMappings[activeBankSourceId] ?? {}
-    const getCategoryName = (row: BankParsedRow) => resolveBankMappingCategoryName(liveMaps, row)
+    const getCategoryName = (row: BankParsedRow) =>
+      resolveBankRowCategoryName(row, liveMaps, bankCategoryOverridesByFileLine)
 
     const bankRowsToImport = bankParsedRowsEffective.filter((r) => !excludedBankFileLines.has(r.fileLine))
     const userExcludedBank = bankParsedRowsEffective.filter((r) => excludedBankFileLines.has(r.fileLine)).length
@@ -1675,6 +1829,12 @@ export default function ImporterTransaksjonerPage() {
               {bankAiError}
             </div>
           )}
+          <BankImportMappingSearch
+            query={bankMappingSearchQuery}
+            onQueryChange={setBankMappingSearchQuery}
+            filteredGroupCount={bankVisibleAggregates.length}
+            totalGroupCount={bankAggregates.length}
+          />
           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-center">
             <label className="inline-flex items-center gap-2 cursor-pointer text-sm min-h-[44px] touch-manipulation">
               <input
@@ -1730,14 +1890,16 @@ export default function ImporterTransaksjonerPage() {
                 incomeSectionMode={bankMappingIncomeSectionMode}
                 expenseSectionMode={bankMappingExpenseSectionMode}
                 formatNOK={formatNOKImport}
+                formatDate={formatIsoDateDdMmYyyy}
                 allPickerCategories={pickerCategories}
                 resolvedCategoryName={resolvedBankCategoryName}
-                onCategoryChange={(a, name) =>
-                  applyBankMappingWithLegacyFanout(
-                    a.mappingKey,
-                    name?.trim() ? { categoryName: name.trim() } : null,
-                  )
-                }
+                onAggregateCategoryChange={setBankAggregateCategory}
+                rowsByMappingKey={bankRowsByMappingKey}
+                expandedKeys={bankMappingEffectiveExpandedKeys}
+                onToggleExpanded={toggleBankMappingExpanded}
+                resolveRowCategoryName={resolveBankRowCategoryDisplay}
+                onRowCategoryChange={setBankRowCategoryOverride}
+                aggregateCategoryName={resolvedBankCategoryName}
                 budgetCategories={person.budgetCategories}
                 customBudgetLabels={labelListsForPerson(person).customBudgetLabels}
                 addBudgetCategory={addBudgetCategory}
@@ -1747,9 +1909,16 @@ export default function ImporterTransaksjonerPage() {
           </div>
           {bankVisibleAggregates.length === 0 && (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              {showOnlyUnmapped
-                ? 'Alle forklaringer er kartlagt. Slå av «Trenger kartlegging» for å se hele listen.'
-                : 'Ingen rader.'}
+              {bankMappingSearchQuery.trim()
+                ? 'Ingen grupper matcher søket.'
+                : showOnlyUnmapped
+                  ? 'Alle forklaringer er kartlagt. Slå av «Trenger kartlegging» for å se hele listen.'
+                  : 'Ingen rader.'}
+            </p>
+          )}
+          {bankUnmappedRowCount > 0 && (
+            <p className="text-sm m-0" style={{ color: 'var(--text-muted)' }}>
+              {bankUnmappedRowCount} rad{bankUnmappedRowCount === 1 ? '' : 'er'} mangler kategori før du kan gå videre.
             </p>
           )}
           <div className="flex flex-col sm:flex-row gap-2">
@@ -1828,6 +1997,15 @@ export default function ImporterTransaksjonerPage() {
                     {bankAiError}
                   </div>
                 )}
+                <div className="shrink-0 px-4 sm:px-6 pt-3">
+                  <BankImportMappingSearch
+                    query={bankMappingSearchQuery}
+                    onQueryChange={setBankMappingSearchQuery}
+                    filteredGroupCount={bankVisibleAggregates.length}
+                    totalGroupCount={bankAggregates.length}
+                    id="bank-mapping-search-modal"
+                  />
+                </div>
                 <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6">
                   <BankImportMappingAggregateLists
                     incomeList={bankVisibleIncome}
@@ -1836,14 +2014,16 @@ export default function ImporterTransaksjonerPage() {
                     expenseSectionMode={bankMappingExpenseSectionMode}
                     className="py-3"
                     formatNOK={formatNOKImport}
+                    formatDate={formatIsoDateDdMmYyyy}
                     allPickerCategories={pickerCategories}
                     resolvedCategoryName={resolvedBankCategoryName}
-                    onCategoryChange={(a, name) =>
-                      applyBankMappingWithLegacyFanout(
-                        a.mappingKey,
-                        name?.trim() ? { categoryName: name.trim() } : null,
-                      )
-                    }
+                    onAggregateCategoryChange={setBankAggregateCategory}
+                    rowsByMappingKey={bankRowsByMappingKey}
+                    expandedKeys={bankMappingEffectiveExpandedKeys}
+                    onToggleExpanded={toggleBankMappingExpanded}
+                    resolveRowCategoryName={resolveBankRowCategoryDisplay}
+                    onRowCategoryChange={setBankRowCategoryOverride}
+                    aggregateCategoryName={resolvedBankCategoryName}
                     budgetCategories={person.budgetCategories}
                     customBudgetLabels={labelListsForPerson(person).customBudgetLabels}
                     addBudgetCategory={addBudgetCategory}
@@ -1918,10 +2098,9 @@ export default function ImporterTransaksjonerPage() {
               setExcludedBankFileLines={setExcludedBankFileLines}
               bankParsedRowByFileLine={bankParsedRowByFileLine}
               person={person ?? null}
-              bankMaps={bankMaps}
               pickerCategories={pickerCategories}
-              resolveBankMappingCategoryName={resolveBankMappingCategoryName}
-              applyBankMappingWithLegacyFanout={applyBankMappingWithLegacyFanout}
+              getRowCategoryName={resolveBankRowCategoryForImport}
+              onRowCategoryChange={setBankRowCategoryOverride}
               budgetCategories={person?.budgetCategories ?? []}
               customBudgetLabels={
                 person ? labelListsForPerson(person).customBudgetLabels : emptyLabelLists().customBudgetLabels
@@ -2094,10 +2273,9 @@ export default function ImporterTransaksjonerPage() {
                       setExcludedBankFileLines={setExcludedBankFileLines}
                       bankParsedRowByFileLine={bankParsedRowByFileLine}
                       person={person ?? null}
-                      bankMaps={bankMaps}
                       pickerCategories={pickerCategories}
-                      resolveBankMappingCategoryName={resolveBankMappingCategoryName}
-                      applyBankMappingWithLegacyFanout={applyBankMappingWithLegacyFanout}
+                      getRowCategoryName={resolveBankRowCategoryForImport}
+                      onRowCategoryChange={setBankRowCategoryOverride}
                       budgetCategories={person?.budgetCategories ?? []}
                       customBudgetLabels={
                         person

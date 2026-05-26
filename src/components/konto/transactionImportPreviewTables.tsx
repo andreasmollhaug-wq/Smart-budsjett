@@ -3,7 +3,6 @@
 import type { Dispatch, SetStateAction } from 'react'
 import { Fragment, useEffect, useState } from 'react'
 import ImportCategoryPicker from '@/components/konto/ImportCategoryPicker'
-import type { BankImportMappingRule } from '@/lib/bankImport/types'
 import type { BankParsedRow } from '@/lib/bankImport/types'
 import {
   formatMoneyInputFromNumberTwoDecimals,
@@ -37,15 +36,11 @@ const UNCATEGORIZED_BANK_PREVIEW_LABEL = 'Ikke satt'
 
 function groupBankPreviewRowsByResolvedCategory(
   rows: BankParsedRow[],
-  bankMaps: Record<string, BankImportMappingRule | undefined>,
-  resolve: (
-    maps: Record<string, BankImportMappingRule | undefined>,
-    row: BankParsedRow,
-  ) => string | undefined,
+  getRowCategoryName: (row: BankParsedRow) => string | undefined,
 ): { label: string; rows: BankParsedRow[] }[] {
   const bucket = new Map<string, BankParsedRow[]>()
   for (const r of rows) {
-    const label = resolve(bankMaps, r)?.trim() || UNCATEGORIZED_BANK_PREVIEW_LABEL
+    const label = getRowCategoryName(r)?.trim() || UNCATEGORIZED_BANK_PREVIEW_LABEL
     const list = bucket.get(label)
     if (list) list.push(r)
     else bucket.set(label, [r])
@@ -205,10 +200,9 @@ export function BankTransactionImportPreviewTable({
   setExcludedBankFileLines,
   bankParsedRowByFileLine,
   person,
-  bankMaps,
   pickerCategories,
-  resolveBankMappingCategoryName,
-  applyBankMappingWithLegacyFanout,
+  getRowCategoryName,
+  onRowCategoryChange,
   budgetCategories,
   customBudgetLabels,
   addBudgetCategory,
@@ -227,13 +221,9 @@ export function BankTransactionImportPreviewTable({
   person: {
     budgetCategories: BudgetCategory[]
   } | null
-  bankMaps: Record<string, BankImportMappingRule | undefined>
   pickerCategories: BudgetCategory[]
-  resolveBankMappingCategoryName: (
-    maps: Record<string, BankImportMappingRule | undefined>,
-    row: BankParsedRow,
-  ) => string | undefined
-  applyBankMappingWithLegacyFanout: (primaryKey: string, rule: { categoryName: string } | null) => void
+  getRowCategoryName: (row: BankParsedRow) => string | undefined
+  onRowCategoryChange: (row: BankParsedRow, categoryName: string | null) => void
   budgetCategories: BudgetCategory[]
   customBudgetLabels: Record<string, string[]>
   addBudgetCategory: (c: BudgetCategory) => void
@@ -277,10 +267,8 @@ export function BankTransactionImportPreviewTable({
           {person ? (
             <ImportCategoryPicker
               fieldId={`${fieldIdScope}-bank-preview-${r.fileLine}-${r.mappingKey}`}
-              value={resolveBankMappingCategoryName(bankMaps, r) ?? ''}
-              onChange={(name) =>
-                applyBankMappingWithLegacyFanout(r.mappingKey, name?.trim() ? { categoryName: name.trim() } : null)
-              }
+              value={getRowCategoryName(r) ?? ''}
+              onChange={(name) => onRowCategoryChange(r, name)}
               categories={pickerCategories.filter((c) => c.type === r.transactionType)}
               budgetCategories={budgetCategories}
               customBudgetLabels={customBudgetLabels}
@@ -288,7 +276,7 @@ export function BankTransactionImportPreviewTable({
               addCustomBudgetLabel={addCustomBudgetLabel}
             />
           ) : (
-            <span className="inline-block py-2">{resolveBankMappingCategoryName(bankMaps, r) ?? '—'}</span>
+            <span className="inline-block py-2">{getRowCategoryName(r) ?? '—'}</span>
           )}
         </td>
         <td
@@ -355,7 +343,7 @@ export function BankTransactionImportPreviewTable({
             </tr>
           )}
           {groupRowsByCategory
-            ? groupBankPreviewRowsByResolvedCategory(sec.rows, bankMaps, resolveBankMappingCategoryName).map(
+            ? groupBankPreviewRowsByResolvedCategory(sec.rows, getRowCategoryName).map(
                 ({ label: catLabel, rows: catRows }) => {
                   const catSum = roundMoney2(catRows.reduce((s, row) => s + row.amount, 0))
                   return (

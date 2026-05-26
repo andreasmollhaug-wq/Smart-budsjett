@@ -10,7 +10,40 @@ import {
   parseSparebank1Grid,
 } from '@/lib/bankImport/parseSparebank1Grid'
 import { parseSparebank1CsvText } from '@/lib/bankImport/parseSparebank1File'
+import {
+  parseBankColumnAmount,
+  resolveBankInnUtAmounts,
+} from '@/lib/bankImport/parseBankColumnAmount'
 import type { BudgetCategory } from '@/lib/store'
+
+describe('parseBankColumnAmount', () => {
+  it('tolker negativt Ut-beløp som positivt', () => {
+    expect(parseBankColumnAmount('-117,8')).toBe(117.8)
+  })
+
+  it('beholder positive beløp', () => {
+    expect(parseBankColumnAmount('99,50')).toBe(99.5)
+  })
+
+  it('returnerer NaN for tom eller bare minus', () => {
+    expect(Number.isNaN(parseBankColumnAmount(''))).toBe(true)
+    expect(Number.isNaN(parseBankColumnAmount('-'))).toBe(true)
+  })
+
+  it('tolker Excel/punktum-desimal med minus', () => {
+    expect(parseBankColumnAmount('-117.8')).toBe(117.8)
+  })
+})
+
+describe('resolveBankInnUtAmounts', () => {
+  it('Ut med negativt beløp gir utgift', () => {
+    const r = resolveBankInnUtAmounts('-117,8', '')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.transactionType).toBe('expense')
+    expect(r.amount).toBe(117.8)
+  })
+})
 
 describe('normalizeMappingKeyText', () => {
   it('trimmer og kollapser whitespace', () => {
@@ -68,6 +101,17 @@ describe('parseDnbGrid', () => {
     const r = parseDnbGrid(grid, 0)
     expect(r.rows.length).toBe(0)
     expect(r.rowErrors.some((e) => e.reason === 'ambiguous_amount')).toBe(true)
+  })
+
+  it('tolker negativt beløp i Ut fra konto', () => {
+    const grid = [
+      ['Dato', 'Forklaring', 'Rentedato', 'Ut fra konto', 'Inn på konto'],
+      ['5.5.2026', 'Butikk', '5.5.2026', '-45,50', ''],
+    ]
+    const r = parseDnbGrid(grid, 0)
+    expect(r.rows.length).toBe(1)
+    expect(r.rows[0]!.transactionType).toBe('expense')
+    expect(r.rows[0]!.amount).toBe(45.5)
   })
 })
 
@@ -130,6 +174,20 @@ describe('parseSparebank1Grid', () => {
     expect(r.rows.length).toBe(0)
     expect(r.rowErrors.some((e) => e.reason === 'ambiguous_amount')).toBe(true)
   })
+
+  it('tolker negative Ut fra Sparebank 1-eksport', () => {
+    const grid = [
+      ['Dato', 'Beskrivelse', 'Rentedato', 'Inn', 'Ut', 'Til konto', 'Fra konto'],
+      ['27.02.2026', 'SPAR FRAKKAGJER...', '', '', '-117,8', '', '33303203716'],
+      ['27.02.2026', 'Wee.no AS', '', '20625', '', '33303203716', '15200340377'],
+    ]
+    const r = parseSparebank1Grid(grid, 0)
+    expect(r.rows.length).toBe(2)
+    expect(r.rows[0]!.transactionType).toBe('expense')
+    expect(r.rows[0]!.amount).toBe(117.8)
+    expect(r.rows[1]!.transactionType).toBe('income')
+    expect(r.rows[1]!.amount).toBe(20625)
+  })
 })
 
 describe('parseSparebank1CsvText', () => {
@@ -151,6 +209,16 @@ describe('parseSparebank1CsvText', () => {
     expect(r.rows.length).toBe(1)
     expect(r.rows[0]!.transactionType).toBe('expense')
     expect(r.rows[0]!.amount).toBe(100)
+  })
+
+  it('dekoder semikolon-CSV med negativt Ut-beløp', () => {
+    const csv =
+      'Dato;Beskrivelse;Rentedato;Inn;Ut\n' +
+      '23.02.2026;Vipps*sincere.no;23.02.2026;;-549,1\n'
+    const r = parseSparebank1CsvText(csv)
+    expect(r.rows.length).toBe(1)
+    expect(r.rows[0]!.transactionType).toBe('expense')
+    expect(r.rows[0]!.amount).toBe(549.1)
   })
 })
 
