@@ -9,6 +9,8 @@ export const LANDING_NAV_PRODUKT = { href: '#produkt', label: 'Produktet' } as c
 
 /** I header: hamburger / «Mer»-meny (ikke «Om oss» / «Produktet» — de står i hovedraden). */
 export const LANDING_NAV_MORE = [
+  { href: '#priser', label: 'Priser' },
+  { href: '#faq', label: 'FAQ' },
   { href: DOTTIR_UTFORSK_HREF, label: 'Utforsk alt' },
   { href: '#kjerne', label: 'Kjerne' },
   { href: '#problem', label: 'Problem' },
@@ -19,6 +21,8 @@ export const LANDING_NAV_MORE = [
 /** Full liste i logisk rekkefølge (tidligere enkeltarray). */
 export const NAV = [
   { href: DOTTIR_OM_OSS_HREF, label: 'Om oss' },
+  { href: '#priser', label: 'Priser' },
+  { href: '#faq', label: 'FAQ' },
   { href: DOTTIR_UTFORSK_HREF, label: 'Utforsk alt' },
   { href: '#kjerne', label: 'Kjerne' },
   LANDING_NAV_PRODUKT,

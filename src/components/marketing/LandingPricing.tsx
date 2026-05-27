@@ -53,7 +53,7 @@ export default function LandingPricing() {
             <Link
               href={CTA_HREF}
               className="mt-8 inline-flex w-full items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-95"
-              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+              style={{ background: 'var(--cta-gradient)' }}
             >
               Velg Solo
             </Link>
@@ -69,7 +69,7 @@ export default function LandingPricing() {
           >
             <span
               className="absolute -top-3 right-6 rounded-full px-3 py-1 text-xs font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+              style={{ background: 'var(--cta-gradient)' }}
             >
               Mest valgt
             </span>
@@ -99,7 +99,7 @@ export default function LandingPricing() {
             <Link
               href={CTA_HREF}
               className="mt-8 inline-flex w-full items-center justify-center rounded-xl px-6 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-95"
-              style={{ background: 'linear-gradient(135deg, #3B5BDB, #4C6EF5)' }}
+              style={{ background: 'var(--cta-gradient)' }}
             >
               Velg Familie
             </Link>

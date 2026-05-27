@@ -1,6 +1,11 @@
 # Landingsside (`/` og `/iris`) — struktur og budskap
 
-Implementasjon: [`src/app/page.tsx`](../src/app/page.tsx), [`src/app/iris/page.tsx`](../src/app/iris/page.tsx), og delt innhold i [`src/components/marketing/`](../src/components/marketing/) (samlet i `LandingMain.tsx`).
+Implementasjon:
+
+- **`/`** — [`src/app/(dottir-marketing)/page.tsx`](../src/app/(dottir-marketing)/page.tsx) → [`DottirLanding.tsx`](../src/components/marketing/DottirLanding.tsx) (hero, innholdsseksjoner, pris, FAQ).
+- **`/iris`** — [`src/app/iris/page.tsx`](../src/app/iris/page.tsx) → [`LandingMain.tsx`](../src/components/marketing/LandingMain.tsx) (klassisk kampanjelanding).
+
+Pris og FAQ deles mellom begge via [`LandingPricing.tsx`](../src/components/marketing/LandingPricing.tsx) og [`LandingFAQ.tsx`](../src/components/marketing/LandingFAQ.tsx). Se [PRIS-OG-ABONNEMENT.md](./PRIS-OG-ABONNEMENT.md).
 
 ## Teknisk kontekst
 
@@ -9,30 +14,30 @@ Implementasjon: [`src/app/page.tsx`](../src/app/page.tsx), [`src/app/iris/page.t
 - **`/iris`**: Kampanjeinngang med `variant="partnerCampaign"` — samme produktbudskap i hero, partnerskap med Iris **høyere** i siden; Iris fremstår som partner, ikke som nettstedets eier.
 - Query **`?ref=iris`** på `/` redirectes til **`/iris`** ([`middleware.ts`](../src/middleware.ts)).
 
-## Seksjoner — standard (`/`)
+## Seksjoner — Dottir-forside (`/`)
 
-1. **Sticky header** — Logo, anker til `#produkt`, `#slik-fungerer`, `#funksjoner`, `#priser`, `#faq` (større skjermer), lenker til `/produktflyt` og `/guider`, «Logg inn», CTA «Start gratis prøveperiode».
-2. **Hero** — Utfallsorientert H1, prøveperiode-badge, kort om kortregistrering med lenke til **`#faq-betalingskort`**; diskret linje med lenke til `#partnerskap` (Iris som partner) på standardvariant.
-3. **For hvem** — Tre kort.
-4. **Verdiforslag** — Fire kort («Hva du får med Smart Budsjett»).
-5. **Produktglimt** — `#produkt`: faner med bilder fra [`public/marketing/`](../public/marketing/) (`oversikt.svg`, `budsjett.svg`, `transaksjoner.svg`). Erstatt med ekte skjermbilder (samme filnavn eller tilpass `LandingProductPreview.tsx`) når de er klare.
-6. **Slik fungerer det** — `#slik-fungerer`: fire steg; lenke til `/produktflyt`.
-7. **Funksjoner i Smart Budsjett** — `#funksjoner`: moduler i [`LandingAppFeatures.tsx`](../src/components/marketing/LandingAppFeatures.tsx), gruppert som «Det meste starter her» (Oversikt, Budsjett, Transaksjoner, Sparing) og «Mer i Smart Budsjett» (øvrige). Klikk åpner dialog med detaljer.
-8. **Posisjonering** — Ikke avansert økonomistyring.
-9. **Partnerskap Iris** — `#partnerskap`.
-10. **Priser** — `#priser` — se [PRIS-OG-ABONNEMENT.md](./PRIS-OG-ABONNEMENT.md).
-11. **FAQ** — `#faq`; første spørsmål har anker **`#faq-betalingskort`** (kort / prøveperiode).
-12. **Trygghet** — Lenker til `/sikkerhet`, `/personvern` og `/vilkar`.
-13. **Avsluttende CTA**.
-14. **Footer** — Personvern, sikkerhet, vilkår, «Kom i gang», «Logg inn».
+1. **Sticky header** — Logo, «Produktet», «Om oss», «Logg inn», hamburger/«Mer» (bl.a. `#priser`, `#faq`, `#kjerne`, `#problem`, `#verdi`, `#malgruppe`), CTA «Start gratis prøveperiode».
+2. **Hero** — Split-layout med H1, prøveperiode-badge, CTA «Start gratis prøveperiode», «Se priser» (`#priser`), «Hvem står bak dette?»; lenke til **`#faq-betalingskort`** i prøveperiode-tekst.
+3. **Sitat / grep** — Tre korte story beats.
+4. **Navnet og tanken** — `#kjerne`.
+5. **Hva Dottir er ment å være** — `#produkt`: pilarer, modulliste, lenke til `/utforsk`.
+6. **Problem Dottir adresserer** — `#problem`.
+7. **Fra oversikt til kontroll** — `#verdi`.
+8. **Hvorfor ikke bare «enda en app»** — differensiatorer.
+9. **Målgruppe** — `#malgruppe`.
+10. **Priser** — `#priser`: Solo/Familie via `LandingPricing`.
+11. **FAQ** — `#faq`; spørsmål om kort har anker **`#faq-betalingskort`**.
+12. **Tone og retning** — Kommunikasjonsretning (internt/design-notat).
+13. **Visjon / avsluttende CTA** — «Start gratis prøveperiode», «Om oss», «Logg inn».
+14. **Footer** — Om oss, Utforsk alt, personvern, sikkerhet, vilkår, «Kom i gang», «Logg inn».
 
 ## Seksjoner — kampanje (`/iris`)
 
-Samme seksjoner som over, men **Partnerskap Iris** kommer **rett etter hero** (ingen duplikat lenger ned).
+[`LandingMain.tsx`](../src/components/marketing/LandingMain.tsx): hero, for hvem, verdiforslag, produktglimt, slik fungerer det, funksjoner, posisjonering, partnerskap Iris (høyere på siden), **priser** (`#priser`), **FAQ** (`#faq`), trygghet, avsluttende CTA, footer.
 
 ## Metadata (SEO)
 
-- `metadata` i `page.tsx` / `iris/page.tsx`: beskrivelse, **Open Graph**, **Twitter**, **canonical**.
+- `metadata` i `(dottir-marketing)/page.tsx` / `iris/page.tsx`: beskrivelse, **Open Graph**, **Twitter**, **canonical**.
 - Sett **`NEXT_PUBLIC_APP_URL`** i produksjon (full URL uten trailing slash) slik at OG-URL og canonical blir riktige — se [.env.example](../.env.example).
 
 ## Videre forbedringer (valgfritt)

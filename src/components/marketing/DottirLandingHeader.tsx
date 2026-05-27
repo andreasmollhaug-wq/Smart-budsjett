@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
@@ -15,7 +15,15 @@ import {
 } from '@/components/marketing/constants'
 import { PRODUCT_DISPLAY_NAME } from '@/lib/productBranding'
 
+/** Over app-innhold og sticky header; i tråd med modaler (z-[200]). */
+const LANDING_NAV_OVERLAY_Z = 200
+
 export type DottirLandingHeaderVariant = 'default' | 'centerNav'
+
+type MoreMenuPosition = {
+  top: number
+  right: number
+}
 
 /** Lenker som kun vises på store skjermer (gruppen skjules helt på mobil). */
 function navAuthLinkClass() {
@@ -23,56 +31,75 @@ function navAuthLinkClass() {
 }
 
 export default function DottirLandingHeader({ variant = 'default' }: { variant?: DottirLandingHeaderVariant }) {
+  const [mounted, setMounted] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
-  const moreWrapRef = useRef<HTMLDivElement>(null)
+  const [moreMenuPos, setMoreMenuPos] = useState<MoreMenuPosition | null>(null)
+  const moreButtonRef = useRef<HTMLButtonElement>(null)
 
   const closeDrawer = () => setDrawerOpen(false)
   const closeMore = () => setMoreOpen(false)
 
   useEffect(() => {
-    if (!drawerOpen) return
+    setMounted(true)
+  }, [])
+
+  const syncMoreMenuPosition = useCallback(() => {
+    const button = moreButtonRef.current
+    if (!button) return
+    const rect = button.getBoundingClientRect()
+    setMoreMenuPos({
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!drawerOpen && !moreOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeDrawer()
+      if (e.key === 'Escape') {
+        if (moreOpen) closeMore()
+        else closeDrawer()
+      }
     }
     document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [drawerOpen, moreOpen])
+
+  useEffect(() => {
+    if (!drawerOpen) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
-      document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
   }, [drawerOpen])
 
   useEffect(() => {
-    if (!moreOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeMore()
+    if (!moreOpen) {
+      setMoreMenuPos(null)
+      return
     }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [moreOpen])
-
-  useEffect(() => {
-    if (!moreOpen) return
-    const onPointerDown = (e: PointerEvent) => {
-      if (moreWrapRef.current && !moreWrapRef.current.contains(e.target as Node)) closeMore()
+    syncMoreMenuPosition()
+    window.addEventListener('resize', syncMoreMenuPosition)
+    window.addEventListener('scroll', syncMoreMenuPosition, { passive: true })
+    return () => {
+      window.removeEventListener('resize', syncMoreMenuPosition)
+      window.removeEventListener('scroll', syncMoreMenuPosition)
     }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [moreOpen])
+  }, [moreOpen, syncMoreMenuPosition])
 
   const drawerRow =
     'flex min-h-[44px] items-center rounded-lg px-3 text-sm font-medium touch-manipulation'
 
-  const mobileDrawer =
-    drawerOpen && typeof document !== 'undefined' ? (
+  const mobileDrawer = drawerOpen ? (
       <div
-        className="fixed inset-0 z-[60] lg:hidden"
+        className="fixed inset-0 lg:hidden"
         id="dottir-landing-nav"
         role="dialog"
         aria-modal="true"
         aria-label="Navigasjon"
+        style={{ zIndex: LANDING_NAV_OVERLAY_Z }}
       >
         <button
           type="button"
@@ -85,7 +112,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
           }}
         />
         <aside
-          className="absolute inset-y-0 left-0 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] shadow-xl"
+          className="absolute inset-y-0 left-0 z-10 flex w-[min(100vw-1rem,18rem)] max-w-[85vw] flex-col overflow-y-auto pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] shadow-xl"
           style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
         >
           <div
@@ -177,6 +204,62 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
       </div>
     ) : null
 
+  const desktopMoreMenu =
+    moreOpen && moreMenuPos ? (
+      <>
+        <button
+          type="button"
+          className="fixed inset-0 hidden touch-manipulation bg-transparent lg:block"
+          aria-label="Lukk flere lenker"
+          style={{ zIndex: LANDING_NAV_OVERLAY_Z - 1 }}
+          onPointerDown={(e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return
+            e.preventDefault()
+            closeMore()
+          }}
+        />
+        <div
+          id="dottir-landing-more"
+          role="menu"
+          aria-labelledby="dottir-landing-more-button"
+          className="fixed hidden min-w-[12.5rem] rounded-xl border py-2 shadow-lg lg:block"
+          style={{
+            zIndex: LANDING_NAV_OVERLAY_Z,
+            top: moreMenuPos.top,
+            right: moreMenuPos.right,
+            background: 'var(--surface)',
+            borderColor: 'var(--border)',
+          }}
+        >
+          {LANDING_NAV_MORE.map((item) =>
+            item.href.startsWith('/') ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                onClick={closeMore}
+                className="flex min-h-[44px] items-center px-4 py-2 text-sm font-medium touch-manipulation hover:opacity-90"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <a
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                onClick={closeMore}
+                className="flex min-h-[44px] items-center px-4 py-2 text-sm font-medium touch-manipulation hover:opacity-90"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                {item.label}
+              </a>
+            ),
+          )}
+        </div>
+      </>
+    ) : null
+
   const produktDesktop = (
     <a href={LANDING_NAV_PRODUKT.href} className={navAuthLinkClass()} style={{ color: 'var(--text-muted)' }}>
       {LANDING_NAV_PRODUKT.label}
@@ -220,10 +303,15 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
   )
 
   const desktopMoreButton = (
-    <div ref={moreWrapRef} className="relative hidden lg:block">
+    <div className="relative hidden lg:block">
       <button
+        ref={moreButtonRef}
         type="button"
-        onClick={() => setMoreOpen((o) => !o)}
+        id="dottir-landing-more-button"
+        onClick={() => {
+          if (!moreOpen) syncMoreMenuPosition()
+          setMoreOpen((o) => !o)
+        }}
         className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl transition-colors hover:opacity-90"
         style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }}
         aria-expanded={moreOpen}
@@ -233,43 +321,6 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
       >
         {moreOpen ? <X size={22} /> : <Menu size={22} />}
       </button>
-      {moreOpen ? (
-        <div
-          id="dottir-landing-more"
-          role="menu"
-          className="absolute right-0 z-50 mt-2 min-w-[12.5rem] rounded-xl border py-2 shadow-lg"
-          style={{
-            background: 'var(--surface)',
-            borderColor: 'var(--border)',
-          }}
-        >
-          {LANDING_NAV_MORE.map((item) =>
-            item.href.startsWith('/') ? (
-              <Link
-                key={item.href}
-                href={item.href}
-                role="menuitem"
-                onClick={closeMore}
-                className="flex min-h-[44px] items-center px-4 py-2 text-sm font-medium touch-manipulation hover:opacity-90"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                {item.label}
-              </Link>
-            ) : (
-              <a
-                key={item.href}
-                href={item.href}
-                role="menuitem"
-                onClick={closeMore}
-                className="flex min-h-[44px] items-center px-4 py-2 text-sm font-medium touch-manipulation hover:opacity-90"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                {item.label}
-              </a>
-            ),
-          )}
-        </div>
-      ) : null}
     </div>
   )
 
@@ -334,7 +385,8 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
           </nav>
         </div>
       </header>
-      {mobileDrawer && typeof document !== 'undefined' ? createPortal(mobileDrawer, document.body) : null}
+      {mounted && mobileDrawer ? createPortal(mobileDrawer, document.body) : null}
+      {mounted && desktopMoreMenu ? createPortal(desktopMoreMenu, document.body) : null}
     </>
   )
 }

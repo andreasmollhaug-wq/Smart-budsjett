@@ -81,6 +81,17 @@ export default function DottirLandingHeroSplit({ heroImageSrc }: { heroImageSrc:
                 Start gratis prøveperiode
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
+              <a
+                href="#priser"
+                className="inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl border px-7 py-3.5 text-sm font-medium transition-colors hover:opacity-90 sm:w-auto"
+                style={{
+                  background: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)',
+                }}
+              >
+                Se priser
+              </a>
               <Link
                 href={DOTTIR_OM_OSS_HREF}
                 className="inline-flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl border px-7 py-3.5 text-sm font-medium transition-colors hover:opacity-90 sm:w-auto"
@@ -139,7 +150,14 @@ export default function DottirLandingHeroSplit({ heroImageSrc }: { heroImageSrc:
               </p>
               <p className="mt-2 text-xs leading-relaxed sm:text-sm" style={{ color: 'var(--text-muted)' }}>
                 {TRIAL_OFFER_EXTENDED_EXPLANATION} Ved oppstart registrerer du betalingskort — vi trekker ikke før
-                prøveperioden er over.
+                prøveperioden er over.{' '}
+                <a
+                  href="#faq-betalingskort"
+                  className="font-medium underline underline-offset-2 transition-opacity hover:opacity-90"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  Les mer om prøveperiode og betaling.
+                </a>
               </p>
             </div>
           </div>

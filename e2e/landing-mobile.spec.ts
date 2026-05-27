@@ -37,4 +37,42 @@ test.describe('Landing (mobil viewport)', () => {
     expect(vp).not.toBeNull()
     expect(box!.height).toBeGreaterThanOrEqual(vp!.height - 8)
   })
+
+  test('prisseksjon viser planer og priser', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    const pricing = page.locator('#priser')
+    await pricing.scrollIntoViewIfNeeded()
+    await expect(pricing.getByRole('heading', { name: 'Velg plan' })).toBeVisible()
+    await expect(pricing).toContainText('89 kr')
+    await expect(pricing).toContainText('139 kr')
+  })
+
+  test('mobilmeny Priser scroller til prisseksjon', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Åpne meny' }).click()
+    await page.locator('#dottir-landing-nav').getByRole('link', { name: 'Priser' }).click()
+    await expect(page.locator('#dottir-landing-nav')).toBeHidden()
+    const pricing = page.locator('#priser')
+    await expect(pricing.getByRole('heading', { name: 'Velg plan' })).toBeInViewport()
+  })
+
+  test('mobilmeny ligger over landingssideinnhold', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Åpne meny' }).click()
+    const nav = page.locator('#dottir-landing-nav')
+    await expect(nav).toBeVisible()
+    const topElement = await page.evaluate(() => {
+      const navEl = document.getElementById('dottir-landing-nav')
+      if (!navEl) return null
+      const rect = navEl.getBoundingClientRect()
+      const x = rect.left + Math.min(48, rect.width / 2)
+      const y = rect.top + Math.min(48, rect.height / 2)
+      const el = document.elementFromPoint(x, y)
+      return el?.closest('#dottir-landing-nav') ? 'nav' : el?.tagName ?? null
+    })
+    expect(topElement).toBe('nav')
+  })
 })

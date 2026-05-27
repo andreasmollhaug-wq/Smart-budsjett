@@ -23,6 +23,8 @@ import {
   LOGIN_HREF,
   landingHorizontalPadding,
 } from '@/components/marketing/constants'
+import LandingFAQ from '@/components/marketing/LandingFAQ'
+import LandingPricing from '@/components/marketing/LandingPricing'
 
 export default function DottirLandingSections() {
   return (
@@ -302,6 +304,9 @@ export default function DottirLandingSections() {
           </ul>
         </div>
       </section>
+
+      <LandingPricing />
+      <LandingFAQ />
 
       <section
         className={`border-t py-14 sm:py-16 ${landingHorizontalPadding}`}
