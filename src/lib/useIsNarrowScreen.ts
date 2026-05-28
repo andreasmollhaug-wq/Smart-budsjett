@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 
-/** Matcher Tailwind `max-md` (under 768px bredde), samme som mobil-layout i AppShell. */
+/** Matcher Tailwind `max-md` (under 768px bredde). AppShell bruker `lg` (1024px) for hamburger vs. sidebar. */
 export const NARROW_SCREEN_MEDIA_QUERY = '(max-width: 767px)'
 
 /**
  * Klient-hook: `true` når viewport-bredden er under Tailwinds `md`-breakpoint (768px).
+ * Ikke det samme som AppShell-nav (sidebar fra `lg`).
  *
  * **Foretrekk Tailwind** (`max-md:`, `md:`) for layout, spacing og synlighet — da er desktop
  * uendret uten hydration-tenkning.

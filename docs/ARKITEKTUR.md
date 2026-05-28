@@ -30,7 +30,7 @@
 | `/personvern`, `/vilkar`, `/sikkerhet` | Juridiske / tillitssider (personvern, vilkår, sikkerhetsoversikt) |
 | `/auth/*` | OAuth / callback |
 
-**App** — route group [`(app)`](../src/app/(app)/) med [`AppShell`](../src/components/layout/AppShell.tsx) (desktop-sidebar + mobilmeny; navigasjonsinnhold i [`SidebarContent`](../src/components/layout/SidebarContent.tsx)):
+**App** — route group [`(app)`](../src/app/(app)/) med [`AppShell`](../src/components/layout/AppShell.tsx) (desktop-sidebar + mobilmeny; navigasjonsinnhold i [`SidebarContent`](../src/components/layout/SidebarContent.tsx)). Sidebar vises fra Tailwind `lg` (1024px); under det (inkl. telefon i landscape) brukes hamburger og skuff — samme opplevelse som portrett på mobil:
 
 | Sti | Merknad |
 |-----|---------|

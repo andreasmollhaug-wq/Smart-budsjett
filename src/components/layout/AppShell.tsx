@@ -42,9 +42,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
         <header
-          className="relative grid shrink-0 grid-cols-[2.75rem_1fr_2.75rem] items-center gap-1 border-b px-2 py-2.5 md:hidden"
+          className="relative grid shrink-0 grid-cols-[2.75rem_1fr_2.75rem] items-center gap-1 border-b px-2 py-2.5 lg:hidden"
           style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
         >
           <button
@@ -69,7 +69,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <aside
-          className="hidden min-h-0 w-64 shrink-0 flex-col shadow-sm md:flex"
+          className="hidden min-h-0 w-64 shrink-0 flex-col shadow-sm lg:flex"
           style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
         >
           <SidebarContent />
@@ -78,7 +78,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {mainReadOnly && (
             <div
-              className="shrink-0 border-b px-3 py-2.5 text-sm md:px-4"
+              className="shrink-0 border-b px-3 py-2.5 text-sm lg:px-4"
               style={{
                 background: 'var(--surface)',
                 borderColor: 'var(--border)',
@@ -108,7 +108,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" id="app-mobile-nav" role="dialog" aria-modal="true" aria-label="Navigasjon">
+        <div className="fixed inset-0 z-50 lg:hidden" id="app-mobile-nav" role="dialog" aria-modal="true" aria-label="Navigasjon">
           <button
             type="button"
             className="absolute inset-0 bg-black/40"

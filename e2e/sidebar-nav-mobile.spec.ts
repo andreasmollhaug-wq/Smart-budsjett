@@ -18,3 +18,26 @@ test.describe('Sidebar / app shell (mobil viewport)', () => {
     await expect(page.locator('body')).toBeVisible()
   })
 })
+
+test.describe('Sidebar / app shell (landscape mobil)', () => {
+  test.use({ viewport: { width: 844, height: 390 } })
+
+  test('/budsjett: hamburger i landscape, ikke permanent sidebar', async ({ page }) => {
+    await page.goto('/budsjett')
+    await assertNoWideBodyScroll(page)
+
+    const menuBtn = page.getByRole('button', { name: 'Åpne meny' })
+    if ((await menuBtn.count()) === 0) {
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+      return
+    }
+
+    await expect(menuBtn).toBeVisible()
+
+    const permanentSidebar = page.locator('aside.w-64')
+    await expect(permanentSidebar).toHaveCount(0)
+
+    await menuBtn.click()
+    await expect(page.getByRole('dialog', { name: 'Navigasjon' })).toBeVisible()
+  })
+})
