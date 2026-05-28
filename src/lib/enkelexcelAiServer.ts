@@ -1,5 +1,7 @@
 import { AI_APP_HELP_TEXT } from '@/lib/aiAppHelp'
 import { buildAiUserContextFromPersistedState } from '@/lib/aiUserContext'
+import { AI_ACTIONS_PROMPT, PROPOSE_FINANCE_ACTION_TOOL } from '@/lib/dottirAiActions/openAiTools'
+import { validateProposedAction, type ValidatedAction } from '@/lib/dottirAiActions/validate'
 import { currentYearMonthOslo, getMonthlyMessageLimit } from '@/lib/aiUsage'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -64,7 +66,18 @@ export const SYSTEM_PROMPT_BASE = [
 - Skill tydelig mellom generell økonomiforståelse og det Dottir faktisk kan. Følg ansvarsgrensen i bruksveiledningen (ikke personlig finans-, skatte- eller investeringsrådgivning).
 - Spørsmål om innlogging, glemt passord, endre passord, logg ut, si opp/avslutte betalt abonnement eller slette brukerkonto: besvar kun ut fra bruksveiledningen (menynavn som Min konto → Betalinger/Sikkerhet, e-post post@enkelexcel.no).
 - Ikke anta self-service sletting av brukerkonto eller at 2FA kan aktiveres nå.`,
+  `HURTIGSVAR (kun ved ekte valg for brukeren)
+- Bruk KUN når brukeren faktisk kan velge mellom tydelige alternativer (f.eks. «vil du at jeg skal …?»). Ikke bruk ved rene fakta, oppsummeringer, instruksjoner eller generelle tilbud uten ja/nei.
+- Avslutt da med én linje: «Hurtigsvar:» + 1–3 korte svar (maks 60 tegn hver), separert med « | ».
+- Eksempel: Hurtigsvar: Ja takk | Vis meg hvor jeg legger inn tall | Nei takk
+- Hurtigsvar-linjen skal ikke gjentas i brødteksten.`,
 ].join('\n\n')
+
+export { AI_ACTIONS_PROMPT, PROPOSE_FINANCE_ACTION_TOOL }
+
+export function getOpenAiFinanceTools() {
+  return [PROPOSE_FINANCE_ACTION_TOOL]
+}
 
 export function resolveOpenAiTemperature(): number {
   const raw = process.env.OPENAI_TEMPERATURE
@@ -126,6 +139,7 @@ export async function buildOpenAiMessages(
   | {
       ok: true
       openaiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[]
+      persistedState: unknown
     }
   | { ok: false; status: number; error: string }
 > {
@@ -152,7 +166,9 @@ export async function buildOpenAiMessages(
       'Økonomidata fra appen kunne ikke leses inn (teknisk feil). Du kan fortsatt stille generelle spørsmål.'
   }
 
-  const systemContent = [SYSTEM_PROMPT_BASE, AI_APP_HELP_TEXT, financeContext].join('\n\n')
+  const systemContent = [SYSTEM_PROMPT_BASE, AI_ACTIONS_PROMPT, AI_APP_HELP_TEXT, financeContext].join(
+    '\n\n',
+  )
 
   return {
     ok: true,
@@ -160,7 +176,25 @@ export async function buildOpenAiMessages(
       { role: 'system', content: systemContent },
       ...thread.map((m) => ({ role: m.role, content: m.content })),
     ],
+    persistedState: appStateRow?.state ?? null,
   }
+}
+
+export function lastUserMessageContent(messages: AiIncomingMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]
+    if (m?.role === 'user' && typeof m.content === 'string') return m.content
+  }
+  return ''
+}
+
+export function resolveFinanceActionFromTool(
+  rawToolArgs: unknown,
+  persistedState: unknown,
+  userMessage: string,
+): ValidatedAction | null {
+  if (rawToolArgs == null) return null
+  return validateProposedAction(persistedState, rawToolArgs, { userMessage })
 }
 
 export async function incrementAiUsageAfterReply(

@@ -77,7 +77,7 @@ export const PRODUCT_MODULES = [
   'Sparing og mål',
   'Abonnementer',
   'Oppgaver og rutiner',
-  'AI-basert forklaring og hjelp',
+  'dottir AI — si det, bekreft, ferdig (budsjett og transaksjoner)',
 ] as const
 
 export const PROBLEMS = [

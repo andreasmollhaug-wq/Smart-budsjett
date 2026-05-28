@@ -1,80 +1,25 @@
 import { NextResponse } from 'next/server'
-import { AI_APP_HELP_TEXT } from '@/lib/aiAppHelp'
-import { buildAiUserContextFromPersistedState } from '@/lib/aiUserContext'
 import { createClient } from '@/lib/supabase/server'
 import {
   fetchUserSubscriptionStatus,
   subscriptionForbiddenUnlessAccess,
 } from '@/lib/stripe/subscriptionAccess'
-import { currentYearMonthOslo, getMonthlyMessageLimit } from '@/lib/aiUsage'
-
-type ChatRole = 'user' | 'assistant'
-
-type IncomingMessage = {
-  role: ChatRole
-  content: string
-}
+import { extractToolCallFromCompletion } from '@/lib/dottirAiActions/openAiTools'
+import {
+  buildOpenAiMessages,
+  fetchAiQuota,
+  getOpenAiFinanceTools,
+  incrementAiUsageAfterReply,
+  lastUserMessageContent,
+  resolveFinanceActionFromTool,
+  resolveMaxOutTokens,
+  resolveOpenAiModel,
+  resolveOpenAiTemperature,
+  usesCompletionTokenLimit,
+  type AiIncomingMessage,
+} from '@/lib/enkelexcelAiServer'
 
 export const dynamic = 'force-dynamic'
-
-/** Lav temperatur gir mer deterministisk etterlevelse av datagrunnlag og svarstruktur. Overstyr med OPENAI_TEMPERATURE (0–2). */
-function resolveOpenAiTemperature(): number {
-  const raw = process.env.OPENAI_TEMPERATURE
-  if (raw == null || raw.trim() === '') return 0.12
-  const n = Number(raw)
-  if (!Number.isFinite(n) || n < 0 || n > 2) return 0.12
-  return n
-}
-
-const SYSTEM_PROMPT_BASE = [
-  `ROLLE OG SPRÅK
-- Du er en sparringspartner for budsjett, sparing og gjeld i Dottir — konkret, løsningsorientert og på brukerens lag.
-- Skriv på norsk. Vær gjerne oppmuntrende; unngå moraliserende tone.`,
-  `STRUKTUR I DENNE SYSTEMMELDINGEN
-- Først denne instruksen, deretter bruksveiledning for Dottir (menyer og funksjoner), til slutt brukerens faktiske tall (tekstblokk fra appen).
-- Spørsmål om hvordan appen brukes skal besvares ut fra bruksveiledningen. Ikke finn opp menypunkter, faner eller knapper som ikke er beskrevet der.`,
-  `DATAGRUNNLAG (STRENGt)
-- Alle faktapåstander om brukerens beløp, kategorier, transaksjoner, gjeld, mål eller abonnementer skal kun bygge på det som eksplisitt står i tallblokken nedenfor. Ikke gjett, ikke fyll hull med «typiske» tall, og ikke bruk eksempler som kan forveksles med brukerens data.
-- Hvis brukeren ber om noe som ikke finnes i tallblokken, si det tydelig og foreslå ett kort oppklaringsspørsmål eller hvor i appen de kan registrere eller oppdatere data — i tråd med bruksveiledningen.
-- Tekstblokken kan være avkortet ved stor datamengde. Ikke anta at noe finnes bare fordi brukeren nevner det — bare det som står i teksten teller. Hvis avkorting kan ha skjult detaljer, si det kort.
-- Du kan bruke generell økonomiforståelse som ramme, men merk tydelig når noe er generelt og ikke hentet fra brukerens tall.
-- Tallblokken gjelder kun den innloggede brukerens data — ikke andre brukeres kontoer.`,
-  `SVARSTRUKTUR (PYRAMIDE)
-- Når spørsmålet i hovedsak handler om brukerens tall, avvik, trender eller «hva betyr dette»: bruk to seksjoner med Markdown-overskrift **## Sammendrag** og **## Detaljer**.
-  - Under Sammendrag: 2–5 kulepunkter med de viktigste konklusjonene og tallene fra konteksten.
-  - Under Detaljer: forklaring, sammenhenger og utdyping — fortsatt kun brukerdata der det er fakta.
-- Unntak: rene spørsmål om hvor noe finnes i appen eller korte ja/nei-lignende svar trenger ikke to seksjoner. Ved et svar som allerede er kort, ikke overdriv med struktur.
-- Hold detaljdelen konsis; unngå repetisjon.`,
-  `LØSNINGSORIENTERING
-- Når brukeren vil vite hva de bør gjøre: etter Sammendrag/Detaljer (eller i et kort svar), gi nummererte neste steg som peker til konkrete stier og funksjoner beskrevet i bruksveiledningen — ikke oppfinn ruter.
-- For handlingsplaner og «tre grep»: bruk gjerne sjekkliste med \`- [ ]\` per steg (tom boks = noe brukeren kan gjøre).
-- Still maks ett oppklaringsspørsmål til slutt hvis du trenger mer informasjon for å gi et godt svar.`,
-  `HURTIGSVAR (kun ved ekte valg for brukeren)
-- Bruk KUN når brukeren faktisk kan velge mellom tydelige alternativer (f.eks. «vil du at jeg skal …?»). Ikke bruk ved rene fakta, oppsummeringer, instruksjoner eller generelle tilbud uten ja/nei.
-- Avslutt da med én linje: «Hurtigsvar:» + 1–3 korte svar (maks 60 tegn hver), separert med « | ».
-- Eksempel: Hurtigsvar: Ja takk | Vis meg hvor jeg legger inn tall | Nei takk
-- Hurtigsvar-linjen skal ikke gjentas i brødteksten.`,
-  `PROFIL OG HUSHOLDNING
-- Tallene følger profilvelgeren: én profil eller samlet husholdning (Familie med flere profiler). I husholdningsmodus er like budsjettkategorinavn summert på tvers av profiler; linjer med profilfelt er merket med hvem de gjelder. Tjenesteabonnementer i husholdningsmodus: tabell per profil, før transaksjonslisten i tekstblokken.
-- Når visningsmodus er samlet husholdning: tolke summer som aggregat der det står. Ved spørsmål om fordeling eller «per profil»: bruk linjer merket med profil (f.eks. i hakeparentes).`,
-  `INNTEKT I APPEN
-- Inntekt kan registreres som netto (utbetalt) eller brutto med valgfri forenklet trekkprosent for summeringer — dette er ikke offisiell skatteberegning og erstatter ikke Skatteetaten.`,
-  `FORMAT (Markdown)
-- Chatgrensesnittet støtter GitHub-flavored Markdown. Bruk det for lesbare, ChatGPT-lignende svar:
-  - **Fet tekst** for viktige tall, beløp og begreper
-  - ## og ### for seksjonsoverskrifter (unngå # — for stor)
-  - Kulepunkter (-) og nummererte lister (1. 2. 3.) for oppsummeringer og steg
-  - Sjekklister med \`- [ ]\` (tom) og \`- [x]\` (ferdig) for anbefalte grep — bruk [x] bare når noe faktisk allerede er oppfylt i dataene
-  - > sitater for korte disclaimers eller ansvarsgrenser
-  - \`kode\` kun for menystier og tekniske feltnavn, ikke for vanlige beløp
-- Ikke bruk HTML, bilder eller tabeller med mindre det virkelig hjelper lesbarheten.
-- Skriv på norsk med god typografi — luft mellom avsnitt, ikke én lang vegg av tekst.
-- I brukersvar: bruk menynavn (f.eks. «Betalinger»), ikke rå URL-er som /konto/betalinger.`,
-  `ANSVAR OG HENVISNINGER
-- Skill tydelig mellom generell økonomiforståelse og det Dottir faktisk kan. Følg ansvarsgrensen i bruksveiledningen (ikke personlig finans-, skatte- eller investeringsrådgivning).
-- Spørsmål om innlogging, glemt passord, endre passord, logg ut, si opp/avslutte betalt abonnement eller slette brukerkonto: besvar kun ut fra bruksveiledningen (offentlige ruter, Min konto → Betalinger/Sikkerhet, e-post post@enkelexcel.no).
-- Ikke anta self-service sletting av brukerkonto eller at 2FA kan aktiveres nå.`,
-].join('\n\n')
 
 export async function POST(req: Request) {
   let supabase
@@ -95,29 +40,12 @@ export async function POST(req: Request) {
   const denied = subscriptionForbiddenUnlessAccess(subStatus)
   if (denied) return denied
 
-  const limit = getMonthlyMessageLimit()
-  const month = currentYearMonthOslo()
-
-  const [{ data: usageRow, error: usageErr }, { data: bonusRow, error: bonusErr }] =
-    await Promise.all([
-      supabase
-        .from('ai_monthly_usage')
-        .select('message_count')
-        .eq('user_id', user.id)
-        .eq('year_month', month)
-        .maybeSingle(),
-      supabase.from('user_ai_bonus_credits').select('credits').eq('user_id', user.id).maybeSingle(),
-    ])
-
-  if (usageErr) {
-    return NextResponse.json({ error: usageErr.message }, { status: 500 })
-  }
-  if (bonusErr) {
-    return NextResponse.json({ error: bonusErr.message }, { status: 500 })
+  const quota = await fetchAiQuota(supabase, user.id)
+  if (!quota.ok) {
+    return NextResponse.json({ error: quota.error }, { status: quota.status })
   }
 
-  const usedBefore = usageRow?.message_count ?? 0
-  const bonusBefore = bonusRow?.credits ?? 0
+  const { usedBefore, bonusBefore, limit } = quota
 
   if (usedBefore >= limit && bonusBefore <= 0) {
     return NextResponse.json(
@@ -130,9 +58,7 @@ export async function POST(req: Request) {
     )
   }
 
-  const body = (await req.json().catch(() => null)) as
-    | { messages?: IncomingMessage[] }
-    | null
+  const body = (await req.json().catch(() => null)) as { messages?: AiIncomingMessage[] } | null
   const messages = body?.messages ?? []
 
   const apiKey = process.env.OPENAI_API_KEY
@@ -146,42 +72,15 @@ export async function POST(req: Request) {
     )
   }
 
-  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+  const built = await buildOpenAiMessages(supabase, user.id, messages)
+  if (!built.ok) {
+    return NextResponse.json({ error: built.error }, { status: built.status })
+  }
+
+  const model = resolveOpenAiModel()
   const temperature = resolveOpenAiTemperature()
-  /** Rom for Sammendrag + Detaljer + nummererte steg uten klipping; hold prompt konsis mot repetisjon. */
-  const maxOutTokens = 1100
-
-  const useCompletionTokenLimit = /^gpt-5/i.test(model) || /^o[0-9]/i.test(model)
-
-  const thread = messages.filter(
-    (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string',
-  )
-
-  const { data: appStateRow, error: appStateErr } = await supabase
-    .from('user_app_state')
-    .select('state')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (appStateErr) {
-    console.error('[enkelexcel-ai] user_app_state:', appStateErr.message)
-  }
-
-  let financeContext: string
-  try {
-    financeContext = buildAiUserContextFromPersistedState(appStateRow?.state)
-  } catch (e) {
-    console.error('[enkelexcel-ai] buildAiUserContextFromPersistedState', e)
-    financeContext =
-      'Økonomidata fra appen kunne ikke leses inn (teknisk feil). Du kan fortsatt stille generelle spørsmål.'
-  }
-
-  const systemContent = [SYSTEM_PROMPT_BASE, AI_APP_HELP_TEXT, financeContext].join('\n\n')
-
-  const openaiMessages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-    { role: 'system', content: systemContent },
-    ...thread.map((m) => ({ role: m.role, content: m.content })),
-  ]
+  const maxOutTokens = resolveMaxOutTokens()
+  const useCompletionTokenLimit = usesCompletionTokenLimit(model)
 
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -191,8 +90,10 @@ export async function POST(req: Request) {
     },
     body: JSON.stringify({
       model,
-      messages: openaiMessages,
+      messages: built.openaiMessages,
       temperature,
+      tools: getOpenAiFinanceTools(),
+      tool_choice: 'auto',
       ...(useCompletionTokenLimit
         ? { max_completion_tokens: maxOutTokens }
         : { max_tokens: maxOutTokens }),
@@ -200,7 +101,12 @@ export async function POST(req: Request) {
   })
 
   type OpenAIErrorShape = { error?: { message?: string } }
-  type OpenAIChoice = { message?: { content?: string | null } }
+  type OpenAIChoice = {
+    message?: {
+      content?: string | null
+      tool_calls?: Array<{ function?: { name?: string; arguments?: string } }>
+    }
+  }
   type OpenAIOkShape = { choices?: OpenAIChoice[] }
 
   const data = (await resp.json().catch(() => null)) as (OpenAIErrorShape & OpenAIOkShape) | null
@@ -210,58 +116,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: resp.status })
   }
 
-  const reply = data?.choices?.[0]?.message?.content?.trim() ?? null
+  const message = data?.choices?.[0]?.message
+  const reply = message?.content?.trim() ?? null
+  const rawTool = message ? extractToolCallFromCompletion(message) : null
+  const action = resolveFinanceActionFromTool(
+    rawTool,
+    built.persistedState,
+    lastUserMessageContent(messages),
+  )
 
-  const usageSnapshot = (b: number) => ({
-    used: usedBefore,
-    limit,
-    bonusCredits: b,
-  })
+  const usageResult = await incrementAiUsageAfterReply(supabase, usedBefore, limit, bonusBefore)
+  if (!usageResult.ok) {
+    return NextResponse.json({ error: usageResult.error }, { status: usageResult.status })
+  }
 
-  if (!reply) {
+  if (!reply && !action) {
     return NextResponse.json({
       reply: 'dottir AI sendte ingen tekst.',
-      usage: usageSnapshot(bonusBefore),
+      usage: usageResult.usage,
     })
   }
-
-  const useIncludedMonthly = usedBefore < limit
-
-  if (useIncludedMonthly) {
-    const { data: incData, error: incErr } = await supabase.rpc('increment_ai_monthly_usage')
-
-    if (incErr) {
-      return NextResponse.json(
-        { error: `Kunne ikke oppdatere bruk: ${incErr.message}` },
-        { status: 500 },
-      )
-    }
-
-    const inc = incData as { message_count?: number } | null
-    const usedAfter =
-      typeof inc?.message_count === 'number' ? inc.message_count : usedBefore + 1
-
-    return NextResponse.json({
-      reply,
-      usage: { used: usedAfter, limit, bonusCredits: bonusBefore },
-    })
-  }
-
-  const { data: decData, error: decErr } = await supabase.rpc('decrement_ai_bonus_credit')
-
-  if (decErr) {
-    return NextResponse.json(
-      { error: `Kunne ikke oppdatere bruk: ${decErr.message}` },
-      { status: 500 },
-    )
-  }
-
-  const dec = decData as { credits_remaining?: number } | null
-  const bonusAfter =
-    typeof dec?.credits_remaining === 'number' ? dec.credits_remaining : bonusBefore - 1
 
   return NextResponse.json({
-    reply,
-    usage: { used: usedBefore, limit, bonusCredits: bonusAfter },
+    reply: reply ?? 'Jeg har laget et forslag du kan bekrefte nedenfor.',
+    usage: usageResult.usage,
+    ...(action ? { action } : {}),
   })
 }

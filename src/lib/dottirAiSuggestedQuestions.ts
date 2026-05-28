@@ -2,6 +2,7 @@ export const DOTTIR_AI_ASSISTANT_NAME = 'dottir AI'
 
 /** Generiske forslag (full side + fallback i modal). Korte nok til vertikal liste. */
 export const SUGGESTED_QUESTIONS_REST = [
+  'Legg inn 1500 kr under Strøm hver måned i budsjettet',
   'Oppsummer de viktigste tallene mine — hva bør jeg merke meg?',
   'Hva koster abonnementene mine per måned til sammen?',
   'Hvordan deler jeg en felles utgift mellom to profiler?',
@@ -21,5 +22,5 @@ export function buildAllSuggestedQuestions(): string[] {
 }
 
 export function dottirAiWelcomeMessage(assistantName = DOTTIR_AI_ASSISTANT_NAME): string {
-  return `Hei! Jeg er ${assistantName}. Jeg svarer ut fra tallene for valgt profil eller husholdning — kort sammendrag først, deretter detaljer og konkrete neste steg i appen. Automatisert hjelp, ikke personlig rådgivning.`
+  return `Hei! Jeg er ${assistantName}. Jeg svarer ut fra tallene for valgt profil eller husholdning — kort sammendrag først, deretter detaljer og konkrete neste steg i appen. Du kan også be meg **foreslå** innlegging i budsjett eller transaksjoner — da får du et kort å bekrefte før noe lagres. Automatisert hjelp, ikke personlig rådgivning.`
 }

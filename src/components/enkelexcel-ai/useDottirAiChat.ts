@@ -10,7 +10,14 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { generateId } from '@/lib/utils'
 import { shouldShowHalfUsageInfo } from '@/lib/aiUsage'
-import { useActivePersonFinance } from '@/lib/store'
+import { applyDottirAiAction } from '@/lib/dottirAiActions/apply'
+import type { ActionStatus, AppliedActionSummary } from '@/lib/dottirAiActions/types'
+import {
+  isBlockedAction,
+  validateProposedAction,
+  type ValidatedAction,
+} from '@/lib/dottirAiActions/validate'
+import { pickPersistedSlice, useActivePersonFinance, useStore } from '@/lib/store'
 import {
   buildAllSuggestedQuestions,
   DOTTIR_AI_ASSISTANT_NAME,
@@ -25,6 +32,9 @@ export type ChatMessage = {
   id: string
   role: ChatRole
   content: string
+  proposedAction?: ValidatedAction | null
+  actionStatus?: ActionStatus
+  appliedSummary?: AppliedActionSummary | null
 }
 
 export type UsageState = {
@@ -313,6 +323,7 @@ export function useDottirAiChat() {
                   done?: boolean
                   usage?: Partial<UsageState>
                   error?: string
+                  action?: ValidatedAction
                 }
                 if (chunk.error) throw new Error(chunk.error)
                 if (chunk.delta) {
@@ -322,8 +333,24 @@ export function useDottirAiChat() {
                     prev.map((m) => (m.id === assistantId ? { ...m, content: text } : m)),
                   )
                 }
-                if (chunk.done && chunk.usage) {
-                  applyUsageFromResponse(chunk.usage)
+                if (chunk.done) {
+                  if (chunk.usage) applyUsageFromResponse(chunk.usage)
+                  if (chunk.action) {
+                    setMessages((prev) =>
+                      prev.map((m) => {
+                        if (m.id !== assistantId) return m
+                        const content =
+                          m.content.trim() ||
+                          'Her er et forslag du kan bekrefte nedenfor.'
+                        return {
+                          ...m,
+                          content,
+                          proposedAction: chunk.action,
+                          actionStatus: 'pending' as const,
+                        }
+                      }),
+                    )
+                  }
                 }
               } catch (parseErr) {
                 if (parseErr instanceof Error && !parseErr.message.includes('JSON')) {
@@ -335,9 +362,16 @@ export function useDottirAiChat() {
 
           if (!fullText.trim()) {
             setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, content: 'dottir AI sendte ingen tekst.' } : m,
-              ),
+              prev.map((m) => {
+                if (m.id !== assistantId) return m
+                if (m.proposedAction) {
+                  return {
+                    ...m,
+                    content: m.content.trim() || 'Her er et forslag du kan bekrefte nedenfor.',
+                  }
+                }
+                return { ...m, content: 'dottir AI sendte ingen tekst.' }
+              }),
             )
           }
           return
@@ -363,12 +397,23 @@ export function useDottirAiChat() {
         const data = (await resp.json()) as {
           reply?: string
           usage?: Partial<UsageState>
+          action?: ValidatedAction
         }
         const reply = data.reply
         if (!reply) throw new Error('Ingen svar fra dottir AI.')
 
         if (data.usage) applyUsageFromResponse(data.usage)
-        setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: reply }])
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantId,
+            role: 'assistant',
+            content: reply,
+            ...(data.action
+              ? { proposedAction: data.action, actionStatus: 'pending' as const }
+              : {}),
+          },
+        ])
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Ukjent feil'
         setMessages((prev) => {
@@ -384,6 +429,68 @@ export function useDottirAiChat() {
     },
     [applyUsageFromResponse, handleQuota429],
   )
+
+  const revalidateClientAction = useCallback((action: ValidatedAction): ValidatedAction => {
+    if (isBlockedAction(action)) return action
+    const state = pickPersistedSlice(useStore.getState())
+    return validateProposedAction(state, action.payload)
+  }, [])
+
+  const confirmAction = useCallback(
+    (messageId: string, action: ValidatedAction) => {
+      if (isHouseholdAggregate) return
+      const fresh = revalidateClientAction(action)
+      if (isBlockedAction(fresh)) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId ? { ...m, proposedAction: fresh, actionStatus: 'pending' } : m,
+          ),
+        )
+        return
+      }
+      try {
+        const summary = applyDottirAiAction(useStore.getState(), fresh)
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? {
+                  ...m,
+                  proposedAction: fresh,
+                  actionStatus: 'confirmed' as const,
+                  appliedSummary: summary,
+                }
+              : m,
+          ),
+        )
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Kunne ikke lagre'
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? { ...m, content: `${m.content}\n\nBeklager: ${msg}` }
+              : m,
+          ),
+        )
+      }
+    },
+    [isHouseholdAggregate, revalidateClientAction],
+  )
+
+  const cancelAction = useCallback((messageId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, actionStatus: 'cancelled' as const } : m)),
+    )
+  }, [])
+
+  const updateAction = useCallback((messageId: string, action: ValidatedAction) => {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, proposedAction: action, actionStatus: 'edited' as const }
+          : m,
+      ),
+    )
+  }, [])
 
   const sendText = useCallback(
     async (text: string) => {
@@ -473,6 +580,10 @@ export function useDottirAiChat() {
     startAiCreditsCheckout,
     handleSend,
     regenerateMessage,
+    confirmAction,
+    cancelAction,
+    updateAction,
+    isHouseholdAggregate,
   }
 }
 

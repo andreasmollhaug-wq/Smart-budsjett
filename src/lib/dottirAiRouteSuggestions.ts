@@ -85,11 +85,19 @@ const ROUTE_SUGGESTIONS: { prefix: string; questions: string[] }[] = [
   },
   {
     prefix: '/budsjett',
-    questions: ['Hvor avviker jeg fra budsjettet?', 'Hvilke linjer bør jeg justere?'],
+    questions: [
+      'Legg inn strøm på 1500 kr hver måned',
+      'Hvor avviker jeg fra budsjettet?',
+      'Hvilke linjer bør jeg justere?',
+    ],
   },
   {
     prefix: '/transaksjoner',
-    questions: ['Hvor går pengene?', 'Hvilke kategorier avviker mest?'],
+    questions: [
+      'Registrer Rema 500 kr i dag under mat',
+      'Hvor går pengene?',
+      'Hvilke kategorier avviker mest?',
+    ],
   },
   {
     prefix: '/gjeld',
@@ -166,6 +174,7 @@ export function activityGapSuggestions(snapshot: DottirAiUserSnapshot): string[]
   }
 
   if (snapshot.budgetLinesWithAmount <= 2 && !snapshot.demoDataEnabled) {
+    out.push('Legg inn strøm på 1500 kr/mnd i budsjettet')
     out.push('Hva bør inn i budsjettet først?')
   }
 

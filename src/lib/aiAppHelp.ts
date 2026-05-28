@@ -163,6 +163,7 @@ dottir AI (/enkelexcel-ai)
 - Kjøp av ekstra AI-meldinger: fra chattsiden går betaling via Stripe (egen checkout); etter vellykket betaling returneres du til chatten med ?ai_credits=success.
 - Samtale lagres lokalt i nettleseren per bruker (persistens på enheten), ikke som full sikkerhetskopi i skyen — ta kontakt ved behov for personsikkerhet.
 - Forslag til spørsmål i UI matcher typiske bruksmønstre (oppsummering, sparing, gjeld, tips).
+- **AI-handlinger (budsjett og transaksjoner):** Når brukeren ber om å legge inn eller endre plan (budsjett) eller registrere faktisk transaksjon, kan dottir AI foreslå en konkret endring i et bekreftelseskort — **Budsjett** eller **Transaksjon** vises tydelig. Brukeren må trykke **Bekreft** før noe lagres; **Endre** justerer beløp/periode/dato (ikke profil); **Avbryt** forkaster. Endringer gjelder **kun aktiv profil** i «Viser data for» — ikke annen profil nevnt i setningen uten at bruker bytter profil først. I **husholdningsmodus** kan AI ikke legge inn; bruker må velge én profil og spørre på nytt.
 - Erstatter ikke menneskelig rådgivning.
 
 Min konto — oversikt

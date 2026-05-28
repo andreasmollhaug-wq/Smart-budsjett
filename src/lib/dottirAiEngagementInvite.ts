@@ -47,11 +47,11 @@ export function dottirAiEngagementNotificationTitle(): string {
 }
 
 export function dottirAiEngagementNotificationBody(): string {
-  return `Assistenten svarer ut fra tallene dine og kan forklare appen — uten at du må lete i menyer.
+  return `Assistenten svarer ut fra tallene dine og kan foreslå innlegging i budsjett eller transaksjoner — du bekrefter før noe lagres.
 
 Du kan blant annet spørre om:
+• «Legg inn 1500 kr under Strøm hver måned»
 • Oppsummering av utgifter og avvik mot budsjett
-• Sparing, gjeld og abonnementer
 • Hvor du finner en funksjon i Dottir
 
 Trykk «Åpne dottir AI» for å starte.`

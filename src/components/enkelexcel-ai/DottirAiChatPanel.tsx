@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Copy, ChevronDown, ChevronUp, Lightbulb, RefreshCw, Trash2 } from 'lucide-react'
+import DottirAiActionCard from '@/components/enkelexcel-ai/DottirAiActionCard'
 import AiChatMarkdown from '@/components/enkelexcel-ai/AiChatMarkdown'
 import AiQuickReplyButtons from '@/components/enkelexcel-ai/AiQuickReplyButtons'
 import AiThinkingIndicator from '@/components/enkelexcel-ai/AiThinkingIndicator'
@@ -97,6 +98,10 @@ export default function DottirAiChatPanel({ variant, showClearInHeader = variant
     clearConversation,
     handleSend,
     regenerateMessage,
+    confirmAction,
+    cancelAction,
+    updateAction,
+    isHouseholdAggregate,
     setBuyModalContext,
     setBuyModalOpen,
   } = chat
@@ -213,7 +218,7 @@ export default function DottirAiChatPanel({ variant, showClearInHeader = variant
               </p>
             ) : null}
             {chatHydrated
-              ? messages.map((m, i) => {
+              ? messages.map((m) => {
                   const isUser = m.role === 'user'
                   const isLastAssistant =
                     !isUser && m.id === lastAssistantMessageId && !isLoading
@@ -254,6 +259,17 @@ export default function DottirAiChatPanel({ variant, showClearInHeader = variant
                             options={quickReplies}
                             disabled={suggestionsDisabled}
                             onSelect={pickSuggestion}
+                          />
+                        ) : null}
+                        {!isUser && m.proposedAction ? (
+                          <DottirAiActionCard
+                            action={m.proposedAction}
+                            status={m.actionStatus ?? 'pending'}
+                            appliedSummary={m.appliedSummary}
+                            isHouseholdAggregate={isHouseholdAggregate}
+                            onConfirm={(action) => confirmAction(m.id, action)}
+                            onCancel={() => cancelAction(m.id)}
+                            onUpdateAction={(action) => updateAction(m.id, action)}
                           />
                         ) : null}
                         {showActions ? (

@@ -5,9 +5,16 @@ import {
   subscriptionForbiddenUnlessAccess,
 } from '@/lib/stripe/subscriptionAccess'
 import {
+  accumulateToolCallDelta,
+  parseToolCallArguments,
+} from '@/lib/dottirAiActions/openAiTools'
+import {
   buildOpenAiMessages,
   fetchAiQuota,
+  getOpenAiFinanceTools,
   incrementAiUsageAfterReply,
+  lastUserMessageContent,
+  resolveFinanceActionFromTool,
   resolveMaxOutTokens,
   resolveOpenAiModel,
   resolveOpenAiTemperature,
@@ -93,6 +100,8 @@ export async function POST(req: Request) {
       messages: built.openaiMessages,
       temperature,
       stream: true,
+      tools: getOpenAiFinanceTools(),
+      tool_choice: 'auto',
       ...(useCompletionTokenLimit
         ? { max_completion_tokens: maxOutTokens }
         : { max_tokens: maxOutTokens }),
@@ -108,7 +117,8 @@ export async function POST(req: Request) {
   }
 
   const encoder = new TextEncoder()
-  let fullReply = ''
+  const toolAcc = new Map<number, import('@/lib/dottirAiActions/openAiTools').ToolCallAccumulator>()
+  const lastUser = lastUserMessageContent(messages)
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -131,12 +141,23 @@ export async function POST(req: Request) {
             if (payload === '[DONE]') continue
             try {
               const parsed = JSON.parse(payload) as {
-                choices?: { delta?: { content?: string | null } }[]
+                choices?: {
+                  delta?: {
+                    content?: string | null
+                    tool_calls?: Array<{
+                      index?: number
+                      id?: string
+                      function?: { name?: string; arguments?: string }
+                    }>
+                  }
+                }[]
               }
-              const delta = parsed.choices?.[0]?.delta?.content
-              if (delta) {
-                fullReply += delta
-                controller.enqueue(encoder.encode(sseLine({ delta })))
+              const delta = parsed.choices?.[0]?.delta
+              if (delta?.content) {
+                controller.enqueue(encoder.encode(sseLine({ delta: delta.content })))
+              }
+              if (delta?.tool_calls) {
+                accumulateToolCallDelta(toolAcc, delta.tool_calls)
               }
             } catch {
               /* ignore partial json */
@@ -144,7 +165,9 @@ export async function POST(req: Request) {
           }
         }
 
-        const reply = fullReply.trim() || 'dottir AI sendte ingen tekst.'
+        const rawTool = parseToolCallArguments(toolAcc)
+        const action = resolveFinanceActionFromTool(rawTool, built.persistedState, lastUser)
+
         const usageResult = await incrementAiUsageAfterReply(
           supabase,
           usedBefore,
@@ -155,7 +178,15 @@ export async function POST(req: Request) {
         if (!usageResult.ok) {
           controller.enqueue(encoder.encode(sseLine({ error: usageResult.error })))
         } else {
-          controller.enqueue(encoder.encode(sseLine({ done: true, usage: usageResult.usage })))
+          controller.enqueue(
+            encoder.encode(
+              sseLine({
+                done: true,
+                usage: usageResult.usage,
+                ...(action ? { action } : {}),
+              }),
+            ),
+          )
         }
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))
         controller.close()
