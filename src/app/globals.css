@@ -193,9 +193,14 @@ body {
     background: #fff !important;
   }
   body[data-print-report="true"] .bank-report-document,
-  body[data-print-report="true"] .report-document {
+  body[data-print-report="true"] .report-document,
+  body[data-print-report="true"] .budget-plan-document {
     border: none !important;
     box-shadow: none !important;
+  }
+  body[data-print-report="true"] .budget-plan-scope {
+    break-before: page;
+    page-break-before: always;
   }
 }
 

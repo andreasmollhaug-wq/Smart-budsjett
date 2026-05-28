@@ -57,6 +57,10 @@ import { amountReferencesSumMatchesLine, impliedNewMonthTotal } from '@/lib/hous
 import { applyOnceMonthIndexChange } from '@/lib/budget/applyOnceMonthIndexChange'
 import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
+import { getDefaultBudgetExportSubject } from '@/lib/budgetPlanExport/resolveBudgetExportScopes'
+import dynamic from 'next/dynamic'
+
+const BudgetExportMenu = dynamic(() => import('@/components/budget/BudgetExportMenu'), { ssr: false })
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 const MONTHS_FULL = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember']
@@ -882,6 +886,13 @@ export default function BudsjettPage() {
                 Start nytt budsjettår
               </button>
             )}
+            <BudgetExportMenu
+              year={viewingYear}
+              layout={view === 'year' ? 'fullYear' : 'singleMonth'}
+              monthIndex={selectedMonth}
+              defaultSubject={getDefaultBudgetExportSubject(isHouseholdAggregate, activeProfileId)}
+              onlyLinesWithAmounts={false}
+            />
           </div>
 
           {view === 'month' && (

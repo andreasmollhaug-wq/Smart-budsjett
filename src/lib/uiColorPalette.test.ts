@@ -25,3 +25,16 @@ describe('normalizeUiColorPaletteId', () => {
     expect(normalizeUiColorPaletteId('teal')).toBe('dark')
   })
 })
+
+describe('uiPaletteCssVarsForExport', () => {
+  it('returnerer tokens for default og dark', async () => {
+    const { uiPaletteCssVarsForExport, ctaGradientForUiPalette } = await import('./uiColorPalette')
+    const def = uiPaletteCssVarsForExport('default')
+    expect(def['--primary']).toBe('#3B5BDB')
+    expect(def['--bg']).toBe('#EEF2FF')
+
+    const dark = uiPaletteCssVarsForExport('dark')
+    expect(dark['--text']).toBe('#e9ecef')
+    expect(dark['--cta-gradient']).toBe(ctaGradientForUiPalette('dark'))
+  })
+})

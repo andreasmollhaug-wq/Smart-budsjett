@@ -37,7 +37,11 @@ import { buildArsvisningDataInsights, summarizeBudgetVsRows } from '@/lib/dashbo
 import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 import { mergeBudgetCategoriesFromSnapshots, useActivePersonFinance, useStore } from '@/lib/store'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
+import { getDefaultBudgetExportSubject } from '@/lib/budgetPlanExport/resolveBudgetExportScopes'
+import dynamic from 'next/dynamic'
 import { AlertTriangle, ChevronDown, Scale, TrendingDown, Wallet } from 'lucide-react'
+
+const BudgetExportMenu = dynamic(() => import('@/components/budget/BudgetExportMenu'), { ssr: false })
 
 export default function BudsjettArsvisningPage() {
   const { formatNOK } = useNokDisplayFormatters()
@@ -247,6 +251,15 @@ export default function BudsjettArsvisningPage() {
             onMonthIndexChange={setMonthIndex}
             yearOptions={yearOptions}
           />
+          <div className="flex justify-end pt-1">
+            <BudgetExportMenu
+              year={year}
+              layout="fullYear"
+              monthIndex={monthIndex}
+              defaultSubject={getDefaultBudgetExportSubject(isHouseholdAggregate, activeProfileId)}
+              onlyLinesWithAmounts={false}
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
