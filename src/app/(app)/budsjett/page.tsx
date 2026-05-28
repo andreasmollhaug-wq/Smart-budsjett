@@ -58,9 +58,7 @@ import { applyOnceMonthIndexChange } from '@/lib/budget/applyOnceMonthIndexChang
 import { chartColorsForUiPalette } from '@/lib/uiColorPalette'
 import { buildFinanceViewYearOptions } from '@/lib/financeYearOptions'
 import { getDefaultBudgetExportSubject } from '@/lib/budgetPlanExport/resolveBudgetExportScopes'
-import dynamic from 'next/dynamic'
-
-const BudgetExportMenu = dynamic(() => import('@/components/budget/BudgetExportMenu'), { ssr: false })
+import BudgetViewToolbar from '@/components/budget/BudgetViewToolbar'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des']
 const MONTHS_FULL = ['Januar', 'Februar', 'Mars', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Desember']
@@ -840,82 +838,18 @@ export default function BudsjettPage() {
             </button>
           </div>
         )}
-        <div className="flex flex-wrap justify-between items-center gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
-              {(['year', 'month'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setView(v)}
-                  className="px-4 py-2 text-sm font-medium transition-colors"
-                  style={{
-                    background: view === v ? 'var(--primary)' : 'var(--surface)',
-                    color: view === v ? 'white' : 'var(--text-muted)',
-                  }}
-                >
-                  {v === 'month' ? 'Månedlig' : 'Årlig'}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                Budsjettår:
-              </span>
-              <select
-                value={viewingYear}
-                onChange={(e) => setViewingYear(Number(e.target.value))}
-                className="px-3 py-2 text-sm rounded-xl min-w-[5rem]"
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                    {y === budgetYear ? ' (aktivt)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {viewingYear === budgetYear && (
-              <button
-                type="button"
-                onClick={() => setNewYearModalOpen(true)}
-                className="px-3 py-2 text-sm font-medium rounded-xl"
-                style={{ border: '1px solid var(--border)', color: 'var(--primary)' }}
-              >
-                Start nytt budsjettår
-              </button>
-            )}
-            <BudgetExportMenu
-              year={viewingYear}
-              layout={view === 'year' ? 'fullYear' : 'singleMonth'}
-              monthIndex={selectedMonth}
-              defaultSubject={getDefaultBudgetExportSubject(isHouseholdAggregate, activeProfileId)}
-              onlyLinesWithAmounts={false}
-            />
-          </div>
-
-          {view === 'month' && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                Måned:
-              </span>
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="px-3 py-2 text-sm rounded-xl"
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                aria-label="Velg måned for budsjettvisning"
-              >
-                {MONTHS_FULL.map((m, i) => (
-                  <option key={i} value={i}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
+        <BudgetViewToolbar
+          view={view}
+          onViewChange={setView}
+          viewingYear={viewingYear}
+          onViewingYearChange={setViewingYear}
+          yearOptions={yearOptions}
+          budgetYear={budgetYear}
+          onStartNewYear={() => setNewYearModalOpen(true)}
+          selectedMonth={selectedMonth}
+          onSelectedMonthChange={setSelectedMonth}
+          exportDefaultSubject={getDefaultBudgetExportSubject(isHouseholdAggregate, activeProfileId)}
+        />
 
         <div className={`space-y-6 ${readOnly ? 'pointer-events-none opacity-[0.92]' : ''}`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">

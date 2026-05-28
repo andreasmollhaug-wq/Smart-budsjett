@@ -217,11 +217,8 @@ export default function BudgetExportMenu({
     </button>
   )
 
-  const exportMenuPanel = (
-    <div
-      className="absolute right-0 z-20 mt-2 w-[min(100vw-2rem,20rem)] rounded-2xl p-3 space-y-3 shadow-lg"
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+  const exportPanelContent = (
+    <>
       {subjectSelect}
       <div className="flex flex-col gap-2">
         {pdfButton}
@@ -237,8 +234,39 @@ export default function BudgetExportMenu({
           {exportError}
         </p>
       ) : null}
+    </>
+  )
+
+  const exportMenuDropdown = (
+    <div
+      className="absolute right-0 top-full z-50 mt-2 hidden w-[min(100vw-2rem,20rem)] rounded-2xl p-3 shadow-lg md:block"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+    >
+      <div className="space-y-3">{exportPanelContent}</div>
     </div>
   )
+
+  const exportMenuMobileSheet =
+    menuOpen && variant === 'toolbar' ? (
+      <div
+        className="fixed inset-0 z-[100] flex items-end justify-center md:hidden"
+        style={{ background: 'rgba(15, 23, 42, 0.45)' }}
+        role="presentation"
+        onPointerDown={() => setMenuOpen(false)}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Last ned budsjettplan"
+          className="w-full max-w-md min-w-0 rounded-t-2xl p-4 shadow-xl space-y-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {exportPanelContent}
+        </div>
+      </div>
+    ) : null
 
   return (
     <>
@@ -264,7 +292,8 @@ export default function BudgetExportMenu({
               <Download className="h-5 w-5" aria-hidden />
             )}
           </button>
-          {menuOpen ? exportMenuPanel : null}
+          {menuOpen ? exportMenuDropdown : null}
+          {exportMenuMobileSheet}
         </div>
       ) : (
         <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-end">
