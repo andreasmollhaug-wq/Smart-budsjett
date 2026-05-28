@@ -23,9 +23,12 @@ import { markDottirAiOpened } from '@/lib/dottirAiEngagementInvite'
 
 type DottirAiContextValue = DottirAiChatState & {
   isOpen: boolean
+  isMobileExpanded: boolean
   open: () => void
   close: () => void
   openFullPage: () => void
+  toggleMobileExpanded: () => void
+  collapseMobile: () => void
   fabPrefs: DottirAiFabPrefs
   setFabPrefs: (prefs: DottirAiFabPrefs) => void
 }
@@ -50,20 +53,34 @@ export default function DottirAiProvider({ children }: { children: ReactNode }) 
   const chat = useDottirAiChat()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false)
   const [fabPrefs, setFabPrefsState] = useState<DottirAiFabPrefs>(() =>
     typeof window !== 'undefined' ? readDottirAiFabPrefs() : { hidden: false, hiddenUntil: null },
   )
 
   const open = useCallback(() => {
     markDottirAiOpened()
+    setIsMobileExpanded(false)
     setIsOpen(true)
   }, [])
-  const close = useCallback(() => setIsOpen(false), [])
+  const close = useCallback(() => {
+    setIsMobileExpanded(false)
+    setIsOpen(false)
+  }, [])
 
   const openFullPage = useCallback(() => {
+    setIsMobileExpanded(false)
     setIsOpen(false)
     router.push('/enkelexcel-ai')
   }, [router])
+
+  const toggleMobileExpanded = useCallback(() => {
+    setIsMobileExpanded((v) => !v)
+  }, [])
+
+  const collapseMobile = useCallback(() => {
+    setIsMobileExpanded(false)
+  }, [])
 
   const setFabPrefs = useCallback((prefs: DottirAiFabPrefs) => {
     writeDottirAiFabPrefs(prefs)
@@ -94,13 +111,27 @@ export default function DottirAiProvider({ children }: { children: ReactNode }) 
     () => ({
       ...chat,
       isOpen,
+      isMobileExpanded,
       open,
       close,
       openFullPage,
+      toggleMobileExpanded,
+      collapseMobile,
       fabPrefs,
       setFabPrefs,
     }),
-    [chat, isOpen, open, close, openFullPage, fabPrefs, setFabPrefs],
+    [
+      chat,
+      isOpen,
+      isMobileExpanded,
+      open,
+      close,
+      openFullPage,
+      toggleMobileExpanded,
+      collapseMobile,
+      fabPrefs,
+      setFabPrefs,
+    ],
   )
 
   return (
