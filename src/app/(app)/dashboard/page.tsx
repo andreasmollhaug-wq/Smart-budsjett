@@ -38,7 +38,7 @@ import DashboardSavingsGoalsModal from '@/components/dashboard/DashboardSavingsG
 import DashboardCategoryExpenseModal from '@/components/dashboard/DashboardCategoryExpenseModal'
 import DashboardIncomeExpenseMonthlyModal from '@/components/dashboard/DashboardIncomeExpenseMonthlyModal'
 import DashboardFixedExpensesModal from '@/components/dashboard/DashboardFixedExpensesModal'
-import DashboardPeriodToolbar from '@/components/dashboard/DashboardPeriodToolbar'
+import DashboardPeriodToolbarCollapsible from '@/components/dashboard/DashboardPeriodToolbarCollapsible'
 import DashboardVsBudgetCard from '@/components/dashboard/DashboardVsBudgetCard'
 import DashboardChecksCard from '@/components/dashboard/DashboardChecksCard'
 import DashboardRecentActivityCard from '@/components/dashboard/DashboardRecentActivityCard'
@@ -350,7 +350,7 @@ export default function DashboardPage() {
         subtitle={dashboardSubtitle(isHouseholdAggregate, activeProfileId, profiles)}
       />
       <div className="space-y-6 px-4 py-6 md:p-8">
-        <DashboardPeriodToolbar
+        <DashboardPeriodToolbarCollapsible
           filterYear={filterYear}
           onFilterYearChange={setFilterYear}
           periodMode={periodMode}
