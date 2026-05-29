@@ -10,7 +10,7 @@ import {
 
 } from '@/lib/neonomics/accountTypes'
 
-import { resolveNeonomicsBankId } from '@/lib/neonomics/bankCatalog'
+import { resolveNeonomicsBankIdAsync } from '@/lib/neonomics/bankCatalog'
 
 import { getBankConnection } from '@/lib/neonomics/bankConnectionsRepo'
 
@@ -28,7 +28,7 @@ import { mapNeonomicsTransactionsToSyncRows, type NeonomicsSyncRow } from '@/lib
 
 import { buildNeonomicsContext } from '@/lib/neonomics/requestContext'
 
-import { encryptSandboxPsuId } from '@/lib/neonomics/psu'
+import { psuIdForBank } from '@/lib/neonomics/psu'
 
 import { resolveAccountsToSync } from '@/lib/neonomics/syncAccounts'
 
@@ -93,10 +93,14 @@ export async function runNeonomicsSync(
   },
 
 ): Promise<SyncResult> {
-
-  const bank = resolveNeonomicsBankId(opts?.bankId)
-
-  const conn = await getBankConnection(supabase, userId, profileId, bank.bankId)
+  const ctxForCatalog = buildNeonomicsContext(userId, profileId, req, { bankId: opts?.bankId })
+  const connEarly = opts?.bankId
+    ? await getBankConnection(supabase, userId, profileId, opts.bankId.trim())
+    : null
+  const bank = await resolveNeonomicsBankIdAsync(opts?.bankId, ctxForCatalog, {
+    displayName: connEarly?.bank_display_name ?? undefined,
+  })
+  const conn = connEarly ?? (await getBankConnection(supabase, userId, profileId, bank.bankId))
 
   if (!conn) {
 
@@ -106,15 +110,25 @@ export async function runNeonomicsSync(
 
 
 
+  const psuIp = buildNeonomicsContext(userId, profileId, req, {
+
+    psuIp: opts?.psuIp,
+
+    bankId: bank.bankId,
+
+  }).psuIp
+
+  const psuId = psuIdForBank(bank.bankId)
+
   const ctx = {
 
     deviceId: conn.device_id,
 
     sessionId: conn.session_id,
 
-    psuIp: buildNeonomicsContext(userId, profileId, req, { psuIp: opts?.psuIp }).psuIp,
+    psuIp,
 
-    psuId: encryptSandboxPsuId(),
+    ...(psuId ? { psuId } : {}),
 
   }
 

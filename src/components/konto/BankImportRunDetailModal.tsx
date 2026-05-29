@@ -12,7 +12,11 @@ import { X } from 'lucide-react'
 
 const SOURCE_LABEL: Record<string, string> = {
   dnb_sbanken: 'DNB / Sbanken',
-  neonomics_dnb: 'Neonomics (DNB sandbox)',
+  neonomics_dnb: 'Neonomics (DNB)',
+  neonomics_sbanken: 'Neonomics (Sbanken)',
+  neonomics_folio: 'Neonomics (Folio / Sparebanken Norge)',
+  neonomics_sparebank1: 'Neonomics (SpareBank 1)',
+  neonomics_nordea: 'Neonomics (Nordea)',
   sparebank1: 'Sparebank 1',
 }
 

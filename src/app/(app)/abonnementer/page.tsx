@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Header from '@/components/layout/Header'
 import AbonnementerSubnav from '@/components/subscriptions/AbonnementerSubnav'
-import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
-import SubscriptionModuleInfoModal from '@/components/subscriptions/SubscriptionModuleInfoModal'
+import AddSubscriptionCollapsibleSection from '@/components/subscriptions/AddSubscriptionCollapsibleSection'
+import SubscriptionGuideModal, { type SubscriptionGuideSnapshot } from '@/components/subscriptions/SubscriptionGuideModal'
+import type { SubscriptionGuideTabId } from '@/lib/subscriptionGuideCopy'
 import {
   findDuplicatePresetServiceGroups,
   monthlyEquivalentNok,
@@ -24,6 +25,7 @@ import {
   type SubscriptionSharedLinePartition,
 } from '@/lib/regningerCategoryPicker'
 import { clampBillingDay } from '@/lib/subscriptionTransactions'
+import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
 import NewBudgetCategoryModal from '@/components/transactions/NewBudgetCategoryModal'
 import { SERVICE_SUBSCRIPTION_PRESETS } from '@/lib/serviceSubscriptionPresets'
 import {
@@ -35,7 +37,7 @@ import {
   type UpdateServiceSubscriptionPatch,
 } from '@/lib/store'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
-import { Info, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Pencil, Plus, Trash2, X } from 'lucide-react'
 
 const MONTH_OPTIONS = [
   { v: 1, label: 'Januar' },
@@ -117,7 +119,15 @@ export default function AbonnementerPage() {
   const now = new Date()
   const defaultDay = clampBillingDay(now.getDate())
 
-  const [infoOpen, setInfoOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [guideTab, setGuideTab] = useState<SubscriptionGuideTabId>('steps')
+  const [addFormOpen, setAddFormOpen] = useState(true)
+
+  const openGuide = (tab: SubscriptionGuideTabId = 'steps') => {
+    setGuideTab(tab)
+    setGuideOpen(true)
+  }
+
   /** Åpen redigeringsdialog for valgt abonnement (kun profilmodus). */
   const [editingSubscription, setEditingSubscription] = useState<ServiceSubscription | null>(null)
 
@@ -257,6 +267,20 @@ export default function AbonnementerPage() {
 
   const readonly = isHouseholdAggregate
 
+  const guideSnapshot: SubscriptionGuideSnapshot = {
+    activeCount: totals.activeCount,
+    monthlyTotal: totals.monthly,
+    yearlyTotal: totals.yearly,
+    readOnly: readonly,
+  }
+
+  const addFormCollapsedSummary = useMemo(() => {
+    if (newAmount <= 0 && !newLabel.trim()) return undefined
+    const label = newLabel.trim() || 'Abonnement'
+    const period = newBilling === 'yearly' ? '/år' : '/mnd'
+    return `${label} · ${formatNOK(newAmount)}${period} — trykk for å fullføre`
+  }, [newAmount, newLabel, newBilling, formatNOK])
+
   const profileName = (id?: string) => profiles.find((p) => p.id === id)?.name ?? 'Profil'
 
   const applyPreset = (key: string) => {
@@ -332,23 +356,14 @@ export default function AbonnementerPage() {
 
   return (
     <div className="flex-1 overflow-auto" style={{ background: 'var(--bg)' }}>
-      <Header
-        title="Tjenesteabonnementer"
-        subtitle="Oversikt over faste abonnementer"
-        titleAddon={
-          <button
-            type="button"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg"
-            style={{ border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-muted)' }}
-            aria-label="Om denne siden"
-            onClick={() => setInfoOpen(true)}
-          >
-            <Info size={18} aria-hidden />
-          </button>
-        }
-      />
+      <Header title="Tjenesteabonnementer" subtitle="Oversikt over faste abonnementer" />
       <AbonnementerSubnav />
-      <SubscriptionModuleInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} />
+      <SubscriptionGuideModal
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        snapshot={guideSnapshot}
+        initialTab={guideTab}
+      />
       {!readonly && (
         <NewBudgetCategoryModal
           open={newRegningerLineModalOpen}
@@ -386,11 +401,21 @@ export default function AbonnementerPage() {
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6">
         {readonly && (
           <div
-            className="rounded-xl border px-4 py-3 text-sm"
+            className="rounded-xl border px-4 py-3 text-sm space-y-2"
             style={{ borderColor: 'var(--border)', background: 'var(--surface)', color: 'var(--text-muted)' }}
           >
-            Du viser <strong style={{ color: 'var(--text)' }}>samlet husholdning</strong>. Abonnementer kan bare
-            redigeres når du har valgt én profil i menyen øverst.
+            <p className="m-0">
+              Du viser <strong style={{ color: 'var(--text)' }}>samlet husholdning</strong>. Abonnementer kan bare
+              redigeres når du har valgt én profil i menyen øverst.
+            </p>
+            <button
+              type="button"
+              onClick={() => openGuide('dottir')}
+              className="text-xs font-medium touch-manipulation underline-offset-2 hover:underline py-1"
+              style={{ color: 'var(--primary)' }}
+            >
+              Slik fungerer abonnementer
+            </button>
           </div>
         )}
 
@@ -545,7 +570,19 @@ export default function AbonnementerPage() {
                   profil</strong> i menyen øverst for å legge inn eller redigere tjenesteabonnementer.
                 </>
               ) : (
-                <>Ingen abonnementer ennå. Legg til under.</>
+                <>
+                  Ingen abonnementer ennå. Legg til under.{' '}
+                  {!readonly && (
+                    <button
+                      type="button"
+                      onClick={() => openGuide('steps')}
+                      className="font-medium touch-manipulation underline underline-offset-2"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      Se veiledning
+                    </button>
+                  )}
+                </>
               )}
             </p>
           ) : (
@@ -621,14 +658,13 @@ export default function AbonnementerPage() {
         </section>
 
         {!readonly && (
-          <section
-            className="rounded-2xl border p-4 sm:p-5"
-            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
+          <AddSubscriptionCollapsibleSection
+            open={addFormOpen}
+            onToggle={() => setAddFormOpen((o) => !o)}
+            collapsedSummary={addFormCollapsedSummary}
+            onOpenGuide={() => openGuide('budget')}
           >
-            <h2 className="text-sm font-semibold mb-4" style={{ color: 'var(--text)' }}>
-              Legg til abonnement
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 pt-4">
               <label className="block text-sm">
                 <span style={{ color: 'var(--text-muted)' }}>Velg fra liste</span>
                 <select
@@ -974,7 +1010,7 @@ export default function AbonnementerPage() {
               <Plus size={18} />
               Legg til
             </button>
-          </section>
+          </AddSubscriptionCollapsibleSection>
         )}
       </div>
     </div>

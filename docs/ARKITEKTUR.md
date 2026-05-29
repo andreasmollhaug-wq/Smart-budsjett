@@ -16,6 +16,7 @@
 
 - Innlogging/registrering: Supabase Auth (`/logg-inn`, `/registrer`, `/auth/callback`). Glemt passord: `/glemt-passord` sender e-post; etter lenke etableres økt via `/auth/callback` og bruker settes nytt passord på `/tilbakestill-passord` (kun når Supabase emitter `PASSWORD_RECOVERY`; ellers redirect til `/konto/sikkerhet`). I Supabase Dashboard må **Redirect URLs** inkludere appens `/auth/callback`, og malen **Reset password** må tillate samme redirect som `resetPasswordForEmail` bruker (se [`.env.example`](../.env.example)).
 - [`middleware.ts`](../src/middleware.ts) sjekker sesjon for alle ruter unntatt offentlige stier (landing, juridiske sider, innlogging/registrering/glemt passord). Uten `NEXT_PUBLIC_SUPABASE_*` redirectes beskyttede ruter til innlogging med `?error=config`.
+- **Tofaktor (2FA, TOTP):** valgfri og **anbefalt, ikke påkrevd**. Aktivering/deaktivering på `/konto/sikkerhet` (`MfaPanel`). Etter innlogging med passord: brukere som har aktivert MFA verifiseres på `/logg-inn/tofaktor` (AAL2). [`middleware.ts`](../src/middleware.ts) redirecter MFA-brukere uten fullført TOTP til challenge-siden; `/api/*` returnerer 403 `mfa_required`. Helpers i [`src/lib/auth/mfa.ts`](../src/lib/auth/mfa.ts). Ved registrering vises anbefaling (`MfaRecommendCallout`); engangs-banner på `/konto/betalinger?trial=welcome` (`MfaRecommendBanner`).
 - Brukerdata og server-side operasjoner som krever hemmelige nøkler (Stripe-webhook, AI-kvote) bruker **service role** eller server routes — se [`.env.example`](../.env.example).
 
 ## Ruter (utvalg)

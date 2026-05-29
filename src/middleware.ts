@@ -6,6 +6,7 @@ import {
 } from '@/lib/stripe/subscriptionAccess'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
 import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
+import { isMfaChallengePath, isMfaExemptPath, needsMfaStepUp } from '@/lib/auth/mfa'
 
 /** Ruter med `(dottir-marketing)/layout` — må matche `RootLayout` sin SSR av `data-ui-palette`. */
 function isDottirMarketingSandPalettePath(pathname: string): boolean {
@@ -44,6 +45,7 @@ function isPublicPath(pathname: string): boolean {
 }
 
 function isAuthOnlyPath(pathname: string): boolean {
+  if (isMfaChallengePath(pathname)) return false
   return pathname.startsWith('/logg-inn') || pathname.startsWith('/registrer')
 }
 
@@ -114,6 +116,17 @@ export async function middleware(request: NextRequest) {
 
   if (isPublicPath(pathname)) {
     if (user && isAuthOnlyPath(pathname)) {
+      try {
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        if (needsMfaStepUp(aalData)) {
+          const dest = safeRedirectPath(request.nextUrl.searchParams.get('next'))
+          const mfaUrl = new URL('/logg-inn/tofaktor', request.url)
+          mfaUrl.searchParams.set('next', dest)
+          return NextResponse.redirect(mfaUrl)
+        }
+      } catch {
+        /** Fall through to vanlig redirect. */
+      }
       const dest = safeRedirectPath(request.nextUrl.searchParams.get('next'))
       return NextResponse.redirect(new URL(dest, request.url))
     }
@@ -124,6 +137,20 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = new URL('/logg-inn', request.url)
     redirectUrl.searchParams.set('next', pathname + request.nextUrl.search)
     return NextResponse.redirect(redirectUrl)
+  }
+
+  try {
+    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (needsMfaStepUp(aalData) && !isMfaExemptPath(pathname, isPublicPath)) {
+      if (isApiPath(pathname)) {
+        return NextResponse.json({ error: 'mfa_required' }, { status: 403 })
+      }
+      const mfaUrl = new URL('/logg-inn/tofaktor', request.url)
+      mfaUrl.searchParams.set('next', pathname + request.nextUrl.search)
+      return NextResponse.redirect(mfaUrl)
+    }
+  } catch {
+    /** MFA-sjekk skal ikke ta ned appen ved ugyldig session. */
   }
 
   if (isSubscriptionEnforcementEnabled()) {

@@ -11,18 +11,17 @@ export type NeonomicsConsentMessage = {
 }
 
 type Props = {
-  bankDisplayName: string
-  children: (openConsent: (bankAuthUrl: string) => void) => React.ReactNode
+  children: (openConsent: (bankAuthUrl: string, bankDisplayName: string) => void) => React.ReactNode
   onConsentComplete?: (msg: NeonomicsConsentMessage) => void
 }
 
 export default function NeonomicsConsentLauncher({
-  bankDisplayName,
   children,
   onConsentComplete,
 }: Props) {
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [navigateMode, setNavigateMode] = useState(false)
+  const [consentBankName, setConsentBankName] = useState('banken')
   const popupRef = useRef<Window | null>(null)
   const expectedOriginRef = useRef<string>('')
 
@@ -51,7 +50,8 @@ export default function NeonomicsConsentLauncher({
     return () => window.removeEventListener('message', onMessage)
   }, [onConsentComplete])
 
-  const openConsent = useCallback((bankAuthUrl: string) => {
+  const openConsent = useCallback((bankAuthUrl: string, bankDisplayName: string) => {
+    setConsentBankName(bankDisplayName)
     const { mode, popup } = openBankConsentUrl(bankAuthUrl)
     popupRef.current = popup
     if (mode === 'navigate') {
@@ -87,7 +87,7 @@ export default function NeonomicsConsentLauncher({
               className="text-lg font-semibold m-0"
               style={{ color: 'var(--text)' }}
             >
-              Fullfør hos {bankDisplayName}
+              Fullfør hos {consentBankName}
             </h2>
             <p className="text-sm m-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Du logger inn og gir samtykke i bankens vindu. Dottir lagrer ikke passordet ditt. Lukk ikke
@@ -110,7 +110,7 @@ export default function NeonomicsConsentLauncher({
       )}
       {navigateMode && (
         <p className="text-sm m-0 rounded-xl p-3" style={{ background: 'var(--bg)', color: 'var(--text-muted)' }}>
-          Du sendes til {bankDisplayName} for å logge inn …
+          Du sendes til {consentBankName} for å logge inn …
         </p>
       )}
     </>

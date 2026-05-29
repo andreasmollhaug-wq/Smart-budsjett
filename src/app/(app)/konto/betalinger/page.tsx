@@ -11,6 +11,7 @@ import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 import { useSubscriptionReadOnly } from '@/components/app/SubscriptionReadOnlyProvider'
 import CancelSubscriptionHelpPopover from '@/components/billing/CancelSubscriptionHelpPopover'
 import TrialWelcomeModal from '@/components/billing/TrialWelcomeModal'
+import MfaRecommendBanner from '@/components/konto/MfaRecommendBanner'
 import { householdSingleLoginNote } from '@/lib/kontoCopy'
 
 const soloFeatures = ['Én brukerkonto', 'Full tilgang til alle funksjoner', 'Passer deg som styrer økonomien alene']
@@ -252,6 +253,7 @@ function BetalingerContent() {
         onStartSolo={() => void subscribeWithPlan('solo')}
         onStartFamily={() => void subscribeWithPlan('family')}
       />
+      <MfaRecommendBanner />
       {reason === 'subscription' && (
         <div
           className="rounded-xl p-4 mb-6 text-sm"

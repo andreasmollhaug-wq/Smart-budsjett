@@ -119,6 +119,7 @@ Snøball (/snoball)
 - Strategi: Snøball (minste restgjeld først) eller Avalanche (høyeste rente først).
 - «Ekstra nedbetaling per måned» for simulering. Viser kø, fokuslån, grafer basert på gjeld fra Gjeld-modulen og hva som er med i snøball.
 - Lån utenfor kø eller med pause kan fortsatt administreres under Gjeld.
+- Veiledning på siden: «Slik fungerer snøball» (én modal med faner: Kom i gang, Metoden, I Dottir — hero, steg-kort, strategi-sammenligning og personlig oppsummering når brukeren har kø).
 
 Investering (/investering) — sidetittel «Investering», undertittel «Porteføljeoversikt og avkastning»
 - Formål: samle egen portefølje i NOK — ikke skatte-, juridisk eller investeringsrådgivning.
@@ -141,6 +142,7 @@ Tjenesteabonnementer (/abonnementer)
 - I Familie vises abonnementer samlet i husholdning med profilnavn; redigering gjøres når én profil er valgt. Når flere profiler har valgt samme tjeneste fra forhåndslisten, kan appen vise et nøytralt forslag om delt eller familieabonnement hos leverandøren.
 - Registrerte abonnementer inngår i tallkonteksten til dottir AI når du spør om slike kostnader. I husholdningsvisning får AI en tabell med sum per profil (hvem som abonnerer på hva) pluss total for husholdningen, i tillegg til detaljlisten med profilmerking.
 - Under /abonnementer finnes tre faner: «Registrer abonnement» (/abonnementer) — registrer og eventuelt synk til budsjett; «Sammendrag» (/abonnementer/sammendrag) — oversikt per profil, samlet kostnad og enkel visning av overlapp når samme tjeneste er valgt for flere; «Avsluttede» (/abonnementer/avsluttet) — tidligere avsluttede abonnement (historikk).
+- Veiledning på Registrer-fanen: «Slik fungerer abonnementer» under «Legg til abonnement» (modal med faner Kom i gang, Budsjett, I Dottir — hero, steg-kort og personlig oppsummering). Skjemaet kan foldes sammen, men er åpent som standard.
 
 Rapporter
 - /rapporter — menyvalg «Rapport til bank», «Månedsinnsikt» og «Sparemålrapport». Rapport til bank (PDF/utskrift) kan vise egen boks «Inntekt: brutto og forenklet trekk» for valgt måned når trekk er i bruk (samme prinsipp som månedsinnsikt).
@@ -200,7 +202,7 @@ Betalinger og abonnement (/konto/betalinger)
 
 Sikkerhet (/konto/sikkerhet)
 - Passord: skjema med nåværende passord og nytt passord (minst 8 tegn). Lagre med «Oppdater passord». Glemt passord uten innlogging: **Glemt passord** på innloggingssiden, deretter **Tilbakestill passord** med lenke fra e-post. Innlogget: **Min konto → Sikkerhet**.
-- Tofaktorautentisering (2FA): seksjon finnes, men knappen «Aktiver» er **deaktivert** — funksjonen kommer i neste release. Si ikke at brukeren kan aktivere 2FA i appen nå.
+- Tofaktorautentisering (2FA): kan aktiveres under **Min konto → Sikkerhet** (/konto/sikkerhet) med autentiseringsapp (TOTP). **Anbefalt, men ikke påkrevd** — si aldri at brukeren må aktivere det. Veiledning finnes via **«Slik gjør du det»** på samme side; ?-ikonet gir mer info om husholdning og gjenoppretting. Ved registrering vises en anbefaling; brukeren velger selv.
 - Aktive økter: full oversikt over andre enheter og utlogging av andre økter **kommer senere**. Siden forklarer at du er innlogget i denne nettleseren nå.
 
 Konto, logg ut og sletting av brukerkonto

@@ -16,16 +16,20 @@ Valgfri modul for bankimport via [Neonomics Account Data](https://docs.neonomics
    - [`032_bank_connections_last_sync.sql`](../supabase/migrations/032_bank_connections_last_sync.sql)
    - [`033_bank_connections_multi_bank.sql`](../supabase/migrations/033_bank_connections_multi_bank.sql)
    - [`034_bank_sync_log.sql`](../supabase/migrations/034_bank_sync_log.sql)
+   - [`035_bank_connection_accounts.sql`](../supabase/migrations/035_bank_connection_accounts.sql)
 
-4. **`npm run dev`** — sett begge flagg til `true`:
+4. **`npm run dev`** — sett **alle tre** flagg til `true` i `.env.local`:
    - `NEONOMICS_ENABLED`
    - `NEXT_PUBLIC_NEONOMICS_ENABLED`
+   - `NEXT_PUBLIC_NEONOMICS_UI_LIVE` — uten denne vises ikke «Koble til bank» i menyen (bevisst av på produksjon til lansering)
+
+   Start dev-server på nytt etter endring av `NEXT_PUBLIC_*`-variabler.
 
 5. **Helse-sjekk (valgfritt):** `GET /api/bank/neonomics/health` (innlogget miljø med flagg på).
 
 ## v1.6 — automatisk bank (Koble til bank)
 
-- **Flere banker per profil (schema)** — unik på `(user_id, profile_id, bank_id)`; UI viser kun **DNB** i sandbox
+- **Flere kontoer per profil (schema)** — bankvelger fylles **dynamisk** fra Neonomics `GET /ics/v3/banks?countryCode=NO` (sandbox: typisk DNB, Sbanken, Folio).
 - **Popup-samtykke** — bank åpnes i eget vindu; hovedsiden viser overlay
 - **Automatisk fra bank** — én bryter per kobling; styrer daglig cron ca. kl. 10 (UTC `0 9 * * *`, ~10:00 vinter / ~11:00 sommer i Oslo)
 - **Server-side hent + import** — rader med lagret kartlegging importeres; ukjente lagres i `bankPendingNeonomics` i `user_app_state`
@@ -74,7 +78,7 @@ På `/konto/koble-til-bank` med aktiv profil og abonnement som tillater skriving
 
 | Versjon | Innhold |
 |---------|---------|
-| **v2** | Produksjon (`api.neonomics.io`), flere banker i UI, PSU i UI |
+| **v2** | Produksjon (`api.neonomics.io`), ekte BankID (PSU i UI), samme dynamiske bankvelger |
 
 ## Feilkoder (sandbox)
 
@@ -86,7 +90,7 @@ På `/konto/koble-til-bank` med aktiv profil og abonnement som tillater skriving
 
 ## Slå av modulen
 
-1. `NEONOMICS_ENABLED=false` og `NEXT_PUBLIC_NEONOMICS_ENABLED=false`
+1. `NEONOMICS_ENABLED=false`, `NEXT_PUBLIC_NEONOMICS_ENABLED=false` og `NEXT_PUBLIC_NEONOMICS_UI_LIVE=false` (eller utelatt)
 2. Deploy — UI og API returnerer 404 for Neonomics-ruter
 3. Importerte transaksjoner og filimport påvirkes ikke
 

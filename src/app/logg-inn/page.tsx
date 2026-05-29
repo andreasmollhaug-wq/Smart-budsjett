@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
+import { needsMfaStepUp } from '@/lib/auth/mfa'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
 import AuthLoadingCard from '@/components/auth/AuthLoadingCard'
 import BrandLogoMark from '@/components/brand/BrandLogoMark'
@@ -62,6 +63,11 @@ function LoggInnForm() {
             ? 'Feil e-post eller passord.'
             : error.message,
         )
+        return
+      }
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (needsMfaStepUp(aal)) {
+        router.push(`/logg-inn/tofaktor?next=${encodeURIComponent(next)}`)
         return
       }
       router.push(next)

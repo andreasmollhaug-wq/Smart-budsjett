@@ -1,6 +1,13 @@
 import type { LedgerBudgetAdjustmentSnapshot } from '@/lib/ledgerImport/types'
 
-export type BankSourceId = 'dnb_sbanken' | 'sparebank1' | 'neonomics_dnb' | 'neonomics_nordea'
+export type BankSourceId =
+  | 'dnb_sbanken'
+  | 'sparebank1'
+  | 'neonomics_dnb'
+  | 'neonomics_sbanken'
+  | 'neonomics_folio'
+  | 'neonomics_sparebank1'
+  | 'neonomics_nordea'
 
 export interface BankImportMappingRule {
   categoryName: string

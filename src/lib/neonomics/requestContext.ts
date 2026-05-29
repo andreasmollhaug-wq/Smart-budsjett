@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { deviceIdForUser } from '@/lib/neonomics/deviceId'
-import { encryptSandboxPsuId } from '@/lib/neonomics/psu'
+import { psuIdForBank } from '@/lib/neonomics/psu'
 import type { NeonomicsRequestContext } from '@/lib/neonomics/client'
 import { getNeonomicsConfig } from '@/lib/neonomics/config'
 
@@ -19,14 +19,15 @@ export function buildNeonomicsContext(
   userId: string,
   profileId: string,
   req?: Request | NextRequest | null,
-  opts?: { sessionId?: string; psuIp?: string },
+  opts?: { sessionId?: string; psuIp?: string; bankId?: string },
 ): NeonomicsRequestContext & { sessionId?: string } {
   const { deviceIdPrefix } = getNeonomicsConfig()
   const psuIp = opts?.psuIp ?? (req ? psuIpFromRequest(req) : '127.0.0.1')
+  const psuId = opts?.bankId ? psuIdForBank(opts.bankId) : undefined
   return {
     deviceId: deviceIdForUser(userId, profileId, deviceIdPrefix),
     sessionId: opts?.sessionId,
     psuIp,
-    psuId: encryptSandboxPsuId(),
+    ...(psuId ? { psuId } : {}),
   }
 }

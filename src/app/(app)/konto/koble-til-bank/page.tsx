@@ -28,7 +28,13 @@ import {
 import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
 import { useStore } from '@/lib/store'
 
-const NEONOMICS_SOURCE_IDS: BankSourceId[] = ['neonomics_dnb', 'neonomics_nordea']
+const NEONOMICS_SOURCE_IDS: BankSourceId[] = [
+  'neonomics_dnb',
+  'neonomics_sbanken',
+  'neonomics_folio',
+  'neonomics_sparebank1',
+  'neonomics_nordea',
+]
 
 export default function KobleTilBankPage() {
   const router = useRouter()
@@ -100,7 +106,7 @@ export default function KobleTilBankPage() {
   }, [router])
 
   const runSync = useCallback(
-    async (conn: NeonomicsConnectionStatusDto, openConsent: (url: string) => void) => {
+    async (conn: NeonomicsConnectionStatusDto, openConsent: (url: string, bankName: string) => void) => {
       setSyncBusy(true)
       setConnectError(null)
       try {
@@ -133,7 +139,7 @@ export default function KobleTilBankPage() {
           return
         }
         if (data.needsConsent && data.bankAuthUrl) {
-          openConsent(data.bankAuthUrl)
+          openConsent(data.bankAuthUrl, conn.bankDisplayName)
           return
         }
         setShowPostConnectHint(false)
@@ -227,7 +233,6 @@ export default function KobleTilBankPage() {
       </div>
 
       <NeonomicsConsentLauncher
-        bankDisplayName="DNB"
         onConsentComplete={() => {
           setShowPostConnectHint(true)
           bumpStatusRefresh()
@@ -342,7 +347,7 @@ export default function KobleTilBankPage() {
             {person && (
               <NeonomicsBankImportPanel
                 profileId={profileId}
-                hasConnections={connectionCount > 0}
+                connectedBankIds={connections.map((c) => c.bankId)}
                 openConsent={openConsent}
                 onError={setConnectError}
                 onConnectionChange={() => {

@@ -1,13 +1,13 @@
 /** Kundetekst for «Koble til bank» — én kilde for UI-komponenter. */
 
 export const BANK_CONNECT_PAGE_INGRESS =
-  'Koble DNB for å hente transaksjoner trygt via banken.'
+  'Koble banken din for å hente transaksjoner trygt — uten at vi lagrer passordet.'
 
 export const BANK_CONNECT_HELP_TITLE = 'Slik kobler du til bank'
 
 export const BANK_CONNECT_HELP_STEPS = [
   'Velg profil hvis dere er flere i husholdningen.',
-  'Trykk Koble DNB — du sendes til banken og logger inn der.',
+  'Velg bank og trykk Koble — du sendes til banken og logger inn der.',
   'Når du er tilbake, er banken koblet.',
   'Trykk Hent transaksjoner, eller slå på automatisk henting hver dag.',
   'Under Din bank velger du hvilke kontoer som skal hentes (standard: alle).',
@@ -21,18 +21,19 @@ export const BANK_CONNECT_HELP_HOUSEHOLD_NOTE =
   'Hver profil kobler sin egen bank. Partnerens transaksjoner vises på deres profil.'
 
 export const BANK_CONNECT_HELP_SANDBOX_NOTE =
-  'Dette er testmiljø — du bruker testbruker hos banken.'
-
-export const BANK_CONNECT_HELP_MORE_BANKS_NOTE = 'Flere banker kommer senere.'
+  'Dette er testmiljø — du bruker testbruker hos banken (se Neonomics sandbox-dokumentasjon).'
 
 export const BANK_CONNECT_SECTION_TITLE = 'Din bank'
 
-export const BANK_CONNECT_PANEL_TITLE = 'Koble DNB'
+export const BANK_CONNECT_PANEL_TITLE = 'Velg bank'
 
 export const BANK_CONNECT_PANEL_INGRESS =
   'Du bekrefter hos banken din. Vi lagrer ikke passordet ditt.'
 
-export const BANK_CONNECT_BTN_CONNECT = 'Koble DNB'
+export function bankConnectButtonLabel(displayName: string): string {
+  return `Koble ${displayName}`
+}
+
 export const BANK_CONNECT_BTN_CONNECTING = 'Kobler…'
 export const BANK_CONNECT_BTN_FETCH = 'Hent transaksjoner'
 export const BANK_CONNECT_BTN_DISCONNECT = 'Koble fra bank'
@@ -123,7 +124,7 @@ export const BANK_CONNECT_TOAST_CONNECTED_BODY =
   'Trykk Hent transaksjoner for å hente det siste.'
 
 export const BANK_CONNECT_ERROR_CALLBACK =
-  'Du må fullføre innloggingen hos banken. Trykk Koble DNB igjen.'
+  'Du må fullføre innloggingen hos banken. Prøv å koble bank på nytt.'
 export const BANK_CONNECT_ERROR_UNAUTHORIZED = 'Du må være innlogget.'
 export const BANK_CONNECT_ERROR_NOT_AVAILABLE = 'Bankkobling er ikke tilgjengelig.'
 export const BANK_CONNECT_ERROR_GENERIC = 'Kunne ikke nå banken akkurat nå. Prøv om litt.'
@@ -140,3 +141,4 @@ export function mapBankConnectError(
   if (msg && msg.length <= 200) return msg
   return BANK_CONNECT_ERROR_GENERIC
 }
+

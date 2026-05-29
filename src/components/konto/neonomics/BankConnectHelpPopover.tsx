@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 import {
   BANK_CONNECT_HELP_HOUSEHOLD_NOTE,
-  BANK_CONNECT_HELP_MORE_BANKS_NOTE,
   BANK_CONNECT_HELP_PASSWORD_NOTE,
   BANK_CONNECT_HELP_SANDBOX_NOTE,
   BANK_CONNECT_HELP_STEPS,
@@ -93,9 +92,6 @@ export default function BankConnectHelpPopover({
               {BANK_CONNECT_HELP_SANDBOX_NOTE}
             </p>
           )}
-          <p className="text-xs mt-2 mb-0 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            {BANK_CONNECT_HELP_MORE_BANKS_NOTE}
-          </p>
         </div>
       )}
     </div>

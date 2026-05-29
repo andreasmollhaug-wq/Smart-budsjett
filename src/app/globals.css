@@ -177,6 +177,17 @@ body {
   }
 }
 
+@keyframes mfaHowToFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Rapporter (bank, sparemål): skjul meny og verktøylinje ved utskrift */
 @media print {
   body[data-print-report="true"] aside {

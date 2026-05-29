@@ -13,8 +13,8 @@ export default function KontoContentWidth({ children }: { children: React.ReactN
     <div
       className={
         roadmapWide
-          ? 'max-w-5xl space-y-6 p-4 sm:p-6 md:p-8'
-          : 'max-w-3xl space-y-6 p-4 sm:p-6 md:p-8'
+          ? 'max-w-5xl min-w-0 overflow-x-hidden space-y-6 p-4 sm:p-6 md:p-8'
+          : 'max-w-3xl min-w-0 overflow-x-hidden space-y-6 p-4 sm:p-6 md:p-8'
       }
     >
       {children}

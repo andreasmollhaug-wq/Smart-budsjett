@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useRef, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import Header from '@/components/layout/Header'
 import StatCard from '@/components/ui/StatCard'
@@ -21,9 +21,10 @@ import FormattedAmountInput from '@/components/debt/FormattedAmountInput'
 import AddDebtForm, { type AddDebtFormPayload } from '@/components/debt/AddDebtForm'
 import DebtDetailModal from '@/components/debt/DebtDetailModal'
 import RepaymentPlanPanel from '@/components/debt/RepaymentPlanPanel'
+import SnowballGuideModal, { type SnowballGuideSnapshot } from '@/components/debt/SnowballGuideModal'
+import type { SnowballGuideTabId } from '@/lib/snowballGuideCopy'
 import {
   Plus,
-  HelpCircle,
   Wallet,
   CreditCard,
   Percent,
@@ -67,19 +68,13 @@ export default function SnoballPage() {
   const effectiveStrategy: DebtPayoffStrategy = readOnly ? 'snowball' : debtPayoffStrategy
 
   const [showForm, setShowForm] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
-  const helpRef = useRef<HTMLDivElement | null>(null)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [guideTab, setGuideTab] = useState<SnowballGuideTabId>('steps')
 
-  useEffect(() => {
-    if (!helpOpen) return
-    const close = (e: MouseEvent) => {
-      if (helpRef.current && !helpRef.current.contains(e.target as Node)) {
-        setHelpOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
-  }, [helpOpen])
+  const openGuide = (tab: SnowballGuideTabId = 'steps') => {
+    setGuideTab(tab)
+    setGuideOpen(true)
+  }
 
   const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null)
   const selectedDebt = selectedDebtId ? debts.find((d) => d.id === selectedDebtId) ?? null : null
@@ -185,83 +180,68 @@ export default function SnoballPage() {
 
   const openDetail = (id: string) => setSelectedDebtId(id)
 
+  const guideSnapshot: SnowballGuideSnapshot = {
+    debtCount: debts.length,
+    queueLength: queue.length,
+    queueRestSum,
+    focusName: focus?.name ?? null,
+    snowballExtraMonthly,
+    debtFreeLabel: simKpi?.debtFreeLabel ?? null,
+    readOnly,
+  }
+
   return (
     <div className="flex-1 min-h-0 overflow-auto" style={{ background: 'var(--bg)' }}>
       <Header title="Nedbetalingsstrategi" subtitle={headerSubtitle} />
-      <div className="p-8 space-y-6 max-w-6xl">
-        {/* Strategi + hjelp */}
+      <div className="p-4 sm:p-8 space-y-6 max-w-6xl min-w-0 mx-auto overflow-x-hidden w-full">
+        {/* Strategi */}
         <div
-          className="rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3"
+          className="rounded-2xl px-4 py-3 min-w-0"
           style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-              Strategi
-            </span>
-            <div className="relative" ref={helpRef}>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 min-w-0">
+            <div className="flex min-w-0 flex-col gap-0">
+              <span className="text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>
+                Strategi
+              </span>
               <button
                 type="button"
-                onClick={() => setHelpOpen((o) => !o)}
-                className="p-1 rounded-lg"
-                style={{ color: 'var(--text-muted)' }}
-                aria-expanded={helpOpen}
-                aria-label="Forklaring av strategier"
+                onClick={() => openGuide('method')}
+                data-testid="snowball-guide-trigger"
+                className="text-xs font-medium touch-manipulation underline-offset-2 hover:underline py-1 self-start text-left"
+                style={{ color: 'var(--primary)' }}
               >
-                <HelpCircle size={18} />
+                Slik fungerer snøball
               </button>
-              {helpOpen && (
-                <div
-                  className="absolute left-0 top-full z-50 mt-2 w-[min(100vw-2rem,22rem)] rounded-xl p-4 text-sm shadow-lg"
-                  style={{
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text)',
-                  }}
-                >
-                  <p className="font-medium mb-2">Snøball</p>
-                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Betaler minimum på alle lån i køen, og legger all ekstra nedbetaling på det minste lånet (lavest
-                    restgjeld) til det er borte. Gir ofte rask psykologisk fremdrift.
-                  </p>
-                  <p className="font-medium mb-2">Avalanche</p>
-                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
-                    Samme minimum på alle, men ekstra går til lånet med høyest rente. Kan ofte redusere total
-                    rentekostnad over tid (veiledende).
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Graf og KPI er estimater basert på registrerte renter og avdrag — ikke finansrådgivning.
-                  </p>
-                </div>
-              )}
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={readOnly}
-              onClick={() => setDebtPayoffStrategy('snowball')}
-              className="px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-60"
-              style={{
-                background: effectiveStrategy === 'snowball' ? 'var(--primary)' : 'var(--bg)',
-                color: effectiveStrategy === 'snowball' ? 'white' : 'var(--text)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              Snøball
-            </button>
-            <button
-              type="button"
-              disabled={readOnly}
-              onClick={() => setDebtPayoffStrategy('avalanche')}
-              className="px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-60"
-              style={{
-                background: effectiveStrategy === 'avalanche' ? 'var(--primary)' : 'var(--bg)',
-                color: effectiveStrategy === 'avalanche' ? 'white' : 'var(--text)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              Avalanche
-            </button>
+            <div className="flex flex-wrap gap-2 min-w-0 shrink-0">
+              <button
+                type="button"
+                disabled={readOnly}
+                onClick={() => setDebtPayoffStrategy('snowball')}
+                className="px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-60 min-h-[44px] touch-manipulation"
+                style={{
+                  background: effectiveStrategy === 'snowball' ? 'var(--primary)' : 'var(--bg)',
+                  color: effectiveStrategy === 'snowball' ? 'white' : 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                Snøball
+              </button>
+              <button
+                type="button"
+                disabled={readOnly}
+                onClick={() => setDebtPayoffStrategy('avalanche')}
+                className="px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-60 min-h-[44px] touch-manipulation"
+                style={{
+                  background: effectiveStrategy === 'avalanche' ? 'var(--primary)' : 'var(--bg)',
+                  color: effectiveStrategy === 'avalanche' ? 'white' : 'var(--text)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                Avalanche
+              </button>
+            </div>
           </div>
         </div>
 
@@ -351,7 +331,15 @@ export default function SnoballPage() {
             style={{ background: 'var(--surface)', border: '1px dashed var(--border)' }}
           >
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Ingen gjeld registrert ennå. Legg til lån her eller under Gjeld — det er samme liste.
+              Ingen gjeld registrert ennå. Legg til lån her eller under Gjeld — det er samme liste.{' '}
+              <button
+                type="button"
+                onClick={() => openGuide('steps')}
+                className="font-medium touch-manipulation underline underline-offset-2"
+                style={{ color: 'var(--primary)' }}
+              >
+                Se veiledning
+              </button>
             </p>
             {!readOnly && showForm && (
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
@@ -391,7 +379,15 @@ export default function SnoballPage() {
             </p>
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Huk av «Ta med i snøball» på et lån under Gjeld eller her, eller legg til mindre gjeld. Boliglån er som
-              standard utenfor køen.
+              standard utenfor køen.{' '}
+              <button
+                type="button"
+                onClick={() => openGuide('dottir')}
+                className="font-medium touch-manipulation underline underline-offset-2"
+                style={{ color: 'var(--primary)' }}
+              >
+                Slik fungerer køen
+              </button>
             </p>
           </div>
         )}
@@ -626,6 +622,13 @@ export default function SnoballPage() {
           </div>
         )}
       </div>
+
+      <SnowballGuideModal
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        snapshot={guideSnapshot}
+        initialTab={guideTab}
+      />
 
       <DebtDetailModal
         debt={selectedDebt}

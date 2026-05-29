@@ -8,6 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/client'
 import BrandLogoMark from '@/components/brand/BrandLogoMark'
+import MfaRecommendCallout from '@/components/auth/MfaRecommendCallout'
+import { mfaRecommendAfterSignup } from '@/lib/kontoCopy'
 
 const schema = z
   .object({
@@ -59,7 +61,7 @@ export default function RegistrerPage() {
         return
       }
       setSuccess(
-        'Konto opprettet. Vi har sendt en bekreftelseslenke til e-posten din. Det kan ta 1–5 minutter før den kommer. Sjekk innboksen og søppelpost (evt. «Reklame»/promotions).',
+        `Konto opprettet. Vi har sendt en bekreftelseslenke til e-posten din. Det kan ta 1–5 minutter før den kommer. Sjekk innboksen og søppelpost (evt. «Reklame»/promotions). ${mfaRecommendAfterSignup}`,
       )
       router.refresh()
     } finally {
@@ -68,9 +70,16 @@ export default function RegistrerPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{
+        background: 'var(--bg)',
+        paddingTop: 'max(1rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+      }}
+    >
       <div
-        className="w-full max-w-md rounded-2xl p-8 shadow-sm"
+        className="w-full max-w-md rounded-2xl p-6 sm:p-8 shadow-sm min-w-0 overflow-x-hidden"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <div className="mb-8 text-center">
@@ -84,6 +93,8 @@ export default function RegistrerPage() {
             Gratis å starte
           </p>
         </div>
+
+        <MfaRecommendCallout />
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>

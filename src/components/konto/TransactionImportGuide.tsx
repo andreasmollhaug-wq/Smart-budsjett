@@ -152,13 +152,12 @@ const GUIDE_STEPS_BANK: GuideStep[] = [
 const GUIDE_STEPS_BANK_NEONOMICS: GuideStep[] = [
   {
     id: 'import-bank-neo-steg-1',
-    title: 'Koble DNB sandbox',
+    title: 'Koble bank (Neonomics sandbox)',
     lead:
-      'Velg «Bank – Neonomics (sandbox)» som importkilde. Koble banken i appen — du sendes til DNB testmiljø og tilbake når samtykke er gitt.',
+      'Velg «Bank – Neonomics (sandbox)» som importkilde. Koble bank under Min konto → Koble til bank — listen hentes fra Neonomics.',
     bullets: [
-      'Bruk test-personnummer fra Neonomics sandbox (konfigurert i miljøvariabler på server).',
+      'DNB og Sbanken sandbox: test-personnummer 31125461118 (kryptert som x-psu-id). Folio krever ikke personnummer.',
       'Etter vellykket kobling kan du hente transaksjoner (ca. siste 12 måneder).',
-      'Modulen kan skrus av med feature flag uten å påvirke filimport fra bank.',
     ],
     primary: { href: '#import-opplasting', label: 'Hopp til kobling' },
     pitfall:

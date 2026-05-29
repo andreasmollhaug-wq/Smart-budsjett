@@ -3,9 +3,16 @@ import { Loader2 } from 'lucide-react'
 /** Felles innramming for innlogging / glemt passord / tilbakestill (spinner mens auth sjekkes). */
 export default function AuthLoadingCard({ label = 'Laster…' }: { label?: string }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{
+        background: 'var(--bg)',
+        paddingTop: 'max(1rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+      }}
+    >
       <div
-        className="w-full max-w-md rounded-2xl p-8 shadow-sm flex flex-col items-center gap-4"
+        className="w-full max-w-md rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col items-center gap-4 min-w-0 overflow-x-hidden"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
       >
         <Loader2 className="h-8 w-8 animate-spin" style={{ color: 'var(--primary)' }} aria-hidden />

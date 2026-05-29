@@ -1,13 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { fetchNeonomicsAccounts, type NeonomicsAccount } from '@/lib/neonomics/accounts'
-import { resolveNeonomicsBankId } from '@/lib/neonomics/bankCatalog'
+import { resolveNeonomicsBankIdAsync } from '@/lib/neonomics/bankCatalog'
 import { fetchConsentBankUrl, consentHrefFromErrorBody } from '@/lib/neonomics/consent'
 import { NeonomicsApiError } from '@/lib/neonomics/errors'
 import { createNeonomicsSession } from '@/lib/neonomics/session'
 import { accountsToCacheSnapshot } from '@/lib/neonomics/accountTypes'
 import { upsertBankConnection, updateBankConnection, getBankConnection } from '@/lib/neonomics/bankConnectionsRepo'
 import { buildNeonomicsContext } from '@/lib/neonomics/requestContext'
-import { encryptSandboxPsuId } from '@/lib/neonomics/psu'
+import { psuIdForBank } from '@/lib/neonomics/psu'
 import type { NextRequest } from 'next/server'
 import { getSiteUrl } from '@/lib/site-url'
 
@@ -26,8 +26,9 @@ export async function runNeonomicsConnect(
   req: NextRequest,
   bankIdInput?: string,
 ): Promise<ConnectResult> {
-  const bank = resolveNeonomicsBankId(bankIdInput)
-  const ctx = buildNeonomicsContext(userId, profileId, req)
+  const ctxForCatalog = buildNeonomicsContext(userId, profileId, req)
+  const bank = await resolveNeonomicsBankIdAsync(bankIdInput, ctxForCatalog)
+  const ctx = buildNeonomicsContext(userId, profileId, req, { bankId: bank.bankId })
   const { sessionId } = await createNeonomicsSession(ctx, bank.bankId)
 
   await upsertBankConnection(supabase, {
@@ -93,12 +94,13 @@ export async function markNeonomicsConsentOk(
   const conn = await getBankConnection(supabase, userId, profileId, bankId)
   if (!conn) return { accountCount: 0 }
 
-  const psuCtx = buildNeonomicsContext(userId, profileId, req)
+  const psuCtx = buildNeonomicsContext(userId, profileId, req, { bankId })
+  const psuId = psuIdForBank(bankId)
   const sessionCtx = {
     deviceId: conn.device_id,
     sessionId: conn.session_id,
     psuIp: psuCtx.psuIp,
-    psuId: encryptSandboxPsuId(),
+    ...(psuId ? { psuId } : {}),
   }
 
   let accounts: NeonomicsAccount[] = []
