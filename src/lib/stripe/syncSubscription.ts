@@ -2,6 +2,36 @@ import type Stripe from 'stripe'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { planFromStripePriceId } from '@/lib/stripe/plan'
 
+/** Stripe subscription.created som ISO — nærmeste proxy for fullført checkout. */
+export function checkoutIsoFromStripeSubscription(subscription: Stripe.Subscription): string | null {
+  if (!subscription.id) return null
+  if (subscription.created) {
+    return new Date(subscription.created * 1000).toISOString()
+  }
+  return new Date().toISOString()
+}
+
+/**
+ * Tidligste kjente checkout: min(lagret, Stripe subscription.created).
+ * Fikser migrasjon-036-backfill (feil sen dato) uten å overskrive ekte første checkout ved re-subscribe.
+ */
+export function resolveFirstCheckoutAt(
+  existing: { first_checkout_at: string | null } | null,
+  subscription: Stripe.Subscription,
+): string | null {
+  const stripeCreated = checkoutIsoFromStripeSubscription(subscription)
+  const existingAt = existing?.first_checkout_at
+  if (!stripeCreated) return existingAt ?? null
+  if (!existingAt) return stripeCreated
+
+  const existingMs = Date.parse(existingAt)
+  const stripeMs = Date.parse(stripeCreated)
+  if (!Number.isFinite(existingMs)) return stripeCreated
+  if (!Number.isFinite(stripeMs)) return existingAt
+
+  return new Date(Math.min(existingMs, stripeMs)).toISOString()
+}
+
 /**
  * `stripe_customer_id` er UNIQUE. Samme Stripe-kunde kan i sjeldne tilfeller ha vært knyttet til
  * en annen rad; fjern kunden fra andre brukere før upsert så INSERT/UPDATE ikke feiler.
@@ -49,6 +79,15 @@ export async function upsertSubscriptionFromStripe(
 
   await releaseStripeCustomerForOtherUsers(admin, customerId, userId)
 
+  const nowIso = new Date().toISOString()
+  const { data: existing } = await admin
+    .from('user_subscription')
+    .select('first_checkout_at, updated_at')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const firstCheckoutAt = resolveFirstCheckoutAt(existing, subscription)
+
   const row = {
     user_id: userId,
     stripe_customer_id: customerId ?? null,
@@ -57,7 +96,8 @@ export async function upsertSubscriptionFromStripe(
     stripe_price_id: priceId ?? null,
     plan: plan ?? null,
     current_period_end: periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null,
-    updated_at: new Date().toISOString(),
+    first_checkout_at: firstCheckoutAt,
+    updated_at: nowIso,
   }
 
   const { error } = await admin.from('user_subscription').upsert(row, { onConflict: 'user_id' })

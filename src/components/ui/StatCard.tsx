@@ -13,6 +13,7 @@ export default function StatCard({
   info,
   onClick,
   valueNoWrap,
+  variant = 'default',
   'aria-label': ariaLabel,
 }: {
   label: string
@@ -27,6 +28,8 @@ export default function StatCard({
   onClick?: () => void
   /** Én linje for beløp (unngår linjeskift i smale kort / store NOK-tall). */
   valueNoWrap?: boolean
+  /** `inset` brukes inne i admin-paneler for tydelig lag mot panelbakgrunn. */
+  variant?: 'default' | 'inset'
   'aria-label'?: string
 }) {
   const [infoOpen, setInfoOpen] = useState(false)
@@ -48,6 +51,15 @@ export default function StatCard({
     (onClick
       ? ' outline-none transition-opacity hover:opacity-[0.97] focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2'
       : '')
+
+  const cardStyle = {
+    background: variant === 'inset' ? 'var(--bg)' : 'var(--surface)',
+    border: '1px solid var(--border)',
+    boxShadow:
+      variant === 'inset'
+        ? 'inset 0 1px 0 color-mix(in srgb, var(--text) 3%, transparent)'
+        : undefined,
+  }
 
   const inner = (
     <>
@@ -122,7 +134,7 @@ export default function StatCard({
         onClick={onClick}
         aria-label={ariaLabel ?? label}
         className={`w-full text-left ${cardClass}`}
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        style={cardStyle}
       >
         {inner}
       </button>
@@ -130,7 +142,7 @@ export default function StatCard({
   }
 
   return (
-    <div className={cardClass} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className={cardClass} style={cardStyle}>
       {inner}
     </div>
   )

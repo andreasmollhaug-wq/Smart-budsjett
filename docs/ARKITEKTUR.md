@@ -49,6 +49,20 @@
 | `/konto`, `/konto/betalinger`, `/konto/innstillinger`, `/konto/sikkerhet`, `/konto/budsjett-kategorier`, `/konto/roadmap` | Konto og Stripe |
 | `/innstillinger` | App-innstillinger (egen rute) |
 
+**Admin (uten app-sidebar)** — [`src/app/admin/`](../src/app/admin/)
+
+| Sti | Beskrivelse |
+|-----|-------------|
+| `/admin` | Intern metrics: abonnement, trakt, pulse «i går», ukegrafer. Krever innlogging, e-post i `admin_viewer`, MFA (TOTP) og AAL2. Unntatt abonnementskrav i middleware. `noindex` / `Disallow` i robots. |
+
+Gi tilgang: etter at bruker har registrert seg og aktivert MFA, kjør i Supabase SQL Editor:
+
+```sql
+INSERT INTO admin_viewer (email) VALUES ('deg@example.com');
+```
+
+Data: Supabase Auth (service role) + `user_subscription` (inkl. `first_checkout_at` satt ved første webhook-checkout). API: [`/api/admin/metrics`](../src/app/api/admin/metrics/route.ts). Logikk: [`src/lib/admin/`](../src/lib/admin/).
+
 ## API (`src/app/api/`)
 
 | Rute | Formål |
@@ -65,8 +79,22 @@
 | [`cron/bank-neonomics`](../src/app/api/cron/bank-neonomics/route.ts) | Daglig bankhenting + auto-import for `auto_sync_enabled` (Neonomics) |
 | [`bank-import-suggest`](../src/app/api/bank-import-suggest/route.ts) | KI-forslag for bankimport (kartlegging) |
 | [`bank/neonomics/*`](../src/app/api/bank/neonomics/) | Valgfri Neonomics sandbox (koble bank, sync, PATCH auto-sync) — 404 når `NEONOMICS_ENABLED` er av; se [NEONOMICS-SANDBOX.md](./NEONOMICS-SANDBOX.md) |
+| [`admin/metrics`](../src/app/api/admin/metrics/route.ts) | Aggregert admin-statistikk (kun `admin_viewer` + MFA) |
 
 **dottir AI — produkthjelp for modellen:** Kurert bruksveiledning (`AI_APP_HELP_TEXT`) ligger i [`src/lib/aiAppHelp.ts`](../src/lib/aiAppHelp.ts) og skal holdes i tråd med appen når menyer, ruter eller viktige flyter endres; systeminstruks (`SYSTEM_PROMPT_BASE`) i [`src/app/api/enkelexcel-ai/route.ts`](../src/app/api/enkelexcel-ai/route.ts) justeres ved behov i samme sleng.
+
+**Vedlikeholdssjekkliste (dottir AI / UI-flyter):** Ved endring av menyer, ruter eller AI-relaterte flyter i samme PR: (1) oppdater `AI_APP_HELP_TEXT` i `aiAppHelp.ts`, (2) oppdater rute-forslag i [`dottirAiRouteSuggestions.ts`](../src/lib/dottirAiRouteSuggestions.ts) ved nye sider, (3) kjør relevante tester (`aiUserContext.test.ts`, `dottirAiActions/*`, `aiPeriodContext.test.ts`, osv.), (4) rask smoke av chat + én AI-handling.
+
+**Datagrunnlag i systemprompt (chat):** Bygges i [`buildOpenAiMessages`](../src/lib/enkelexcelAiServer.ts) — rekkefølge: finans-kontekst ([`aiUserContext.ts`](../src/lib/aiUserContext.ts)), **periode** ([`aiPeriodContext.ts`](../src/lib/aiPeriodContext.ts), hint fra klient/dashboard, YTD default), **oppussing** ([`aiRenovationContext.ts`](../src/lib/aiRenovationContext.ts), konto-nivå). Klient sender valgfri `periodHint` i stream/POST-body.
+
+| Blokk | Kilde | Merknad |
+|-------|--------|---------|
+| Abonnementer, transaksjoner, budsjett, sparemål, gjeld, investeringer | `aiUserContext` | Profil eller husholdning; smartSpore inkludert |
+| Periode (YTD/måned/år) | `aiPeriodContext` | Matcher Oversikt-filter når hint satt |
+| Oppussing | `aiRenovationContext` | `user_renovation_project_state`, ikke per profil |
+| AI-handlinger | `dottirAiActions/*` | budget, transaction, planned_followup; blokkert i husholdning |
+
+**E2E med innlogging (valgfritt):** Sett `PLAYWRIGHT_STORAGE_STATE` til lagret storage state fra engangs `playwright/auth.setup.ts`. Tester som krever innlogget session kan `test.skip(!process.env.PLAYWRIGHT_STORAGE_STATE, '…')`. Uten auth dekker mock-stream-tester UI-kontrakt i [`e2e/dottir-ai-actions.spec.ts`](../e2e/dottir-ai-actions.spec.ts).
 
 **Svarprinsipper (chat):** Modellen instrueres til å være datagrunnlagt (kun faktapåstander om brukerens økonomi fra tallblokken bygget i [`src/lib/aiUserContext.ts`](../src/lib/aiUserContext.ts)), løsningsorientert med nummererte neste steg hentet fra bruksveiledningen, og pyramideformat der det passer: først `Sammendrag:` (kulepunkter), deretter `Detaljer:` — unntak for rene navigasjonsspørsmål og svært korte svar. Ren tekst uten Markdown i chat-UI.
 

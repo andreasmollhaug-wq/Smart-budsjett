@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   hasSubscriptionAccess,
   isSubscriptionEnforcementEnabled,
-} from '@/lib/stripe/subscriptionAccess'
+} from '@/lib/stripe/subscriptionAccessCore'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
 import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
 import { isMfaChallengePath, isMfaExemptPath, needsMfaStepUp } from '@/lib/auth/mfa'
@@ -60,6 +60,14 @@ function isKontoSectionPath(pathname: string): boolean {
   /** Snarvei som redirecter til /konto/innstillinger — må ikke stoppes av abonnementsredirect. */
   if (pathname === '/innstillinger') return true
   return false
+}
+
+function isAdminSectionPath(pathname: string): boolean {
+  return pathname === '/admin' || pathname.startsWith('/admin/')
+}
+
+function isAdminApiPath(pathname: string): boolean {
+  return pathname.startsWith('/api/admin/')
 }
 
 export async function middleware(request: NextRequest) {
@@ -154,7 +162,11 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isSubscriptionEnforcementEnabled()) {
-    const allowWithoutSubscription = isApiPath(pathname) || isKontoSectionPath(pathname)
+    const allowWithoutSubscription =
+      isApiPath(pathname) ||
+      isKontoSectionPath(pathname) ||
+      isAdminSectionPath(pathname) ||
+      isAdminApiPath(pathname)
     if (!allowWithoutSubscription) {
       const { data: subRow } = await supabase
         .from('user_subscription')

@@ -6,12 +6,20 @@ const shared: NextConfig = {
    * Reduserer støy fra Webpack 5 filesystem-cache (`PackFileCacheStrategy` / «Serializing big strings»).
    * Advarselen påvirker først og fremst cache-deserialisering i dev og er vanligvis harmløs.
    */
-  webpack: (config, { dev }) => {
+  webpack: (config, { dev, nextRuntime }) => {
     if (dev) {
       config.infrastructureLogging = {
         ...config.infrastructureLogging,
         level: 'error',
       }
+    }
+    /**
+     * Middleware kompileres med `nextRuntime: 'edge'`. Webpacks chunk-loader bruker ellers `self`,
+     * som ikke finnes hvis bundelen evalueres i Node (korrupt/delvis .next, parallell dev+build).
+     * `globalThis` fungerer i både Edge og Node.
+     */
+    if (nextRuntime === 'edge') {
+      config.output.globalObject = 'globalThis'
     }
     return config
   },
