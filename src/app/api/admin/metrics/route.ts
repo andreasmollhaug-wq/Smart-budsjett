@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { listAllAuthUserSnapshots } from '@/lib/admin/adminAuthUsers'
+import { listAllAuthUserSnapshots, listAuthUserDirectory } from '@/lib/admin/adminAuthUsers'
 import { requireAdminViewerAccess } from '@/lib/admin/adminViewerAccess'
-import { buildAdminMetrics, fetchSubscriptionMetricsRows } from '@/lib/admin/buildAdminMetrics'
+import { buildAdminSubscriberList } from '@/lib/admin/adminSubscriberList'
+import { buildAdminMetrics, fetchSubscriptionDetailRows } from '@/lib/admin/buildAdminMetrics'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/admin'
 
@@ -56,11 +57,13 @@ export async function GET() {
   }
 
   try {
-    const [authUsers, subscriptions] = await Promise.all([
+    const [authUsers, subscriptionDetails, userDirectory] = await Promise.all([
       listAllAuthUserSnapshots(admin),
-      fetchSubscriptionMetricsRows(admin),
+      fetchSubscriptionDetailRows(admin),
+      listAuthUserDirectory(admin),
     ])
-    const payload = buildAdminMetrics(authUsers, subscriptions)
+    const subscribers = buildAdminSubscriberList(userDirectory, subscriptionDetails)
+    const payload = buildAdminMetrics(authUsers, subscriptionDetails, subscribers)
     return NextResponse.json(payload, {
       headers: { 'Cache-Control': 'private, no-store' },
     })

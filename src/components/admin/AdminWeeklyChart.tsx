@@ -25,6 +25,7 @@ export default function AdminWeeklyChart({ weekly }: { weekly: AdminMetricsPaylo
     uke: w.weekLabel,
     registreringer: w.registrations,
     bekreftet: w.confirmed,
+    checkout: w.checkouts,
   }))
 
   return (
@@ -56,6 +57,7 @@ export default function AdminWeeklyChart({ weekly }: { weekly: AdminMetricsPaylo
         <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
         <Bar dataKey="registreringer" name="Registreringer" fill="#3B5BDB" radius={[4, 4, 0, 0]} />
         <Bar dataKey="bekreftet" name="Bekreftet" fill="#099268" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="checkout" name="Checkout" fill="#7048E8" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )

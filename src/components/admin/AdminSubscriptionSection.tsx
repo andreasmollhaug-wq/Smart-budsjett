@@ -1,14 +1,19 @@
 'use client'
 
 import AdminMetricPanel from '@/components/admin/AdminMetricPanel'
+import AdminMrrCards from '@/components/admin/AdminMrrCards'
 import StatCard from '@/components/ui/StatCard'
 import type { AdminMetricsPayload } from '@/lib/admin/types'
 import { AlertTriangle, Clock, CreditCard, UserMinus } from 'lucide-react'
 
 export default function AdminSubscriptionSection({
   subscription,
+  trialPotentialMrr,
+  activeMrr,
 }: {
   subscription: AdminMetricsPayload['subscription']
+  trialPotentialMrr: AdminMetricsPayload['trialPotentialMrr']
+  activeMrr: AdminMetricsPayload['activeMrr']
 }) {
   return (
     <section className="min-w-0">
@@ -55,6 +60,7 @@ export default function AdminSubscriptionSection({
             variant="inset"
           />
         </div>
+        <AdminMrrCards trialPotentialMrr={trialPotentialMrr} activeMrr={activeMrr} />
       </AdminMetricPanel>
     </section>
   )

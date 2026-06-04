@@ -20,7 +20,7 @@ describe('buildAdminMetrics', () => {
       { status: 'active', stripe_subscription_id: 'sub_2', first_checkout_at: '2026-03-02T00:00:00.000Z' },
       { status: 'inactive', stripe_subscription_id: null, first_checkout_at: null },
     ]
-    const m = buildAdminMetrics(auth, subs, nowMs)
+    const m = buildAdminMetrics(auth, subs, [], nowMs)
     expect(m.funnel.registered).toBe(3)
     expect(m.funnel.emailConfirmed).toBe(2)
     expect(m.funnel.checkoutCompleted).toBe(2)
@@ -31,6 +31,20 @@ describe('buildAdminMetrics', () => {
     expect(m.weekly).toHaveLength(12)
     expect(m.daily).toHaveLength(30)
     expect(m.dailyTotals.registrations).toBeGreaterThanOrEqual(0)
+    expect(m.weekly.every((w) => typeof w.checkouts === 'number')).toBe(true)
+  })
+
+  it('teller checkout per uke', () => {
+    const subs: AdminSubscriptionRow[] = [
+      {
+        status: 'active',
+        stripe_subscription_id: 'sub_1',
+        first_checkout_at: '2026-06-02T10:00:00.000Z',
+      },
+    ]
+    const m = buildAdminMetrics([], subs, [], nowMs)
+    const currentWeek = m.weekly[m.weekly.length - 1]
+    expect(currentWeek.checkouts).toBe(1)
   })
 
   it('pulse teller i dag og i går', () => {
@@ -39,7 +53,7 @@ describe('buildAdminMetrics', () => {
       { createdAt: '2026-06-02T10:00:00.000Z', emailConfirmedAt: '2026-06-02T11:00:00.000Z' },
       { createdAt: '2026-06-01T10:00:00.000Z', emailConfirmedAt: null },
     ]
-    const m = buildAdminMetrics(auth, [], nowMs)
+    const m = buildAdminMetrics(auth, [], [], nowMs)
     expect(m.pulse.registrations.today).toBe(1)
     expect(m.pulse.registrations.yesterday).toBe(1)
     expect(m.pulse.registrations.priorDay).toBe(1)

@@ -2,9 +2,13 @@ import Link from 'next/link'
 import type { AdminAccessFailureReason } from '@/lib/admin/types'
 
 const COPY: Record<
-  Exclude<AdminAccessFailureReason, 'unauthenticated' | 'mfa_step_up_required' | 'config'>,
+  Exclude<AdminAccessFailureReason, 'unauthenticated' | 'mfa_step_up_required'>,
   { title: string; body: string; cta?: { href: string; label: string } }
 > = {
+  config: {
+    title: 'Admin er utilgjengelig',
+    body: 'Serveren mangler nødvendig konfigurasjon (service role). Kontakt drift.',
+  },
   not_allowlisted: {
     title: 'Ingen admin-tilgang',
     body: 'Kontoen din er innlogget, men står ikke på tilgangslisten for admin. Kontakt eier av produktet hvis du mener dette er feil.',
@@ -24,7 +28,7 @@ const COPY: Record<
 export default function AdminAccessGate({
   reason,
 }: {
-  reason: Exclude<AdminAccessFailureReason, 'unauthenticated' | 'mfa_step_up_required' | 'config'>
+  reason: Exclude<AdminAccessFailureReason, 'unauthenticated' | 'mfa_step_up_required'>
 }) {
   const content = COPY[reason]
 

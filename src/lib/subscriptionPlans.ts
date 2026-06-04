@@ -1,6 +1,8 @@
 /** App og landing – felles pris-/tekstkonstanter (Stripe price IDs ligger i miljøvariabler). */
-export const SOLO_PRICE_LABEL = '89 kr'
-export const FAMILY_PRICE_LABEL = '139 kr'
+export const SOLO_PRICE_NOK = 89
+export const FAMILY_PRICE_NOK = 139
+export const SOLO_PRICE_LABEL = `${SOLO_PRICE_NOK} kr`
+export const FAMILY_PRICE_LABEL = `${FAMILY_PRICE_NOK} kr`
 
 export const subscriptionPlanCopy = {
   solo: {

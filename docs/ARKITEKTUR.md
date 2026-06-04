@@ -53,7 +53,7 @@
 
 | Sti | Beskrivelse |
 |-----|-------------|
-| `/admin` | Intern metrics: abonnement, trakt, pulse «i går», ukegrafer. Krever innlogging, e-post i `admin_viewer`, MFA (TOTP) og AAL2. Unntatt abonnementskrav i middleware. `noindex` / `Disallow` i robots. |
+| `/admin` | Intern metrics med faner (`?tab=oversikt` · `grafer` · `verktoy`): oversikt (pulse, abonnement, abonnentliste med Solo/Familie per bruker, trakt, KPI), grafer (daglig/ukentlig inkl. checkout, tabell), verktøy (synk checkout-datoer). Krever innlogging, e-post i `admin_viewer`, MFA (TOTP) og AAL2. Unntatt abonnementskrav i middleware. `noindex` / `Disallow` i robots. |
 
 Gi tilgang: etter at bruker har registrert seg og aktivert MFA, kjør i Supabase SQL Editor:
 

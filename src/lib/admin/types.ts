@@ -29,6 +29,7 @@ export type AdminMetricsPayload = {
     weekLabel: string
     registrations: number
     confirmed: number
+    checkouts: number
   }>
   daily: Array<{
     dateKey: string
@@ -43,6 +44,44 @@ export type AdminMetricsPayload = {
     confirmed: number
     checkouts: number
   }
+  subscribers: AdminSubscriberEntry[]
+  trialPotentialMrr: AdminPlanMrrBreakdown
+  activeMrr: AdminPlanMrrBreakdown
+}
+
+export type AdminPlanMrrBreakdown = {
+  totalNok: number
+  solo: { count: number; mrrNok: number; priceNok: number }
+  family: { count: number; mrrNok: number; priceNok: number }
+  /** Uten kjent plan i databasen — telles ikke i total. */
+  unknownPlanCount: number
+}
+
+/** @deprecated Bruk AdminPlanMrrBreakdown */
+export type AdminTrialPotentialMrr = AdminPlanMrrBreakdown
+
+export type AdminAuthUserDirectoryEntry = {
+  email: string
+  displayName: string | null
+}
+
+export type AdminSubscriptionDetailRow = {
+  user_id: string
+  status: string
+  stripe_subscription_id: string | null
+  first_checkout_at: string | null
+  plan: 'solo' | 'family' | null
+}
+
+export type AdminSubscriberEntry = {
+  userId: string
+  email: string
+  displayName: string | null
+  plan: 'solo' | 'family' | null
+  planLabel: string
+  status: string
+  statusLabel: string
+  hasStripeSubscription: boolean
 }
 
 export type AdminAccessFailureReason =

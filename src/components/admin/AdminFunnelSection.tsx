@@ -47,7 +47,7 @@ export default function AdminFunnelSection({ funnel }: { funnel: AdminMetricsPay
     <section className="min-w-0">
       <AdminMetricPanel
         title="Konvertering"
-        subtitle="Registrert → bekreftet e-post → fullført checkout"
+        subtitle="Totalt siden oppstart · registrert → bekreftet → checkout"
         accent="#7048E8"
       >
         <div className="flex min-w-0 flex-col items-stretch gap-2 lg:flex-row lg:items-center">

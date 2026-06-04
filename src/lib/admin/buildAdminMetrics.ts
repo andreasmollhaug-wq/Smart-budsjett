@@ -9,6 +9,7 @@ import {
   weekRangeUtcMs,
   yesterdayRangeUtcMs,
 } from '@/lib/admin/adminMetricsTime'
+import { computeActiveMrr, computeTrialPotentialMrr } from '@/lib/admin/adminPlanMrr'
 import type {
   AdminAuthUserSnapshot,
   AdminMetricsPayload,
@@ -46,6 +47,7 @@ function countCheckoutsInRange(
 export function buildAdminMetrics(
   authUsers: AdminAuthUserSnapshot[],
   subscriptions: AdminSubscriptionRow[],
+  subscribers: AdminMetricsPayload['subscribers'] = [],
   nowMs: number = Date.now(),
 ): AdminMetricsPayload {
   const yesterday = yesterdayRangeUtcMs(nowMs)
@@ -78,6 +80,7 @@ export function buildAdminMetrics(
       weekLabel: formatWeekLabel(weekStartMs),
       registrations: countInRange(authUsers, 'createdAt', startMs, endMsExclusive),
       confirmed: countInRange(authUsers, 'emailConfirmedAt', startMs, endMsExclusive),
+      checkouts: countCheckoutsInRange(subscriptions, startMs, endMsExclusive),
     }
   })
 
@@ -163,7 +166,20 @@ export function buildAdminMetrics(
     weekly,
     daily,
     dailyTotals,
+    subscribers,
+    trialPotentialMrr: computeTrialPotentialMrr(subscribers),
+    activeMrr: computeActiveMrr(subscribers),
   }
+}
+
+export async function fetchSubscriptionDetailRows(
+  admin: import('@supabase/supabase-js').SupabaseClient,
+): Promise<import('@/lib/admin/types').AdminSubscriptionDetailRow[]> {
+  const { data, error } = await admin
+    .from('user_subscription')
+    .select('user_id, status, stripe_subscription_id, first_checkout_at, plan')
+  if (error) throw error
+  return (data ?? []) as import('@/lib/admin/types').AdminSubscriptionDetailRow[]
 }
 
 /** Delta-tekst for pulse-kort (sammenligning mot forrige periode). */
