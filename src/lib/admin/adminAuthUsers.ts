@@ -48,6 +48,7 @@ export async function listAuthUserDirectory(
       out.set(user.id, {
         email,
         displayName: getDisplayNameFromUser(user as User) || null,
+        registeredAt: user.created_at ?? null,
       })
     }
     if (users.length < perPage) break

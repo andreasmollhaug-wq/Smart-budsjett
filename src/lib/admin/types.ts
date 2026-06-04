@@ -63,6 +63,8 @@ export type AdminTrialPotentialMrr = AdminPlanMrrBreakdown
 export type AdminAuthUserDirectoryEntry = {
   email: string
   displayName: string | null
+  /** Auth `created_at` (ISO). */
+  registeredAt: string | null
 }
 
 export type AdminSubscriptionDetailRow = {
@@ -82,6 +84,10 @@ export type AdminSubscriberEntry = {
   status: string
   statusLabel: string
   hasStripeSubscription: boolean
+  /** Auth `created_at` (ISO) for sortering. */
+  registeredAt: string | null
+  /** Formatert registreringsdato (Europe/Oslo), eller null. */
+  registeredLabel: string | null
 }
 
 export type AdminAccessFailureReason =

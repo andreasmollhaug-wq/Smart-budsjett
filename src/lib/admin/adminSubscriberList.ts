@@ -1,5 +1,18 @@
+import { ADMIN_METRICS_TIMEZONE } from '@/lib/admin/adminMetricsTime'
 import { subscriptionPlanCopy } from '@/lib/subscriptionPlans'
 import type { AdminAuthUserDirectoryEntry, AdminSubscriptionDetailRow, AdminSubscriberEntry } from '@/lib/admin/types'
+
+export function formatSubscriberRegisteredLabel(registeredAt: string | null): string | null {
+  if (!registeredAt) return null
+  const ms = Date.parse(registeredAt)
+  if (!Number.isFinite(ms)) return null
+  return new Intl.DateTimeFormat('nb-NO', {
+    timeZone: ADMIN_METRICS_TIMEZONE,
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(ms))
+}
 
 const ACTIVE_STATUSES = new Set(['trialing', 'active', 'past_due', 'legacy_grandfathered'])
 
@@ -51,6 +64,8 @@ export function buildAdminSubscriberList(
       status: row.status,
       statusLabel: statusLabelForAdmin(row.status),
       hasStripeSubscription: Boolean(row.stripe_subscription_id),
+      registeredAt: user?.registeredAt ?? null,
+      registeredLabel: formatSubscriberRegisteredLabel(user?.registeredAt ?? null),
     })
   }
 
