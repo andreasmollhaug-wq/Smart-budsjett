@@ -14,7 +14,6 @@ import {
   ClipboardList,
   ShoppingCart,
   Hammer,
-  Building2,
   Calculator,
   GraduationCap,
 } from 'lucide-react'
@@ -97,6 +96,7 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
       item('/budsjett'),
       item('/transaksjoner'),
       item('/intern/mat-handleliste/handleliste'),
+      item('/abonnementer'),
     ],
   },
   {
@@ -106,22 +106,10 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
     items: [item('/gjeld'), item('/snoball')],
   },
   {
-    id: 'faste',
-    label: 'Faste utgifter',
-    icon: Building2,
-    items: [item('/abonnementer')],
-  },
-  {
     id: 'formue',
     label: 'Formue',
     icon: PiggyBank,
     items: [item('/sparing'), item('/investering')],
-  },
-  {
-    id: 'innsikt',
-    label: 'Innsikt',
-    icon: FileText,
-    items: [item('/rapporter')],
   },
   {
     id: 'verktoy',
@@ -132,6 +120,7 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
       item(STUDIELAN_KALKULATOR_HREF),
       item('/hjemflyt/start'),
       item(RENOVATION_PROJECT_BASE_PATH),
+      item('/rapporter'),
     ],
   },
   {
