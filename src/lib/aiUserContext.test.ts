@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { buildAiFinanceContextText } from './aiUserContext'
-import type { PersonData, Transaction } from './store'
+import { buildAiUserContextFromPersistedState, buildAiFinanceContextText } from './aiUserContext'
+import { createDefaultPersistedSlice, type PersonData, type Transaction } from './store'
+import type { IncomeSprintPlan } from './incomeSprint'
 
 function emptyLabels() {
   return {
@@ -123,5 +124,30 @@ describe('buildAiFinanceContextText', () => {
       peopleById: { p1: person },
     })
     expect(text).toContain('visning med desimaler')
+  })
+
+  it('inkluderer smartSpore-planer når slice er satt', () => {
+    const slice = createDefaultPersistedSlice()
+    const plan: IncomeSprintPlan = {
+      id: 'plan-1',
+      name: 'Sommerjobb',
+      startDate: '2026-01-01',
+      endDate: '2026-06-30',
+      goalBasis: 'afterTax',
+      targetAmount: 10000,
+      applyTax: false,
+      taxPercent: 0,
+      paidTowardGoal: 1000,
+      paidByMonthKey: { '2026-01': 500 },
+      sources: [{ id: 's1', name: 'Jobb', amountsByMonthKey: { '2026-01': 8000 } }],
+    }
+    slice.people[slice.activeProfileId] = {
+      ...slice.people[slice.activeProfileId]!,
+      incomeSprintPlans: [plan],
+    }
+    const text = buildAiUserContextFromPersistedState(slice)
+    expect(text).toContain('smartSpore-planer')
+    expect(text).toContain('Sommerjobb')
+    expect(text).toContain('10000 kr')
   })
 })

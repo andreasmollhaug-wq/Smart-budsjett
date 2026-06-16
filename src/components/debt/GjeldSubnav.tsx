@@ -11,10 +11,22 @@ const baseTabs = [
   { href: '/gjeld/studielan-kalkulator', label: 'Studielånskalkulator', labelShort: 'Studielån' },
 ] as const
 
+type GjeldTab = {
+  href: string
+  label: string
+  labelShort: string
+}
+
 const householdTab = {
   href: '/gjeld/husholdning',
   label: 'Husholdning',
   labelShort: 'Hush.',
+} as const
+
+const oversiktGjeldTab = {
+  href: '/gjeld/oversikt-gjeld',
+  label: 'Oversikt gjeld',
+  labelShort: 'O.gjeld',
 } as const
 
 export default function GjeldSubnav() {
@@ -24,9 +36,11 @@ export default function GjeldSubnav() {
 
   const showHouseholdTab = subscriptionPlan === 'family' && profiles.length >= 2
 
-  const tabs = useMemo(() => {
-    if (!showHouseholdTab) return [...baseTabs]
-    return [...baseTabs, householdTab]
+  const tabs = useMemo((): GjeldTab[] => {
+    const base: GjeldTab[] = [...baseTabs]
+    if (showHouseholdTab) base.push(householdTab)
+    base.push(oversiktGjeldTab)
+    return base
   }, [showHouseholdTab])
 
   return (

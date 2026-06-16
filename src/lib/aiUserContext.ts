@@ -25,6 +25,15 @@ import {
   effectiveIncomeTransactionAmount,
   transactionIncomeIsNet,
 } from '@/lib/incomeWithholding'
+import { computeIncomeSprintDerived, type IncomeSprintPlan } from '@/lib/incomeSprint'
+import {
+  buildCreditorRegistryChecklist,
+  getNextCreditorRegistryChecklistStep,
+  isCreditorRegistryChecklistComplete,
+} from '@/lib/creditorRegistry/checklist'
+import { computeRegistryOverview } from '@/lib/creditorRegistry/aggregate'
+import { normalizeCreditorRegistry } from '@/lib/creditorRegistry/normalize'
+import { normalizeCreditorRegistryPrefs } from '@/lib/creditorRegistry/prefs'
 
 const MAX_TRANSACTION_LINES = 300
 const MAX_CONTEXT_CHARS = 25_000
@@ -32,6 +41,7 @@ const MAX_BUDGET_CATEGORY_LINES = 80
 const MAX_SAVINGS_GOAL_LINES = 28
 const MAX_DEBT_LINES = 28
 const MAX_INVESTMENT_LINES = 28
+const MAX_INCOME_SPRINT_PLANS = 12
 const MAX_SUBSCRIPTION_SERVICE_CELL_CHARS = 72
 
 function isRecord(x: unknown): x is Record<string, unknown> {
@@ -261,7 +271,7 @@ function appendPlannedFollowUpSection(lines: string[], person: PersonData): void
         const dateShow = formatTransactionDateNbNo(t.date) || t.date
         const rev = t.reviewedAt ? 'gjennomgått' : 'ikke gjennomgått'
         const paid = t.type === 'expense' ? (t.paidAt ? ', betalt' : ', ikke betalt') : ''
-        lines.push(`- ${dateShow} | ${desc} | ${amt} kr | ${typeLabel(t.type)} | ${rev}${paid}`)
+        lines.push(`- id=${t.id} | ${dateShow} | ${desc} | ${amt} kr | ${typeLabel(t.type)} | ${rev}${paid}`)
       }
     }
     pushPlanLines('Forfalt, tidligere måneder (trenger oppfølging):', overdueEarlierAi)
@@ -346,6 +356,57 @@ function appendServiceSubscriptionsSection(lines: string[], person: PersonData, 
   }
 }
 
+function appendCreditorRegistrySection(lines: string[], meta: AiFinanceContextMeta): void {
+  const slice = meta.persistedSlice
+  if (!slice) return
+
+  const activeId = slice.activeProfileId
+  const registry = normalizeCreditorRegistry(meta.peopleById[activeId]?.creditorRegistry)
+  const overview = computeRegistryOverview(registry.creditors)
+  const items = buildCreditorRegistryChecklist(registry)
+  const prefs = normalizeCreditorRegistryPrefs(registry.prefs)
+  const checklistActive =
+    !prefs.checklistDismissed && !isCreditorRegistryChecklistComplete(items)
+  const nextStep = checklistActive ? getNextCreditorRegistryChecklistStep(items) : null
+
+  lines.push('')
+  lines.push('Oversikt gjeld (kreditorregister, aktiv profil — frittstående modul):')
+
+  if (overview.creditorCount === 0) {
+    if (checklistActive && nextStep) {
+      lines.push(`Ingen kreditorer ennå. Anbefalt neste steg i kom-i-gang: ${nextStep.title}.`)
+    } else {
+      lines.push('Ingen kreditorer registrert.')
+    }
+    lines.push('Registeret er ikke koblet til Gjeld → Oversikt, Snøball eller budsjett ennå.')
+    return
+  }
+
+  lines.push(
+    `Kreditorer: ${overview.creditorCount}, lån: ${overview.loanCount}, sum restgjeld ${overview.totalRemaining} kr, sum månedlig ${overview.totalMonthly} kr.`,
+  )
+  if (checklistActive) {
+    const openCount = items.filter((i) => !i.done).length
+    lines.push(
+      nextStep
+        ? `Kom-i-gang-sjekkliste: ${openCount} steg gjenstår; neste anbefaling: ${nextStep.title}.`
+        : `Kom-i-gang-sjekkliste: ${openCount} steg gjenstår.`,
+    )
+  }
+
+  let shown = 0
+  for (const group of registry.creditors) {
+    if (shown >= 12) {
+      lines.push(`… og ${registry.creditors.length - shown} flere kreditorer vises ikke.`)
+      break
+    }
+    const rest = group.loans.reduce((sum, loan) => sum + loan.remainingAmount, 0)
+    lines.push(`- ${group.name}: ${group.loans.length} lån, rest ${rest} kr`)
+    shown += 1
+  }
+  lines.push('Registeret er ikke koblet til Gjeld → Oversikt, Snøball eller budsjett ennå.')
+}
+
 export type AiFinanceContextMeta = {
   budgetYear: number
   scopeLabel: string
@@ -354,6 +415,68 @@ export type AiFinanceContextMeta = {
   showAmountDecimals: boolean
   profileNamesById: Record<string, string>
   peopleById: Record<string, PersonData>
+  /** Hele persistert slice — brukes bl.a. for smartSpore-planer per profil. */
+  persistedSlice?: PersistedAppSlice
+}
+
+function formatPlanPeriodLabel(plan: IncomeSprintPlan): string {
+  const name = plan.name?.trim()
+  if (name) return name
+  return `${plan.startDate} – ${plan.endDate}`
+}
+
+function appendIncomeSprintSection(lines: string[], meta: AiFinanceContextMeta): void {
+  const slice = meta.persistedSlice
+  if (!slice) return
+
+  const people = getEffectivePeopleForAi(slice)
+  const { isHouseholdAggregate, profileNamesById } = meta
+
+  type PlanRow = { plan: IncomeSprintPlan; profileLabel: string }
+  const rows: PlanRow[] = []
+
+  if (isHouseholdAggregate) {
+    for (const p of slice.profiles) {
+      const plans = people[p.id]?.incomeSprintPlans ?? []
+      const label = profileNamesById[p.id]?.trim() || 'Profil'
+      for (const plan of plans) {
+        rows.push({ plan, profileLabel: label })
+      }
+    }
+  } else {
+    const pid = slice.activeProfileId
+    const plans = people[pid]?.incomeSprintPlans ?? []
+    for (const plan of plans) {
+      rows.push({ plan, profileLabel: '' })
+    }
+  }
+
+  lines.push('')
+  lines.push('smartSpore-planer (inntekt mot mål over periode):')
+  if (rows.length === 0) {
+    lines.push('Ingen smartSpore-planer registrert.')
+    return
+  }
+
+  let shown = 0
+  for (const { plan, profileLabel } of rows) {
+    if (shown >= MAX_INCOME_SPRINT_PLANS) {
+      lines.push(`… og ${rows.length - shown} flere planer vises ikke.`)
+      break
+    }
+    const derived = computeIncomeSprintDerived(plan)
+    const who = profileLabel ? ` [${profileLabel}]` : ''
+    const label = formatPlanPeriodLabel(plan)
+    if (!derived) {
+      lines.push(`- ${label}${who}: (ugyldig periode)`)
+      shown += 1
+      continue
+    }
+    lines.push(
+      `- ${label}${who}: mål ${Math.round(plan.targetAmount)} kr, innbetalt ${Math.round(derived.paidTotalToDate)} kr, tjent (målgrunnlag) ${Math.round(derived.earnedInGoalBasis)} kr, gjenstår ${Math.round(derived.remaining)} kr, ${plan.sources.length} kilde(r), periode ${plan.startDate}–${plan.endDate}`,
+    )
+    shown += 1
+  }
 }
 
 export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceContextMeta): string {
@@ -441,6 +564,8 @@ export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceCon
     }
   }
 
+  appendIncomeSprintSection(lines, meta)
+
   lines.push('')
   lines.push('Gjeld (registrert i appen):')
   const debts = person.debts ?? []
@@ -467,6 +592,8 @@ export function buildAiFinanceContextText(person: PersonData, meta: AiFinanceCon
       'Gjeld — side i appen (navigasjon): Med Familie og flere profiler finnes Gjeld → «Husholdning» (/gjeld/husholdning). Siden følger «Viser data for»: ved valg av Husholdning vises alle profiler; ved valg av én profil vises kun den profilens gjeld på samme rute. Innehold: KPI, diagrammer med forkortede tall på søyler (k/M), modal ved klikk. Samme underliggende gjeld som i listen over.',
     )
   }
+
+  appendCreditorRegistrySection(lines, meta)
 
   lines.push('')
   lines.push('Investeringer (registrert i appen):')
@@ -512,5 +639,6 @@ export function buildAiUserContextFromPersistedState(state: unknown): string {
     showAmountDecimals: state.showAmountDecimals === true,
     profileNamesById,
     peopleById,
+    persistedSlice: state,
   })
 }

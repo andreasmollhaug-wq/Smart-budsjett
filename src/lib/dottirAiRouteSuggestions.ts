@@ -20,6 +20,14 @@ const ROUTE_SUGGESTIONS: { prefix: string; questions: string[] }[] = [
     ],
   },
   {
+    prefix: '/gjeld/oversikt-gjeld',
+    questions: [
+      'Hva bør jeg gjøre neste i oversikt gjeld?',
+      'Hvordan skiller oversikt gjeld seg fra vanlig gjeld?',
+      'Tips til å få full oversikt over kreditorer',
+    ],
+  },
+  {
     prefix: '/gjeld/husholdning',
     questions: ['Forklar gjeld per person hos oss', 'Hvilket lån bør vi fokusere på?'],
   },
@@ -33,7 +41,7 @@ const ROUTE_SUGGESTIONS: { prefix: string; questions: string[] }[] = [
   },
   {
     prefix: '/transaksjoner/kommende',
-    questions: ['Hva gjør jeg med forfalte poster?', 'Hvordan fungerer planlagte trekk?'],
+    questions: ['Hva gjør jeg med forfalte poster?', 'Hvordan fungerer planlagte trekk?', 'Marker strømregningen som betalt'],
   },
   {
     prefix: '/transaksjoner/dashboard',
@@ -65,7 +73,7 @@ const ROUTE_SUGGESTIONS: { prefix: string; questions: string[] }[] = [
   },
   {
     prefix: '/prosjekt',
-    questions: ['Oppussing vs vanlig budsjett — forskjellen?', 'Hvordan lager jeg rom under et prosjekt?'],
+    questions: ['Oppussing vs vanlig budsjett — forskjellen?', 'Hvordan ligger oppussingsbudsjettet an?', 'Hvordan lager jeg rom under et prosjekt?'],
   },
   {
     prefix: '/forum',
@@ -78,6 +86,10 @@ const ROUTE_SUGGESTIONS: { prefix: string; questions: string[] }[] = [
   {
     prefix: '/intern/mat-handleliste',
     questions: ['Planlegge ukehandel — hvor starter jeg?', 'Kan handlelisten deles?'],
+  },
+  {
+    prefix: '/intern/enkel-handleliste',
+    questions: ['Hvordan bruker jeg maler på handlelisten?', 'Hva viser analyse-fanen?'],
   },
   {
     prefix: '/dashboard',
@@ -156,6 +168,8 @@ export type DottirAiUserSnapshot = {
   serviceSubscriptionCount: number
   investmentCount: number
   checklistOpenCount: number
+  /** Ufullført kom-i-gang i oversikt gjeld (aktiv profil). 0 når skjult eller ferdig. */
+  creditorRegistryChecklistOpenCount: number
   onboardingStatus: OnboardingStatus
   demoDataEnabled: boolean
   isHouseholdAggregate: boolean
@@ -180,6 +194,10 @@ export function activityGapSuggestions(snapshot: DottirAiUserSnapshot): string[]
 
   if (snapshot.checklistOpenCount >= 3 && snapshot.budgetLinesWithAmount < 8) {
     out.push('Hva mangler i budsjett-oppsettet mitt?')
+  }
+
+  if (snapshot.creditorRegistryChecklistOpenCount > 0) {
+    out.push('Hva bør jeg gjøre neste i oversikt gjeld?')
   }
 
   if (
@@ -248,6 +266,7 @@ export function mergeCompactSuggestions(pathname: string, generic: string[], max
     serviceSubscriptionCount: 0,
     investmentCount: 0,
     checklistOpenCount: 0,
+    creditorRegistryChecklistOpenCount: 0,
     onboardingStatus: 'completed',
     demoDataEnabled: false,
     isHouseholdAggregate: false,

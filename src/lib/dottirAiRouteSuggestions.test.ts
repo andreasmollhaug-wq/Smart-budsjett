@@ -15,6 +15,7 @@ const emptyUser: DottirAiUserSnapshot = {
   serviceSubscriptionCount: 0,
   investmentCount: 0,
   checklistOpenCount: 5,
+  creditorRegistryChecklistOpenCount: 0,
   onboardingStatus: 'completed',
   demoDataEnabled: false,
   isHouseholdAggregate: false,
@@ -42,6 +43,12 @@ describe('routeSuggestionsForPath', () => {
 
   it('matches nested paths', () => {
     expect(routeSuggestionsForPath('/budsjett/2025')).toContain('Hvor avviker jeg fra budsjettet?')
+  })
+
+  it('returns oversikt gjeld suggestions before generic gjeld', () => {
+    const oversikt = routeSuggestionsForPath('/gjeld/oversikt-gjeld')
+    expect(oversikt[0]).toBe('Hva bør jeg gjøre neste i oversikt gjeld?')
+    expect(routeSuggestionsForPath('/gjeld')).not.toEqual(oversikt)
   })
 
   it('returns suggestions for innstillinger', () => {

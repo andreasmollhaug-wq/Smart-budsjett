@@ -104,6 +104,7 @@ export const snowballHouseholdNote =
 export const snowballArticleLink = {
   href: '/guider/snoeballmetoden-gjeld',
   label: 'Les artikkelen om snøballmetoden',
+  description: 'Enkel forklaring med eksempel, grafer og tabeller — samme grunnlag som verktøyet.',
 } as const
 
 export const snowballGuideTabs = [

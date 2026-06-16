@@ -1,7 +1,4 @@
-/**
- * Innholdsartikler for /guider — bokmål, «du», i tråd med docs/INNHOLD.md.
- * Utvid med nye oppføringer i `articles`; dynamisk rute plukker slug.
- */
+import { snowballArticleMeta } from '@/lib/snowballArticleCopy'
 
 import { TRIAL_OFFER_EXTENDED_EXPLANATION } from '@/lib/marketing/trialCampaignCopy'
 
@@ -120,47 +117,11 @@ export const articles: Article[] = [
   },
   {
     slug: 'snoeballmetoden-gjeld',
-    title: 'Snøballmetoden: en enkel plan for nedbetaling av gjeld',
-    description:
-      'Slik fungerer snøballmetoden — og hvordan du kan bruke den uten å få økonomien til å føles som et regnestykke.',
+    title: snowballArticleMeta.title,
+    description: snowballArticleMeta.description,
     publishedAt: '2026-04-07',
-    blocks: [
-      {
-        type: 'p',
-        text:
-          'Snøballmetoden går ut på å betale minimum på alt utenom den minste gjelden, og legge all ekstra kapasitet der. ' +
-          'Når den minste er borte, ruller du beløpet du betalte der inn på neste lån. «Snøballen» vokser — derfor navnet.',
-      },
-      {
-        type: 'h2',
-        text: 'Hvorfor det fungerer psykologisk',
-      },
-      {
-        type: 'p',
-        text:
-          'For mange er motivasjonen større når de ser en hel faktura forsvinne, sammenlignet med å spre litt ekstra over alt. ' +
-          'Du får en tydelig seier tidlig, og det gjør det lettere å holde ut. Metoden passer godt når du har flere små krav ' +
-          'med ulike renter og gebyrer.',
-      },
-      {
-        type: 'h2',
-        text: 'Det du bør passe på',
-      },
-      {
-        type: 'ul',
-        items: [
-          'Høyrentegjeld (f.eks. kredittkort) kan koste mer over tid enn små lån — vurder om avvikling eller en hybrid strategi passer bedre.',
-          'Ha fortsatt rom til nødfond hvis du kan; ett uventet behov uten buffer kan ødelegge planen.',
-          'Vær ærlig på minimumsbeløp og renter slik at planen du skriver ned også stemmer i virkeligheten.',
-        ],
-      },
-      {
-        type: 'p',
-        text:
-          'I Dottir finnes støtte for å følge gjeld og snøball i samme oversikt som budsjettet ditt, slik at du ser ' +
-          'sammenhengen mellom hverdagsutgifter og nedbetaling — uten å hoppe mellom flere verktøy.',
-      },
-    ],
+    updatedAt: '2026-06-16',
+    blocks: [],
   },
 ]
 

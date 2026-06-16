@@ -2,6 +2,12 @@
 
 import { useMemo } from 'react'
 import { buildBudgetSetupChecklist } from '@/lib/budgetSetupChecklist'
+import {
+  buildCreditorRegistryChecklist,
+  isCreditorRegistryChecklistComplete,
+} from '@/lib/creditorRegistry/checklist'
+import { normalizeCreditorRegistry } from '@/lib/creditorRegistry/normalize'
+import { normalizeCreditorRegistryPrefs } from '@/lib/creditorRegistry/prefs'
 import type { DottirAiUserSnapshot } from '@/lib/dottirAiRouteSuggestions'
 import { useStore } from '@/lib/store'
 
@@ -87,9 +93,19 @@ export function useDottirAiUserSnapshot(): DottirAiUserSnapshot {
     })
     const checklistOpenCount = checklist.filter((item) => !item.done).length
 
+    const registryState = normalizeCreditorRegistry(people[activeProfileId]?.creditorRegistry)
+    const registryItems = buildCreditorRegistryChecklist(registryState)
+    const registryPrefs = normalizeCreditorRegistryPrefs(registryState.prefs)
+    const registryChecklistVisible =
+      !registryPrefs.checklistDismissed && !isCreditorRegistryChecklistComplete(registryItems)
+    const creditorRegistryChecklistOpenCount = registryChecklistVisible
+      ? registryItems.filter((item) => !item.done).length
+      : 0
+
     return {
       ...counts,
       checklistOpenCount,
+      creditorRegistryChecklistOpenCount,
       onboardingStatus,
       demoDataEnabled,
       isHouseholdAggregate,

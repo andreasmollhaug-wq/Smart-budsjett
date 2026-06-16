@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import GuideArticle, { GuideBlocks } from '@/components/marketing/GuideArticle'
+import SnowballMethodGuideArticle from '@/components/marketing/snowball/SnowballMethodGuideArticle'
 import LandingFooter from '@/components/marketing/LandingFooter'
 import LandingHeader from '@/components/marketing/LandingHeader'
 import { getAllArticleSlugs, getArticleBySlug } from '@/lib/articles'
@@ -96,7 +97,11 @@ export default async function GuiderArticlePage({ params }: Props) {
       <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
         <LandingHeader />
         <GuideArticle title={article.title} description={article.description} publishedLabel={publishedLabel}>
-          <GuideBlocks blocks={article.blocks} />
+          {slug === 'snoeballmetoden-gjeld' ? (
+            <SnowballMethodGuideArticle />
+          ) : (
+            <GuideBlocks blocks={article.blocks} />
+          )}
         </GuideArticle>
         <LandingFooter />
       </div>

@@ -3,13 +3,29 @@
 import { useEffect, useRef, useState } from 'react'
 import { Info } from 'lucide-react'
 
+const POPOVER_MAX_WIDTH_PX = 288 // 18rem
+const VIEWPORT_MARGIN_PX = 16
+
 /** Kompakt info-knapp med samme interaksjon som `StatCard` (pointerdown lukk, touch-mål). */
-export default function InfoPopover({ title, text }: { title: string; text: string }) {
+export default function InfoPopover({
+  title,
+  text,
+  align = 'auto',
+}: {
+  title: string
+  text: string
+  /** `auto` flippes mot venstre når popover ellers ville gått utenfor høyre kant. */
+  align?: 'start' | 'end' | 'auto'
+}) {
   const [open, setOpen] = useState(false)
+  const [alignEnd, setAlignEnd] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      setAlignEnd(false)
+      return
+    }
     const close = (e: PointerEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
         setOpen(false)
@@ -18,6 +34,18 @@ export default function InfoPopover({ title, text }: { title: string; text: stri
     document.addEventListener('pointerdown', close)
     return () => document.removeEventListener('pointerdown', close)
   }, [open])
+
+  useEffect(() => {
+    if (!open || align !== 'auto' || !wrapRef.current) return
+    const update = () => {
+      const rect = wrapRef.current!.getBoundingClientRect()
+      const width = Math.min(window.innerWidth - VIEWPORT_MARGIN_PX * 2, POPOVER_MAX_WIDTH_PX)
+      setAlignEnd(rect.left + width > window.innerWidth - VIEWPORT_MARGIN_PX)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [open, align])
 
   return (
     <div className="relative inline-flex shrink-0 items-center" ref={wrapRef}>
@@ -33,7 +61,9 @@ export default function InfoPopover({ title, text }: { title: string; text: stri
       </button>
       {open && (
         <div
-          className="absolute left-0 top-full z-[60] mt-1.5 w-[min(calc(100vw-2rem),18rem)] max-w-[min(calc(100vw-2rem),18rem)] rounded-xl p-3 text-left shadow-lg touch-manipulation"
+          className={`absolute top-full z-[60] mt-1.5 w-[min(calc(100vw-2rem),18rem)] max-w-[min(calc(100vw-2rem),18rem)] rounded-xl p-3 text-left shadow-lg touch-manipulation ${
+            (align === 'end' || alignEnd) ? 'right-0 left-auto' : 'left-0 right-auto'
+          }`}
           style={{
             background: 'var(--surface)',
             border: '1px solid var(--border)',

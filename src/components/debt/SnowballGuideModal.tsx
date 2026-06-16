@@ -12,6 +12,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
+import SnowballStrategyCompareSection from '@/components/debt/SnowballStrategyCompareSection'
 import GuideModalShell from '@/components/ui/GuideModalShell'
 import { useNokDisplayFormatters } from '@/lib/hooks/useNokDisplayFormatters'
 import {
@@ -171,7 +172,12 @@ function PersonalSummary({
   )
 }
 
-export default function SnowballGuideModal({ open, onClose, snapshot, initialTab = 'steps' }: Props) {
+export default function SnowballGuideModal({
+  open,
+  onClose,
+  snapshot,
+  initialTab = 'steps',
+}: Props) {
   const { formatNOK } = useNokDisplayFormatters()
   const [tab, setTab] = useState<SnowballGuideTabId>(initialTab)
 
@@ -235,6 +241,7 @@ export default function SnowballGuideModal({ open, onClose, snapshot, initialTab
             <p className="text-sm m-0 break-words leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               {snowballMethodWhen}
             </p>
+            <SnowballStrategyCompareSection />
           </div>
         )}
 

@@ -180,6 +180,27 @@ import {
   type SparingPagePrefs,
 } from '@/lib/sparingPagePrefs'
 import {
+  addCreditorGroupToRegistry,
+  addLoanToCreditorRegistry,
+  emptyCreditorRegistryState,
+  mergeCreditorRegistryPrefsIntoState,
+  removeCreditorGroupFromRegistry,
+  removeLoanFromCreditorRegistry,
+  renameCreditorGroupInRegistry,
+  setChecklistOverrideInRegistry,
+  toActionResult,
+  updateLoanInCreditorRegistry,
+  type CreditorRegistryLoanInput,
+} from '@/lib/creditorRegistry/storeHelpers'
+import { computeRegistryOverview } from '@/lib/creditorRegistry/aggregate'
+import { normalizeCreditorRegistry } from '@/lib/creditorRegistry/normalize'
+import type {
+  CreditorRegistryActionResult,
+  CreditorRegistryChecklistStepId,
+  CreditorRegistryPrefs,
+  CreditorRegistryState,
+} from '@/lib/creditorRegistry/types'
+import {
   ensureIncomeSprintPlanId,
   reconcileIncomeSprintPlan,
   type IncomeSprintPlan,
@@ -282,7 +303,7 @@ export interface Transaction {
   bankImportRunId?: string
   /** Ekstern transaksjons-id (Neonomics) for deduplisering ved re-sync. */
   externalBankTxId?: string
-  externalBankProvider?: 'neonomics'
+  externalBankProvider?: 'neonomics' | 'roaring'
   /** Neonomics account.id — hvilken bankkonto transaksjonen kom fra. */
   externalBankAccountId?: string
   externalBankAccountLabel?: string
@@ -482,6 +503,8 @@ export interface PersonData {
   defaultIncomeWithholding?: { apply: boolean; percent: number }
   /** UI på `/sparing`: sortering, vis fullførte mål, KPI-målvalg — per budsjettprofil. */
   sparingPagePrefs?: SparingPagePrefs
+  /** Frittstående oversikt gjeld per kreditor (`/gjeld/oversikt-gjeld`). */
+  creditorRegistry?: CreditorRegistryState
 }
 
 export type OnboardingStatus = 'pending' | 'completed' | 'skipped'
@@ -642,6 +665,24 @@ interface AppState {
   setDefaultIncomeWithholding: (rule: { apply: boolean; percent: number }) => void
   setSparingPagePrefs: (patch: Partial<SparingPagePrefs>) => void
   setDebtPayoffStrategy: (strategy: DebtPayoffStrategy) => void
+
+  addCreditorGroup: (name: string) => CreditorRegistryActionResult
+  renameCreditorGroup: (id: string, name: string) => CreditorRegistryActionResult
+  removeCreditorGroup: (id: string) => CreditorRegistryActionResult
+  addCreditorRegistryLoan: (
+    creditorId: string,
+    loan: CreditorRegistryLoanInput,
+  ) => CreditorRegistryActionResult
+  updateCreditorRegistryLoan: (
+    creditorId: string,
+    loanId: string,
+    patch: Partial<CreditorRegistryLoanInput>,
+  ) => CreditorRegistryActionResult
+  removeCreditorRegistryLoan: (creditorId: string, loanId: string) => CreditorRegistryActionResult
+  setCreditorRegistryPrefs: (patch: Partial<CreditorRegistryPrefs>) => void
+  setCreditorRegistryChecklistOverride: (stepId: CreditorRegistryChecklistStepId, done: boolean) => void
+  acknowledgeCreditorRegistryStandaloneInfo: () => void
+  markCreditorRegistrySubtotalsReviewed: () => void
 
   addInvestment: (i: Investment) => void
   updateInvestment: (id: string, data: Partial<Investment>) => void
@@ -1091,6 +1132,10 @@ export function mergePersistedIntoFullState(persisted: unknown, current: AppStat
         sparingPagePrefs: normalizeSparingPagePrefs(synced.sparingPagePrefs),
       }
     }
+    synced = {
+      ...synced,
+      creditorRegistry: normalizeCreditorRegistry(synced.creditorRegistry),
+    }
     base.people[pr.id] = recalcPersonBudgetSpentForYear(synced, pr.id, base.budgetYear)
   }
 
@@ -1441,6 +1486,7 @@ export function createEmptyPersonData(): PersonData {
     snowballExtraMonthly: 0,
     debtPayoffStrategy: 'snowball',
     incomeSprintPlans: [],
+    creditorRegistry: emptyCreditorRegistryState(),
   }
 }
 
@@ -1842,6 +1888,7 @@ function migrateFromLegacy(p: LegacyPersistedState): Pick<AppState, 'subscriptio
     snowballExtraMonthly: typeof p.snowballExtraMonthly === 'number' ? p.snowballExtraMonthly : 0,
     debtPayoffStrategy: p.debtPayoffStrategy === 'avalanche' ? 'avalanche' : 'snowball',
     incomeSprintPlans: [],
+    creditorRegistry: normalizeCreditorRegistry((p as PersonData).creditorRegistry),
   }
 
   return {
@@ -4266,6 +4313,122 @@ export const useStore = create<AppState>()((set, get) => {
             debtPayoffStrategy: strategy === 'avalanche' ? 'avalanche' : 'snowball',
           })),
 
+        addCreditorGroup: (name) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'invalid' }
+          const result = addCreditorGroupToRegistry(person.creditorRegistry, name)
+          if ('error' in result) return toActionResult(result.error)
+          set((state) => ({
+            people: { ...state.people, [pid]: { ...person, creditorRegistry: result.next } },
+          }))
+          return toActionResult(undefined, result.id)
+        },
+
+        renameCreditorGroup: (id, name) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'not_found' }
+          const result = renameCreditorGroupInRegistry(person.creditorRegistry, id, name)
+          if ('error' in result) return toActionResult(result.error)
+          set((state) => ({
+            people: { ...state.people, [pid]: { ...person, creditorRegistry: result.next } },
+          }))
+          return { ok: true as const }
+        },
+
+        removeCreditorGroup: (id) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'not_found' }
+          const result = removeCreditorGroupFromRegistry(person.creditorRegistry, id)
+          if ('error' in result) return toActionResult(result.error)
+          set((state) => ({
+            people: { ...state.people, [pid]: { ...person, creditorRegistry: result.next } },
+          }))
+          return { ok: true as const }
+        },
+
+        addCreditorRegistryLoan: (creditorId, loan) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'not_found' }
+          const result = addLoanToCreditorRegistry(person.creditorRegistry, creditorId, loan)
+          if ('error' in result) return toActionResult(result.error)
+          set((state) => ({
+            people: { ...state.people, [pid]: { ...person, creditorRegistry: result.next } },
+          }))
+          return toActionResult(undefined, result.id)
+        },
+
+        updateCreditorRegistryLoan: (creditorId, loanId, patch) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'not_found' }
+          const result = updateLoanInCreditorRegistry(person.creditorRegistry, creditorId, loanId, patch)
+          if ('error' in result) return toActionResult(result.error)
+          set((state) => ({
+            people: { ...state.people, [pid]: { ...person, creditorRegistry: result.next } },
+          }))
+          return { ok: true as const }
+        },
+
+        removeCreditorRegistryLoan: (creditorId, loanId) => {
+          const s = get()
+          if (s.financeScope === 'household') return { ok: false as const, reason: 'household_readonly' }
+          const pid = s.activeProfileId
+          const person = s.people[pid]
+          if (!person) return { ok: false as const, reason: 'not_found' }
+          const result = removeLoanFromCreditorRegistry(person.creditorRegistry, creditorId, loanId)
+          if ('error' in result) return toActionResult(result.error)
+          set((state) => ({
+            people: { ...state.people, [pid]: { ...person, creditorRegistry: result.next } },
+          }))
+          return { ok: true as const }
+        },
+
+        setCreditorRegistryPrefs: (patch) =>
+          patchActive((d) => ({
+            ...d,
+            creditorRegistry: mergeCreditorRegistryPrefsIntoState(d.creditorRegistry, patch),
+          })),
+
+        setCreditorRegistryChecklistOverride: (stepId, done) =>
+          patchActive((d) => ({
+            ...d,
+            creditorRegistry: setChecklistOverrideInRegistry(d.creditorRegistry, stepId, done),
+          })),
+
+        acknowledgeCreditorRegistryStandaloneInfo: () =>
+          patchActive((d) => {
+            const registry = normalizeCreditorRegistry(d.creditorRegistry)
+            if (computeRegistryOverview(registry.creditors).loanCount < 1) return d
+            return {
+              ...d,
+              creditorRegistry: mergeCreditorRegistryPrefsIntoState(d.creditorRegistry, {
+                standaloneInfoAcknowledged: true,
+              }),
+            }
+          }),
+
+        markCreditorRegistrySubtotalsReviewed: () =>
+          patchActive((d) => ({
+            ...d,
+            creditorRegistry: mergeCreditorRegistryPrefsIntoState(d.creditorRegistry, {
+              hasReviewedSubtotals: true,
+            }),
+          })),
+
         addInvestment: (i) => patchActive((d) => ({ ...d, investments: [...d.investments, i] })),
 
         updateInvestment: (id, data) =>
@@ -5440,6 +5603,16 @@ export function useActivePersonFinance() {
       setDefaultIncomeWithholding: s.setDefaultIncomeWithholding,
       setSparingPagePrefs: s.setSparingPagePrefs,
       setDebtPayoffStrategy: s.setDebtPayoffStrategy,
+      addCreditorGroup: s.addCreditorGroup,
+      renameCreditorGroup: s.renameCreditorGroup,
+      removeCreditorGroup: s.removeCreditorGroup,
+      addCreditorRegistryLoan: s.addCreditorRegistryLoan,
+      updateCreditorRegistryLoan: s.updateCreditorRegistryLoan,
+      removeCreditorRegistryLoan: s.removeCreditorRegistryLoan,
+      setCreditorRegistryPrefs: s.setCreditorRegistryPrefs,
+      setCreditorRegistryChecklistOverride: s.setCreditorRegistryChecklistOverride,
+      acknowledgeCreditorRegistryStandaloneInfo: s.acknowledgeCreditorRegistryStandaloneInfo,
+      markCreditorRegistrySubtotalsReviewed: s.markCreditorRegistrySubtotalsReviewed,
       addInvestment: s.addInvestment,
       updateInvestment: s.updateInvestment,
       removeInvestment: s.removeInvestment,
@@ -5483,6 +5656,14 @@ export function useActivePersonFinance() {
 
   const incomeSprintPlans = state.people[state.activeProfileId]?.incomeSprintPlans ?? []
 
+  /** Oversikt gjeld er per profil — i husholdningsvisning vises aktiv profil, ikke aggregat. */
+  const creditorRegistry = useMemo(() => {
+    if (householdMode) {
+      return normalizeCreditorRegistry(state.people[state.activeProfileId]?.creditorRegistry)
+    }
+    return normalizeCreditorRegistry(person.creditorRegistry)
+  }, [householdMode, state.people, state.activeProfileId, person.creditorRegistry])
+
   return {
     transactions: person.transactions,
     budgetCategories: person.budgetCategories,
@@ -5495,6 +5676,7 @@ export function useActivePersonFinance() {
     snowballExtraMonthly: person.snowballExtraMonthly ?? 0,
     debtPayoffStrategy: person.debtPayoffStrategy ?? 'snowball',
     incomeSprintPlans,
+    creditorRegistry,
     activeProfileId: state.activeProfileId,
     profiles: state.profiles,
     subscriptionPlan: state.subscriptionPlan,
@@ -5534,6 +5716,16 @@ export function useActivePersonFinance() {
     setDefaultIncomeWithholding: state.setDefaultIncomeWithholding,
     setSparingPagePrefs: state.setSparingPagePrefs,
     setDebtPayoffStrategy: state.setDebtPayoffStrategy,
+    addCreditorGroup: state.addCreditorGroup,
+    renameCreditorGroup: state.renameCreditorGroup,
+    removeCreditorGroup: state.removeCreditorGroup,
+    addCreditorRegistryLoan: state.addCreditorRegistryLoan,
+    updateCreditorRegistryLoan: state.updateCreditorRegistryLoan,
+    removeCreditorRegistryLoan: state.removeCreditorRegistryLoan,
+    setCreditorRegistryPrefs: state.setCreditorRegistryPrefs,
+    setCreditorRegistryChecklistOverride: state.setCreditorRegistryChecklistOverride,
+    acknowledgeCreditorRegistryStandaloneInfo: state.acknowledgeCreditorRegistryStandaloneInfo,
+    markCreditorRegistrySubtotalsReviewed: state.markCreditorRegistrySubtotalsReviewed,
     addInvestment: state.addInvestment,
     updateInvestment: state.updateInvestment,
     removeInvestment: state.removeInvestment,
