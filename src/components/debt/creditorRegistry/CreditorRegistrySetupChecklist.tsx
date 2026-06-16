@@ -183,12 +183,12 @@ export default function CreditorRegistrySetupChecklist({
               Følg stegene for å bygge oversikten. Du kan minimere eller skjule når du vil jobbe videre.
             </p>
           </div>
-          <div className="flex shrink-0 gap-1">
+          <div className="relative z-10 flex shrink-0 items-center gap-1">
             <button
               type="button"
               onClick={onCollapse}
               className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl px-2 touch-manipulation"
-              style={{ color: 'var(--text-muted)' }}
+              style={{ color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)' }}
               aria-label="Minimer kom i gang"
               title="Minimer"
             >
@@ -197,13 +197,17 @@ export default function CreditorRegistrySetupChecklist({
             <button
               type="button"
               onClick={onDismiss}
-              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs sm:text-sm font-medium touch-manipulation"
-              style={{ color: 'var(--text-muted)' }}
+              className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl px-3 text-sm font-medium touch-manipulation"
+              style={{
+                color: 'var(--text)',
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+              }}
               aria-label="Skjul kom i gang"
               title="Skjul for nå"
             >
-              <EyeOff size={16} aria-hidden />
-              <span className="hidden sm:inline">Skjul</span>
+              <EyeOff size={18} aria-hidden />
+              <span>Skjul</span>
             </button>
           </div>
         </div>

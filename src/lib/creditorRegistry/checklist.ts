@@ -211,6 +211,54 @@ const ALL_CHECKLIST_STEP_IDS: CreditorRegistryChecklistStepId[] = [
 
 export type CreditorRegistryChecklistReconcileReason = 'creditor_removed' | 'loan_removed'
 
+/** Rydder utdaterte overrides ved lesing — uten å nullstille skjul/minimer-valg. */
+export function sanitizeCreditorRegistryChecklistState(
+  state: CreditorRegistryState,
+): CreditorRegistryState {
+  const overview = computeRegistryOverview(state.creditors)
+  let prefs = normalizeCreditorRegistryPrefs(state.prefs)
+  const prefsPatch: Partial<CreditorRegistryPrefs> = {}
+
+  if (overview.creditorCount === 0) {
+    prefsPatch.hasReviewedSubtotals = false
+    prefsPatch.standaloneInfoAcknowledged = false
+  }
+
+  if (overview.loanCount === 0) {
+    prefsPatch.hasReviewedSubtotals = false
+    prefsPatch.standaloneInfoAcknowledged = false
+  }
+
+  if (Object.keys(prefsPatch).length > 0) {
+    prefs = normalizeCreditorRegistryPrefs({ ...prefs, ...prefsPatch })
+  }
+
+  const overrides = { ...(state.checklistOverrides ?? {}) }
+  let overridesChanged = false
+
+  for (const id of ALL_CHECKLIST_STEP_IDS) {
+    if (!isStepAutoDone(id, state.creditors, prefs) && overrides[id] === true) {
+      delete overrides[id]
+      overridesChanged = true
+    }
+  }
+
+  if (prefsPatch.hasReviewedSubtotals === false && overrides.review_subtotals === true) {
+    delete overrides.review_subtotals
+    overridesChanged = true
+  }
+
+  return {
+    ...state,
+    prefs,
+    checklistOverrides: overridesChanged
+      ? Object.keys(overrides).length > 0
+        ? overrides
+        : undefined
+      : state.checklistOverrides,
+  }
+}
+
 /** Synkroniserer overrides og prefs med faktisk registry etter sletting. */
 export function reconcileCreditorRegistryChecklist(
   state: CreditorRegistryState,
@@ -265,19 +313,6 @@ export function reconcileCreditorRegistryChecklist(
         ? overrides
         : undefined
       : state.checklistOverrides,
-  }
-
-  if (!isCreditorRegistryChecklistComplete(buildCreditorRegistryChecklist(next))) {
-    if (prefs.checklistDismissed || prefs.checklistCollapsed) {
-      next = {
-        ...next,
-        prefs: {
-          ...normalizeCreditorRegistryPrefs(next.prefs),
-          checklistDismissed: false,
-          checklistCollapsed: false,
-        },
-      }
-    }
   }
 
   return next

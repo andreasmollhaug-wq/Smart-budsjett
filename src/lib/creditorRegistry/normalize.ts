@@ -8,7 +8,7 @@ import {
   type CreditorRegistryState,
 } from './types'
 import { computeRegistryOverview } from './aggregate'
-import { reconcileCreditorRegistryChecklist } from './checklist'
+import { sanitizeCreditorRegistryChecklistState } from './checklist'
 import { mergePatchIntoCreditorRegistryPrefs, normalizeCreditorRegistryPrefs } from './prefs'
 
 const LOAN_TYPE_SET = new Set<string>(CREDITOR_REGISTRY_LOAN_TYPES)
@@ -91,10 +91,8 @@ export function normalizeCreditorRegistry(raw: unknown): CreditorRegistryState {
     checklistOverrides: normalizeChecklistOverrides(o.checklistOverrides),
   }
   const overview = computeRegistryOverview(creditors)
-  if (overview.creditorCount === 0) {
-    state = reconcileCreditorRegistryChecklist(state, 'creditor_removed')
-  } else if (overview.loanCount === 0) {
-    state = reconcileCreditorRegistryChecklist(state, 'loan_removed')
+  if (overview.creditorCount === 0 || overview.loanCount === 0) {
+    state = sanitizeCreditorRegistryChecklistState(state)
   }
   return state
 }

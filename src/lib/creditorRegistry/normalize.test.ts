@@ -48,4 +48,13 @@ describe('normalizeCreditorRegistry', () => {
     expect(s.prefs?.standaloneInfoAcknowledged).toBe(false)
     expect(s.checklistOverrides?.all_creditors).toBeUndefined()
   })
+
+  it('beholder skjul-valg uten kreditorer', () => {
+    const s = normalizeCreditorRegistry({
+      creditors: [],
+      prefs: { checklistDismissed: true, checklistCollapsed: false },
+    })
+    expect(s.prefs?.checklistDismissed).toBe(true)
+    expect(s.prefs?.checklistCollapsed).toBe(false)
+  })
 })
