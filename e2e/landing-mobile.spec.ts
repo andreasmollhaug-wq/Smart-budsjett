@@ -14,7 +14,7 @@ test.describe('Landing (mobil viewport)', () => {
 
   test('primær CTA er synlig (hero)', async ({ page }) => {
     await page.goto('/')
-    const cta = page.getByRole('link', { name: /Start gratis prøveperiode/i })
+    const cta = page.getByRole('link', { name: /Kom i gang/i })
     await expect(cta.first()).toBeVisible()
   })
 
@@ -43,7 +43,7 @@ test.describe('Landing (mobil viewport)', () => {
     await page.goto('/')
     const pricing = page.locator('#priser')
     await pricing.scrollIntoViewIfNeeded()
-    await expect(pricing.getByRole('heading', { name: 'Velg plan' })).toBeVisible()
+    await expect(pricing.getByRole('heading', { name: 'Priser' })).toBeVisible()
     await expect(pricing).toContainText('89 kr')
     await expect(pricing).toContainText('139 kr')
   })
@@ -55,7 +55,7 @@ test.describe('Landing (mobil viewport)', () => {
     await page.locator('#dottir-landing-nav').getByRole('link', { name: 'Priser' }).click()
     await expect(page.locator('#dottir-landing-nav')).toBeHidden()
     const pricing = page.locator('#priser')
-    await expect(pricing.getByRole('heading', { name: 'Velg plan' })).toBeInViewport()
+    await expect(pricing.getByRole('heading', { name: 'Priser' })).toBeInViewport()
   })
 
   test('mobilmeny ligger over landingssideinnhold', async ({ page }) => {

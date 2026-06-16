@@ -6,11 +6,14 @@ import {
 } from '@/lib/stripe/subscriptionAccessCore'
 import { safeRedirectPath } from '@/lib/safeRedirectPath'
 import { isNeonomicsPublicEnabled } from '@/lib/neonomics/feature'
+import { isRoaringPublicEnabled } from '@/lib/roaring/feature'
 import { isMfaChallengePath, isMfaExemptPath, needsMfaStepUp } from '@/lib/auth/mfa'
 
-/** Ruter med `(dottir-marketing)/layout` — må matche `RootLayout` sin SSR av `data-ui-palette`. */
+/** Ruter med Sand-palett på marketing — må matche `RootLayout` sin SSR av `data-ui-palette`. */
 function isDottirMarketingSandPalettePath(pathname: string): boolean {
-  return pathname === '/' || pathname === '/utforsk' || pathname === '/om-oss'
+  if (pathname === '/' || pathname === '/utforsk' || pathname === '/om-oss') return true
+  if (pathname === '/preview/forside-v2' || pathname.startsWith('/preview/forside-v2/')) return true
+  return false
 }
 
 function nextWithUiMarketingSandHeader(request: NextRequest, pathname: string): NextResponse {
@@ -25,6 +28,8 @@ function isPublicPath(pathname: string): boolean {
   if (pathname === '/om-oss' || pathname === '/utforsk') return true
   if (pathname === '/dottir' || pathname.startsWith('/dottir/')) return true
   if (pathname === '/preview/dottir' || pathname.startsWith('/preview/dottir/')) return true
+  if (pathname === '/preview/forside-v2' || pathname.startsWith('/preview/forside-v2/')) return true
+  if (pathname === '/preview/enkelexcel-landing') return true
   if (pathname.startsWith('/guider')) return true
   if (pathname === '/produktflyt') return true
   if (pathname === '/sitemap.xml' || pathname === '/robots.txt') return true
@@ -74,6 +79,10 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   if (pathname === '/konto/koble-til-bank' && !isNeonomicsPublicEnabled()) {
+    return NextResponse.redirect(new URL('/konto/innstillinger', request.url))
+  }
+
+  if (pathname === '/konto/koble-til-bank-roaring' && !isRoaringPublicEnabled()) {
     return NextResponse.redirect(new URL('/konto/innstillinger', request.url))
   }
 

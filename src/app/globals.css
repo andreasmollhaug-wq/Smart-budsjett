@@ -57,27 +57,8 @@
 }
 
 /**
- * Premium logofamilie (`fjord` … `wine`):
- * - Handlingsfarge: `--primary #004b6b` (logo) på primærknapp / CTA.
- * - Hierarki: `--bg` (side) → `--surface #fff` (kort) → `--border` (diskret ramme).
- * - `--primary-light` = samme støtte/hover-linje som diagram-hjelpelinje i `uiColorPalette.ts`.
- * - `--text` / `--text-muted` felles for rolig, redaksjonell finfølelse.
+ * Merkevarepalett Sand — logo #004b6b på primærknapp / CTA.
  */
-
-[data-ui-palette="fjord"] {
-  --bg: #f7fcfd;
-  --surface: #ffffff;
-  --primary: #004b6b;
-  --primary-light: #2499b9;
-  --primary-pale: #e5f6fc;
-  --accent: #5ea3bf;
-  --text: #071922;
-  --text-muted: #5c6f7a;
-  --border: #cbe6f2;
-  --cta-gradient: linear-gradient(135deg, #00334b, #004b6b);
-  --marketing-hero-heading-gradient: linear-gradient(120deg, #00334b 0%, #004b6b 55%, #2499b9 100%);
-}
-
 [data-ui-palette="sand"] {
   --bg: #faf7f5;
   --surface: #ffffff;
@@ -90,45 +71,6 @@
   --border: #d0e7f2;
   --cta-gradient: linear-gradient(135deg, #003f58, #004b6b);
   --marketing-hero-heading-gradient: linear-gradient(120deg, #003f58 0%, #004b6b 55%, #2499b9 100%);
-}
-
-[data-ui-palette="slate"] {
-  --bg: #eef6fb;
-  --surface: #ffffff;
-  --primary: #004b6b;
-  --primary-light: #2499b9;
-  --primary-pale: #dceff7;
-  --accent: #4d92af;
-  --text: #071922;
-  --text-muted: #5c6f7a;
-  --border: #b8d4e4;
-  --cta-gradient: linear-gradient(135deg, #003045, #004b6b);
-}
-
-[data-ui-palette="sage"] {
-  --bg: #f2faf9;
-  --surface: #ffffff;
-  --primary: #004b6b;
-  --primary-light: #2499b9;
-  --primary-pale: #e2f6f6;
-  --accent: #4db0ba;
-  --text: #071922;
-  --text-muted: #5c6f7a;
-  --border: #c0e5e3;
-  --cta-gradient: linear-gradient(135deg, #003a4a, #004b6b);
-}
-
-[data-ui-palette="wine"] {
-  --bg: #e1eef6;
-  --surface: #ffffff;
-  --primary: #004b6b;
-  --primary-light: #2499b9;
-  --primary-pale: #d2ebf7;
-  --accent: #3c89a6;
-  --text: #071922;
-  --text-muted: #5c6f7a;
-  --border: #9ec4d8;
-  --cta-gradient: linear-gradient(135deg, #00161c, #004b6b);
 }
 
 body {

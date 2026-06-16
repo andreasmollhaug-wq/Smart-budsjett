@@ -1,10 +1,7 @@
 /**
  * Fargepaletter for innlogget app (CSS-variabler + diagrammer).
  *
- * **`fjord` … `wine` («Sen kveld») — Premium logofamilie**
- * Alle deler merkevare-aksent `#004B6B` på primærhandlinger (knapper, CTA, viktige lenker).
- * `--primary-light` og diagram-hjelpelinje er **samme** tone for hele familien (ett produkt, flere rom).
- * Variasjon = sidebakgrunn, kort-skygger (`--primary-pale`), rammer og Chrome-gradient — ikke nye aksentfarger.
+ * **Sand** — merkevarepalett med logo-aksent `#004B6B` på primærhandlinger.
  * Urelatert til «Klassisk blå», Excel-grønn eller Rose.
  */
 
@@ -13,11 +10,7 @@ export type UiColorPaletteId =
   | 'green'
   | 'rose'
   | 'dark'
-  | 'fjord'
   | 'sand'
-  | 'slate'
-  | 'sage'
-  | 'wine'
 
 export type UiColorPaletteOption = {
   id: UiColorPaletteId
@@ -39,33 +32,12 @@ export const UI_COLOR_PALETTE_OPTIONS: UiColorPaletteOption[] = [
     hint: 'Mørk bakgrunn og lys tekst — godt for kveldsbruk og OLED-skjermer',
   },
   {
-    id: 'fjord',
-    label: 'Fjordblå',
-    hint: 'Premium logofamilie — klar referanse (#004B6B på handlingsknapper): mest luft, kald isdis',
-  },
-  {
     id: 'sand',
     label: 'Sand',
-    hint: 'Premium logofamilie — varm, nesten hvit lysflate rundt aksent (#004B6B); ro og overskudd',
-  },
-  {
-    id: 'slate',
-    label: 'Skifer',
-    hint: 'Premium logofamilie — arkitektonisk kjølig rom; aksent på knapper beholdes #004B6B',
-  },
-  {
-    id: 'sage',
-    label: 'Salvie',
-    hint: 'Premium logofamilie — myk mint-dugg i flater; samme knappespråk som logo (#004B6B)',
-  },
-  {
-    id: 'wine',
-    label: 'Sen kveld',
-    hint: 'Premium logofamilie — dypest lysrom og rik sidebar; handlingsfarge uendret #004B6B',
+    hint: 'Dottir merkevare — varm lysflate og logo #004B6B på knapper og CTA',
   },
 ]
 
-/** Graf-linjer for logofamilien: aksent (#004B6B) og éi felles hjelpelinje («premium»: eitt språk). */
 const LOGO_CHART_PRIMARY = '#004B6B'
 const LOGO_CHART_PRIMARY_LIGHT = '#2499B9'
 
@@ -74,26 +46,22 @@ const CHART: Record<UiColorPaletteId, { primary: string; primaryLight: string }>
   green: { primary: '#217346', primaryLight: '#107C41' },
   rose: { primary: '#C2255C', primaryLight: '#E64980' },
   dark: { primary: '#748FFC', primaryLight: '#91A7FF' },
-  fjord: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
   sand: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
-  slate: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
-  sage: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
-  wine: { primary: LOGO_CHART_PRIMARY, primaryLight: LOGO_CHART_PRIMARY_LIGHT },
 }
+
+/** Fjernede logo-varianter mappes til sand. */
+const LEGACY_LOGO_PALETTE_TO_SAND = new Set([
+  'fjord',
+  'slate',
+  'sage',
+  'wine',
+  'nordic',
+])
 
 export function normalizeUiColorPaletteId(value: unknown): UiColorPaletteId {
   if (value === 'teal') return 'dark'
-  if (
-    value === 'green' ||
-    value === 'rose' ||
-    value === 'dark' ||
-    value === 'fjord' ||
-    value === 'sand' ||
-    value === 'slate' ||
-    value === 'sage' ||
-    value === 'wine'
-  )
-    return value
+  if (typeof value === 'string' && LEGACY_LOGO_PALETTE_TO_SAND.has(value)) return 'sand'
+  if (value === 'green' || value === 'rose' || value === 'dark' || value === 'sand') return value
   return 'default'
 }
 
@@ -111,16 +79,8 @@ export function ctaGradientForUiPalette(id: UiColorPaletteId): string {
       return 'linear-gradient(135deg, #A61E4D, #E64980)'
     case 'dark':
       return 'linear-gradient(135deg, #5c7cfa, #748ffc)'
-    case 'fjord':
-      return 'linear-gradient(135deg, #00334b, #004B6B)'
     case 'sand':
       return 'linear-gradient(135deg, #003f58, #004B6B)'
-    case 'slate':
-      return 'linear-gradient(135deg, #003045, #004B6B)'
-    case 'sage':
-      return 'linear-gradient(135deg, #003a4a, #004B6B)'
-    case 'wine':
-      return 'linear-gradient(135deg, #00161c, #004B6B)'
     default:
       return 'linear-gradient(135deg, #3B5BDB, #4C6EF5)'
   }
@@ -210,20 +170,6 @@ const EXPORT_TOKENS: Record<UiColorPaletteId, UiPaletteExportTokens> = {
     danger: '#E03131',
     ctaGradient: 'linear-gradient(135deg, #5c7cfa, #748ffc)',
   },
-  fjord: {
-    bg: '#f7fcfd',
-    surface: '#ffffff',
-    primary: '#004b6b',
-    primaryLight: '#2499b9',
-    primaryPale: '#e5f6fc',
-    accent: '#5ea3bf',
-    text: '#071922',
-    textMuted: '#5c6f7a',
-    border: '#cbe6f2',
-    success: '#0CA678',
-    danger: '#E03131',
-    ctaGradient: 'linear-gradient(135deg, #00334b, #004b6b)',
-  },
   sand: {
     bg: '#faf7f5',
     surface: '#ffffff',
@@ -237,48 +183,6 @@ const EXPORT_TOKENS: Record<UiColorPaletteId, UiPaletteExportTokens> = {
     success: '#0CA678',
     danger: '#E03131',
     ctaGradient: 'linear-gradient(135deg, #003f58, #004b6b)',
-  },
-  slate: {
-    bg: '#eef6fb',
-    surface: '#ffffff',
-    primary: '#004b6b',
-    primaryLight: '#2499b9',
-    primaryPale: '#dceff7',
-    accent: '#4d92af',
-    text: '#071922',
-    textMuted: '#5c6f7a',
-    border: '#b8d4e4',
-    success: '#0CA678',
-    danger: '#E03131',
-    ctaGradient: 'linear-gradient(135deg, #003045, #004b6b)',
-  },
-  sage: {
-    bg: '#f2faf9',
-    surface: '#ffffff',
-    primary: '#004b6b',
-    primaryLight: '#2499b9',
-    primaryPale: '#e2f6f6',
-    accent: '#4db0ba',
-    text: '#071922',
-    textMuted: '#5c6f7a',
-    border: '#c0e5e3',
-    success: '#0CA678',
-    danger: '#E03131',
-    ctaGradient: 'linear-gradient(135deg, #003a4a, #004b6b)',
-  },
-  wine: {
-    bg: '#e1eef6',
-    surface: '#ffffff',
-    primary: '#004b6b',
-    primaryLight: '#2499b9',
-    primaryPale: '#d2ebf7',
-    accent: '#3c89a6',
-    text: '#071922',
-    textMuted: '#5c6f7a',
-    border: '#9ec4d8',
-    success: '#0CA678',
-    danger: '#E03131',
-    ctaGradient: 'linear-gradient(135deg, #00161c, #004b6b)',
   },
 }
 

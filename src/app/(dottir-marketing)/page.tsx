@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import RecoveryHashRedirect from '@/components/auth/RecoveryHashRedirect'
-import DottirLanding from '@/components/marketing/DottirLanding'
-import { DottirSmoothScroll } from '@/components/marketing/DottirSmoothScroll'
+import DottirLandingV2 from '@/components/marketing/DottirLandingV2'
 import { TRIAL_OFFER_META_LINE } from '@/lib/marketing/trialCampaignCopy'
 import { getSiteUrl } from '@/lib/site-url'
 
@@ -35,11 +34,9 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <DottirSmoothScroll>
-      <div className="min-h-screen overflow-x-hidden" style={{ background: 'var(--bg)' }}>
-        <RecoveryHashRedirect />
-        <DottirLanding />
-      </div>
-    </DottirSmoothScroll>
+    <>
+      <RecoveryHashRedirect />
+      <DottirLandingV2 />
+    </>
   )
 }

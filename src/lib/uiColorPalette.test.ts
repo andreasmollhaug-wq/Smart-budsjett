@@ -14,11 +14,15 @@ describe('normalizeUiColorPaletteId', () => {
     expect(normalizeUiColorPaletteId('green')).toBe('green')
     expect(normalizeUiColorPaletteId('rose')).toBe('rose')
     expect(normalizeUiColorPaletteId('dark')).toBe('dark')
-    expect(normalizeUiColorPaletteId('fjord')).toBe('fjord')
     expect(normalizeUiColorPaletteId('sand')).toBe('sand')
-    expect(normalizeUiColorPaletteId('slate')).toBe('slate')
-    expect(normalizeUiColorPaletteId('sage')).toBe('sage')
-    expect(normalizeUiColorPaletteId('wine')).toBe('wine')
+  })
+
+  it('mapper fjernede logo-varianter til sand', () => {
+    expect(normalizeUiColorPaletteId('fjord')).toBe('sand')
+    expect(normalizeUiColorPaletteId('slate')).toBe('sand')
+    expect(normalizeUiColorPaletteId('sage')).toBe('sand')
+    expect(normalizeUiColorPaletteId('wine')).toBe('sand')
+    expect(normalizeUiColorPaletteId('nordic')).toBe('sand')
   })
 
   it('mapper legacy teal til dark', () => {
@@ -27,7 +31,7 @@ describe('normalizeUiColorPaletteId', () => {
 })
 
 describe('uiPaletteCssVarsForExport', () => {
-  it('returnerer tokens for default og dark', async () => {
+  it('returnerer tokens for default, dark og sand', async () => {
     const { uiPaletteCssVarsForExport, ctaGradientForUiPalette } = await import('./uiColorPalette')
     const def = uiPaletteCssVarsForExport('default')
     expect(def['--primary']).toBe('#3B5BDB')
@@ -36,5 +40,9 @@ describe('uiPaletteCssVarsForExport', () => {
     const dark = uiPaletteCssVarsForExport('dark')
     expect(dark['--text']).toBe('#e9ecef')
     expect(dark['--cta-gradient']).toBe(ctaGradientForUiPalette('dark'))
+
+    const sand = uiPaletteCssVarsForExport('sand')
+    expect(sand['--bg']).toBe('#faf7f5')
+    expect(sand['--primary']).toBe('#004b6b')
   })
 })

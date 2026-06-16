@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
@@ -30,12 +30,36 @@ function navAuthLinkClass() {
   return 'inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-sm font-medium touch-manipulation sm:px-4'
 }
 
-export default function DottirLandingHeader({ variant = 'default' }: { variant?: DottirLandingHeaderVariant }) {
+type Props = {
+  variant?: DottirLandingHeaderVariant
+  /** Lys tekst og gjennomsiktig bar — over fullskjerm hero-bilde. */
+  overHero?: boolean
+  /**
+   * Fast header som henger litt ved scroll, deretter glir bort.
+   * Brukes på v2-forside der header ikke skal følge hero-seksjonens sticky-grense.
+   */
+  fadeOnScroll?: boolean
+}
+
+/** Scroll før header begynner å skjule seg; deretter gradvis over `fadeRange` px. */
+const SCROLL_FADE_START_PX = 56
+const SCROLL_FADE_RANGE_PX = 200
+
+export default function DottirLandingHeader({
+  variant = 'default',
+  overHero = false,
+  fadeOnScroll = false,
+}: Props) {
+  const navMutedColor = overHero ? 'rgba(255,255,255,0.88)' : 'var(--text-muted)'
+  const iconButtonStyle = overHero
+    ? { color: '#fff', border: '1px solid rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.1)' }
+    : { color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }
   const [mounted, setMounted] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [moreMenuPos, setMoreMenuPos] = useState<MoreMenuPosition | null>(null)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
+  const [scrollHideProgress, setScrollHideProgress] = useState(0)
 
   const closeDrawer = () => setDrawerOpen(false)
   const closeMore = () => setMoreOpen(false)
@@ -43,6 +67,27 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!fadeOnScroll) return
+
+    const onScroll = () => {
+      if (drawerOpen || moreOpen) {
+        setScrollHideProgress(0)
+        return
+      }
+      const y = window.scrollY
+      const progress =
+        y <= SCROLL_FADE_START_PX
+          ? 0
+          : Math.min(1, (y - SCROLL_FADE_START_PX) / SCROLL_FADE_RANGE_PX)
+      setScrollHideProgress(progress)
+    }
+
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [fadeOnScroll, drawerOpen, moreOpen])
 
   const syncMoreMenuPosition = useCallback(() => {
     const button = moreButtonRef.current
@@ -261,13 +306,13 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
     ) : null
 
   const produktDesktop = (
-    <a href={LANDING_NAV_PRODUKT.href} className={navAuthLinkClass()} style={{ color: 'var(--text-muted)' }}>
+    <a href={LANDING_NAV_PRODUKT.href} className={navAuthLinkClass()} style={{ color: navMutedColor }}>
       {LANDING_NAV_PRODUKT.label}
     </a>
   )
 
   const loginDesktop = (
-    <Link href={LOGIN_HREF} className={navAuthLinkClass()} style={{ color: 'var(--text-muted)' }}>
+    <Link href={LOGIN_HREF} className={navAuthLinkClass()} style={{ color: navMutedColor }}>
       Logg inn
     </Link>
   )
@@ -276,14 +321,14 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
     <Link
       href={LOGIN_HREF}
       className="inline-flex min-h-[44px] shrink-0 touch-manipulation items-center justify-center whitespace-nowrap rounded-lg px-2 py-2 text-xs font-medium sm:px-3 sm:text-sm lg:hidden"
-      style={{ color: 'var(--text-muted)' }}
+      style={{ color: navMutedColor }}
     >
       Logg inn
     </Link>
   )
 
   const omOssDesktop = (
-    <Link href={DOTTIR_OM_OSS_HREF} className={navAuthLinkClass()} style={{ color: 'var(--text-muted)' }}>
+    <Link href={DOTTIR_OM_OSS_HREF} className={navAuthLinkClass()} style={{ color: navMutedColor }}>
       Om oss
     </Link>
   )
@@ -293,7 +338,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
       type="button"
       onClick={() => setDrawerOpen((o) => !o)}
       className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl transition-colors hover:opacity-90 lg:hidden"
-      style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+      style={iconButtonStyle}
       aria-expanded={drawerOpen}
       aria-controls="dottir-landing-nav"
       aria-label={drawerOpen ? 'Lukk meny' : 'Åpne meny'}
@@ -313,7 +358,7 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
           setMoreOpen((o) => !o)
         }}
         className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl transition-colors hover:opacity-90"
-        style={{ color: 'var(--text)', border: '1px solid var(--border)', background: 'var(--bg)' }}
+        style={iconButtonStyle}
         aria-expanded={moreOpen}
         aria-haspopup="menu"
         aria-controls="dottir-landing-more"
@@ -360,15 +405,29 @@ export default function DottirLandingHeader({ variant = 'default' }: { variant?:
   )
 
   const maxW = variant === 'centerNav' ? 'max-w-7xl' : 'max-w-5xl'
+  const headerHidden = fadeOnScroll && scrollHideProgress >= 0.98
+  const headerMotionStyle: CSSProperties | undefined = fadeOnScroll
+    ? {
+        transform: `translate3d(0, -${scrollHideProgress * 100}%, 0)`,
+        transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+        pointerEvents: scrollHideProgress > 0.85 ? 'none' : 'auto',
+      }
+    : undefined
 
   return (
     <>
       <header
-        className="sticky top-0 z-50 border-b backdrop-blur-md"
+        className={`${fadeOnScroll ? 'fixed left-0 right-0 top-0' : 'sticky top-0'} z-50 border-b backdrop-blur-md${overHero ? ' border-white/15' : ''}`}
         style={{
-          background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
-          borderColor: 'var(--border)',
+          ...(overHero
+            ? { background: 'rgba(0,0,0,0.28)', borderColor: 'rgba(255,255,255,0.15)' }
+            : {
+                background: 'color-mix(in srgb, var(--surface) 92%, transparent)',
+                borderColor: 'var(--border)',
+              }),
+          ...headerMotionStyle,
         }}
+        aria-hidden={headerHidden}
       >
         <div
           className={`mx-auto flex min-w-0 items-center justify-between gap-1.5 overflow-x-hidden py-3 sm:gap-3 sm:py-3 lg:gap-4 ${maxW} ${landingHorizontalPadding}`}

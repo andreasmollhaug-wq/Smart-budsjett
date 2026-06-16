@@ -5,17 +5,16 @@ import {
 } from '@/components/marketing/constants'
 
 /** I header: alltid synlig (desktop). */
-export const LANDING_NAV_PRODUKT = { href: '#produkt', label: 'Produktet' } as const
+export const LANDING_NAV_PRODUKT = { href: '#oversikt', label: 'Produktet' } as const
 
 /** I header: hamburger / «Mer»-meny (ikke «Om oss» / «Produktet» — de står i hovedraden). */
 export const LANDING_NAV_MORE = [
   { href: '#priser', label: 'Priser' },
   { href: '#faq', label: 'FAQ' },
   { href: DOTTIR_UTFORSK_HREF, label: 'Utforsk alt' },
-  { href: '#kjerne', label: 'Kjerne' },
-  { href: '#problem', label: 'Problem' },
-  { href: '#verdi', label: 'Verdi' },
-  { href: '#malgruppe', label: 'Målgruppe' },
+  { href: '#oversikt', label: 'Oversikt' },
+  { href: '#mer-enn-budsjett', label: 'Mer enn budsjett' },
+  { href: '#okonomiguide', label: 'Økonomiguide' },
 ] as const
 
 /** Full liste i logisk rekkefølge (tidligere enkeltarray). */
@@ -24,11 +23,10 @@ export const NAV = [
   { href: '#priser', label: 'Priser' },
   { href: '#faq', label: 'FAQ' },
   { href: DOTTIR_UTFORSK_HREF, label: 'Utforsk alt' },
-  { href: '#kjerne', label: 'Kjerne' },
+  { href: '#oversikt', label: 'Oversikt' },
+  { href: '#mer-enn-budsjett', label: 'Mer enn budsjett' },
+  { href: '#okonomiguide', label: 'Økonomiguide' },
   LANDING_NAV_PRODUKT,
-  { href: '#problem', label: 'Problem' },
-  { href: '#verdi', label: 'Verdi' },
-  { href: '#malgruppe', label: 'Målgruppe' },
 ] as const
 
 /** Korte «grep» som gjør siden mer interessant å skanne */
