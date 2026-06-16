@@ -305,7 +305,7 @@ export function reconcileCreditorRegistryChecklist(
     overridesChanged = true
   }
 
-  let next: CreditorRegistryState = {
+  const next: CreditorRegistryState = {
     ...state,
     prefs,
     checklistOverrides: overridesChanged
