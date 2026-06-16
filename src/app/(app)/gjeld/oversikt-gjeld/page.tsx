@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Header from '@/components/layout/Header'
 import GjeldSubnav from '@/components/debt/GjeldSubnav'
-import CreditorRegistryInfoButton from '@/components/debt/creditorRegistry/CreditorRegistryInfoButton'
 import CreditorRegistrySetupChecklist from '@/components/debt/creditorRegistry/CreditorRegistrySetupChecklist'
 import CreditorRegistryKpiRow from '@/components/debt/creditorRegistry/CreditorRegistryKpiRow'
 import CreditorRegistryToolbar from '@/components/debt/creditorRegistry/CreditorRegistryToolbar'
@@ -234,13 +233,10 @@ export default function OversiktGjeldPage() {
       <Header title="Gjeld" subtitle="Oversikt gjeld — gruppert etter kreditor" />
       <GjeldSubnav />
       <div className={`flex-1 min-w-0 w-full space-y-4 sm:space-y-6 ${contentPadding}`}>
-        <div className="flex items-center justify-end gap-2 min-w-0">
-          <CreditorRegistryInfoButton />
-        </div>
-
         <CreditorRegistrySetupChecklist
           state={creditorRegistry}
           readOnly={readOnly}
+          formatNOK={formatNOK}
           onCta={handleChecklistCta}
           onManualComplete={handleManualComplete}
           onDismiss={() => setCreditorRegistryPrefs({ checklistDismissed: true, checklistCollapsed: false })}

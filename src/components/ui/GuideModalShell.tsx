@@ -10,10 +10,19 @@ type Props = {
   title: string
   titleId: string
   children: ReactNode
+  /** Tailwind max-width class for bredere veiledning (f.eks. demo-visning). */
+  panelClassName?: string
 }
 
 /** Felles modal for veiledning og FAQ — mobil (bottom sheet) og desktop (sentrert). */
-export default function GuideModalShell({ open, onClose, title, titleId, children }: Props) {
+export default function GuideModalShell({
+  open,
+  onClose,
+  title,
+  titleId,
+  children,
+  panelClassName,
+}: Props) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -47,7 +56,7 @@ export default function GuideModalShell({ open, onClose, title, titleId, childre
     >
       <div
         data-testid="guide-modal-panel"
-        className="flex w-full max-w-lg min-w-0 max-h-[min(90dvh,90vh)] flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-lg"
+        className={`flex w-full min-w-0 max-h-[min(90dvh,90vh)] flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl shadow-lg ${panelClassName ?? 'max-w-lg'}`}
         style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',

@@ -15,10 +15,13 @@ import {
 import { normalizeCreditorRegistryPrefs } from '@/lib/creditorRegistry/prefs'
 import type { CreditorRegistryChecklistStepId, CreditorRegistryState } from '@/lib/creditorRegistry/types'
 import CreditorRegistryChecklistDetailModal from './CreditorRegistryChecklistDetailModal'
+import CreditorRegistryInfoModal from './CreditorRegistryInfoModal'
+import CreditorRegistryInfoTrigger from './CreditorRegistryInfoTrigger'
 
 type Props = {
   state: CreditorRegistryState
   readOnly: boolean
+  formatNOK: (n: number) => string
   onCta: (kind: CreditorRegistryChecklistCtaKind, item: CreditorRegistryChecklistItem) => void
   onManualComplete: (stepId: CreditorRegistryChecklistStepId) => void
   onDismiss: () => void
@@ -30,6 +33,7 @@ type Props = {
 export default function CreditorRegistrySetupChecklist({
   state,
   readOnly,
+  formatNOK,
   onCta,
   onManualComplete,
   onDismiss,
@@ -39,6 +43,7 @@ export default function CreditorRegistrySetupChecklist({
 }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [modalItem, setModalItem] = useState<CreditorRegistryChecklistItem | null>(null)
+  const [infoOpen, setInfoOpen] = useState(false)
 
   const items = useMemo(() => buildCreditorRegistryChecklist(state), [state])
   const nextStep = useMemo(() => getNextCreditorRegistryChecklistStep(items), [items])
@@ -51,6 +56,10 @@ export default function CreditorRegistrySetupChecklist({
     if (readOnly) return
     onCta(item.ctaKind, item)
   }
+
+  const infoModal = (
+    <CreditorRegistryInfoModal open={infoOpen} onClose={() => setInfoOpen(false)} formatNOK={formatNOK} />
+  )
 
   const detailModal = (
     <CreditorRegistryChecklistDetailModal
@@ -85,15 +94,19 @@ export default function CreditorRegistrySetupChecklist({
               </span>
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onRestore}
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-medium touch-manipulation shrink-0"
-            style={{ background: 'var(--primary)', color: '#fff' }}
-          >
-            Vis kom i gang
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <CreditorRegistryInfoTrigger compact onClick={() => setInfoOpen(true)} />
+            <button
+              type="button"
+              onClick={onRestore}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl px-4 text-sm font-medium touch-manipulation shrink-0"
+              style={{ background: 'var(--primary)', color: '#fff' }}
+            >
+              Vis kom i gang
+            </button>
+          </div>
         </div>
+        {infoModal}
         {detailModal}
       </>
     )
@@ -141,6 +154,7 @@ export default function CreditorRegistrySetupChecklist({
             </div>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
+            <CreditorRegistryInfoTrigger compact onClick={() => setInfoOpen(true)} />
             {!readOnly && !allDone && nextStep && (
               <button
                 type="button"
@@ -162,6 +176,7 @@ export default function CreditorRegistrySetupChecklist({
             </button>
           </div>
         </div>
+        {infoModal}
         {detailModal}
       </>
     )
@@ -176,9 +191,12 @@ export default function CreditorRegistrySetupChecklist({
       >
         <div className="flex items-start justify-between gap-3 min-w-0">
           <div className="min-w-0 flex-1">
-            <h2 className="font-semibold text-base" style={{ color: 'var(--text)' }}>
-              Kom i gang
-            </h2>
+            <div className="flex items-center gap-1 min-w-0">
+              <h2 className="font-semibold text-base" style={{ color: 'var(--text)' }}>
+                Kom i gang
+              </h2>
+              <CreditorRegistryInfoTrigger compact onClick={() => setInfoOpen(true)} />
+            </div>
             <p className="text-xs sm:text-sm mt-1 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Følg stegene for å bygge oversikten. Du kan minimere eller skjule når du vil jobbe videre.
             </p>
@@ -355,6 +373,7 @@ export default function CreditorRegistrySetupChecklist({
         )}
       </section>
 
+      {infoModal}
       {detailModal}
     </>
   )
