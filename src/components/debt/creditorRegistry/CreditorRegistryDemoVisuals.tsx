@@ -63,7 +63,7 @@ export default function CreditorRegistryDemoVisuals({ formatNOK }: Props) {
         <strong style={{ color: 'var(--text)' }}>Fiktivt eksempel</strong> — {creditorRegistryDemoCopy.demoBanner}
       </p>
 
-      <CreditorRegistryKpiRow overview={CREDITOR_REGISTRY_DEMO_OVERVIEW} formatNOK={formatNOK} />
+      <CreditorRegistryKpiRow overview={CREDITOR_REGISTRY_DEMO_OVERVIEW} formatNOK={formatNOK} compact />
 
       <div className="space-y-2 min-w-0">
         <p className="text-xs font-medium m-0 px-0.5" style={{ color: 'var(--text-muted)' }}>
