@@ -84,12 +84,12 @@ const ROUTE_SUGGESTIONS: { prefix: string; questions: string[] }[] = [
     questions: ['Hvordan fungerer HjemFlyt for barn?', 'Sette opp oppgaver og poeng'],
   },
   {
-    prefix: '/intern/mat-handleliste',
-    questions: ['Planlegge ukehandel — hvor starter jeg?', 'Kan handlelisten deles?'],
-  },
-  {
     prefix: '/intern/enkel-handleliste',
-    questions: ['Hvordan bruker jeg maler på handlelisten?', 'Hva viser analyse-fanen?'],
+    questions: [
+      'Hvordan bruker jeg butikkmodus?',
+      'Hvordan bruker jeg maler på handlelisten?',
+      'Hva viser innsikt-fanen?',
+    ],
   },
   {
     prefix: '/dashboard',

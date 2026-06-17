@@ -117,12 +117,12 @@ const SHOWCASE_BY_HREF: Record<string, ShowcaseCopy> = {
     when: 'Flytting, sesongbytte, eller når samme gjøremål dukker opp uke etter uke.',
     outcome: 'Mer orden med mindre mental last — dere drar lasset sammen.',
   },
-  '/intern/mat-handleliste/handleliste': {
+  '/intern/enkel-handleliste': {
     category: 'hverdag',
-    hook: 'Handleliste som henger sammen med resten av livet (og lommeboka).',
-    what: 'Planlegg handel og behold oversikt slik at butikken ikke ødelegger uka.',
-    when: 'Før helghandel, storhandel eller når matbudsjettet skal ned uten dramatikk.',
-    outcome: 'Mindre impulskjøp og færre «glemte» ting som koster ekstra turer.',
+    hook: 'Handleliste som er enkel nok til at du faktisk bruker den.',
+    what: 'Søk blant vanlige varer, huk av i butikkmodus og lagre lister — med valgfrie maler og innsikt.',
+    when: 'Før helghandel, storhandel eller når du vil unngå impulskjøp og ekstra turer.',
+    outcome: 'Mindre mental last og færre «glemte» ting på butikken.',
   },
   [RENOVATION_PROJECT_BASE_PATH]: {
     category: 'hverdag',

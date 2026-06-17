@@ -58,8 +58,8 @@ Startveiledning (første gangs oppsett, 6 steg)
 - «Hopp over» avslutter veiledningen uten alle steg.
 - Utvidet valgfri guide (anbefalt rekkefølge, moduler, tips): /konto/kom-i-gang — også lenket fra siste steg i startveiledningen og fra Min konto → Innstillinger.
 - Kom i gang-siden (/konto/kom-i-gang) er en utvidet reise i anbefalt rekkefølge: (1) budsjettår og hovedinntekt, (2) budsjett linje for linje, (3) transaksjoner for faktiske tall, (4) oversikten, (5) sparing/gjeld/snøball, (6) rapporter, investering og dottir AI — pluss valgfri dybde om Formuebyggeren PRO.
-- Mat og handleliste (/intern/mat-handleliste/start m.fl.) har «Vis meg rundt»: kort spotlight-omvisning (måltider → plan → handleliste og fanemeny). «Utvidet gjennomgang» (fra Start og header i modulen) går dypere på blant annet uke/måned-plan, hurtighandlinger, innstillinger og handleliste. Sidefelt «Handleliste» peker på mat-handlelisten inntil enkel handleliste lanseres i meny.
-- Enkel handleliste (intern, /intern/enkel-handleliste): mobil handleliste med søk (~250 varer), globale maler (/intern/enkel-handleliste/maler), analyse topp 10 (/intern/enkel-handleliste/analyse), butikkmodus og Familie-deling — ikke i hovedmeny ennå.
+- **Handleliste** (/intern/enkel-handleliste): enkel handleliste i sidefeltet — søk blant ~250 varer, huk av i butikkmodus (skjermen holdes våken), globale maler (/intern/enkel-handleliste/maler), innsikt topp 10 (/intern/enkel-handleliste/analyse), deling i Familie-abonnement. Lim inn mange varer fra SMS, rist for å sortere ferdige nederst.
+- Eldre mat-handleliste (/intern/mat-handleliste/*) er ikke lenger i menyen; koden er beholdt internt men videresendes til enkel handleliste.
 - **Sparing → Analyse** (/sparing/analyse) har også «Vis meg rundt» ved sidetittelen (egen omvisning med forklaring av KPI og grafer på analysen).
 
 Demodata
