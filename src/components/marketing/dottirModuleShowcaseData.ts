@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
+import { FORUM_BASE_PATH } from '@/lib/forum/constants'
 import { SIDEBAR_NAV } from '@/lib/sidebarNav'
 
 export type DottirShowcaseCategoryId = 'alle' | 'okonomi' | 'hverdag' | 'innsikt'
@@ -60,6 +61,20 @@ const SHOWCASE_BY_HREF: Record<string, ShowcaseCopy> = {
     when: 'Når du vil prioritere nedbetaling uten å glemme vanlig drift.',
     outcome: 'Tydeligere vei ut av gjeld, med mindre mental støy.',
   },
+  '/gjeld/kalkulator': {
+    category: 'okonomi',
+    hook: 'Se hva boliglånet faktisk koster — før du signerer.',
+    what: 'Regn ut månedsbeløp, renter og total kostnad for boliglån med ulike forutsetninger.',
+    when: 'Når du vurderer kjøp eller refinansiering, eller vil teste hvordan en renteendring slår ut.',
+    outcome: 'Tryggere lånevalg basert på tall, ikke magefølelse.',
+  },
+  '/gjeld/studielan-kalkulator': {
+    category: 'okonomi',
+    hook: 'Studielånet ned i tempoet som passer livet ditt.',
+    what: 'Beregn nedbetaling av studielån med ulike renter og terminbeløp.',
+    when: 'Når du planlegger nedbetaling eller vil se effekten av å betale litt ekstra.',
+    outcome: 'Realistisk plan for når studielånet er ute av livet.',
+  },
   '/abonnementer': {
     category: 'okonomi',
     hook: 'Finn det som lekker ut måned etter måned uten at du merker det.',
@@ -116,17 +131,37 @@ const SHOWCASE_BY_HREF: Record<string, ShowcaseCopy> = {
     when: 'Renovering, vedlikehold eller større oppgraderinger hvor kostnader og oppgaver stables.',
     outcome: 'Kontroll på både gjøremål og forventet belastning — færre dyre overraskelser.',
   },
+  [FORUM_BASE_PATH]: {
+    category: 'hverdag',
+    hook: 'Du er ikke alene om økonomien — spør og del med andre.',
+    what: 'Et sted å stille spørsmål, dele erfaringer og lære av andre i samme situasjon.',
+    when: 'Når du står fast, vil ha råd, eller bare vil høre hvordan andre løste det.',
+    outcome: 'Mindre alene-følelse og praktiske tips fra folk som har vært der.',
+  },
 }
 
-function ensureAllShowcaseKeys(): void {
-  for (const item of SIDEBAR_NAV) {
-    if (!SHOWCASE_BY_HREF[item.href]) {
-      throw new Error(`dottirModuleShowcaseData: mangler kopitekst for ${item.href} (${item.label})`)
-    }
+function missingShowcaseKeys(): { href: string; label: string }[] {
+  return SIDEBAR_NAV.filter((item) => !SHOWCASE_BY_HREF[item.href]).map((item) => ({
+    href: item.href,
+    label: item.label,
+  }))
+}
+
+/**
+ * I dev/test kaster vi tidlig hvis en sidebar-modul mangler kopitekst, så det fanges før prod.
+ * I produksjon skal en glemt modul aldri ta ned den offentlige /utforsk-siden — vi hopper heller
+ * over den (se filter i `DOTTIR_SHOWCASE_MODULES`).
+ */
+if (process.env.NODE_ENV !== 'production') {
+  const missing = missingShowcaseKeys()
+  if (missing.length > 0) {
+    throw new Error(
+      `dottirModuleShowcaseData: mangler kopitekst for ${missing
+        .map((m) => `${m.href} (${m.label})`)
+        .join(', ')}`,
+    )
   }
 }
-
-ensureAllShowcaseKeys()
 
 export type DottirShowcaseModule = {
   href: string
@@ -139,7 +174,9 @@ export type DottirShowcaseModule = {
   outcome: string
 }
 
-export const DOTTIR_SHOWCASE_MODULES: DottirShowcaseModule[] = SIDEBAR_NAV.map((item) => {
+export const DOTTIR_SHOWCASE_MODULES: DottirShowcaseModule[] = SIDEBAR_NAV.filter(
+  (item) => SHOWCASE_BY_HREF[item.href],
+).map((item) => {
   const copy = SHOWCASE_BY_HREF[item.href]!
   return {
     href: item.href,

@@ -5,6 +5,9 @@ node_modules
 .next
 out
 
+# nested duplikat-build (lokal eksperiment, skal ikke committes eller typesjekkes)
+/Smart_Budsjett-clean-build/
+
 # typescript incremental (stale file list can break next build)
 *.tsbuildinfo
 
@@ -30,3 +33,5 @@ npm-debug.log*
 supabase/.temp/
 
 .vercel
+
+certificates
