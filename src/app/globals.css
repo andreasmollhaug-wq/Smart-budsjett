@@ -194,3 +194,23 @@ body {
   outline: none !important;
 }
 
+/* ── Enkel handleliste (intern modul) — scopede animasjoner ───────────── */
+@keyframes eh-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes eh-sheet-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes eh-pop {
+  0% { transform: scale(0.6); }
+  55% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .eh-anim-fade { animation: eh-fade-in 0.16s ease-out; }
+  .eh-anim-sheet { animation: eh-sheet-up 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+  .eh-anim-pop { animation: eh-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1); }
+}
+

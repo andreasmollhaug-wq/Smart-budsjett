@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { RENOVATION_PROJECT_BASE_PATH } from '@/features/renovation-project/paths'
 import { FORUM_BASE_PATH } from '@/lib/forum/constants'
+import { HANDLELISTE_NAV_HREF, isHandlelisteNavActive } from '@/features/enkelHandleliste/handlelisteNav'
 
 /** Boliglånskalkulator — egen rute under Gjeld. */
 export const BOLIGLAN_KALKULATOR_HREF = '/gjeld/kalkulator'
@@ -61,7 +62,7 @@ export const SIDEBAR_NAV_DETAILED: SidebarNavItem[] = [
   { href: '/dashboard', label: 'Oversikt', icon: LayoutDashboard },
   { href: '/budsjett', label: 'Budsjett', icon: Wallet },
   { href: '/transaksjoner', label: 'Transaksjoner', icon: Receipt },
-  { href: '/intern/mat-handleliste/handleliste', label: 'Handleliste', icon: ShoppingCart },
+  { href: HANDLELISTE_NAV_HREF, label: 'Handleliste', icon: ShoppingCart },
   { href: '/sparing', label: 'Sparing', icon: PiggyBank },
   { href: '/gjeld', label: 'Gjeld', icon: CreditCard },
   { href: BOLIGLAN_KALKULATOR_HREF, label: 'Boliglånskalkulator', icon: Calculator },
@@ -95,7 +96,7 @@ export const SIDEBAR_GROUPS_SIMPLE: SidebarNavGroup[] = [
       item('/dashboard'),
       item('/budsjett'),
       item('/transaksjoner'),
-      item('/intern/mat-handleliste/handleliste'),
+      item(HANDLELISTE_NAV_HREF),
       item('/abonnementer'),
     ],
   },
@@ -145,7 +146,7 @@ export function isSidebarNavActive(pathname: string, href: string): boolean {
   if (href === '/abonnementer') return pathname.startsWith('/abonnementer')
   if (href === '/transaksjoner') return pathname.startsWith('/transaksjoner')
   if (href === '/hjemflyt/start') return pathname.startsWith('/hjemflyt')
-  if (href === '/intern/mat-handleliste/handleliste') return pathname.startsWith('/intern/mat-handleliste')
+  if (href === HANDLELISTE_NAV_HREF) return isHandlelisteNavActive(pathname)
   if (href === RENOVATION_PROJECT_BASE_PATH) return pathname.startsWith(RENOVATION_PROJECT_BASE_PATH)
   if (href === FORUM_BASE_PATH) return pathname.startsWith(FORUM_BASE_PATH)
   return pathname === href
